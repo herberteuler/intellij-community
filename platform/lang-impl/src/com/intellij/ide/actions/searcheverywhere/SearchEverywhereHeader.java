@@ -38,6 +38,7 @@ import java.util.stream.Stream;
 
 import static com.intellij.ide.actions.searcheverywhere.SearchEverywhereFiltersStatisticsCollector.ContributorFilterCollector;
 import static com.intellij.ide.actions.searcheverywhere.statistics.SearchEverywhereUsageTriggerCollector.getReportableContributorID;
+import static com.intellij.openapi.actionSystem.IdeActions.ACTION_FIND_USAGES;
 
 @ApiStatus.Internal
 public final class SearchEverywhereHeader {
@@ -62,10 +63,15 @@ public final class SearchEverywhereHeader {
     myScopeChangedCallback = scopeChangedCallback;
     myProject = project;
     myShortcutSupplier = shortcutSupplier;
-    myTabs = createTabs(contributors);
+    myTabs = createTabs(contributors, ui);
     mySelectedTab = myTabs.get(0);
     myToolbar = createToolbar(showInFindToolWindowAction);
     header = ExperimentalUI.isNewUI() ? createNewUITabs() : createHeader();
+
+    if (showInFindToolWindowAction != null) {
+      AnAction anAction = ActionManager.getInstance().getAction(ACTION_FIND_USAGES);
+      showInFindToolWindowAction.registerCustomShortcutSet(anAction.getShortcutSet(), ui);
+    }
 
     ApplicationManager.getApplication().getMessageBus().connect(ui).subscribe(AnActionListener.TOPIC, new AnActionListener() {
       @Override
@@ -183,7 +189,8 @@ public final class SearchEverywhereHeader {
     return newUIHeaderView.panel;
   }
 
-  private List<SETab> createTabs(List<SearchEverywhereContributor<?>> contributors) {
+  private List<SETab> createTabs(List<SearchEverywhereContributor<?>> contributors,
+                                 SearchEverywhereUI ui) {
     List<SETab> result = new ArrayList<>();
 
     contributors = contributors.stream()
@@ -196,7 +203,7 @@ public final class SearchEverywhereHeader {
     };
 
     if (contributors.size() > 1) {
-      result.add(createAllTab(contributors, onChanged));
+      result.add(createAllTab(contributors, onChanged, ui));
     }
 
     List<SearchEverywhereContributor<?>> separateTabContributors;
@@ -324,7 +331,8 @@ public final class SearchEverywhereHeader {
     return new SETab(contributors.getFirst().getSearchProviderId(), contributors.getFirst().getGroupName(), contributors, actions, null);
   }
 
-  private @NotNull SETab createAllTab(List<? extends SearchEverywhereContributor<?>> contributors, @NotNull Runnable onChanged) {
+  private @NotNull SETab createAllTab(List<? extends SearchEverywhereContributor<?>> contributors, @NotNull Runnable onChanged,
+                                      SearchEverywhereUI ui) {
     String actionText = IdeUICustomization.getInstance().projectMessage("checkbox.include.non.project.items");
     PersistentSearchEverywhereContributorFilter<String> filter = createContributorsFilter(contributors);
     var contributorToEverywhereAction = new IdentityHashMap<SearchEverywhereContributor<?>, SearchEverywhereToggleAction>();
@@ -335,6 +343,11 @@ public final class SearchEverywhereHeader {
         contributorToEverywhereAction.put(c, everywhereAction);
       }
     }
+
+    AnAction previewAction = new PreviewAction();
+    KeyStroke keyStroke = KeyStroke.getKeyStroke("alt shift P");
+    ShortcutSet set = new CustomShortcutSet(new KeyboardShortcut(keyStroke, null));
+    previewAction.registerCustomShortcutSet(set, ui);
 
     List<AnAction> actions = List.of(new CheckBoxSearchEverywhereToggleAction(actionText) {
       final SearchEverywhereManagerImpl seManager = (SearchEverywhereManagerImpl)SearchEverywhereManager.getInstance(myProject);
@@ -364,7 +377,7 @@ public final class SearchEverywhereHeader {
         });
         onChanged.run();
       }
-    }, new PreviewAction(), new SearchEverywhereFiltersAction<>(filter, onChanged, new ContributorFilterCollector()));
+    }, previewAction, new SearchEverywhereFiltersAction<>(filter, onChanged, new ContributorFilterCollector()));
     return new SETab(SearchEverywhereManagerImpl.ALL_CONTRIBUTORS_GROUP_ID,
                      IdeBundle.message("searcheverywhere.all.elements.tab.name"),
                      contributors, actions, filter);

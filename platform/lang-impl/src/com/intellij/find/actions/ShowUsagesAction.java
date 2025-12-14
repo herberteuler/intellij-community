@@ -964,7 +964,8 @@ public final class ShowUsagesAction extends AnAction implements PopupAction, Hin
     filteringGroup.add(showOptionsActionGroup);
     filteringGroup.add(Separator.getInstance());
 
-    filteringGroup.add(new ToggleAction(UsageViewBundle.message("preview.usages.action.text"), null, AllIcons.Actions.PreviewDetailsVertically) {
+    ToggleAction previewAction = new ToggleAction(UsageViewBundle.message("preview.usages.action.text"),
+                                                  null, AllIcons.Actions.PreviewDetailsVertically) {
       @Override
       public boolean isSelected(@NotNull AnActionEvent e) {
         return properties.isValueSet(PREVIEW_PROPERTY_KEY);
@@ -985,7 +986,11 @@ public final class ShowUsagesAction extends AnAction implements PopupAction, Hin
           showElementUsages(parameters, actionHandler);
         }
       }
-    });
+    };
+    filteringGroup.add(previewAction);
+    KeyStroke keyStroke = KeyStroke.getKeyStroke("alt shift P");
+    ShortcutSet set = new CustomShortcutSet(new KeyboardShortcut(keyStroke, null));
+    previewAction.registerCustomShortcutSet(set, null, usageView);
 
     JPanel northPanel = new JPanel(new GridBagLayout());
     GridBag gc = new GridBag().nextLine();

@@ -5,6 +5,7 @@ import javax.swing.text.Highlighter.HighlightPainter;
 import javax.swing.text.JTextComponent;
 import javax.swing.text.Position;
 import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -17,7 +18,7 @@ final class DocumentationLinkHighlightPainter implements HighlightPainter {
 
   public static final HighlightPainter INSTANCE = new DocumentationLinkHighlightPainter();
 
-  private static final Stroke STROKE = new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1, new float[]{1}, 0);
+  private static final Stroke STROKE = new BasicStroke(5, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1, new float[]{8,2}, 0);
 
   private DocumentationLinkHighlightPainter() { }
 
@@ -28,7 +29,7 @@ final class DocumentationLinkHighlightPainter implements HighlightPainter {
       Graphics2D g2d = (Graphics2D)g.create();
       try {
         g2d.setStroke(STROKE);
-        g2d.setColor(c.getSelectionColor());
+        g2d.setColor(makeDarker(c.getSelectionColor()));
         g2d.drawRect(target.x, target.y, target.width - 1, target.height - 1);
       }
       finally {
@@ -38,5 +39,10 @@ final class DocumentationLinkHighlightPainter implements HighlightPainter {
     catch (Exception e) {
       LOG.warn("Error painting link highlight", e);
     }
+  }
+
+  private Color makeDarker(Color base) {
+    float[] hsb = Color.RGBtoHSB(base.getRed(), base.getGreen(), base.getBlue(), null);
+    return Color.getHSBColor(hsb[0], hsb[1], hsb[2] * 0.8f);
   }
 }

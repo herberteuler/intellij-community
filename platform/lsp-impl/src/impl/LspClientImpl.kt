@@ -94,7 +94,8 @@ class LspClientImpl internal constructor(
   internal val errorOutput: String?
     get() = errorOutputBuffer.toString().nullize()
 
-  internal val lsp4jServer: Lsp4jServer
+  @get:ApiStatus.Internal
+  val lsp4jServer: Lsp4jServer
     get() = lsp4jServerConnector.lsp4jServer
 
   internal val serverCapabilities: ServerCapabilities?

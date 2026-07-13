@@ -143,6 +143,10 @@
                      key="compose.inspection.image.resource.name"
                      level="ERROR"
                      shortName="ComposeResourcesImageResource"/>
+    <notificationGroup id="Compose resources SVG conversion"
+                       displayType="BALLOON"
+                       key="compose.svg.paste.dialog.group.name" />
+    <vfs.asyncListener implementation="com.intellij.compose.ide.plugin.resources.actions.svgPaste.ComposeResourcesSvgPasteListener"/>
   </extensions>
   <actions>
     <action id="compose.newVectorAsset"

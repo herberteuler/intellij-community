@@ -35,6 +35,12 @@ import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtPsiMutationService
 import org.jetbrains.kotlin.psi.KtUserType
 
+/**
+ * Important: this inspection intentionally does not report qualifiers which are redundant due to
+ * context-sensitive resolution (CSR) feature. See KTIJ-38137.
+ *
+ * There is a separate inspection for this - see [RedundantContextSensitiveResolutionQualifierInspection].
+ */
 internal class RemoveRedundantQualifierNameInspection : AbstractKotlinInspection(), CleanupLocalInspectionTool {
     override fun isAvailableForFile(file: PsiFile): Boolean =
         file.isNotInjectedOrShouldBeAnalyzed

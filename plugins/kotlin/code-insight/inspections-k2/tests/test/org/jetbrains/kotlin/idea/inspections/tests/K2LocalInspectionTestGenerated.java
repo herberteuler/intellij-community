@@ -19756,6 +19756,54 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
         }
 
         @RunWith(JUnit3RunnerWithInners.class)
+        @TestMetadata("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier")
+        public static class RedundantContextSensitiveResolutionQualifier extends AbstractK2LocalInspectionTest {
+            private void runTest(String testDataFilePath) throws Exception {
+                KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
+            }
+
+            @TestMetadata("enumEntryFeatureDisabled.kt")
+            public void testEnumEntryFeatureDisabled() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryFeatureDisabled.kt");
+            }
+
+            @TestMetadata("enumEntryInEquality.kt")
+            public void testEnumEntryInEquality() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryInEquality.kt");
+            }
+
+            @TestMetadata("enumEntryInFunctionParameter.kt")
+            public void testEnumEntryInFunctionParameter() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryInFunctionParameter.kt");
+            }
+
+            @TestMetadata("enumEntryInVariableDeclaration.kt")
+            public void testEnumEntryInVariableDeclaration() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryInVariableDeclaration.kt");
+            }
+
+            @TestMetadata("enumEntryInWhenCondition.kt")
+            public void testEnumEntryInWhenCondition() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryInWhenCondition.kt");
+            }
+
+            @TestMetadata("enumEntryNoExpectedType.kt")
+            public void testEnumEntryNoExpectedType() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryNoExpectedType.kt");
+            }
+
+            @TestMetadata("sealedSubclassInAsCast.kt")
+            public void testSealedSubclassInAsCast() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/sealedSubclassInAsCast.kt");
+            }
+
+            @TestMetadata("sealedSubclassInIsCheck.kt")
+            public void testSealedSubclassInIsCheck() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/sealedSubclassInIsCheck.kt");
+            }
+        }
+
+        @RunWith(JUnit3RunnerWithInners.class)
         @TestMetadata("testData/inspectionsLocal/redundantDestructuringRename")
         public static class RedundantDestructuringRename extends AbstractK2LocalInspectionTest {
             private void runTest(String testDataFilePath) throws Exception {

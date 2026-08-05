@@ -144,7 +144,7 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
           .mapValues { it.value.map(TestTasksToRun::testFilter).toSet() }
           .map { createTasksAndArguments(it.key, it.value) }
 
-        val existingConfiguration = findExistingConfigurationSettings(context, chosenTasksAndArguments)
+        val existingConfiguration = findExistingConfigurationSettings(context, chosenTasksAndArguments, runConfiguration)
         if (existingConfiguration != null) {
           configuration.configurationSettings = existingConfiguration
         }
@@ -174,9 +174,11 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
   private fun findExistingConfigurationSettings(
     context: ConfigurationContext,
     tasksAndArguments: List<GradleCommandLineTasks>,
+    configuration: GradleRunConfiguration
   ): RunnerAndConfigurationSettings? {
     val project = context.project ?: return null
     if (tasksAndArguments.isEmpty()) return null
+    val externalProjectPath = configuration.settings.externalProjectPath ?: return null
     val selectedTaskTokens = tasksAndArguments.map { it.tokens }
     return getConfigurationSettingsList(RunManager.getInstance(project))
       .firstOrNull { runnerAndConfigurationSettings ->
@@ -186,6 +188,7 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
         (isConfigurationCompatibleForSelectedTasks(existingConfiguration)
          && existingTaskTokens.size == selectedTaskTokens.sumOf { it.size }
          && isConsistedFrom(existingTaskTokens, selectedTaskTokens))
+         && externalProjectPath == existingConfiguration.settings.externalProjectPath
       }
   }
 

@@ -23,9 +23,6 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
 
   protected abstract fun getElement(context: ConfigurationContext): E?
 
-  /** Resolves the element again when possible and validates any fallback supplied by the original configuration. */
-  protected abstract fun getElementForFirstRun(context: ConfigurationContext, sourceElement: PsiElement): E?
-
   protected abstract fun getLocationName(context: ConfigurationContext, element: E): String
 
   protected abstract fun suggestConfigurationName(context: ConfigurationContext, element: E, chosenElements: List<Ex>): String
@@ -125,7 +122,7 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
 
   override fun onFirstRun(configuration: ConfigurationFromContext, context: ConfigurationContext, startRunnable: Runnable) {
     val project = context.project
-    val element = getElementForFirstRun(context, configuration.sourceElement)
+    val element = getElement(context)
     if (project == null || element == null) {
       LOG.warn("Cannot extract configuration data from context, uses raw run configuration")
       super.onFirstRun(configuration, context, startRunnable)

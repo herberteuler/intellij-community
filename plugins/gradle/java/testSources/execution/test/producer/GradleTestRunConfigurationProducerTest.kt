@@ -3,6 +3,7 @@ package org.jetbrains.plugins.gradle.execution.test.producer
 
 import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.execution.junit2.PsiMemberParameterizedLocation
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiDirectory
@@ -389,6 +390,35 @@ class GradleTestRunConfigurationProducerTest : GradleTestRunConfigurationProduce
   }
 
   @Test
+  fun `test producer does not reuse a configuration it does not recognize`() {
+    currentExternalProjectSettings.isResolveModulePerSourceSet = false
+    val projectData = generateAndImportTemplateProject()
+    val testClass = projectData["project"]["TestCase"].element
+    // The same tasks and arguments the producer generates, but without the producer's own marker.
+    val foreignConfiguration = createAndAddRunConfiguration(""":test --tests "TestCase"""")
+
+    runReadActionAndWait {
+      val context = getContextByLocation(testClass)
+      val producer = MarkedTestClassGradleConfigurationProducer()
+      // A single test task, so nothing is deferred and the plain existing configuration lookup applies.
+      // It rejects the foreign configuration, because the producer does not recognize it.
+      assertNull(producer.findExistingConfiguration(context))
+
+      val configurationFromContext = requireNotNull(producer.createConfigurationFromContext(context))
+      val createdConfiguration = configurationFromContext.configuration as GradleRunConfiguration
+      assertTrue(createdConfiguration.getUserData<Boolean>(MarkedTestClassGradleConfigurationProducer.MARKER) == true)
+
+      producer.onFirstRun(configurationFromContext, context) {}
+
+      // Matching task tokens alone must not be enough to substitute the foreign configuration,
+      // otherwise the run silently loses the producer's own configuration data.
+      assertNotSame(foreignConfiguration, configurationFromContext.configuration)
+      val runConfiguration = configurationFromContext.configuration as GradleRunConfiguration
+      assertTrue(runConfiguration.getUserData<Boolean>(MarkedTestClassGradleConfigurationProducer.MARKER) == true)
+    }
+  }
+
+  @Test
   fun `test multiple selected abstract tests`() {
     val projectData = generateAndImportTemplateProject()
     runReadActionAndWait {
@@ -633,5 +663,33 @@ class GradleTestRunConfigurationProducerTest : GradleTestRunConfigurationProduce
    */
   private class SelfManagedTestTasksClassGradleConfigurationProducer : TestClassGradleConfigurationProducer() {
     override fun usesBaseTestTasksChooser(): Boolean = false
+  }
+
+  /**
+   * Mimics the Android screenshot test producers, whose configurations are identified by their own
+   * transient data rather than by the task tokens alone.
+   */
+  private class MarkedTestClassGradleConfigurationProducer : TestClassGradleConfigurationProducer() {
+
+    override fun doSetupConfigurationFromContext(
+      configuration: GradleRunConfiguration,
+      context: ConfigurationContext,
+      sourceElement: Ref<PsiElement>,
+    ): Boolean {
+      val configured = super.doSetupConfigurationFromContext(configuration, context, sourceElement)
+      if (configured) {
+        configuration.putUserData<Boolean>(MARKER, true)
+      }
+      return configured
+    }
+
+    override fun doIsConfigurationFromContext(
+      configuration: GradleRunConfiguration,
+      context: ConfigurationContext,
+    ): Boolean = configuration.getUserData<Boolean>(MARKER) == true && super.doIsConfigurationFromContext(configuration, context)
+
+    companion object {
+      val MARKER: Key<Boolean> = Key.create("GradleTestRunConfigurationProducerTest.marker")
+    }
   }
 }

@@ -138,6 +138,10 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
       super.onFirstRun(configuration, context, startRunnable)
       return
     }
+    // [findExistingConfiguration] skipped the existing configuration lookup, so it has to be redone below, once the
+    // test tasks are known. Otherwise it already ran, and repeating it here would be wrong: the lookup below matches
+    // on task tokens alone, and so ignores the constraints a producer declares in [doIsConfigurationFromContext].
+    val canReuseExistingConfiguration = shouldDeferTestTaskSelection(context)
     val runConfiguration = configuration.configuration as GradleRunConfiguration
     val dataContext = contextWithLocationName(context.dataContext, getLocationName(context, element))
     chooseSourceElements(context, element) { elements ->
@@ -151,7 +155,10 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
           .mapValues { it.value.map(TestTasksToRun::testFilter).toSet() }
           .map { createTasksAndArguments(it.key, it.value) }
 
-        val existingConfiguration = findExistingConfigurationSettings(context, chosenTasksAndArguments, runConfiguration)
+        val existingConfiguration = when {
+          canReuseExistingConfiguration -> findExistingConfigurationSettings(context, chosenTasksAndArguments, runConfiguration)
+          else -> null
+        }
         if (existingConfiguration != null) {
           configuration.configurationSettings = existingConfiguration
         }

@@ -58,6 +58,10 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
    */
   private fun shouldDeferTestTaskSelection(context: ConfigurationContext): Boolean {
     if (!usesBaseTestTasksChooser()) return false
+    // Without a module the test tasks cannot be resolved (see getAllTestsTaskToRun). Some producers
+    // build a module-less context (e.g. the JS/Node test-run producers), so fall back to the plain
+    // existing configuration lookup instead of failing here (IDEA-384446).
+    if (context.module == null) return false
     val element = getElement(context) ?: return false
     return allTestsTaskToRun(context, element)
              .map { it.tasksToRun.testName }

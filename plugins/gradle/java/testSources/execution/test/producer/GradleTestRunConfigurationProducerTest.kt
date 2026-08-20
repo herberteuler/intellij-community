@@ -1,8 +1,13 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.gradle.execution.test.producer
 
+import com.intellij.execution.Location
+import com.intellij.execution.PsiLocation
 import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.execution.junit2.PsiMemberParameterizedLocation
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiClass
@@ -169,6 +174,29 @@ class GradleTestRunConfigurationProducerTest : GradleTestRunConfigurationProduce
       """:module:test""",
       projectData["module"].root
     )
+  }
+
+  @Test
+  fun `test existing configuration lookup for a module-less directory context does not fail`() {
+    val projectData = generateAndImportTemplateProject()
+    runReadActionAndWait {
+      val directory = projectData["project"].root
+      // Reproduces IDEA-384446: producers such as the JS/Node test-run producers build a
+      // ConfigurationContext from a project and a directory location, but without a module in the
+      // data context (see JsTestsRunConfigurationProducerTest). The existing-configuration lookup
+      // must tolerate the missing module instead of throwing a NullPointerException.
+      val dataContext = SimpleDataContext.builder()
+        .add(CommonDataKeys.PROJECT, myProject)
+        .add(Location.DATA_KEY, PsiLocation.fromPsiElement<PsiElement>(directory))
+        .build()
+      val context = ConfigurationContext.getFromContext(dataContext, ActionPlaces.UNKNOWN)
+      assertNull("The reproduction requires a context without a module", context.module)
+      // The base producer is instantiated directly on purpose: the registry may return a Kotlin-MPP
+      // subclass that guards against a null module itself, which would hide the regression in the
+      // base producer named by the IDEA-384446 stack trace.
+      val producer = AllInDirectoryGradleConfigurationProducer()
+      assertNull(producer.findExistingConfiguration(context))
+    }
   }
 
   @Test

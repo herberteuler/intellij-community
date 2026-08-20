@@ -51,13 +51,28 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
   /** Whether [onFirstRun] uses [testTasksChooser] to select among the available test tasks. */
   protected open fun usesBaseTestTasksChooser(): Boolean = true
 
+  /**
+   * Whether the test task selection is postponed to [onFirstRun], and therefore an existing configuration cannot be
+   * resolved from [context] alone. Producers that choose the test tasks themselves opt out of this by overriding
+   * [usesBaseTestTasksChooser], and keep the plain existing configuration lookup.
+   */
+  private fun shouldDeferTestTaskSelection(context: ConfigurationContext): Boolean {
+    if (!usesBaseTestTasksChooser()) return false
+    val element = getElement(context) ?: return false
+    return allTestsTaskToRun(context, element)
+             .map { it.tasksToRun.testName }
+             .toSet()
+             .size > 1
+  }
+
   override fun findOrCreateConfigurationFromContext(context: ConfigurationContext): ConfigurationFromContext? {
     val configurationFromContext = super.findOrCreateConfigurationFromContext(context) ?: return null
+    if (!shouldDeferTestTaskSelection(context)) return configurationFromContext
     val element = getElement(context) ?: return configurationFromContext
-    if (allTestsTaskToRun(context, element).map { it.tasksToRun.testName }.toSet().size > 1) {
-      (configurationFromContext.configuration as GradleRunConfiguration).name =
-        suggestConfigurationName(context, element, emptyList())
-    }
+    // Only a newly created configuration is renamed here. The task-first name can be suggested
+    // once the test tasks are chosen in onFirstRun.
+    (configurationFromContext.configuration as GradleRunConfiguration).name =
+      suggestConfigurationName(context, element, emptyList())
     return configurationFromContext
   }
 
@@ -71,12 +86,7 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
   }
 
   override fun findExistingConfiguration(context: ConfigurationContext): RunnerAndConfigurationSettings? {
-    val element = getElement(context) ?: return super.findExistingConfiguration(context)
-    val hasMultipleTestTasks = allTestsTaskToRun(context, element)
-                                 .map { it.tasksToRun.testName }
-                                 .toSet()
-                                 .size > 1
-    if (usesBaseTestTasksChooser() && hasMultipleTestTasks) {
+    if (shouldDeferTestTaskSelection(context)) {
       return null
     }
     return super.findExistingConfiguration(context)

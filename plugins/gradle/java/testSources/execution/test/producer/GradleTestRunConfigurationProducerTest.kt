@@ -369,6 +369,26 @@ class GradleTestRunConfigurationProducerTest : GradleTestRunConfigurationProduce
   }
 
   @Test
+  fun `test existing configuration is not renamed by a producer that selects test tasks itself`() {
+    currentExternalProjectSettings.isResolveModulePerSourceSet = false
+    val projectData = generateAndImportTemplateProject()
+    val testClass = projectData["project"]["AutomationTestCase"].element
+    val existingConfiguration = createAndAddRunConfiguration(""":automationTest --tests "AutomationTestCase"""")
+    existingConfiguration.name = "Custom automation tests"
+
+    runReadActionAndWait {
+      val context = getContextByLocation(testClass)
+      val producer = SelfManagedTestTasksClassGradleConfigurationProducer()
+
+      // This is what the gutter and the Run action do on every update, without running anything.
+      val configurationFromContext = requireNotNull(producer.findOrCreateConfigurationFromContext(context))
+
+      assertSame(existingConfiguration, configurationFromContext.configuration)
+      assertEquals("Custom automation tests", existingConfiguration.name)
+    }
+  }
+
+  @Test
   fun `test multiple selected abstract tests`() {
     val projectData = generateAndImportTemplateProject()
     runReadActionAndWait {
@@ -605,5 +625,13 @@ class GradleTestRunConfigurationProducerTest : GradleTestRunConfigurationProduce
     override fun isConfigurationCompatibleForSelectedTasks(
       configuration: GradleRunConfiguration,
     ): Boolean = false
+  }
+
+  /**
+   * Mimics the Kotlin multiplatform producers, which run their own test task chooser in [onFirstRun]
+   * and therefore keep the base existing-configuration lookup enabled.
+   */
+  private class SelfManagedTestTasksClassGradleConfigurationProducer : TestClassGradleConfigurationProducer() {
+    override fun usesBaseTestTasksChooser(): Boolean = false
   }
 }

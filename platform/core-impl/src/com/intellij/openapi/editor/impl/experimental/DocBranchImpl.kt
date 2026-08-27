@@ -19,14 +19,15 @@ import com.intellij.openapi.editor.impl.DocTextImpl
  * Eg-walker replay runs only inside [merge].
  *
  * A merge with concurrent history replays only the region above the common ancestor
- * (the paper's partial replay): placeholder items stand in for the older document, and
- * the new units apply to [inner] as ordinary [DocOp]s.
+ * (the paper's partial replay): one lazily-split placeholder item stands in for the
+ * older document, and the new units apply to [inner] as ordinary [DocOp]s. The merge
+ * cost depends on the size of the concurrent region, not on the document size.
  *
  * Prototype limits, deliberate:
  * - The events are run-length encoded, but adjacent runs never coalesce, and the replay
- *   still tracks one item per character.
- * - A merge still pays one placeholder item per character of the older document, and
- *   the item list is scanned linearly per applied unit.
+ *   tracks one item per character of the region.
+ * - The merge item list is scanned linearly per applied unit, and two per-lv arrays
+ *   still cost O(graph size) per merge.
  */
 internal class DocBranchImpl private constructor(
   private val graph: EventGraphImpl,

@@ -18,8 +18,9 @@ package com.intellij.openapi.editor.impl.experimental
  * The event storage is run-length encoded, but this walk is still per unit: one
  * [Item] per character, one lv at a time. Inside a run, the parent of a unit is the
  * unit before it, so the per-unit diff there is trivially empty. Run-length items
- * are a follow-up optimization. Costs, as in the reference: the item list is scanned
- * linearly per unit, so a replay of n units is O(n^2) in the worst case.
+ * are a follow-up optimization. Costs: the item list is scanned linearly per unit,
+ * but from a cached cursor, so a sequential run advances in place; the worst case
+ * stays quadratic in the walked region.
  */
 internal object EgWalkerReplay {
 
@@ -32,7 +33,7 @@ internal object EgWalkerReplay {
    * Rebuilds the text at [version] from scratch and reports every effect to [sink], in order.
    */
   fun replay(graph: EventGraphImpl, version: VersionImpl, sink: Sink) {
-    val state = ReplayState(graph.size(), 0)
+    val state = ReplayState(0)
     val subset = if (version == graph.versionImpl()) null else graph.eventsOf(version)
     for (lv in 0 until graph.size()) {
       if (subset != null && !subset.get(lv)) {
@@ -59,7 +60,7 @@ internal object EgWalkerReplay {
     // One span of placeholder units, at least as long as the document at the common
     // ancestor. The trailing extras sit after every reachable position, inert.
     val placeholderCount = if (branchVersion.isRoot()) 0 else branchVersion.lvs[branchVersion.lvs.size - 1] + 1
-    val state = ReplayState(graph.size(), placeholderCount)
+    val state = ReplayState(placeholderCount)
     state.curVersion = conflict.commonAncestor
     for (lv in conflict.conflictLvs) {
       step(state, graph, null, lv)
@@ -73,6 +74,10 @@ internal object EgWalkerReplay {
   private fun step(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV) {
     val parents = graph.parentsOf(lv)
     val diff = graph.diff(state.curVersion, parents)
+    if (diff.aOnly.isNotEmpty() || diff.bOnly.isNotEmpty()) {
+      // The prepare widths change at arbitrary places: the cached cursor is stale.
+      state.resetCursor()
+    }
     // Retreat in reverse order, so an item is undeleted before it is uninserted.
     for (i in diff.aOnly.indices.reversed()) {
       retreat(state, graph, diff.aOnly[i])
@@ -132,19 +137,30 @@ internal object EgWalkerReplay {
    */
   private const val PLACEHOLDER_BASE = -2
 
-  /** The reference implementation's `EditContext`. */
-  private class ReplayState(graphSize: Int, placeholderCount: Int) {
+  /**
+   * The reference implementation's `EditContext`. The maps hold only the units the walk
+   * touches, so the state costs O(region), not O(graph).
+   */
+  private class ReplayState(placeholderCount: Int) {
     val items = ArrayList<Item>()
 
     /** For a delete unit, the lv of the item it deleted. */
-    val delTargets = IntArray(graphSize) { -1 }
+    private val delTargets = HashMap<LV, LV>()
 
-    private val itemsByLv = arrayOfNulls<Item>(graphSize)
-
-    /** The width-1 placeholder pieces that a delete consumed, by their unit id. */
-    private val placeholderTargets = HashMap<LV, Item>()
+    /** The items by the unit id they cover: real inserts, and consumed placeholder pieces. */
+    private val itemsByLv = HashMap<LV, Item>()
 
     var curVersion = IntArray(0)
+
+    /**
+     * The last boundary [findByCurPos] produced or an apply advanced past: the item
+     * index with its prepare and effect positions. Sequential units land at or after
+     * it, so the walk resumes there instead of rescanning from the head. A retreat or
+     * an advance changes prepare widths anywhere in the list, which resets the cache.
+     */
+    var cachedIdx = 0
+    var cachedCurPos = 0
+    var cachedEndPos = 0
 
     init {
       if (placeholderCount > 0) {
@@ -157,12 +173,26 @@ internal object EgWalkerReplay {
       itemsByLv[lv] = item
     }
 
-    fun registerPlaceholderTarget(item: Item) {
-      placeholderTargets[item.lv] = item
+    fun itemBy(lv: LV): Item {
+      return itemsByLv[lv]!!
     }
 
-    fun itemBy(lv: LV): Item {
-      return if (lv <= PLACEHOLDER_BASE) placeholderTargets[lv]!! else itemsByLv[lv]!!
+    fun setDelTarget(lv: LV, target: LV) {
+      delTargets[lv] = target
+    }
+
+    fun delTargetOf(lv: LV): LV {
+      return delTargets[lv]!!
+    }
+
+    fun cacheCursor(idx: Int, curPos: Int, endPos: Int) {
+      cachedIdx = idx
+      cachedCurPos = curPos
+      cachedEndPos = endPos
+    }
+
+    fun resetCursor() {
+      cacheCursor(0, 0, 0)
     }
   }
 
@@ -203,7 +233,7 @@ internal object EgWalkerReplay {
   }
 
   private fun targetItem(state: ReplayState, isDelete: Boolean, lv: LV): Item {
-    val targetLv = if (isDelete) state.delTargets[lv] else lv
+    val targetLv = if (isDelete) state.delTargetOf(lv) else lv
     return state.itemBy(targetLv)
   }
 
@@ -236,10 +266,10 @@ internal object EgWalkerReplay {
     }
     item.prepareState = DELETED
     item.effectState = DELETED
-    state.delTargets[lv] = item.lv
-    if (isPlaceholder(item)) {
-      state.registerPlaceholderTarget(item)
-    }
+    state.setDelTarget(lv, item.lv)
+    state.register(item.lv, item)
+    // The next unit of a delete run targets the same position, right after this item.
+    state.cacheCursor(cursor.idx + 1, pos, cursor.endPos)
   }
 
   private fun applyInsert(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV, pos: Int, character: Char) {
@@ -263,6 +293,8 @@ internal object EgWalkerReplay {
     integrate(state, graph, newItem, cursor)
     state.items.add(cursor.idx, newItem)
     sink?.insert(cursor.endPos, character)
+    // The next unit of an insert run lands right after this item.
+    state.cacheCursor(cursor.idx + 1, pos + 1, cursor.endPos + 1)
   }
 
   // --------------------------------------------------------------------------------- the scan
@@ -308,11 +340,21 @@ internal object EgWalkerReplay {
     }
   }
 
-  /** Finds the insert point for a prepare-version position, front to back. */
+  /** Finds the insert point for a prepare-version position, walking from the cached cursor. */
   private fun findByCurPos(state: ReplayState, targetPos: Int): Cursor {
-    var curPos = 0
-    var endPos = 0
-    var i = 0
+    var i: Int
+    var curPos: Int
+    var endPos: Int
+    if (state.cachedCurPos <= targetPos) {
+      i = state.cachedIdx
+      curPos = state.cachedCurPos
+      endPos = state.cachedEndPos
+    }
+    else {
+      i = 0
+      curPos = 0
+      endPos = 0
+    }
     while (curPos < targetPos) {
       checkInRange(i, state)
       val item = state.items[i]
@@ -325,6 +367,13 @@ internal object EgWalkerReplay {
       curPos += width
       endPos += effectWidth(item)
       i++
+    }
+    // A cached start can sit after zero-width items at this position. Back up to the
+    // earliest boundary: that is where a head-to-target walk stops, and the insert
+    // anchoring depends on it.
+    while (i > 0 && prepareWidth(state.items[i - 1]) == 0) {
+      i--
+      endPos -= effectWidth(state.items[i])
     }
     return Cursor(i, endPos)
   }

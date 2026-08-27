@@ -3,6 +3,7 @@ package com.intellij.openapi.editor.experimental
 
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.util.TextRange
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -38,6 +39,53 @@ class DocBranchPerformanceTest {
       val text = if (size == 0 || size >= fullText.length) fullText else fullText.substring(0, size)
       runScenario(text)
     }
+  }
+
+  /**
+   * The base case: one user edits the huge file alone, with no forks and no merges.
+   * The batches report the throughput as the history grows, so a per-op cost that
+   * scales with the history length shows up as growing batch times. At the end, the
+   * recorded ops replay apply-only against a fresh branch and against a plain
+   * [DocText]: their difference is the price of the history tracking per op.
+   */
+  @Test
+  fun `a single user edits EditorImpl`() {
+    val text = Files.readString(hugeTextPath())
+    println("the source text: ${text.length} chars")
+    val random = Random(20260827)
+    val recorded = ArrayList<DocOp>()
+    val user = User(DocBranch.createBranch(text, agent("user")))
+    user.recorder = recorded
+
+    for (batch in 0 until SINGLE_USER_BATCHES) {
+      val start = System.nanoTime()
+      var ops = 0
+      repeat(SINGLE_USER_ACTIONS_PER_BATCH) {
+        ops += performAction(user, random)
+      }
+      val graph = user.branch.graph()
+      println("  batch $batch: $ops ops in ${sinceMs(start)} ms (history: ${graph.size()} units, ${graph.runCount()} runs)")
+    }
+    println("  total: ${recorded.size} ops, ${user.branch.text().length()} chars")
+
+    // The same ops, apply-only, on a fresh branch and on a plain text.
+    var fresh: DocBranch = DocBranch.createBranch(text, agent("user"))
+    val freshStart = System.nanoTime()
+    for (op in recorded) {
+      fresh = fresh.applyOp(op)
+    }
+    val freshMs = sinceMs(freshStart)
+    var plain = DocText.createText(text)
+    val plainStart = System.nanoTime()
+    for (op in recorded) {
+      plain = plain.applyOp(op)
+    }
+    val plainMs = sinceMs(plainStart)
+    println("  apply-only, ${recorded.size} ops: DocBranch $freshMs ms, plain DocText $plainMs ms")
+
+    // The history-tracking branch and the plain text agree on every op.
+    assertEquals(plain.string(), fresh.string())
+    assertEquals(plain.string(), user.branch.string())
   }
 
   private fun runScenario(text: String) {
@@ -82,6 +130,12 @@ class DocBranchPerformanceTest {
 
   private class User(var branch: DocBranch) {
     var caret = 0
+    var recorder: ArrayList<DocOp>? = null
+
+    fun apply(op: DocOp) {
+      branch = branch.applyOp(op)
+      recorder?.add(op)
+    }
   }
 
   /** Performs one random user action and returns the op count it produced. */
@@ -103,7 +157,7 @@ class DocBranchPerformanceTest {
     moveCaret(user, random)
     val count = 5 + random.nextInt(25)
     repeat(count) {
-      user.branch = user.branch.applyOp(insertOp(user.caret, TYPED[random.nextInt(TYPED.length)].toString()))
+      user.apply(insertOp(user.caret, TYPED[random.nextInt(TYPED.length)].toString()))
       user.caret++
     }
     return count
@@ -112,7 +166,7 @@ class DocBranchPerformanceTest {
   private fun autocompleteWord(user: User, random: Random): Int {
     moveCaret(user, random)
     val word = COMPLETIONS[random.nextInt(COMPLETIONS.size)]
-    user.branch = user.branch.applyOp(insertOp(user.caret, word))
+    user.apply(insertOp(user.caret, word))
     user.caret += word.length
     return 1
   }
@@ -126,7 +180,7 @@ class DocBranchPerformanceTest {
     val from = random.nextInt(length - fragmentLength + 1)
     val fragment = user.branch.text().string(TextRange(from, from + fragmentLength))
     moveCaret(user, random)
-    user.branch = user.branch.applyOp(insertOp(user.caret, fragment))
+    user.apply(insertOp(user.caret, fragment))
     user.caret += fragment.length
     return 1
   }
@@ -139,9 +193,9 @@ class DocBranchPerformanceTest {
     val fragmentLength = minOf(30 + random.nextInt(121), length / 2)
     val from = random.nextInt(length - fragmentLength + 1)
     val fragment = user.branch.text().string(TextRange(from, from + fragmentLength))
-    user.branch = user.branch.applyOp(deleteOp(from, fragmentLength))
+    user.apply(deleteOp(from, fragmentLength))
     val to = random.nextInt(user.branch.text().length() + 1)
-    user.branch = user.branch.applyOp(insertOp(to, fragment))
+    user.apply(insertOp(to, fragment))
     user.caret = to + fragment.length
     return 2
   }
@@ -159,8 +213,8 @@ class DocBranchPerformanceTest {
     // Replace back to front, so the earlier offsets stay valid.
     for (i in occurrences.indices.reversed()) {
       val start = occurrences[i]
-      user.branch = user.branch.applyOp(deleteOp(start, word.length))
-      user.branch = user.branch.applyOp(insertOp(start, newName))
+      user.apply(deleteOp(start, word.length))
+      user.apply(insertOp(start, newName))
     }
     return occurrences.size * 2
   }
@@ -204,6 +258,8 @@ class DocBranchPerformanceTest {
     private val CONCURRENCY_LEVELS = intArrayOf(1, 2, 3, 4, 5)
 
     private const val ACTIONS_PER_USER = 6
+    private const val SINGLE_USER_BATCHES = 20
+    private const val SINGLE_USER_ACTIONS_PER_BATCH = 200
     private const val MAX_RENAME_OCCURRENCES = 20
     private const val TYPED = "abcdefghijklmnopqrstuvwxyz    ();.{}\n"
     private val COMPLETIONS = arrayOf(

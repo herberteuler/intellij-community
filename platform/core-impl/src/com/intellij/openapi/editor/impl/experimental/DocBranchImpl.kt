@@ -26,8 +26,7 @@ import com.intellij.openapi.editor.impl.DocTextImpl
  * Prototype limits, deliberate:
  * - The events are run-length encoded, but adjacent runs never coalesce, and the replay
  *   tracks one item per character of the region.
- * - The merge item list is scanned linearly per applied unit, and two per-lv arrays
- *   still cost O(graph size) per merge.
+ * - An edit that lands far from the cached cursor scans the region's item list linearly.
  */
 internal class DocBranchImpl private constructor(
   private val graph: EventGraphImpl,

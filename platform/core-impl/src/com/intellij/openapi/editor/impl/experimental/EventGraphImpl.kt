@@ -85,13 +85,26 @@ internal class EventStore private constructor(
   fun overlaps(agent: Agent, seq: Int, length: Int, lvLimit: LV): Boolean {
     synchronized(this) {
       val list = agentIndex[agent] ?: return false
-      for (entry in list) {
-        if (entry.lvStart >= lvLimit) {
-          continue
+      // The ranges are sorted by seqStart and do not overlap, so the ends are sorted
+      // too: binary search for the first entry that ends after seq.
+      var lo = 0
+      var hi = list.size
+      while (lo < hi) {
+        val mid = (lo + hi) ushr 1
+        if (list[mid].seqStart + list[mid].length <= seq) {
+          lo = mid + 1
         }
-        if (entry.seqStart < seq + length && seq < entry.seqStart + entry.length) {
+        else {
+          hi = mid
+        }
+      }
+      // Walk the contiguous block of entries that intersect `[seq, seq + length)`.
+      var i = lo
+      while (i < list.size && list[i].seqStart < seq + length) {
+        if (list[i].lvStart < lvLimit) {
           return true
         }
+        i++
       }
       return false
     }

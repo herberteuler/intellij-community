@@ -793,6 +793,9 @@ internal class BazelBuildFileGenerator(
       else if (module.name == "intellij.libraries.compose.runtime.desktop") {
         option("exported_compiler_plugins", listOf("@lib//:compose-plugin"))
       }
+      else if (module.name == "fleet.compose.dependencies") {
+        option("exported_compiler_plugins", listOf("@lib//:compose-plugin"))
+      }
 
       if (deps != null) {
         if (deps.associates.isNotEmpty()) {

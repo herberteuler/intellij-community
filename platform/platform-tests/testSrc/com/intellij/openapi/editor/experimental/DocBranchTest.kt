@@ -189,6 +189,40 @@ class DocBranchTest {
   }
 
   @Test
+  fun `a merge applies pastes and deletions as batches`() {
+    val base = DocBranch.createBranch("line1\nline2\nline3\n", agent("a"))
+    val a = base.applyOp(insertOp(0, "top\n"))
+    // The other branch mixes a multi-char paste, a range deletion, and another paste,
+    // so the merge sink flushes at every kind and position boundary.
+    val b = base.fork(agent("b"))
+      .applyOp(insertOp(6, "pasted block\n"))
+      .applyOp(deleteOp(0, 6))
+      .applyOp(insertOp(0, "L1\n"))
+    val forward = a.merge(b)
+    val backward = b.merge(a)
+    assertEquals(forward.string(), backward.string())
+    assertEquals(forward.graph().replay().string(), forward.string())
+    for (marker in listOf("top\n", "L1\n", "pasted block\n")) {
+      assertTrue(forward.string().contains(marker)) { "The fragment '$marker' is lost" }
+    }
+    assertTrue(!forward.string().contains("line1"))
+    assertSameText(DocText.createText(forward.string()), forward.text())
+  }
+
+  @Test
+  fun `a fork from a stale value mints fresh seqs`() {
+    val base = DocBranch.createBranch("xy", agent("a"))
+    // The abandoned fork extends the shared store beyond the base's own size.
+    val abandoned = base.fork(agent("b")).applyOp(insertOp(0, "A"))
+    // A fork of the same agent from the stale base must not see those units.
+    val fork = base.fork(agent("b")).applyOp(insertOp(2, "B"))
+    assertEquals("xyB", fork.string())
+    assertEquals("xyB", base.merge(fork).string())
+    // The abandoned branch stays intact; it is never merged with its twin.
+    assertEquals("Axy", abandoned.string())
+  }
+
+  @Test
   fun `a fragment op makes one run`() {
     val base = DocBranch.createBranch("abc", agent("a"))
     assertEquals(3, base.graph().size())

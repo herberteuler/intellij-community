@@ -73,20 +73,24 @@ internal object EgWalkerReplay {
   /** Consumes one unit: moves the prepare version to its parents, then applies it. */
   private fun step(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV) {
     val parents = graph.parentsOf(lv)
-    val diff = graph.diff(state.curVersion, parents)
-    if (diff.aOnly.isNotEmpty() || diff.bOnly.isNotEmpty()) {
-      // The prepare widths change at arbitrary places: the cached cursor is stale.
-      state.resetCursor()
-    }
-    // Retreat in reverse order, so an item is undeleted before it is uninserted.
-    for (i in diff.aOnly.indices.reversed()) {
-      retreat(state, graph, diff.aOnly[i])
-    }
-    for (advanced in diff.bOnly) {
-      advance(state, graph, advanced)
+    // The sequential case: the prepare version already is the parents, so the diff is
+    // empty. This skips a queue-and-map diff walk per unit inside every run.
+    if (!state.curVersion.contentEquals(parents)) {
+      val diff = graph.diff(state.curVersion, parents)
+      if (diff.aOnly.isNotEmpty() || diff.bOnly.isNotEmpty()) {
+        // The prepare widths change at arbitrary places: the cached cursor is stale.
+        state.resetCursor()
+      }
+      // Retreat in reverse order, so an item is undeleted before it is uninserted.
+      for (i in diff.aOnly.indices.reversed()) {
+        retreat(state, graph, diff.aOnly[i])
+      }
+      for (advanced in diff.bOnly) {
+        advance(state, graph, advanced)
+      }
     }
     apply(state, graph, sink, lv)
-    state.curVersion = intArrayOf(lv)
+    state.setCurVersion(lv)
   }
 
   // ------------------------------------------------------------------------ the internal state
@@ -193,6 +197,16 @@ internal object EgWalkerReplay {
 
     fun resetCursor() {
       cacheCursor(0, 0, 0)
+    }
+
+    fun setCurVersion(lv: LV) {
+      // Reuse the single-head array: nothing retains the old version.
+      if (curVersion.size == 1) {
+        curVersion[0] = lv
+      }
+      else {
+        curVersion = intArrayOf(lv)
+      }
     }
   }
 

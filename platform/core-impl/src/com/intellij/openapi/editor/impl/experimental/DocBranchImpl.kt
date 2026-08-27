@@ -77,18 +77,10 @@ internal class DocBranchImpl private constructor(
     }
     else {
       // A partial replay: only the region above the common ancestor is walked, and
-      // only the new units reach the sink, as ordinary ops over the current text.
-      var updated = inner
-      EgWalkerReplay.mergeInto(merged, graph.versionImpl(), object : EgWalkerReplay.Sink {
-        override fun insert(pos: Int, character: Char) {
-          updated = updated.applyOp(InsertDocOp(pos, character.toString()))
-        }
-
-        override fun delete(pos: Int) {
-          updated = updated.applyOp(DeleteDocOp(pos))
-        }
-      })
-      updated
+      // only the new units reach the sink, batched into ordinary ops over the text.
+      val sink = BatchingSink(inner)
+      EgWalkerReplay.mergeInto(merged, graph.versionImpl(), sink)
+      sink.result()
     }
     return DocBranchImpl(merged, agent, nextSeq, newInner)
   }
@@ -142,12 +134,64 @@ internal class DocBranchImpl private constructor(
   }
 }
 
+/**
+ * Coalesces the per-unit merge effects into fragment and range ops before they reach
+ * the text. N successive inserts at the positions `pos, pos + 1, ...` equal one
+ * fragment insert at `pos`; N successive deletes at one position equal one delete of
+ * the length N. This is also the op stream an editor integration would fire as events.
+ */
+private class BatchingSink(private var updated: DocText) : EgWalkerReplay.Sink {
+  private var kind = NONE
+  private var start = 0
+  private val fragment = StringBuilder()
+  private var deleteCount = 0
+
+  override fun insert(pos: Int, character: Char) {
+    if (kind != INSERT || pos != start + fragment.length) {
+      flush()
+      kind = INSERT
+      start = pos
+    }
+    fragment.append(character)
+  }
+
+  override fun delete(pos: Int) {
+    if (kind != DELETE || pos != start) {
+      flush()
+      kind = DELETE
+      start = pos
+    }
+    deleteCount++
+  }
+
+  fun result(): DocText {
+    flush()
+    return updated
+  }
+
+  private fun flush() {
+    when (kind) {
+      INSERT -> updated = updated.applyOp(InsertDocOp(start, fragment.toString()))
+      DELETE -> updated = updated.applyOp(DeleteDocOp(start, deleteCount))
+    }
+    kind = NONE
+    fragment.setLength(0)
+    deleteCount = 0
+  }
+
+  companion object {
+    private const val NONE = 0
+    private const val INSERT = 1
+    private const val DELETE = 2
+  }
+}
+
 private class InsertDocOp(private val offset: Int, private val fragment: String) : DocOp.Insert {
   override fun offset(): Int = offset
   override fun fragment(): CharSequence = fragment
 }
 
-private class DeleteDocOp(private val offset: Int) : DocOp.Delete {
+private class DeleteDocOp(private val offset: Int, private val length: Int) : DocOp.Delete {
   override fun offset(): Int = offset
-  override fun length(): Int = 1
+  override fun length(): Int = length
 }

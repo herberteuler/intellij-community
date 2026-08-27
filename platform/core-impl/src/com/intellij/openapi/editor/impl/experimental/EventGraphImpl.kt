@@ -114,14 +114,15 @@ internal class EventStore private constructor(
   fun nextSeq(agent: Agent, lvLimit: LV): Int {
     synchronized(this) {
       val list = agentIndex[agent] ?: return 0
-      var next = 0
-      for (entry in list) {
-        if (entry.lvStart >= lvLimit) {
-          continue
+      // The ranges sort by seqStart and do not overlap, so the ends ascend: the last
+      // visible entry has the greatest end. The scan usually stops at the first entry.
+      for (i in list.indices.reversed()) {
+        val entry = list[i]
+        if (entry.lvStart < lvLimit) {
+          return entry.seqStart + entry.length
         }
-        next = maxOf(next, entry.seqStart + entry.length)
       }
-      return next
+      return 0
     }
   }
 

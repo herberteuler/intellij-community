@@ -38,7 +38,11 @@ sealed interface Event {
   interface Delete : Event
 
   companion object {
-    fun createInsert(agent: Agent, seq: Int, pos: Int, content: CharSequence): Insert = InsertEventImpl(agent, seq, pos, content)
-    fun createDelete(agent: Agent, seq: Int, pos: Int, length: Int): Delete = DeleteEventImpl(agent, seq, pos, length)
+    fun createInsert(agent: Agent, seq: Int, pos: Int, content: CharSequence): Insert {
+      return InsertEventImpl(agent, seq, pos, content)
+    }
+    fun createDelete(agent: Agent, seq: Int, pos: Int, length: Int): Delete {
+      return DeleteEventImpl(agent, seq, pos, length)
+    }
   }
 }

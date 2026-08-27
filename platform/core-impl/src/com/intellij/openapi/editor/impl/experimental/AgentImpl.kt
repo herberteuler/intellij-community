@@ -3,7 +3,10 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
 
-internal class AgentImpl(private val name: String) : Agent {
+internal class AgentImpl(
+  private val name: String,
+) : Agent {
+
   init {
     checkName(name)
   }

@@ -3,6 +3,7 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.Event
+import com.intellij.util.text.ImmutableCharSequence
 
 internal class InsertEventImpl(
   private val agent: Agent,
@@ -11,7 +12,7 @@ internal class InsertEventImpl(
   content: CharSequence,
 ) : Event.Insert {
   // A copy detaches the event from a mutable CharSequence the caller may hold.
-  private val content: String = content.toString()
+  private val content: CharSequence = ImmutableCharSequence.asImmutable(content)
 
   init {
     checkEvent(seq, pos)
@@ -62,7 +63,7 @@ private fun checkEvent(seq: Int, pos: Int) {
   }
 }
 
-private fun checkContent(content: String) {
+private fun checkContent(content: CharSequence) {
   require(content.isNotEmpty()) {
     "The insert content is empty"
   }

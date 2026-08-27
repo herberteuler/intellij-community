@@ -7,7 +7,10 @@ import com.intellij.openapi.editor.experimental.Version
  * A version as a sorted array of internal event indexes. The reference implementation
  * calls the index of an event a local version (LV).
  */
-internal class VersionImpl(val lvs: IntArray) : Version {
+internal class VersionImpl(
+  val lvs: IntArray,
+) : Version {
+
   init {
     checkSorted(lvs)
   }

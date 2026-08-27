@@ -34,7 +34,11 @@ internal object EgWalkerReplay {
    */
   fun replay(graph: EventGraphImpl, version: VersionImpl, sink: Sink) {
     val state = ReplayState(0)
-    val subset = if (version == graph.versionImpl()) null else graph.eventsOf(version)
+    val subset = if (version == graph.versionImpl()) {
+      null
+    } else {
+      graph.eventsOf(version)
+    }
     for (lv in 0 until graph.size()) {
       if (subset != null && !subset.get(lv)) {
         continue
@@ -59,7 +63,11 @@ internal object EgWalkerReplay {
     val conflict = graph.findConflicting(branchVersion.lvs, graph.versionImpl().lvs)
     // One span of placeholder units, at least as long as the document at the common
     // ancestor. The trailing extras sit after every reachable position, inert.
-    val placeholderCount = if (branchVersion.isRoot()) 0 else branchVersion.lvs[branchVersion.lvs.size - 1] + 1
+    val placeholderCount = if (branchVersion.isRoot()) {
+      0
+    } else {
+      branchVersion.lvs[branchVersion.lvs.size - 1] + 1
+    }
     val state = ReplayState(placeholderCount)
     state.curVersion = conflict.commonAncestor
     for (lv in conflict.conflictLvs) {
@@ -169,7 +177,15 @@ internal object EgWalkerReplay {
     init {
       if (placeholderCount > 0) {
         // One item for the whole ancestor document; the ops split it lazily.
-        items.add(Item(PLACEHOLDER_BASE, placeholderCount, INSERTED, INSERTED, -1, -1))
+        val item = Item(
+          lv = PLACEHOLDER_BASE,
+          length = placeholderCount,
+          prepareState = INSERTED,
+          effectState = INSERTED,
+          originLeft = -1,
+          rightParent = -1,
+        )
+        items.add(item)
       }
     }
 
@@ -203,8 +219,7 @@ internal object EgWalkerReplay {
       // Reuse the single-head array: nothing retains the old version.
       if (curVersion.size == 1) {
         curVersion[0] = lv
-      }
-      else {
+      } else {
         curVersion = intArrayOf(lv)
       }
     }
@@ -220,7 +235,14 @@ internal object EgWalkerReplay {
   private fun splitPlaceholder(state: ReplayState, index: Int, offset: Int) {
     val item = state.items[index]
     checkSplit(item, offset)
-    val right = Item(item.lv - offset, item.length - offset, INSERTED, INSERTED, -1, -1)
+    val right = Item(
+      lv = item.lv - offset,
+      length = item.length - offset,
+      prepareState = INSERTED,
+      effectState = INSERTED,
+      originLeft = -1,
+      rightParent = -1
+    )
     item.length = offset
     state.items.add(index + 1, right)
   }
@@ -240,8 +262,7 @@ internal object EgWalkerReplay {
     checkAdvance(isDelete, item)
     if (isDelete) {
       item.prepareState++
-    }
-    else {
+    } else {
       item.prepareState = INSERTED
     }
   }
@@ -254,8 +275,7 @@ internal object EgWalkerReplay {
   private fun apply(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV) {
     if (graph.isDeleteAt(lv)) {
       applyDelete(state, sink, lv, graph.posAt(lv))
-    }
-    else {
+    } else {
       applyInsert(state, graph, sink, lv, graph.posAt(lv), graph.charAt(lv))
     }
   }
@@ -302,7 +322,14 @@ internal object EgWalkerReplay {
         break
       }
     }
-    val newItem = Item(lv, 1, INSERTED, INSERTED, originLeft, rightParent)
+    val newItem = Item(
+      lv = lv,
+      length = 1,
+      prepareState = INSERTED,
+      effectState = INSERTED,
+      originLeft = originLeft,
+      rightParent = rightParent,
+    )
     state.register(lv, newItem)
     integrate(state, graph, newItem, cursor)
     state.items.add(cursor.idx, newItem)
@@ -327,19 +354,31 @@ internal object EgWalkerReplay {
     var scanIdx = cursor.idx
     var scanEndPos = cursor.endPos
     val leftIdx = cursor.idx - 1
-    val rightIdx = if (newItem.rightParent == -1) state.items.size else findItemIdx(state, newItem.rightParent)
+    val rightIdx = if (newItem.rightParent == -1) {
+      state.items.size
+    } else {
+      findItemIdx(state, newItem.rightParent)
+    }
     while (scanIdx < state.items.size) {
       val other = state.items[scanIdx]
       if (other.prepareState != NOT_YET_INSERTED) {
         break
       }
       checkNotRightParent(other, newItem)
-      val otherLeftIdx = if (other.originLeft == -1) -1 else findItemIdx(state, other.originLeft)
+      val otherLeftIdx = if (other.originLeft == -1) {
+        -1
+      } else {
+        findItemIdx(state, other.originLeft)
+      }
       if (otherLeftIdx < leftIdx) {
         break
       }
       if (otherLeftIdx == leftIdx) {
-        val otherRightIdx = if (other.rightParent == -1) state.items.size else findItemIdx(state, other.rightParent)
+        val otherRightIdx = if (other.rightParent == -1) {
+          state.items.size
+        } else {
+          findItemIdx(state, other.rightParent)
+        }
         if (otherRightIdx == rightIdx && graph.compareEvents(newItem.lv, other.lv) < 0) {
           break
         }
@@ -363,8 +402,7 @@ internal object EgWalkerReplay {
       i = state.cachedIdx
       curPos = state.cachedCurPos
       endPos = state.cachedEndPos
-    }
-    else {
+    } else {
       i = 0
       curPos = 0
       endPos = 0
@@ -414,8 +452,7 @@ internal object EgWalkerReplay {
       require(item.effectState == DELETED) {
         "Retreat of a delete, but the item is not deleted in the effect version"
       }
-    }
-    else {
+    } else {
       require(item.prepareState == INSERTED) {
         "Retreat of an insert, but the item is not inserted in the prepare version"
       }
@@ -430,8 +467,7 @@ internal object EgWalkerReplay {
       require(item.effectState == DELETED) {
         "Advance of a delete, but the item is not deleted in the effect version"
       }
-    }
-    else {
+    } else {
       require(item.prepareState == NOT_YET_INSERTED) {
         "Advance of an insert, but the item is already inserted in the prepare version"
       }

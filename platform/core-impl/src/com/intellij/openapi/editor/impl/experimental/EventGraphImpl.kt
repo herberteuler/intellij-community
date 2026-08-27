@@ -236,6 +236,7 @@ internal class EventGraphImpl private constructor(
 
   fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
     checkVersionOfThisGraph(parents)
+    checkLvSpace(event)
     checkNewIds(event)
     val run = StoredRun(event, size, parents.lvs)
     val newStore = store.appendAt(size, runCount, run)
@@ -530,6 +531,12 @@ internal class EventGraphImpl private constructor(
   private fun checkNewIds(event: Event) {
     require(!store.overlaps(event.agent(), event.seq(), event.length(), size)) {
       "An event id of $event is already in the graph"
+    }
+  }
+
+  private fun checkLvSpace(event: Event) {
+    require(event.length() <= Int.MAX_VALUE - size) {
+      "The graph unit space overflows: size $size + run length ${event.length()}"
     }
   }
 

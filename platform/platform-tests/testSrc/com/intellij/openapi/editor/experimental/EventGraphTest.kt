@@ -217,6 +217,19 @@ class EventGraphTest {
   }
 
   @Test
+  fun `an overflowing event is rejected`() {
+    val u = agent("u")
+    // The run's id range would wrap past Int.MAX_VALUE.
+    assertThrows(IllegalArgumentException::class.java) { Event.createInsert(u, Int.MAX_VALUE, 0, "ab") }
+    assertThrows(IllegalArgumentException::class.java) { Event.createDelete(u, Int.MAX_VALUE - 1, 0, 3) }
+    // The run's position range would wrap past Int.MAX_VALUE.
+    assertThrows(IllegalArgumentException::class.java) { Event.createInsert(u, 0, Int.MAX_VALUE, "ab") }
+    // The exact boundary stays legal: the last id is Int.MAX_VALUE - 1.
+    Event.createInsert(u, Int.MAX_VALUE - 2, 0, "xy")
+    Event.createDelete(u, Int.MAX_VALUE - 1, 0, 1)
+  }
+
+  @Test
   fun `agents compare by the name`() {
     assertTrue(agent("a") < agent("b"))
     assertTrue(agent("b") > agent("a"))

@@ -16,6 +16,8 @@ internal class InsertEventImpl(
   init {
     checkEvent(seq, pos)
     checkContent(this.content)
+    checkIdSpace(seq, this.content.length)
+    checkPosSpace(pos, this.content.length)
   }
 
   override fun agent(): Agent = agent
@@ -38,6 +40,7 @@ internal class DeleteEventImpl(
   init {
     checkEvent(seq, pos)
     checkLength(length)
+    checkIdSpace(seq, length)
   }
 
   override fun agent(): Agent = agent
@@ -68,5 +71,17 @@ private fun checkContent(content: String) {
 private fun checkLength(length: Int) {
   require(length >= 1) {
     "The delete length is not positive: $length"
+  }
+}
+
+private fun checkIdSpace(seq: Int, length: Int) {
+  require(length <= Int.MAX_VALUE - seq) {
+    "The seq space overflows: seq $seq + length $length"
+  }
+}
+
+private fun checkPosSpace(pos: Int, length: Int) {
+  require(length <= Int.MAX_VALUE - pos) {
+    "The position space overflows: pos $pos + length $length"
   }
 }

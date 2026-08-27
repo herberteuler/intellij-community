@@ -1,7 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.experimental
 
-import com.intellij.openapi.editor.impl.experimental.DocTextBranchImpl
+import com.intellij.openapi.editor.impl.experimental.DocBranchImpl
 
 /**
  * An immutable document that records its edit history in an Eg-walker [EventGraph], so two
@@ -23,12 +23,12 @@ import com.intellij.openapi.editor.impl.experimental.DocTextBranchImpl
  * - `a.merge(b)` and `b.merge(a)` produce the same text. A merge with an ancestor changes
  *   nothing. A merge with a descendant fast-forwards. A repeated merge changes nothing.
  */
-interface DocTextBranch {
+interface DocBranch {
   /** The materialized document at this branch's version. */
   fun text(): DocText
 
   /** A branch with [op] applied at this branch's version: the same edit as [DocText.applyOp]. */
-  fun applyOp(op: DocOp): DocTextBranch
+  fun applyOp(op: DocOp): DocBranch
 
   /** The identity this branch edits under. */
   fun agent(): Agent
@@ -37,16 +37,16 @@ interface DocTextBranch {
   fun graph(): EventGraph
 
   /** A copy of this branch that edits under [agent]. The state and the history are shared. */
-  fun fork(agent: Agent): DocTextBranch
+  fun fork(agent: Agent): DocBranch
 
   /**
    * A branch that contains the histories of both this branch and [other].
    * Concurrent edits are resolved deterministically; no edit is dropped.
    * The result keeps this branch's [agent].
    */
-  fun merge(other: DocTextBranch): DocTextBranch
+  fun merge(other: DocBranch): DocBranch
 
   companion object {
-    fun createBranch(chars: CharSequence, agent: Agent): DocTextBranch = DocTextBranchImpl.create(chars, agent)
+    fun createBranch(chars: CharSequence, agent: Agent): DocBranch = DocBranchImpl.create(chars, agent)
   }
 }

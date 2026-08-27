@@ -6,17 +6,17 @@ import org.junit.jupiter.api.Test
 import java.util.Random
 import kotlin.random.asKotlinRandom
 
-class DocTextBranchFuzzTest {
+class DocBranchFuzzTest {
 
   @Test
   fun `replicas converge after a full sync`() {
     val random = Random(20260827)
     repeat(ROUNDS) { round ->
-      val base = DocTextBranch.createBranch(randomText(random), agent("base"))
+      val base = DocBranch.createBranch(randomText(random), agent("base"))
       val baseVersion = base.graph().version()
 
       // Every replica forks from the base and edits under its own agent.
-      val replicas = ArrayList<DocTextBranch>()
+      val replicas = ArrayList<DocBranch>()
       val replicaCount = 2 + random.nextInt(2)
       for (i in 0 until replicaCount) {
         var replica = base.fork(agent("agent$i"))

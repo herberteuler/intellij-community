@@ -78,7 +78,7 @@ class DocTextBranchFuzzTest {
   }
 
   companion object {
-    private const val ROUNDS = 1500
+    private const val ROUNDS = 5000
     private const val ALPHABET = "abcdef \n\r"
   }
 }

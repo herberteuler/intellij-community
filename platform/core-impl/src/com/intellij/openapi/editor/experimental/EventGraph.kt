@@ -10,27 +10,32 @@ import com.intellij.openapi.editor.impl.experimental.EventGraphImpl
  * The graph is an immutable value. [append] and [mergeFrom] return a new graph and leave
  * this one untouched. Successive graphs share storage, so an append at the tip is cheap.
  *
- * This prototype stores one event per character and does not run-length encode anything.
- * That matches the reference implementation and is the first optimization to add later.
+ * The storage is run-length encoded: one [Event] run of n characters costs one entry,
+ * not n. Adjacent runs never coalesce; the replay still tracks one item per character.
+ * Both are follow-up optimizations.
  */
 interface EventGraph {
-  /** The number of events in the graph. */
+  /** The number of single-character operations in the graph, summed over all runs. */
   fun size(): Int
+
+  /** The number of stored [Event] runs. `runCount() <= size()`; the gap is the encoding win. */
+  fun runCount(): Int
 
   /** The paper's `Version(G)`: the current frontier of the graph. */
   fun version(): Version
 
   /**
-   * Returns a graph with [event] appended.
+   * Returns a graph with the [event] run appended.
    *
    * [parents] must be a version of this graph, and must be transitively reduced.
-   * The event id must be new: one (agent, seq) pair names one event forever.
+   * Every id the run covers must be new: one (agent, seq) pair names one unit forever.
    */
   fun append(event: Event, parents: Version): EventGraph
 
   /**
    * Returns the union of this graph and [other], joined by event ids.
-   * Events of [other] that this graph already contains are kept once.
+   * Units of [other] that this graph already contains are kept once; when this graph
+   * holds only the leading units of a run, the rest of the run is appended.
    */
   fun mergeFrom(other: EventGraph): EventGraph
 

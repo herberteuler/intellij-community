@@ -1,8 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.Event
-
 /**
  * The Eg-walker replay: rebuilds the document at a version from the event graph.
  *
@@ -11,14 +9,17 @@ import com.intellij.openapi.editor.experimental.Event
  * a topological order and keeps the document at two versions at once: the *prepare*
  * version, where the next event was authored, and the *effect* version, with every
  * walked event applied. [retreat] and [advance] move the prepare version; [apply]
- * consumes one event and reports its effect to the [Sink].
+ * consumes one unit and reports its effect to the [Sink].
  *
  * Concurrent insertions are ordered by [integrate], the reference implementation's
  * YjsMod/Fugue scan. The [ReplayState] is temporary: the caller discards it when the
  * replay ends. Nothing here is persisted.
  *
- * Costs, as in the reference: the item list is scanned linearly per event, so a replay
- * of n events is O(n^2) in the worst case. Good enough for a prototype.
+ * The event storage is run-length encoded, but this walk is still per unit: one
+ * [Item] per character, one lv at a time. Inside a run, the parent of a unit is the
+ * unit before it, so the per-unit diff there is trivially empty. Run-length items
+ * are a follow-up optimization. Costs, as in the reference: the item list is scanned
+ * linearly per unit, so a replay of n units is O(n^2) in the worst case.
  */
 internal object EgWalkerReplay {
 
@@ -37,7 +38,7 @@ internal object EgWalkerReplay {
       if (subset != null && !subset.get(lv)) {
         continue
       }
-      // Move the prepare version from the last consumed event to this event's parents.
+      // Move the prepare version from the last consumed unit to this unit's parents.
       val parents = graph.parentsOf(lv)
       val diff = graph.diff(state.curVersion, parents)
       // Retreat in reverse order, so an item is undeleted before it is uninserted.
@@ -65,18 +66,18 @@ internal object EgWalkerReplay {
    * document start and the document end.
    */
   private class Item(
-    val lv: Int,
+    val lv: LV,
     var prepareState: Int,
     var effectState: Int,
-    val originLeft: Int,
-    val rightParent: Int,
+    val originLeft: LV,
+    val rightParent: LV,
   )
 
   /** The reference implementation's `EditContext`. */
   private class ReplayState(graphSize: Int) {
     val items = ArrayList<Item>()
 
-    /** For a delete event, the lv of the item it deleted. */
+    /** For a delete unit, the lv of the item it deleted. */
     val delTargets = IntArray(graphSize) { -1 }
 
     val itemsByLv = arrayOfNulls<Item>(graphSize)
@@ -93,18 +94,18 @@ internal object EgWalkerReplay {
 
   // ----------------------------------------------------------------- retreat / advance / apply
 
-  private fun retreat(state: ReplayState, graph: EventGraphImpl, lv: Int) {
-    val event = graph.eventOf(lv)
-    val item = targetItem(state, event, lv)
-    checkRetreat(event, item)
+  private fun retreat(state: ReplayState, graph: EventGraphImpl, lv: LV) {
+    val isDelete = graph.isDeleteAt(lv)
+    val item = targetItem(state, isDelete, lv)
+    checkRetreat(isDelete, item)
     item.prepareState--
   }
 
-  private fun advance(state: ReplayState, graph: EventGraphImpl, lv: Int) {
-    val event = graph.eventOf(lv)
-    val item = targetItem(state, event, lv)
-    checkAdvance(event, item)
-    if (event is Event.Delete) {
+  private fun advance(state: ReplayState, graph: EventGraphImpl, lv: LV) {
+    val isDelete = graph.isDeleteAt(lv)
+    val item = targetItem(state, isDelete, lv)
+    checkAdvance(isDelete, item)
+    if (isDelete) {
       item.prepareState++
     }
     else {
@@ -112,20 +113,22 @@ internal object EgWalkerReplay {
     }
   }
 
-  private fun targetItem(state: ReplayState, event: Event, lv: Int): Item {
-    val targetLv = if (event is Event.Delete) state.delTargets[lv] else lv
+  private fun targetItem(state: ReplayState, isDelete: Boolean, lv: LV): Item {
+    val targetLv = if (isDelete) state.delTargets[lv] else lv
     return state.itemsByLv[targetLv]!!
   }
 
-  private fun apply(state: ReplayState, graph: EventGraphImpl, sink: Sink, lv: Int) {
-    when (val event = graph.eventOf(lv)) {
-      is Event.Delete -> applyDelete(state, sink, lv, event)
-      is Event.Insert -> applyInsert(state, graph, sink, lv, event)
+  private fun apply(state: ReplayState, graph: EventGraphImpl, sink: Sink, lv: LV) {
+    if (graph.isDeleteAt(lv)) {
+      applyDelete(state, sink, lv, graph.posAt(lv))
+    }
+    else {
+      applyInsert(state, graph, sink, lv, graph.posAt(lv), graph.charAt(lv))
     }
   }
 
-  private fun applyDelete(state: ReplayState, sink: Sink, lv: Int, event: Event.Delete) {
-    val cursor = findByCurPos(state, event.pos())
+  private fun applyDelete(state: ReplayState, sink: Sink, lv: LV, pos: Int) {
+    val cursor = findByCurPos(state, pos)
     // Skip the items that do not exist in the prepare version.
     while (state.items[cursor.idx].prepareState != INSERTED) {
       val item = state.items[cursor.idx]
@@ -143,8 +146,8 @@ internal object EgWalkerReplay {
     state.delTargets[lv] = item.lv
   }
 
-  private fun applyInsert(state: ReplayState, graph: EventGraphImpl, sink: Sink, lv: Int, event: Event.Insert) {
-    val cursor = findByCurPos(state, event.pos())
+  private fun applyInsert(state: ReplayState, graph: EventGraphImpl, sink: Sink, lv: LV, pos: Int, character: Char) {
+    val cursor = findByCurPos(state, pos)
     checkInsertPoint(state, cursor)
     val originLeft = if (cursor.idx == 0) -1 else state.items[cursor.idx - 1].lv
     // The right parent is the next item that exists in the prepare version.
@@ -162,7 +165,7 @@ internal object EgWalkerReplay {
     state.itemsByLv[lv] = newItem
     integrate(state, graph, newItem, cursor)
     state.items.add(cursor.idx, newItem)
-    sink.insert(cursor.endPos, event.character())
+    sink.insert(cursor.endPos, character)
   }
 
   // --------------------------------------------------------------------------------- the scan
@@ -223,7 +226,7 @@ internal object EgWalkerReplay {
     return Cursor(i, endPos)
   }
 
-  private fun findItemIdx(state: ReplayState, needleLv: Int): Int {
+  private fun findItemIdx(state: ReplayState, needleLv: LV): Int {
     for (i in state.items.indices) {
       if (state.items[i].lv == needleLv) {
         return i
@@ -234,8 +237,8 @@ internal object EgWalkerReplay {
 
   // ------------------------------------------------------------------------------------ checks
 
-  private fun checkRetreat(event: Event, item: Item) {
-    if (event is Event.Delete) {
+  private fun checkRetreat(isDelete: Boolean, item: Item) {
+    if (isDelete) {
       require(item.prepareState >= DELETED) {
         "Retreat of a delete, but the item is not deleted in the prepare version"
       }
@@ -250,8 +253,8 @@ internal object EgWalkerReplay {
     }
   }
 
-  private fun checkAdvance(event: Event, item: Item) {
-    if (event is Event.Delete) {
+  private fun checkAdvance(isDelete: Boolean, item: Item) {
+    if (isDelete) {
       require(item.prepareState >= INSERTED) {
         "Advance of a delete, but the item is not yet inserted in the prepare version"
       }

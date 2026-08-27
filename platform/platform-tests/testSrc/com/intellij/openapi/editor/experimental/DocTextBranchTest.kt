@@ -136,6 +136,49 @@ class DocTextBranchTest {
   }
 
   @Test
+  fun `a fragment op makes one run`() {
+    val base = DocTextBranch.createBranch("abc", agent("a"))
+    assertEquals(3, base.graph().size())
+    assertEquals(1, base.graph().runCount())
+    val edited = base.applyOp(insertOp(1, "xyz")).applyOp(deleteOp(0, 2))
+    assertEquals(8, edited.graph().size())
+    assertEquals(3, edited.graph().runCount())
+  }
+
+  @Test
+  fun `a resumed agent continues its seqs after multi-unit runs`() {
+    val base = DocTextBranch.createBranch("0123", agent("a"))
+    val b1 = base.fork(agent("b")).applyOp(insertOp(4, "bbb")).applyOp(deleteOp(0, 2))
+    val merged = base.merge(b1) // the agent "b" owns five unit ids now, in two runs
+    val resumed = merged.fork(agent("b")).applyOp(insertOp(0, "RR"))
+    val sibling = merged.fork(agent("c")).applyOp(insertOp(0, "CC"))
+    val forward = resumed.merge(sibling)
+    val backward = sibling.merge(resumed)
+    assertEquals(forward.string(), backward.string())
+    // A seq collision would make the merge drop "RR" as an already known run.
+    assertTrue(forward.string().contains("RR"))
+    assertTrue(forward.string().contains("CC"))
+    assertEquals(forward.graph().replay().string(), forward.string())
+  }
+
+  @Test
+  fun `a large document costs one run and fast-forwards without a replay`() {
+    val size = 100_000
+    val text = buildString {
+      repeat(size) { append('x') }
+    }
+    val base = DocTextBranch.createBranch(text, agent("a"))
+    assertEquals(size, base.graph().size())
+    assertEquals(1, base.graph().runCount())
+    val edited = base.fork(agent("b")).applyOp(insertOp(size, "end"))
+    // A fast-forward adopts the descendant's text; a full replay here would time out.
+    val merged = base.merge(edited)
+    assertEquals(size + 3, merged.text().length())
+    assertEquals(2, merged.graph().runCount())
+    assertTrue(merged.string().endsWith("end"))
+  }
+
+  @Test
   fun `a merge with an unedited fork keeps the instance`() {
     val base = DocTextBranch.createBranch("abc", agent("a")).applyOp(insertOp(0, "x"))
     val fork = base.fork(agent("b"))

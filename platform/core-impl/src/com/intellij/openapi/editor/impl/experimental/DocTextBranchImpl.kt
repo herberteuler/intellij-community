@@ -19,7 +19,8 @@ import com.intellij.openapi.editor.impl.DocTextImpl
  * Eg-walker replay runs only inside [merge].
  *
  * Prototype limits, deliberate:
- * - One event per character, no run-length encoding. A large document costs a large graph.
+ * - The events are run-length encoded, but adjacent runs never coalesce, and the replay
+ *   still tracks one item per character.
  * - A merge with concurrent history replays the full graph, not only the concurrent
  *   region. The paper's partial replay from a critical version is a follow-up.
  */
@@ -54,7 +55,7 @@ internal class DocTextBranchImpl private constructor(
   }
 
   override fun fork(agent: Agent): DocTextBranch {
-    return DocTextBranchImpl(graph, agent, nextSeqOf(graph, agent), inner)
+    return DocTextBranchImpl(graph, agent, graph.nextSeqFor(agent), inner)
   }
 
   override fun merge(other: DocTextBranch): DocTextBranch {
@@ -83,11 +84,7 @@ internal class DocTextBranchImpl private constructor(
     }
     // The inner text validates the offset before the graph changes.
     val newInner = inner.applyOp(op)
-    val offset = op.offset()
-    var newGraph = graph
-    for (i in fragment.indices) {
-      newGraph = newGraph.appendAtTip(Event.createInsert(agent, nextSeq + i, offset + i, fragment[i]))
-    }
+    val newGraph = graph.appendAtTip(Event.createInsert(agent, nextSeq, op.offset(), fragment))
     return DocTextBranchImpl(newGraph, agent, nextSeq + fragment.length, newInner)
   }
 
@@ -97,12 +94,7 @@ internal class DocTextBranchImpl private constructor(
       return this
     }
     val newInner = inner.applyOp(op)
-    val offset = op.offset()
-    var newGraph = graph
-    for (i in 0 until length) {
-      // Every event deletes at the same position: the previous event shifted the text.
-      newGraph = newGraph.appendAtTip(Event.createDelete(agent, nextSeq + i, offset))
-    }
+    val newGraph = graph.appendAtTip(Event.createDelete(agent, nextSeq, op.offset(), length))
     return DocTextBranchImpl(newGraph, agent, nextSeq + length, newInner)
   }
 
@@ -119,8 +111,8 @@ internal class DocTextBranchImpl private constructor(
   companion object {
     fun create(chars: CharSequence, agent: Agent): DocTextBranchImpl {
       var graph = EventGraphImpl.empty()
-      for (i in chars.indices) {
-        graph = graph.appendAtTip(Event.createInsert(agent, i, i, chars[i]))
+      if (chars.isNotEmpty()) {
+        graph = graph.appendAtTip(Event.createInsert(agent, 0, 0, chars))
       }
       return DocTextBranchImpl(graph, agent, chars.length, DocText.createText(chars))
     }
@@ -130,18 +122,6 @@ internal class DocTextBranchImpl private constructor(
         "Foreign DocTextBranch implementation: ${branch.javaClass.name}"
       }
       return branch
-    }
-
-    /** The next free seq of [agent] in [graph]: one scan over the events. */
-    private fun nextSeqOf(graph: EventGraphImpl, agent: Agent): Int {
-      var next = 0
-      for (lv in 0 until graph.size()) {
-        val event = graph.eventOf(lv)
-        if (event.agent() == agent && event.seq() >= next) {
-          next = event.seq() + 1
-        }
-      }
-      return next
     }
   }
 }

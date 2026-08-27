@@ -13,92 +13,164 @@ import java.util.Collections
 import java.util.PriorityQueue
 
 /**
- * The event id: the (agent, seq) pair. One id names one event forever.
+ * One stored run: the public [Event] plus its graph links. The run covers the lvs
+ * `[lvStart, lvStart + event.length())`. [parents] belong to the first unit; every
+ * later unit has the one implicit parent `lv - 1`.
  */
-internal data class EventId(val agent: Agent, val seq: Int)
+internal class StoredRun(
+  val event: Event,
+  val lvStart: LV,
+  val parents: IntArray,
+) {
+  fun lvEnd(): LV = lvStart + event.length()
+}
+
+/** One per-agent index entry: the seqs `[seqStart, seqStart + length)` start at [lvStart]. */
+internal class AgentRun(val seqStart: Int, val length: Int, val lvStart: LV)
 
 /**
- * One stored event: the public value plus its parents as internal indexes (LVs).
- * The parents array is sorted and transitively reduced.
- */
-internal class StoredEvent(val event: Event, val parents: IntArray)
-
-/**
- * The shared append-only storage behind [EventGraphImpl] values.
+ * The shared append-only storage behind [EventGraphImpl] values, run-length encoded:
+ * one slot per [StoredRun], not per character.
  *
- * Successive graphs of one linear chain share one store; each graph sees the prefix
- * `[0, size)`. When a graph that is not the tip appends, the store copies that prefix
- * into a new store, so the old chain stays untouched.
+ * Successive graphs of one linear chain share one store; each graph sees the run
+ * prefix that covers its first `size` lvs. When a graph that is not the tip appends,
+ * the store copies that prefix into a new store, so the old chain stays untouched.
  *
- * Thread safety: appends and id lookups synchronize on this store. Reads of committed
- * slots do not synchronize. That is safe because a slot is written before the graph
- * that covers it is constructed, and a graph reaches another thread only through a
- * safe publication of that graph value (the same reasoning as in [DocTextImpl]).
+ * Thread safety: appends and the per-agent id index synchronize on this store. Reads
+ * of committed run slots do not synchronize. That is safe because a slot is written
+ * before the graph that covers it is constructed, and a graph reaches another thread
+ * only through a safe publication of that graph value (the same reasoning as in
+ * [DocTextImpl]).
  */
 internal class EventStore private constructor(
-  @Volatile private var slots: Array<StoredEvent?>,
-  private var committed: Int,
-  private val idToLv: HashMap<EventId, Int>,
+  @Volatile private var runs: Array<StoredRun?>,
+  private var committedRuns: Int,
+  private var committedLvs: Int,
+  private val agentIndex: HashMap<Agent, ArrayList<AgentRun>>,
 ) {
 
-  fun eventAt(lv: Int): StoredEvent {
-    val stored = slots[lv]
-    checkCommittedSlot(stored, lv)
-    return stored!!
+  fun runAt(index: Int): StoredRun {
+    val run = runs[index]
+    checkCommittedSlot(run, index)
+    return run!!
   }
 
-  /** The lv of [id] when it is below [limit], or -1. [limit] is the calling graph's size. */
-  fun lvOf(id: EventId, limit: Int): Int {
-    val lv = synchronized(this) { idToLv[id] } ?: return -1
-    return if (lv < limit) lv else -1
+  /** The lv of the unit ([agent], [seq]) when it sits below [lvLimit], or -1. */
+  fun lvOfSeq(agent: Agent, seq: Int, lvLimit: LV): LV {
+    synchronized(this) {
+      val list = agentIndex[agent] ?: return -1
+      // The list is sorted by seqStart and the ranges do not overlap: find the floor entry.
+      var lo = 0
+      var hi = list.size - 1
+      var floor: AgentRun? = null
+      while (lo <= hi) {
+        val mid = (lo + hi) ushr 1
+        val entry = list[mid]
+        if (entry.seqStart <= seq) {
+          floor = entry
+          lo = mid + 1
+        }
+        else {
+          hi = mid - 1
+        }
+      }
+      if (floor == null || seq >= floor.seqStart + floor.length || floor.lvStart >= lvLimit) {
+        return -1
+      }
+      return floor.lvStart + (seq - floor.seqStart)
+    }
+  }
+
+  /** Whether any unit id in `[seq, seq + length)` of [agent] already sits below [lvLimit]. */
+  fun overlaps(agent: Agent, seq: Int, length: Int, lvLimit: LV): Boolean {
+    synchronized(this) {
+      val list = agentIndex[agent] ?: return false
+      for (entry in list) {
+        if (entry.lvStart >= lvLimit) {
+          continue
+        }
+        if (entry.seqStart < seq + length && seq < entry.seqStart + entry.length) {
+          return true
+        }
+      }
+      return false
+    }
+  }
+
+  /** The next free seq of [agent] among the runs below [lvLimit]. */
+  fun nextSeq(agent: Agent, lvLimit: LV): Int {
+    synchronized(this) {
+      val list = agentIndex[agent] ?: return 0
+      var next = 0
+      for (entry in list) {
+        if (entry.lvStart >= lvLimit) {
+          continue
+        }
+        next = maxOf(next, entry.seqStart + entry.length)
+      }
+      return next
+    }
   }
 
   /**
-   * Appends [stored] after the prefix `[0, expectedSize)` and returns the store that
-   * holds the result: this store when it is the tip, or a fresh prefix copy otherwise.
+   * Appends [run] after the prefix of [expectedRuns] runs covering [expectedLvs] lvs, and
+   * returns the store that holds the result: this store when it is the tip, or a fresh
+   * prefix copy otherwise.
    */
-  fun appendAt(expectedSize: Int, stored: StoredEvent, id: EventId): EventStore {
-    if (tryAppend(expectedSize, stored, id)) {
+  fun appendAt(expectedLvs: Int, expectedRuns: Int, run: StoredRun): EventStore {
+    if (tryAppend(expectedLvs, run)) {
       return this
     }
-    val copy = copyPrefix(expectedSize)
-    val appended = copy.tryAppend(expectedSize, stored, id)
+    val copy = copyPrefix(expectedRuns, expectedLvs)
+    val appended = copy.tryAppend(expectedLvs, run)
     checkDivergedAppend(appended)
     return copy
   }
 
-  private fun tryAppend(expectedSize: Int, stored: StoredEvent, id: EventId): Boolean {
+  private fun tryAppend(expectedLvs: Int, run: StoredRun): Boolean {
     synchronized(this) {
-      if (committed != expectedSize) {
+      if (committedLvs != expectedLvs) {
         return false
       }
-      var slots = this.slots
-      if (committed == slots.size) {
-        slots = slots.copyOf(maxOf(INITIAL_CAPACITY, slots.size * 2))
+      var runs = this.runs
+      if (committedRuns == runs.size) {
+        runs = runs.copyOf(maxOf(INITIAL_CAPACITY, runs.size * 2))
       }
-      slots[committed] = stored
-      this.slots = slots // volatile write publishes the resized array and its elements
-      committed++
-      idToLv[id] = committed - 1
+      runs[committedRuns] = run
+      this.runs = runs // volatile write publishes the resized array and its elements
+      committedRuns++
+      committedLvs += run.event.length()
+      indexAgentRun(run)
       return true
     }
   }
 
-  private fun copyPrefix(size: Int): EventStore {
-    val slots = this.slots // one volatile read; the prefix slots are immutable once written
-    val newSlots = arrayOfNulls<StoredEvent>(maxOf(INITIAL_CAPACITY, size * 2))
-    System.arraycopy(slots, 0, newSlots, 0, size)
-    val newIdToLv = HashMap<EventId, Int>(size * 2)
-    for (lv in 0 until size) {
-      val event = newSlots[lv]!!.event
-      newIdToLv[EventId(event.agent(), event.seq())] = lv
+  private fun indexAgentRun(run: StoredRun) {
+    val event = run.event
+    val list = agentIndex.getOrPut(event.agent()) { ArrayList() }
+    val entry = AgentRun(event.seq(), event.length(), run.lvStart)
+    // Keep the list sorted by seqStart. An append usually goes to the end.
+    var i = list.size
+    while (i > 0 && list[i - 1].seqStart > entry.seqStart) {
+      i--
     }
-    return EventStore(newSlots, size, newIdToLv)
+    list.add(i, entry)
   }
 
-  private fun checkCommittedSlot(stored: StoredEvent?, lv: Int) {
-    require(stored != null) {
-      "The slot $lv is not committed"
+  private fun copyPrefix(runCount: Int, lvs: Int): EventStore {
+    val runs = this.runs // one volatile read; the prefix slots are immutable once written
+    val newRuns = arrayOfNulls<StoredRun>(maxOf(INITIAL_CAPACITY, runCount * 2))
+    System.arraycopy(runs, 0, newRuns, 0, runCount)
+    val copy = EventStore(newRuns, runCount, lvs, HashMap())
+    for (i in 0 until runCount) {
+      copy.indexAgentRun(newRuns[i]!!)
+    }
+    return copy
+  }
+
+  private fun checkCommittedSlot(run: StoredRun?, index: Int) {
+    require(run != null) {
+      "The run slot $index is not committed"
     }
   }
 
@@ -112,22 +184,28 @@ internal class EventStore private constructor(
     private const val INITIAL_CAPACITY = 16
 
     fun empty(): EventStore {
-      return EventStore(arrayOfNulls(INITIAL_CAPACITY), 0, HashMap())
+      return EventStore(arrayOfNulls(INITIAL_CAPACITY), 0, 0, HashMap())
     }
   }
 }
 
 /**
- * See [EventGraph]. An immutable view over an [EventStore] prefix.
+ * See [EventGraph]. An immutable view over an [EventStore] prefix: [runCount] runs
+ * covering the lvs `[0, size)`.
  */
 internal class EventGraphImpl private constructor(
   private val store: EventStore,
+  private val runCount: Int,
   private val size: Int,
   private val version: VersionImpl,
 ) : EventGraph {
 
   override fun size(): Int {
     return size
+  }
+
+  override fun runCount(): Int {
+    return runCount
   }
 
   override fun version(): Version {
@@ -144,17 +222,22 @@ internal class EventGraphImpl private constructor(
 
   fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
     checkVersionOfThisGraph(parents)
-    val id = EventId(event.agent(), event.seq())
-    checkNewId(id)
-    val stored = StoredEvent(event, parents.lvs)
-    val newStore = store.appendAt(size, stored, id)
-    val newVersion = VersionImpl(advanceFrontier(version.lvs, parents.lvs, size))
-    return EventGraphImpl(newStore, size + 1, newVersion)
+    checkNewIds(event)
+    val run = StoredRun(event, size, parents.lvs)
+    val newStore = store.appendAt(size, runCount, run)
+    val newLastLv = size + event.length() - 1
+    val newVersion = VersionImpl(advanceFrontier(version.lvs, parents.lvs, newLastLv))
+    return EventGraphImpl(newStore, runCount + 1, size + event.length(), newVersion)
   }
 
-  /** Appends [event] at this graph's own frontier. */
+  /** Appends the [event] run at this graph's own frontier. */
   fun appendAtTip(event: Event): EventGraphImpl {
     return appendImpl(event, version)
+  }
+
+  /** The next free seq of [agent] in this graph. */
+  fun nextSeqFor(agent: Agent): Int {
+    return store.nextSeq(agent, size)
   }
 
   override fun mergeFrom(other: EventGraph): EventGraph {
@@ -162,29 +245,53 @@ internal class EventGraphImpl private constructor(
   }
 
   /**
-   * The union of the two graphs, joined by event ids, plus the version of [other]
-   * re-expressed in the result graph's indexes.
+   * The union of the two graphs, joined by unit ids, plus the version of [other]
+   * re-expressed in the result graph's lvs. A run of [other] that this graph knows
+   * in part contributes only its unknown suffix, as a new run.
    */
   fun mergeFromImpl(other: EventGraphImpl): MergeResult {
-    val lvMap = IntArray(other.size)
     var graph = this
-    for (lv in 0 until other.size) {
-      val stored = other.store.eventAt(lv)
-      val event = stored.event
-      val known = graph.store.lvOf(EventId(event.agent(), event.seq()), graph.size)
-      if (known >= 0) {
-        lvMap[lv] = known
+
+    fun remap(otherLv: LV): LV {
+      val run = other.runAt(otherLv)
+      val event = run.event
+      val lv = graph.store.lvOfSeq(event.agent(), event.seq() + (otherLv - run.lvStart), graph.size)
+      checkRemapped(lv, otherLv)
+      return lv
+    }
+
+    for (i in 0 until other.runCount) {
+      val run = other.store.runAt(i)
+      val event = run.event
+      val length = event.length()
+      // Count the leading units this graph already has. A parent always precedes its
+      // child, so under causal delivery the known part is always a prefix.
+      var known = 0
+      while (known < length) {
+        val destLv = graph.store.lvOfSeq(event.agent(), event.seq() + known, graph.size)
+        if (destLv < 0) {
+          break
+        }
+        val destRun = graph.runAt(destLv)
+        known += minOf(length - known, destRun.lvEnd() - destLv)
+      }
+      if (known >= length) {
         continue
       }
-      // A parent always precedes its child, so every parent is mapped already.
-      val parents = IntArray(stored.parents.size) { i -> lvMap[stored.parents[i]] }
-      parents.sort()
-      graph = graph.appendImpl(event, VersionImpl(parents))
-      lvMap[lv] = graph.size - 1
+      val parents = if (known == 0) {
+        val remapped = IntArray(run.parents.size) { j -> remap(run.parents[j]) }
+        remapped.sort()
+        remapped
+      }
+      else {
+        intArrayOf(graph.store.lvOfSeq(event.agent(), event.seq() + known - 1, graph.size))
+      }
+      graph = graph.appendImpl(suffixOf(event, known), VersionImpl(parents))
     }
-    val remapped = IntArray(other.version.lvs.size) { i -> lvMap[other.version.lvs[i]] }
-    remapped.sort()
-    return MergeResult(graph, VersionImpl(remapped))
+
+    val remappedVersion = IntArray(other.version.lvs.size) { i -> remap(other.version.lvs[i]) }
+    remappedVersion.sort()
+    return MergeResult(graph, VersionImpl(remappedVersion))
   }
 
   override fun replay(version: Version): DocText {
@@ -197,28 +304,59 @@ internal class EventGraphImpl private constructor(
 
   // ------------------------------------------------------------------- queries for the replay
 
-  fun eventOf(lv: Int): Event {
+  /** The run that covers [lv]. */
+  fun runAt(lv: LV): StoredRun {
     checkLv(lv)
-    return store.eventAt(lv).event
+    var lo = 0
+    var hi = runCount - 1
+    while (lo < hi) {
+      val mid = (lo + hi + 1) ushr 1
+      if (store.runAt(mid).lvStart <= lv) {
+        lo = mid
+      }
+      else {
+        hi = mid - 1
+      }
+    }
+    return store.runAt(lo)
   }
 
-  fun parentsOf(lv: Int): IntArray {
-    checkLv(lv)
-    return store.eventAt(lv).parents
+  fun parentsOf(lv: LV): IntArray {
+    val run = runAt(lv)
+    return if (lv == run.lvStart) run.parents else intArrayOf(lv - 1)
+  }
+
+  fun isDeleteAt(lv: LV): Boolean {
+    return runAt(lv).event is Event.Delete
+  }
+
+  fun posAt(lv: LV): Int {
+    val run = runAt(lv)
+    val event = run.event
+    return if (event is Event.Insert) event.pos() + (lv - run.lvStart) else event.pos()
+  }
+
+  fun charAt(lv: LV): Char {
+    val run = runAt(lv)
+    val insert = run.event as? Event.Insert
+    checkInsertAt(insert, lv)
+    return insert!!.content()[lv - run.lvStart]
   }
 
   /**
    * The tie-break order for concurrent insertions: by agent, then by seq.
    * The reference implementation calls this `lvCmp`.
    */
-  fun compareEvents(lvA: Int, lvB: Int): Int {
-    val a = eventOf(lvA)
-    val b = eventOf(lvB)
-    val byAgent = a.agent().compareTo(b.agent())
+  fun compareEvents(lvA: LV, lvB: LV): Int {
+    val runA = runAt(lvA)
+    val runB = runAt(lvB)
+    val byAgent = runA.event.agent().compareTo(runB.event.agent())
     if (byAgent != 0) {
       return byAgent
     }
-    return a.seq().compareTo(b.seq())
+    val seqA = runA.event.seq() + (lvA - runA.lvStart)
+    val seqB = runB.event.seq() + (lvB - runB.lvStart)
+    return seqA.compareTo(seqB)
   }
 
   /** The paper's `Events(V)`: [version] and all its ancestors, as a set of lvs. */
@@ -233,8 +371,10 @@ internal class EventGraphImpl private constructor(
       if (seen.get(lv)) {
         continue
       }
-      seen.set(lv)
-      for (parent in parentsOf(lv)) {
+      // The units before lv in the same run are its chain of ancestors: mark them at once.
+      val run = runAt(lv)
+      seen.set(run.lvStart, lv + 1)
+      for (parent in run.parents) {
         if (!seen.get(parent)) {
           stack.addLast(parent)
         }
@@ -244,16 +384,16 @@ internal class EventGraphImpl private constructor(
   }
 
   /**
-   * The events only in the history of [a] and only in the history of [b].
-   * Both results are ascending. A per-event port of `diff` from the reference
-   * implementation's causal-graph library, without the run-length encoding.
+   * The lvs only in the history of [a] and only in the history of [b].
+   * Both results are ascending. A per-unit port of `diff` from the reference
+   * implementation's causal-graph library.
    */
   fun diff(a: IntArray, b: IntArray): Diff {
     val flags = HashMap<Int, Int>()
     val queue = PriorityQueue<Int>(11, Collections.reverseOrder())
     var numShared = 0
 
-    fun enqueue(lv: Int, flag: Int) {
+    fun enqueue(lv: LV, flag: Int) {
       val current = flags[lv]
       if (current == null) {
         queue.add(lv)
@@ -305,15 +445,47 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  private fun checkNewId(id: EventId) {
-    require(store.lvOf(id, size) < 0) {
-      "The event id $id is already in the graph"
+  private fun checkNewIds(event: Event) {
+    require(!store.overlaps(event.agent(), event.seq(), event.length(), size)) {
+      "An event id of $event is already in the graph"
     }
   }
 
-  private fun checkLv(lv: Int) {
+  private fun checkLv(lv: LV) {
     require(lv in 0 until size) {
       "The lv $lv is out of the graph of size $size"
+    }
+  }
+
+  private fun checkRemapped(lv: LV, otherLv: LV) {
+    require(lv >= 0) {
+      "The unit at the other graph's lv $otherLv is not in the merged graph"
+    }
+  }
+
+  private fun checkInsertAt(insert: Event.Insert?, lv: LV) {
+    require(insert != null) {
+      "The lv $lv is not an insert"
+    }
+  }
+
+  private fun suffixOf(event: Event, from: Int): Event {
+    if (from == 0) {
+      return event
+    }
+    return when (event) {
+      is Event.Insert -> Event.createInsert(
+        event.agent(),
+        event.seq() + from,
+        event.pos() + from,
+        event.content().subSequence(from, event.length()),
+      )
+      is Event.Delete -> Event.createDelete(
+        event.agent(),
+        event.seq() + from,
+        event.pos(),
+        event.length() - from,
+      )
     }
   }
 
@@ -337,7 +509,7 @@ internal class EventGraphImpl private constructor(
     private const val FLAG_SHARED = 2
 
     fun empty(): EventGraphImpl {
-      return EventGraphImpl(EventStore.empty(), 0, VersionImpl.ROOT)
+      return EventGraphImpl(EventStore.empty(), 0, 0, VersionImpl.ROOT)
     }
 
     fun implOf(graph: EventGraph): EventGraphImpl {
@@ -347,8 +519,8 @@ internal class EventGraphImpl private constructor(
       return graph
     }
 
-    /** The new frontier after an append: `(frontier - parents) + newLv`. */
-    private fun advanceFrontier(frontier: IntArray, parents: IntArray, newLv: Int): IntArray {
+    /** The new frontier after an append: `(frontier - parents) + newLastLv`. */
+    private fun advanceFrontier(frontier: IntArray, parents: IntArray, newLastLv: LV): IntArray {
       var kept = 0
       for (lv in frontier) {
         if (Arrays.binarySearch(parents, lv) < 0) {
@@ -363,7 +535,7 @@ internal class EventGraphImpl private constructor(
           i++
         }
       }
-      result[i] = newLv // newLv is greater than every existing lv, so the order holds
+      result[i] = newLastLv // the new lv is greater than every existing lv, so the order holds
       return result
     }
   }

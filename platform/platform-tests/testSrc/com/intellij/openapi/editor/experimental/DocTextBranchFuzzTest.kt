@@ -1,0 +1,84 @@
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.openapi.editor.experimental
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+import java.util.Random
+import kotlin.random.asKotlinRandom
+
+class DocTextBranchFuzzTest {
+
+  @Test
+  fun `replicas converge after a full sync`() {
+    val random = Random(20260827)
+    repeat(ROUNDS) { round ->
+      val base = DocTextBranch.createBranch(randomText(random), agent("base"))
+      val baseVersion = base.graph().version()
+
+      // Every replica forks from the base and edits under its own agent.
+      val replicas = ArrayList<DocTextBranch>()
+      val replicaCount = 2 + random.nextInt(2)
+      for (i in 0 until replicaCount) {
+        var replica = base.fork(agent("agent$i"))
+        repeat(1 + random.nextInt(6)) {
+          replica = replica.applyOp(randomOp(random, replica.length()))
+        }
+        replicas.add(replica)
+      }
+
+      // A full sync in different orders must converge to one text.
+      val forward = replicas.reduce { acc, replica -> acc.merge(replica) }
+      val backward = replicas.asReversed().reduce { acc, replica -> acc.merge(replica) }
+      val shuffledReplicas = ArrayList(replicas)
+      shuffledReplicas.shuffle(random.asKotlinRandom())
+      val shuffled = shuffledReplicas.reduce { acc, replica -> acc.merge(replica) }
+      assertEquals(forward.string(), backward.string()) { "round $round" }
+      assertEquals(forward.string(), shuffled.string()) { "round $round, shuffled order" }
+
+      // The materialized text matches a from-scratch replay of the merged graph.
+      assertEquals(forward.graph().replay().string(), forward.string()) { "round $round" }
+
+      // A replay of the merged graph at the base version returns the base text.
+      assertEquals(base.string(), forward.graph().replay(baseVersion).string()) { "round $round, base version" }
+
+      // The text and the line data match a fresh DocText over the same chars.
+      assertSameText(DocText.createText(forward.string()), forward.text())
+
+      // A second generation: edit after the merge, then merge again.
+      val left = forward.applyOp(randomOp(random, forward.length()))
+      val right = forward.fork(agent("second")).applyOp(randomOp(random, forward.length()))
+      val leftRight = left.merge(right)
+      val rightLeft = right.merge(left)
+      assertEquals(leftRight.string(), rightLeft.string()) { "round $round, second generation" }
+      assertSameText(DocText.createText(leftRight.string()), leftRight.text())
+    }
+  }
+
+  private fun randomText(random: Random): String {
+    val length = random.nextInt(12)
+    val text = StringBuilder()
+    repeat(length) {
+      text.append(ALPHABET[random.nextInt(ALPHABET.length)])
+    }
+    return text.toString()
+  }
+
+  private fun randomOp(random: Random, length: Int): DocOp {
+    if (length == 0 || random.nextBoolean()) {
+      val offset = random.nextInt(length + 1)
+      val fragment = StringBuilder()
+      repeat(1 + random.nextInt(3)) {
+        fragment.append(ALPHABET[random.nextInt(ALPHABET.length)])
+      }
+      return insertOp(offset, fragment.toString())
+    }
+    val offset = random.nextInt(length)
+    val opLength = 1 + random.nextInt(minOf(3, length - offset))
+    return deleteOp(offset, opLength)
+  }
+
+  companion object {
+    private const val ROUNDS = 1500
+    private const val ALPHABET = "abcdef \n\r"
+  }
+}

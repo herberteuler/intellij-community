@@ -23,9 +23,10 @@ import java.util.Random
  *
  * The concurrency varies: the sessions run with 1, 2, 3, 4, and 5 users editing at
  * once. Every user forks from the current base, edits, and merges back. The first
- * merge of a session is a fast-forward; every later one resolves real concurrency,
- * which costs a full O(n^2) replay in the current prototype. The size ladder makes
- * that growth visible in the output.
+ * merge of a session is a fast-forward; every later one resolves real concurrency
+ * with a partial replay from the common ancestor. Its remaining costs are the
+ * placeholder setup (one item per character of the older document) and the linear
+ * item scans per applied unit. The size ladder makes that growth visible.
  */
 class DocBranchPerformanceTest {
 

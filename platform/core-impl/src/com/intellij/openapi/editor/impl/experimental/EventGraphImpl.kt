@@ -436,6 +436,74 @@ internal class EventGraphImpl private constructor(
     return Diff(aOnly.toIntArray(), bOnly.toIntArray())
   }
 
+  /**
+   * Finds the common ancestor of the versions [a] and [b], and splits the region above
+   * it into [Conflict.conflictLvs] (units in the history of [a], or of both) and
+   * [Conflict.newLvs] (units only in the history of [b]). Both results ascend.
+   *
+   * A per-unit port of `findConflicting` from the reference implementation's
+   * causal-graph library: a max-first walk over version points; paths merge when they
+   * name the same version, and the walk stops when one point survives -- the ancestor.
+   */
+  fun findConflicting(a: IntArray, b: IntArray): Conflict {
+    val conflictLvs = ArrayList<Int>()
+    val newLvs = ArrayList<Int>()
+    val queue = PriorityQueue(11, POINT_MAX_FIRST)
+    queue.add(Point(descending(a), FLAG_A))
+    queue.add(Point(descending(b), FLAG_B))
+    val commonAncestor: IntArray = run {
+      while (true) {
+        val point = queue.poll()
+        var flag = point.flag
+        if (point.v.isEmpty()) {
+          // The walk reached the root: there is no common history below this point.
+          return@run IntArray(0)
+        }
+        // Merge the queued points that name the same version.
+        while (queue.isNotEmpty() && queue.peek().v.contentEquals(point.v)) {
+          if (queue.poll().flag != flag) {
+            flag = FLAG_SHARED
+          }
+        }
+        if (queue.isEmpty()) {
+          return@run ascending(point.v)
+        }
+        // Shatter a merger point; the head unit is processed below.
+        for (i in 1 until point.v.size) {
+          queue.add(Point(intArrayOf(point.v[i]), flag))
+        }
+        val head = point.v[0]
+        // Consume the points whose head is the same unit.
+        while (queue.isNotEmpty() && queue.peek().v.isNotEmpty() && queue.peek().v[0] == head) {
+          val same = queue.poll()
+          if (same.flag != flag) {
+            flag = FLAG_SHARED
+          }
+          for (i in 1 until same.v.size) {
+            queue.add(Point(intArrayOf(same.v[i]), same.flag))
+          }
+        }
+        if (queue.isEmpty()) {
+          // The head is the sole survivor: the ancestor, and the walk stops below it.
+          return@run intArrayOf(head)
+        }
+        if (flag == FLAG_B) {
+          newLvs.add(head)
+        }
+        else {
+          conflictLvs.add(head)
+        }
+        queue.add(Point(descending(parentsOf(head)), flag))
+      }
+      @Suppress("UNREACHABLE_CODE")
+      IntArray(0)
+    }
+    // The walk emits in descending order; the results must ascend.
+    conflictLvs.reverse()
+    newLvs.reverse()
+    return Conflict(commonAncestor, conflictLvs.toIntArray(), newLvs.toIntArray())
+  }
+
   // ------------------------------------------------------------------------------------ checks
 
   private fun checkVersionOfThisGraph(version: VersionImpl) {
@@ -503,10 +571,35 @@ internal class EventGraphImpl private constructor(
 
   internal class Diff(val aOnly: IntArray, val bOnly: IntArray)
 
+  internal class Conflict(val commonAncestor: IntArray, val conflictLvs: IntArray, val newLvs: IntArray)
+
+  /** A version under the walk of [findConflicting]: the lvs sorted descending, plus the flag. */
+  private class Point(val v: IntArray, val flag: Int)
+
   companion object {
     private const val FLAG_A = 0
     private const val FLAG_B = 1
     private const val FLAG_SHARED = 2
+
+    /** Orders the walk points of [findConflicting]: the greatest version first. */
+    private val POINT_MAX_FIRST = Comparator<Point> { p1, p2 ->
+      val a = p1.v
+      val b = p2.v
+      val common = minOf(a.size, b.size)
+      for (i in 0 until common) {
+        if (a[i] != b[i]) {
+          return@Comparator b[i] - a[i]
+        }
+      }
+      if (a.size != b.size) {
+        return@Comparator b.size - a.size
+      }
+      p2.flag - p1.flag
+    }
+
+    private fun descending(lvs: IntArray): IntArray = lvs.sortedArrayDescending()
+
+    private fun ascending(lvs: IntArray): IntArray = lvs.sortedArray()
 
     fun empty(): EventGraphImpl {
       return EventGraphImpl(EventStore.empty(), 0, 0, VersionImpl.ROOT)

@@ -51,6 +51,25 @@ class DocBranchFuzzTest {
       val rightLeft = right.merge(left)
       assertEquals(leftRight.string(), rightLeft.string()) { "round $round, second generation" }
       assertSameText(DocText.createText(leftRight.string()), leftRight.text())
+
+      // A pull-based staircase: the common ancestor climbs with every pull.
+      var x = leftRight
+      var y = leftRight.fork(agent("stair"))
+      repeat(3) {
+        x = x.applyOp(randomOp(random, x.length()))
+        y = y.applyOp(randomOp(random, y.length()))
+        if (random.nextBoolean()) {
+          x = x.merge(y)
+        }
+        else {
+          y = y.merge(x)
+        }
+      }
+      val stairForward = x.merge(y)
+      val stairBackward = y.merge(x)
+      assertEquals(stairForward.string(), stairBackward.string()) { "round $round, staircase" }
+      assertEquals(stairForward.graph().replay().string(), stairForward.string()) { "round $round, staircase replay" }
+      assertSameText(DocText.createText(stairForward.string()), stairForward.text())
     }
   }
 

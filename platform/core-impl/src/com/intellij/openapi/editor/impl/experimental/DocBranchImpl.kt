@@ -18,11 +18,15 @@ import com.intellij.openapi.editor.impl.DocTextImpl
  * [applyOp] appends events at the graph's frontier and edits [inner] directly; the
  * Eg-walker replay runs only inside [merge].
  *
+ * A merge with concurrent history replays only the region above the common ancestor
+ * (the paper's partial replay): placeholder items stand in for the older document, and
+ * the new units apply to [inner] as ordinary [DocOp]s.
+ *
  * Prototype limits, deliberate:
  * - The events are run-length encoded, but adjacent runs never coalesce, and the replay
  *   still tracks one item per character.
- * - A merge with concurrent history replays the full graph, not only the concurrent
- *   region. The paper's partial replay from a critical version is a follow-up.
+ * - A merge still pays one placeholder item per character of the older document, and
+ *   the item list is scanned linearly per applied unit.
  */
 internal class DocBranchImpl private constructor(
   private val graph: EventGraphImpl,
@@ -72,7 +76,19 @@ internal class DocBranchImpl private constructor(
       otherImpl.inner
     }
     else {
-      merged.replay(mergedVersion)
+      // A partial replay: only the region above the common ancestor is walked, and
+      // only the new units reach the sink, as ordinary ops over the current text.
+      var updated = inner
+      EgWalkerReplay.mergeInto(merged, graph.versionImpl(), object : EgWalkerReplay.Sink {
+        override fun insert(pos: Int, character: Char) {
+          updated = updated.applyOp(InsertDocOp(pos, character.toString()))
+        }
+
+        override fun delete(pos: Int) {
+          updated = updated.applyOp(DeleteDocOp(pos))
+        }
+      })
+      updated
     }
     return DocBranchImpl(merged, agent, nextSeq, newInner)
   }
@@ -124,4 +140,14 @@ internal class DocBranchImpl private constructor(
       return branch
     }
   }
+}
+
+private class InsertDocOp(private val offset: Int, private val fragment: String) : DocOp.Insert {
+  override fun offset(): Int = offset
+  override fun fragment(): CharSequence = fragment
+}
+
+private class DeleteDocOp(private val offset: Int) : DocOp.Delete {
+  override fun offset(): Int = offset
+  override fun length(): Int = 1
 }

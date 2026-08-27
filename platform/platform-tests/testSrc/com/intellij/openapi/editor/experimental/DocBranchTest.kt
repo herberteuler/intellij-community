@@ -136,6 +136,59 @@ class DocBranchTest {
   }
 
   @Test
+  fun `a merge of two merged branches converges`() {
+    val base = DocBranch.createBranch("abc\n", agent("a"))
+    val a = base.applyOp(insertOp(0, "1"))
+    val b = base.fork(agent("b")).applyOp(insertOp(4, "2"))
+    val c = base.fork(agent("c")).applyOp(deleteOp(1, 1))
+    // Both sides of the final merge are merge results with multi-head versions.
+    val left = a.merge(b)
+    val right = b.merge(c)
+    val forward = left.merge(right)
+    val backward = right.merge(left)
+    assertEquals("1ac\n2", forward.string())
+    assertEquals(forward.string(), backward.string())
+    assertEquals(forward.graph().replay().string(), forward.string())
+    assertSameText(DocText.createText(forward.string()), forward.text())
+  }
+
+  @Test
+  fun `a concurrent edit survives a full deletion`() {
+    val base = DocBranch.createBranch("abcdef", agent("a"))
+    val wipe = base.applyOp(deleteOp(0, 6))
+    val edit = base.fork(agent("b")).applyOp(insertOp(3, "X"))
+    assertEquals("X", wipe.merge(edit).string())
+    assertEquals("X", edit.merge(wipe).string())
+  }
+
+  @Test
+  fun `alternating pulls converge over many rounds`() {
+    // A staircase history: the common ancestor of every merge climbs round by round.
+    var x = DocBranch.createBranch("seed\n", agent("x"))
+    var y = x.fork(agent("y"))
+    for (round in 0 until 12) {
+      x = x.applyOp(insertOp(0, "x$round "))
+      y = y.applyOp(insertOp(y.text().length(), " y$round"))
+      if (round % 2 == 0) {
+        x = x.merge(y)
+      }
+      else {
+        y = y.merge(x)
+      }
+      val forward = x.merge(y)
+      val backward = y.merge(x)
+      assertEquals(forward.string(), backward.string()) { "round $round" }
+      assertEquals(forward.graph().replay().string(), forward.string()) { "round $round" }
+    }
+    val merged = x.merge(y)
+    assertSameText(DocText.createText(merged.string()), merged.text())
+    for (round in 0 until 12) {
+      assertTrue(merged.string().contains("x$round")) { "The edit x$round is lost" }
+      assertTrue(merged.string().contains("y$round")) { "The edit y$round is lost" }
+    }
+  }
+
+  @Test
   fun `a fragment op makes one run`() {
     val base = DocBranch.createBranch("abc", agent("a"))
     assertEquals(3, base.graph().size())

@@ -29,28 +29,58 @@ internal object EgWalkerReplay {
   }
 
   /**
-   * Rebuilds the text at [version] and reports every effect to [sink], in order.
+   * Rebuilds the text at [version] from scratch and reports every effect to [sink], in order.
    */
   fun replay(graph: EventGraphImpl, version: VersionImpl, sink: Sink) {
-    val state = ReplayState(graph.size())
+    val state = ReplayState(graph.size(), 0)
     val subset = if (version == graph.versionImpl()) null else graph.eventsOf(version)
     for (lv in 0 until graph.size()) {
       if (subset != null && !subset.get(lv)) {
         continue
       }
-      // Move the prepare version from the last consumed unit to this unit's parents.
-      val parents = graph.parentsOf(lv)
-      val diff = graph.diff(state.curVersion, parents)
-      // Retreat in reverse order, so an item is undeleted before it is uninserted.
-      for (i in diff.aOnly.indices.reversed()) {
-        retreat(state, graph, diff.aOnly[i])
-      }
-      for (advanced in diff.bOnly) {
-        advance(state, graph, advanced)
-      }
-      apply(state, graph, sink, lv)
-      state.curVersion = intArrayOf(lv)
+      step(state, graph, sink, lv)
     }
+  }
+
+  /**
+   * Merges everything the graph holds beyond [branchVersion] into a document that is
+   * already at [branchVersion], and reports only the new effects to [sink]. This is
+   * the paper's partial replay: only the region above the common ancestor is walked.
+   *
+   * Placeholder items stand in for the document at the common ancestor, so the units
+   * at or below it are never replayed. The units of the branch's own history above the
+   * ancestor are replayed silently, to rebuild the concurrency context; the units only
+   * in the merged history apply with output. A port of `mergeChangesIntoBranch` from
+   * the reference implementation.
+   */
+  fun mergeInto(graph: EventGraphImpl, branchVersion: VersionImpl, sink: Sink) {
+    val conflict = graph.findConflicting(branchVersion.lvs, graph.versionImpl().lvs)
+    // One placeholder per lv of the branch version: at least the document length at the
+    // common ancestor. The trailing extras sit after every reachable position, inert.
+    val placeholderCount = if (branchVersion.isRoot()) 0 else branchVersion.lvs[branchVersion.lvs.size - 1] + 1
+    val state = ReplayState(graph.size(), placeholderCount)
+    state.curVersion = conflict.commonAncestor
+    for (lv in conflict.conflictLvs) {
+      step(state, graph, null, lv)
+    }
+    for (lv in conflict.newLvs) {
+      step(state, graph, sink, lv)
+    }
+  }
+
+  /** Consumes one unit: moves the prepare version to its parents, then applies it. */
+  private fun step(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV) {
+    val parents = graph.parentsOf(lv)
+    val diff = graph.diff(state.curVersion, parents)
+    // Retreat in reverse order, so an item is undeleted before it is uninserted.
+    for (i in diff.aOnly.indices.reversed()) {
+      retreat(state, graph, diff.aOnly[i])
+    }
+    for (advanced in diff.bOnly) {
+      advance(state, graph, advanced)
+    }
+    apply(state, graph, sink, lv)
+    state.curVersion = intArrayOf(lv)
   }
 
   // ------------------------------------------------------------------------ the internal state
@@ -73,16 +103,40 @@ internal object EgWalkerReplay {
     val rightParent: LV,
   )
 
+  /**
+   * A placeholder item's lv is `PLACEHOLDER_BASE - i` for the document position `i` at
+   * the common ancestor. -1 stays free for the start and end sentinel.
+   */
+  private const val PLACEHOLDER_BASE = -2
+
   /** The reference implementation's `EditContext`. */
-  private class ReplayState(graphSize: Int) {
-    val items = ArrayList<Item>()
+  private class ReplayState(graphSize: Int, placeholderCount: Int) {
+    val items = ArrayList<Item>(placeholderCount + 16)
 
     /** For a delete unit, the lv of the item it deleted. */
     val delTargets = IntArray(graphSize) { -1 }
 
-    val itemsByLv = arrayOfNulls<Item>(graphSize)
+    private val itemsByLv = arrayOfNulls<Item>(graphSize)
+
+    private val placeholders = arrayOfNulls<Item>(placeholderCount)
 
     var curVersion = IntArray(0)
+
+    init {
+      for (i in 0 until placeholderCount) {
+        val item = Item(PLACEHOLDER_BASE - i, INSERTED, INSERTED, -1, -1)
+        items.add(item)
+        placeholders[i] = item
+      }
+    }
+
+    fun register(lv: LV, item: Item) {
+      itemsByLv[lv] = item
+    }
+
+    fun itemBy(lv: LV): Item {
+      return if (lv <= PLACEHOLDER_BASE) placeholders[PLACEHOLDER_BASE - lv]!! else itemsByLv[lv]!!
+    }
   }
 
   private fun itemWidth(state: Int): Int {
@@ -115,10 +169,10 @@ internal object EgWalkerReplay {
 
   private fun targetItem(state: ReplayState, isDelete: Boolean, lv: LV): Item {
     val targetLv = if (isDelete) state.delTargets[lv] else lv
-    return state.itemsByLv[targetLv]!!
+    return state.itemBy(targetLv)
   }
 
-  private fun apply(state: ReplayState, graph: EventGraphImpl, sink: Sink, lv: LV) {
+  private fun apply(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV) {
     if (graph.isDeleteAt(lv)) {
       applyDelete(state, sink, lv, graph.posAt(lv))
     }
@@ -127,7 +181,7 @@ internal object EgWalkerReplay {
     }
   }
 
-  private fun applyDelete(state: ReplayState, sink: Sink, lv: LV, pos: Int) {
+  private fun applyDelete(state: ReplayState, sink: Sink?, lv: LV, pos: Int) {
     val cursor = findByCurPos(state, pos)
     // Skip the items that do not exist in the prepare version.
     while (state.items[cursor.idx].prepareState != INSERTED) {
@@ -139,14 +193,14 @@ internal object EgWalkerReplay {
     checkDeleteTarget(item)
     // A concurrent delete may have removed the character from the effect version already.
     if (item.effectState == INSERTED) {
-      sink.delete(cursor.endPos)
+      sink?.delete(cursor.endPos)
     }
     item.prepareState = DELETED
     item.effectState = DELETED
     state.delTargets[lv] = item.lv
   }
 
-  private fun applyInsert(state: ReplayState, graph: EventGraphImpl, sink: Sink, lv: LV, pos: Int, character: Char) {
+  private fun applyInsert(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV, pos: Int, character: Char) {
     val cursor = findByCurPos(state, pos)
     checkInsertPoint(state, cursor)
     val originLeft = if (cursor.idx == 0) -1 else state.items[cursor.idx - 1].lv
@@ -162,10 +216,10 @@ internal object EgWalkerReplay {
       }
     }
     val newItem = Item(lv, INSERTED, INSERTED, originLeft, rightParent)
-    state.itemsByLv[lv] = newItem
+    state.register(lv, newItem)
     integrate(state, graph, newItem, cursor)
     state.items.add(cursor.idx, newItem)
-    sink.insert(cursor.endPos, character)
+    sink?.insert(cursor.endPos, character)
   }
 
   // --------------------------------------------------------------------------------- the scan

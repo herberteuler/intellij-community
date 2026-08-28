@@ -435,13 +435,16 @@ internal object EgWalkerReplay {
    * past the run splits, so the deleted part stays exact.
    */
   private fun applyDelete(state: ReplayState, sink: Sink?, lv: LV, count: Int, pos: Int) {
+    // One lookup carries the whole run. Every unit removes at the same position, and a
+    // consumed item keeps no prepare width, so the next target is simply the next item
+    // that the prepare version still has. A fresh lookup per item would first back up
+    // over everything this run already consumed, and then walk forward over it again.
+    val cursor = findByCurPos(state, pos)
     var done = 0
     while (done < count) {
-      val cursor = findByCurPos(state, pos)
       // Skip the items that do not exist in the prepare version.
       while (state.items[cursor.idx].prepareState != INSERTED) {
-        val item = state.items[cursor.idx]
-        cursor.endPos += effectWidth(item)
+        cursor.endPos += effectWidth(state.items[cursor.idx])
         cursor.idx++
       }
       val taken = minOf(count - done, state.items[cursor.idx].length)
@@ -462,10 +465,11 @@ internal object EgWalkerReplay {
       for (k in 0 until taken) {
         state.setDelTarget(lv + done + k, item.lv + k)
       }
-      // The rest of the run targets the same position, right after this item.
-      state.cacheCursor(cursor.idx + 1, pos, cursor.endPos)
+      // The item now has no width in either version, so neither position moves.
+      cursor.idx++
       done += taken
     }
+    state.cacheCursor(cursor.idx, pos, cursor.endPos)
   }
 
   /**

@@ -27,6 +27,9 @@ import java.util.Random
  * with a partial replay from the common ancestor over one lazily-split placeholder.
  * Its remaining per-merge costs are two O(graph size) arrays and the linear item
  * scans over the region. The size ladder makes what remains visible.
+ *
+ * Every scenario also reports the history size: the units, the runs, and the heap in use.
+ * The history grows without a bound, and no timing shows that.
  */
 class DocBranchPerformanceTest {
 
@@ -66,6 +69,7 @@ class DocBranchPerformanceTest {
       println("  batch $batch: $ops ops in ${sinceMs(start)} ms (history: ${graph.size()} units, ${graph.runCount()} runs)")
     }
     println("  total: ${recorded.size} ops, ${user.branch.text().length()} chars")
+    reportHistory(user.branch)
 
     // The same ops, apply-only, on a fresh branch and on a plain text.
     var fresh: DocBranch = DocBranch.createBranch(text, agent("user"))
@@ -113,7 +117,8 @@ class DocBranchPerformanceTest {
       }
     }
 
-    println("  final: ${base.text().length()} chars, ${base.graph().size()} units, ${base.graph().runCount()} runs")
+    println("  final: ${base.text().length()} chars")
+    reportHistory(base)
     assertTrue(base.text().length() > 0)
   }
 
@@ -207,6 +212,29 @@ class DocBranchPerformanceTest {
 
   private fun sinceMs(startNanos: Long): Long {
     return (System.nanoTime() - startNanos) / 1_000_000
+  }
+
+  /**
+   * Reports what the history costs. The timings alone cannot show this, and the history
+   * is what grows without a bound.
+   *
+   * The unit and run counts are exact and repeat run to run, so they compare directly.
+   * The run count is the one that run coalescing changes: today one op makes one run, and
+   * a keystroke is one op. The heap number is a hint only, because a collection is a
+   * request, but it gives the order of the retained size.
+   */
+  private fun reportHistory(branch: DocBranch) {
+    val graph = branch.graph()
+    val perRun = graph.size().toDouble() / maxOf(1, graph.runCount())
+    val runtime = Runtime.getRuntime()
+    repeat(3) {
+      runtime.gc()
+    }
+    val usedMb = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)
+    println(
+      "  history: ${graph.size()} units, ${graph.runCount()} runs " +
+      "(${String.format("%.1f", perRun)} units per run), heap in use ~$usedMb MB"
+    )
   }
 
   private fun hugeTextPath(): Path {

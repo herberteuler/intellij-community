@@ -13,8 +13,8 @@ import com.intellij.openapi.editor.impl.DocTextImpl
  * See [DocBranch].
  *
  * The value is a triple: the [graph] that records the history, the [agent] that authors
- * new events, and an [docText] [DocText] that holds the materialized text. [docText] returns
- * [docText] as is, so the text and the line data behave exactly like [DocTextImpl]. A local
+ * new events, and the [docText] that holds the materialized text. [text] returns [docText]
+ * as is, so the text and the line data behave exactly like [DocTextImpl]. A local
  * [applyOp] appends events at the graph's frontier and edits [docText] directly; the
  * Eg-walker replay runs only inside [merge].
  *

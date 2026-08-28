@@ -443,6 +443,130 @@ class DocBranchTest {
       assertTrue(forward.string().contains(marker)) { "The marker $marker is lost in '${forward.string()}'" }
     }
   }
+
+  @Test
+  fun `a self merge keeps the instance`() {
+    val base = DocBranch.createBranch("abc", agent("a"))
+    val edited = base.applyOp(insertOp(3, "d"))
+    assertSame(edited, edited.merge(edited))
+  }
+
+  @Test
+  fun `a second round over unrelated histories converges`() {
+    // Two branches with no common history join into a concatenation. The joined graph
+    // holds two parentless runs, so its version has two heads. The next round merges
+    // above that two-head version.
+    val first = DocBranch.createBranch("aaa\n", agent("a"))
+    val second = DocBranch.createBranch("bbb\n", agent("b"))
+    val joined = first.merge(second)
+    assertEquals("aaa\nbbb\n", joined.string())
+    val left = joined.applyOp(insertOp(0, "L"))
+    // The delete crosses the seam between the two parentless runs.
+    val right = joined.fork(agent("c")).applyOp(deleteOp(2, 4))
+    val forward = left.merge(right)
+    val backward = right.merge(left)
+    assertEquals("Laab\n", forward.string())
+    assertEquals(forward.string(), backward.string())
+    assertEquals(forward.graph().replay().string(), forward.string())
+    assertSameText(DocText.createText(forward.string()), forward.text())
+  }
+
+  @Test
+  fun `a concurrent run beside a long run keeps both runs whole`() {
+    // The long run makes the replay walk the implicit parent chain inside one run,
+    // and the delete run removes units from the middle of it.
+    val base = DocBranch.createBranch("()", agent("a"))
+    val a = base
+      .applyOp(insertOp(1, "0123456789"))
+      .applyOp(deleteOp(5, 3)) // removes "456" -> "(0123789)"
+    val b = base.fork(agent("b")).applyOp(insertOp(1, "ABC"))
+    val forward = a.merge(b)
+    val backward = b.merge(a)
+    assertEquals("(0123789ABC)", forward.string())
+    assertEquals(forward.string(), backward.string())
+    assertEquals(forward.graph().replay().string(), forward.string())
+  }
+
+  @Test
+  fun `a concurrent insert survives a delete run over the whole region`() {
+    // The delete run consumes six placeholder units one by one, so the merge splits
+    // the single placeholder span again and again.
+    val base = DocBranch.createBranch("abcdefghij", agent("a"))
+    val a = base.applyOp(deleteOp(2, 6)) // removes "cdefgh" -> "abij"
+    val b = base.fork(agent("b"))
+      .applyOp(insertOp(5, "X")) // inside the deleted range
+      .applyOp(insertOp(0, "Y")) // before it
+    val forward = a.merge(b)
+    val backward = b.merge(a)
+    assertEquals("YabXij", forward.string())
+    assertEquals(forward.string(), backward.string())
+    assertEquals(forward.graph().replay().string(), forward.string())
+  }
+
+  @Test
+  fun `an insert at the end of an emptied document keeps its place`() {
+    // The placeholder span is longer than the document at the common ancestor, so the
+    // trailing units sit after every reachable position. The insert lands at the end of
+    // the ancestor document, which is exactly the boundary of those trailing units.
+    val base = DocBranch.createBranch("abcdefgh", agent("a"))
+    val wipe = base.applyOp(deleteOp(0, 8))
+    assertEquals("", wipe.string())
+    val tail = base.fork(agent("b")).applyOp(insertOp(8, "TAIL"))
+    val forward = wipe.merge(tail)
+    val backward = tail.merge(wipe)
+    assertEquals("TAIL", forward.string())
+    assertEquals("TAIL", backward.string())
+    assertEquals(forward.graph().replay().string(), forward.string())
+  }
+
+  @Test
+  fun `three concurrent runs at one anchor converge in every order`() {
+    // Every run has the same left origin and the same right parent, so the tie-break
+    // by agent decides the whole order. This is the case the integrate scan resolves.
+    val base = DocBranch.createBranch("<>", agent("m"))
+    val replicas = listOf("a", "b", "c").map { name ->
+      base.fork(agent(name)).applyOp(insertOp(1, name.repeat(3)))
+    }
+    val orders = listOf(
+      listOf(0, 1, 2), listOf(0, 2, 1),
+      listOf(1, 0, 2), listOf(1, 2, 0),
+      listOf(2, 0, 1), listOf(2, 1, 0),
+    )
+    for (order in orders) {
+      val merged = order.map { replicas[it] }.reduce { acc, replica -> acc.merge(replica) }
+      assertEquals("<aaabbbccc>", merged.string()) { "the order $order" }
+      assertEquals(merged.graph().replay().string(), merged.string()) { "the order $order" }
+    }
+  }
+
+  @Test
+  fun `an edit based on a pre-merge delete run merges cleanly`() {
+    val base = DocBranch.createBranch("abcdef", agent("a"))
+    val a1 = base.applyOp(deleteOp(1, 3)) // -> "aef"
+    val b1 = base.fork(agent("b")).applyOp(insertOp(3, "Z")) // -> "abcZdef"
+    val merged = a1.merge(b1) // -> "aZef"
+    assertEquals("aZef", merged.string())
+    // The next edit descends from a1, so the replay must advance over the delete run.
+    val a2 = a1.applyOp(insertOp(1, "W")) // -> "aWef"
+    val forward = merged.merge(a2)
+    val backward = a2.merge(merged)
+    assertEquals("aWZef", forward.string())
+    assertEquals("aWZef", backward.string())
+    assertEquals(forward.graph().replay().string(), forward.string())
+  }
+
+  @Test
+  fun `a replay at a merged past version returns that merged text`() {
+    val base = DocBranch.createBranch("abc", agent("a"))
+    val a1 = base.applyOp(insertOp(3, "1"))
+    val b1 = base.fork(agent("b")).applyOp(insertOp(0, "2"))
+    val merged = a1.merge(b1)
+    // The version of a merge has two heads; a replay at it must select that event set.
+    val mergedVersion = merged.graph().version()
+    val later = merged.applyOp(insertOp(0, "Z")).applyOp(deleteOp(1, 2))
+    assertEquals(merged.string(), later.graph().replay(mergedVersion).string())
+    assertEquals(later.string(), later.graph().replay().string())
+  }
 }
 
 internal fun agent(name: String): Agent = Agent.createAgent(name)

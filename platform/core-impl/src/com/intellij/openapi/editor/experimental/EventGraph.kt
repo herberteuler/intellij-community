@@ -44,7 +44,7 @@ interface EventGraph {
    * builds the document at [version] from scratch.
    *
    * The replay walks the events in a topological order. It resolves concurrent
-   * insertions with the FugueMax order, so every replica computes the same text.
+   * insertions with the Fugue order, so every replica computes the same text.
    */
   fun replay(version: Version): DocText
 

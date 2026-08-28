@@ -19,8 +19,7 @@ import java.util.Random
  * - type char by char: every keystroke is its own insert op (and its own run);
  * - autocomplete: one word lands as one insert op;
  * - copy-paste: a medium fragment of the current text lands as one insert op;
- * - move text: one delete op plus one insert op of the same fragment;
- * - rename a variable: a delete-insert pair per occurrence, back to front.
+ * - move text: one delete op plus one insert op of the same fragment.
  *
  * The concurrency varies: the sessions run with 1, 2, 3, 4, and 5 users editing at
  * once. Every user forks from the current base, edits, and merges back. The first
@@ -138,14 +137,18 @@ class DocBranchPerformanceTest {
     }
   }
 
-  /** Performs one random user action and returns the op count it produced. */
+  /**
+   * Performs one random user action and returns the op count it produced.
+   *
+   * The bounds weight the four actions 40, 25, 15, and 9. Keep the bound at 89. Another
+   * bound draws a different history, so the measured times no longer compare.
+   */
   private fun performAction(user: User, random: Random): Int {
     return when (random.nextInt(89)) {
       in 0..39 -> typeChars(user, random)
       in 40..64 -> autocompleteWord(user, random)
       in 65..79 -> copyPasteFragment(user, random)
-      in 80..89 -> moveFragment(user, random)
-      else -> renameVariable(user, random) // TODO: renameVariable is too slow
+      else -> moveFragment(user, random)
     }
   }
 
@@ -200,46 +203,6 @@ class DocBranchPerformanceTest {
     return 2
   }
 
-  private fun renameVariable(user: User, random: Random): Int {
-    val text = user.branch.string()
-    val word = pickIdentifier(text, random) ?: return 0
-    val newName = word + "Renamed"
-    val occurrences = ArrayList<Int>()
-    var at = text.indexOf(word)
-    while (at >= 0 && occurrences.size < MAX_RENAME_OCCURRENCES) {
-      occurrences.add(at)
-      at = text.indexOf(word, at + word.length)
-    }
-    // Replace back to front, so the earlier offsets stay valid.
-    for (i in occurrences.indices.reversed()) {
-      val start = occurrences[i]
-      user.apply(deleteOp(start, word.length))
-      user.apply(insertOp(start, newName))
-    }
-    return occurrences.size * 2
-  }
-
-  private fun pickIdentifier(text: String, random: Random): String? {
-    repeat(10) {
-      val at = random.nextInt(text.length)
-      if (text[at].isLetter()) {
-        var start = at
-        while (start > 0 && text[start - 1].isJavaIdentifierPart()) {
-          start--
-        }
-        var end = at + 1
-        while (end < text.length && text[end].isJavaIdentifierPart()) {
-          end++
-        }
-        val word = text.substring(start, end)
-        if (word.length in 6..30 && word[0].isLetter()) {
-          return word
-        }
-      }
-    }
-    return null
-  }
-
   // -------------------------------------------------------------------------------- utilities
 
   private fun sinceMs(startNanos: Long): Long {
@@ -260,7 +223,6 @@ class DocBranchPerformanceTest {
     private const val ACTIONS_PER_USER = 6
     private const val SINGLE_USER_BATCHES = 1000
     private const val SINGLE_USER_ACTIONS_PER_BATCH = 200
-    private const val MAX_RENAME_OCCURRENCES = 20
     private const val TYPED = "abcdefghijklmnopqrstuvwxyz    ();.{}\n"
     private val COMPLETIONS = arrayOf(
       "getDocument()",

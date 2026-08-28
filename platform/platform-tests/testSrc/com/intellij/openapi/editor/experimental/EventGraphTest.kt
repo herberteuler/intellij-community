@@ -230,6 +230,57 @@ class EventGraphTest {
   }
 
   @Test
+  fun `an append at a stale version keeps the other heads`() {
+    val u = agent("u")
+    var graph = EventGraph.createGraph()
+    graph = graph.append(Event.createInsert(u, 0, 0, "ab"), graph.version())
+    val afterAb = graph.version()
+    graph = graph.append(Event.createInsert(agent("x"), 0, 2, "X"), afterAb)
+    val afterX = graph.version()
+    // Two more runs branch off the stale versions, so the frontier keeps three heads.
+    graph = graph.append(Event.createInsert(agent("y"), 0, 2, "Y"), afterAb)
+    graph = graph.append(Event.createInsert(agent("z"), 0, 3, "Z"), afterX)
+    assertEquals(5, graph.size())
+    // "X" and "Y" share the left origin "b", so the agent order puts "X" first. "Z"
+    // hangs off "X", so it lands between "X" and "Y".
+    assertEquals("abXZY", graph.replay().string())
+    assertEquals("abX", graph.replay(afterX).string())
+    assertEquals("ab", graph.replay(afterAb).string())
+  }
+
+  @Test
+  fun `the agent index accepts runs whose seqs arrive out of order`() {
+    val u = agent("u")
+    val root = Version.root()
+    // The higher seqs land first, so the per-agent id index sorts the second run in
+    // front of the first one. Every id lookup must still find its run.
+    var graph = EventGraph.createGraph()
+    graph = graph.append(Event.createInsert(u, 5, 0, "de"), root)
+    graph = graph.append(Event.createInsert(u, 0, 0, "abc"), graph.version())
+    assertEquals(5, graph.size())
+    assertEquals("abcde", graph.replay().string())
+    // Every id the graph holds is rejected, in both stored ranges.
+    for (seq in intArrayOf(0, 2, 5, 6)) {
+      assertThrows(IllegalArgumentException::class.java) {
+        graph.append(Event.createInsert(u, seq, 0, "x"), root)
+      }
+    }
+    // A range that starts in the free gap and reaches the second stored range is rejected.
+    assertThrows(IllegalArgumentException::class.java) {
+      graph.append(Event.createInsert(u, 3, 0, "xxx"), root)
+    }
+    // The free gap between the two stored ranges is accepted.
+    val filled = graph.append(Event.createInsert(u, 3, 0, "xx"), graph.version())
+    assertEquals(7, filled.size())
+    // A merge remaps the same ids through the same index, in either direction.
+    val other = EventGraph.createGraph()
+      .append(Event.createInsert(u, 0, 0, "abc"), root)
+      .append(Event.createInsert(u, 5, 0, "de"), root)
+    assertEquals(5, graph.mergeFrom(other).size())
+    assertEquals(5, other.mergeFrom(graph).size())
+  }
+
+  @Test
   fun `agents compare by the name`() {
     assertTrue(agent("a") < agent("b"))
     assertTrue(agent("b") > agent("a"))

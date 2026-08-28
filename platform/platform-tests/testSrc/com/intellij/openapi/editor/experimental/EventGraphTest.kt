@@ -230,6 +230,31 @@ class EventGraphTest {
   }
 
   @Test
+  fun `a merge of two events that share an id is rejected`() {
+    val u = agent("u")
+    val root = Version.root()
+    val mine = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), root)
+    // Each graph gives the ids (u, 0) and (u, 1) to different operations. The check
+    // samples the two ends of the overlap, so a difference at either end is caught.
+    val clashes = listOf(
+      Event.createInsert(u, 0, 0, "Zb"), // another character at the first unit
+      Event.createInsert(u, 0, 0, "aZ"), // another character at the last unit
+      Event.createInsert(u, 0, 1, "ab"), // another position
+      Event.createDelete(u, 0, 0, 2), // another kind
+    )
+    for (clash in clashes) {
+      val theirs = EventGraph.createGraph().append(clash, root)
+      assertThrows(IllegalArgumentException::class.java, { mine.mergeFrom(theirs) }, "$clash")
+      assertThrows(IllegalArgumentException::class.java, { theirs.mergeFrom(mine) }, "$clash")
+    }
+    // A different run cut over the same operations stays legal.
+    var recut = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "a"), root)
+    recut = recut.append(Event.createInsert(u, 1, 1, "b"), recut.version())
+    assertEquals("ab", mine.mergeFrom(recut).replay().string())
+    assertEquals("ab", recut.mergeFrom(mine).replay().string())
+  }
+
+  @Test
   fun `an append at a stale version keeps the other heads`() {
     val u = agent("u")
     var graph = EventGraph.createGraph()

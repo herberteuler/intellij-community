@@ -11,11 +11,16 @@ import com.intellij.openapi.editor.experimental.Agent
  * prefix that covers its first `size` lvs. When a graph that is not the tip appends,
  * the store copies that prefix into a new store, so the old chain stays untouched.
  *
- * Thread safety: appends and the per-agent id index synchronize on this store. Reads
- * of committed run slots do not synchronize. That is safe because a slot is written
- * before the graph that covers it is constructed, and a graph reaches another thread
- * only through a safe publication of that graph value (the same reasoning as in
- * [com.intellij.openapi.editor.impl.DocTextImpl]).
+ * Thread safety: appends and the per-agent id index synchronize on this store. Reads of
+ * committed run slots do not synchronize. Three facts make that safe. A slot is written
+ * before the graph that covers it is constructed. A graph reaches another thread only
+ * through a safe publication of that graph value. [runs] is volatile, so a reader cannot
+ * observe an array from before that publication, and the array only grows. A committed
+ * slot then keeps its index and its value forever.
+ *
+ * [com.intellij.openapi.editor.impl.DocTextImpl] uses a different argument for its line
+ * set. That field is a benign cache: a racy reader sees `null` and recomputes. A run slot
+ * has no recompute path, so it needs the publication edge above.
  */
 internal class EventStore private constructor(
   @Volatile private var runs: Array<StoredRun?>,

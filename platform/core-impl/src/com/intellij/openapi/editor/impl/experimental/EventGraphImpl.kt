@@ -68,6 +68,10 @@ internal class EventGraphImpl private constructor(
    * The union of the two graphs, joined by unit ids, plus the version of [other]
    * re-expressed in the result graph's lvs. A run of [other] that this graph knows
    * in part contributes only its unknown suffix, as a new run.
+   *
+   * The merge is not atomic. It appends run by run, so a rejected run leaves the earlier
+   * ones in the shared store with no graph above them. The caller keeps its old value, so
+   * the text stays correct. The orphans cost one prefix copy at the next append.
    */
   fun mergeFromImpl(other: EventGraphImpl): MergeResult {
     var graph = this
@@ -101,7 +105,9 @@ internal class EventGraphImpl private constructor(
           break
         }
         val destRun = graph.runAt(destLv)
-        known += minOf(length - known, destRun.lvEnd() - destLv)
+        val overlap = minOf(length - known, destRun.lvEnd() - destLv)
+        checkSameOverlap(destRun, destLv, event, known, overlap)
+        known += overlap
       }
       if (known >= length) {
         continue
@@ -174,12 +180,7 @@ internal class EventGraphImpl private constructor(
 
   fun posAt(lv: LV): Int {
     val run = runAt(lv)
-    val event = run.event
-    return if (event is Event.Insert) {
-      event.pos() + (lv - run.lvStart)
-    } else {
-      event.pos()
-    }
+    return unitPos(run.event, lv - run.lvStart)
   }
 
   fun charAt(lv: LV): Char {
@@ -382,6 +383,56 @@ internal class EventGraphImpl private constructor(
     require(lv >= 0) {
       "The unit at the other graph's lv $otherLv is not in the merged graph"
     }
+  }
+
+  /**
+   * Fails when the [overlap] units that [event] names from [offset] differ from the units
+   * the merged graph already holds from [destLv], inside [destRun].
+   *
+   * One (agent, seq) pair names one operation forever. A difference means two branches
+   * minted the same id, which the agent contract of
+   * [com.intellij.openapi.editor.experimental.DocBranch] forbids: a branch that edits
+   * concurrently must come from `fork(agent)`. Without this check the merge keeps one
+   * operation, drops the other, and reports nothing. The two branches then disagree, and
+   * a merge stops giving the same text in both directions.
+   *
+   * The check samples the two ends of the overlap, so it costs O(1) and adds no lookup:
+   * [destRun] is already in hand. It does not see a difference that sits only strictly
+   * inside a long overlap. A full content compare would make every merge cost the
+   * document size, and a merge must cost the size of the concurrent region.
+   */
+  private fun checkSameOverlap(destRun: StoredRun, destLv: LV, event: Event, offset: Int, overlap: Int) {
+    checkSameUnit(destRun, destLv, event, offset)
+    if (overlap > 1) {
+      checkSameUnit(destRun, destLv + overlap - 1, event, offset + overlap - 1)
+    }
+  }
+
+  private fun checkSameUnit(destRun: StoredRun, destLv: LV, event: Event, offset: Int) {
+    val destEvent = destRun.event
+    val destOffset = destLv - destRun.lvStart
+    require((destEvent is Event.Delete) == (event is Event.Delete)) {
+      idClash(event, offset, "the operation kind")
+    }
+    require(unitPos(destEvent, destOffset) == unitPos(event, offset)) {
+      idClash(event, offset, "the position")
+    }
+    if (destEvent is Event.Insert && event is Event.Insert) {
+      require(destEvent.content()[destOffset] == event.content()[offset]) {
+        idClash(event, offset, "the inserted character")
+      }
+    }
+  }
+
+  private fun idClash(event: Event, offset: Int, difference: String): String {
+    return "Two events share the id (${event.agent()}, ${event.seq() + offset}) and differ in $difference. " +
+           "One agent authored both; a branch that edits concurrently must come from fork(agent)."
+  }
+
+  /** The position of the unit at [offset] inside the run of [event]. */
+  private fun unitPos(event: Event, offset: Int): Int {
+    // A delete removes at one position repeatedly; an insert walks forward.
+    return if (event is Event.Insert) event.pos() + offset else event.pos()
   }
 
   private fun suffixOf(event: Event, from: Int): Event {

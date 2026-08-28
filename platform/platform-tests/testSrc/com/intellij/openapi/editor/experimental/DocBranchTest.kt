@@ -556,6 +556,23 @@ class DocBranchTest {
   }
 
   @Test
+  fun `a merge of two branches that share an event id fails loudly`() {
+    // One agent edited the same value twice, which the contract forbids: both results
+    // hold the id (a, 3). Before the merge check, the merge silently kept one edit and
+    // dropped the other, and the two directions returned different texts.
+    val base = DocBranch.createBranch("abc", agent("a"))
+    val sameSpot = base.applyOp(insertOp(0, "X"))
+    for (clash in listOf(insertOp(0, "Y"), insertOp(2, "Y"), insertOp(0, "YY"), deleteOp(0, 1))) {
+      val other = base.applyOp(clash)
+      assertThrows(IllegalArgumentException::class.java, { sameSpot.merge(other) }, "$clash")
+      assertThrows(IllegalArgumentException::class.java, { other.merge(sameSpot) }, "$clash")
+    }
+    // The same id with the same operation is a normal re-merge, not a clash.
+    val twin = base.applyOp(insertOp(0, "X"))
+    assertSame(sameSpot, sameSpot.merge(twin))
+  }
+
+  @Test
   fun `a replay at a merged past version returns that merged text`() {
     val base = DocBranch.createBranch("abc", agent("a"))
     val a1 = base.applyOp(insertOp(3, "1"))

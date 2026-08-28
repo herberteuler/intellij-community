@@ -178,6 +178,14 @@ internal class EventGraphImpl private constructor(
     return runAt(lv).event is Event.Delete
   }
 
+  /**
+   * The lv after the last unit of the run that covers [lv]. Every unit of a run after the
+   * first has the one implicit parent `lv - 1`, so a walk can consume a whole run at once.
+   */
+  fun runEndOf(lv: LV): LV {
+    return runAt(lv).lvEnd()
+  }
+
   fun posAt(lv: LV): Int {
     val run = runAt(lv)
     return unitPos(run.event, lv - run.lvStart)

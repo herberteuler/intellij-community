@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import java.util.TreeMap
+
 /**
  * The Eg-walker replay: rebuilds the document at a version from the event graph.
  *
@@ -8,19 +10,19 @@ package com.intellij.openapi.editor.impl.experimental
  * (`Resources/eg-walker/eg-walker-reference/src/index.ts`). It walks the events in
  * a topological order and keeps the document at two versions at once: the *prepare*
  * version, where the next event was authored, and the *effect* version, with every
- * walked event applied. [retreat] and [advance] move the prepare version; [apply]
- * consumes one unit and reports its effect to the [Sink].
+ * walked event applied. [moveRange] moves the prepare version; [apply] consumes a run
+ * and reports its effect to the [Sink].
  *
  * Concurrent insertions are ordered by [integrate], the reference implementation's
  * YjsMod/Fugue scan. The [ReplayState] is temporary: the caller discards it when the
  * replay ends. Nothing here is persisted.
  *
- * The event storage is run-length encoded, but this walk is still per unit: one
- * [Item] per character, one lv at a time. Inside a run, the parent of a unit is the
- * unit before it, so the per-unit diff there is trivially empty. Run-length items
- * are a follow-up optimization. Costs: the item list is scanned linearly per unit,
- * but from a cached cursor, so a sequential run advances in place; the worst case
- * stays quadratic in the walked region.
+ * The walk is run-length encoded on both sides. One [Item] covers a whole run, and the
+ * walk consumes as much of a run as the version list holds. An item splits only where an
+ * op needs a boundary inside it: a concurrent insert, a partial delete, or a partial
+ * retreat or advance. Costs: the item list is scanned linearly, but from a cached cursor,
+ * so a sequential run advances in place; the worst case stays quadratic in the number of
+ * items of the walked region, which run-length encoding is what shrinks.
  */
 internal object EgWalkerReplay {
 
@@ -39,11 +41,21 @@ internal object EgWalkerReplay {
     } else {
       graph.eventsOf(version)
     }
-    for (lv in 0 until graph.size()) {
+    val size = graph.size()
+    var lv = 0
+    while (lv < size) {
       if (subset != null && !subset.get(lv)) {
+        lv++
         continue
       }
-      step(state, graph, sink, lv)
+      // Take as much of the run as the walk holds. The scan stops at the run end, so it
+      // never looks at a unit that this step cannot consume.
+      val limit = graph.runEndOf(lv) - lv
+      var count = 1
+      while (count < limit && (subset == null || subset.get(lv + count))) {
+        count++
+      }
+      lv += step(state, graph, sink, lv, count)
     }
   }
 
@@ -70,19 +82,33 @@ internal object EgWalkerReplay {
     }
     val state = ReplayState(placeholderCount)
     state.curVersion = conflict.commonAncestor
-    for (lv in conflict.conflictLvs) {
-      step(state, graph, null, lv)
-    }
-    for (lv in conflict.newLvs) {
-      step(state, graph, sink, lv)
+    walk(state, graph, null, conflict.conflictLvs)
+    walk(state, graph, sink, conflict.newLvs)
+  }
+
+  /** Walks an ascending lv list, one whole run per step where the list allows it. */
+  private fun walk(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lvs: IntArray) {
+    var i = 0
+    while (i < lvs.size) {
+      val lv = lvs[i]
+      val limit = graph.runEndOf(lv) - lv
+      var count = 1
+      while (count < limit && i + count < lvs.size && lvs[i + count] == lv + count) {
+        count++
+      }
+      i += step(state, graph, sink, lv, count)
     }
   }
 
-  /** Consumes one unit: moves the prepare version to its parents, then applies it. */
-  private fun step(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV) {
+  /**
+   * Consumes [count] units of one run from [lv]: moves the prepare version to the first
+   * unit's parents, then applies the whole span. Every unit of a run after the first has
+   * the one parent `lv - 1`, so the later units need no version move.
+   */
+  private fun step(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV, count: Int): Int {
     val parents = graph.parentsOf(lv)
     // The sequential case: the prepare version already is the parents, so the diff is
-    // empty. This skips a queue-and-map diff walk per unit inside every run.
+    // empty. This skips a queue-and-map diff walk per run.
     if (!state.curVersion.contentEquals(parents)) {
       val diff = graph.diff(state.curVersion, parents)
       if (diff.aOnly.isNotEmpty() || diff.bOnly.isNotEmpty()) {
@@ -90,15 +116,12 @@ internal object EgWalkerReplay {
         state.resetCursor()
       }
       // Retreat in reverse order, so an item is undeleted before it is uninserted.
-      for (i in diff.aOnly.indices.reversed()) {
-        retreat(state, graph, diff.aOnly[i])
-      }
-      for (advanced in diff.bOnly) {
-        advance(state, graph, advanced)
-      }
+      moveRange(state, graph, diff.aOnly, retreating = true)
+      moveRange(state, graph, diff.bOnly, retreating = false)
     }
-    apply(state, graph, sink, lv)
-    state.setCurVersion(lv)
+    apply(state, graph, sink, lv, count)
+    state.setCurVersion(lv + count - 1)
+    return count
   }
 
   // ------------------------------------------------------------------------ the internal state
@@ -134,20 +157,34 @@ internal object EgWalkerReplay {
     return if (item.effectState == INSERTED) item.length else 0
   }
 
+  /**
+   * The unit ids of a span ascend: an item covers `[lv, lv + length)`. A real id is a
+   * graph lv, so it is at or above 0. A placeholder span ends at -2, so every placeholder
+   * id stays below 0, and -1 stays free for the start and end sentinel.
+   */
   private fun isPlaceholder(item: Item): Boolean {
-    return item.lv <= PLACEHOLDER_BASE
+    return item.lv < 0
+  }
+
+  /** The unit id of the first character the item covers. */
+  private fun firstUnitLv(item: Item): LV {
+    return item.lv
   }
 
   /** The unit id of the last character the item covers. */
   private fun lastUnitLv(item: Item): LV {
-    return if (isPlaceholder(item)) item.lv - (item.length - 1) else item.lv
+    return item.lv + item.length - 1
   }
 
-  /**
-   * A placeholder unit id is `PLACEHOLDER_BASE - i` for the document position `i` at
-   * the common ancestor. -1 stays free for the start and end sentinel.
-   */
-  private const val PLACEHOLDER_BASE = -2
+  /** Whether the item covers the unit [lv]. */
+  private fun containsUnit(item: Item, lv: LV): Boolean {
+    return lv >= item.lv && lv < item.lv + item.length
+  }
+
+  /** The first unit id of a placeholder span of [count] units. The span ends at -2. */
+  private fun placeholderFirstLv(count: Int): LV {
+    return -1 - count
+  }
 
   /**
    * The reference implementation's `EditContext`. The maps hold only the units the walk
@@ -156,11 +193,15 @@ internal object EgWalkerReplay {
   private class ReplayState(placeholderCount: Int) {
     val items = ArrayList<Item>()
 
-    /** For a delete unit, the lv of the item it deleted. */
+    /** For a delete unit, the unit id it deleted. */
     private val delTargets = HashMap<LV, LV>()
 
-    /** The items by the unit id they cover: real inserts, and consumed placeholder pieces. */
-    private val itemsByLv = HashMap<LV, Item>()
+    /**
+     * Every item by its first unit id. A span covers a range, so the lookup takes the
+     * floor entry and then checks that the item really covers the unit. Ranges never
+     * overlap, so the floor entry is the only candidate.
+     */
+    private val itemsByLv = TreeMap<LV, Item>()
 
     var curVersion = IntArray(0)
 
@@ -178,7 +219,7 @@ internal object EgWalkerReplay {
       if (placeholderCount > 0) {
         // One item for the whole ancestor document; the ops split it lazily.
         val item = Item(
-          lv = PLACEHOLDER_BASE,
+          lv = placeholderFirstLv(placeholderCount),
           length = placeholderCount,
           prepareState = INSERTED,
           effectState = INSERTED,
@@ -186,15 +227,20 @@ internal object EgWalkerReplay {
           rightParent = -1,
         )
         items.add(item)
+        register(item)
       }
     }
 
-    fun register(lv: LV, item: Item) {
-      itemsByLv[lv] = item
+    fun register(item: Item) {
+      itemsByLv[item.lv] = item
     }
 
     fun itemBy(lv: LV): Item {
-      return itemsByLv[lv]!!
+      val item = itemsByLv.floorEntry(lv)?.value
+      require(item != null && containsUnit(item, lv)) {
+        "No item covers the unit $lv"
+      }
+      return item
     }
 
     fun setDelTarget(lv: LV, target: LV) {
@@ -229,84 +275,209 @@ internal object EgWalkerReplay {
   private class Cursor(var idx: Int, var endPos: Int)
 
   /**
-   * Splits the placeholder span at [index] after [offset] units. The left piece keeps
-   * the item; the right piece is inserted after it, with the matching first unit id.
+   * Splits the span at [index] after [offset] units. The left piece keeps the item and
+   * its origins; the right piece follows it, with the matching first unit id. Both pieces
+   * keep the state of the whole span.
+   *
+   * A placeholder piece keeps `originLeft = -1`, because the reference implementation
+   * gives that origin to every placeholder unit. A real piece anchors on the unit before
+   * it and has no right parent: inside an insert run, every unit but the first has
+   * exactly those two origins.
    */
-  private fun splitPlaceholder(state: ReplayState, index: Int, offset: Int) {
+  private fun splitItem(state: ReplayState, index: Int, offset: Int) {
     val item = state.items[index]
     checkSplit(item, offset)
     val right = Item(
-      lv = item.lv - offset,
+      lv = item.lv + offset,
       length = item.length - offset,
-      prepareState = INSERTED,
-      effectState = INSERTED,
-      originLeft = -1,
-      rightParent = -1
+      prepareState = item.prepareState,
+      effectState = item.effectState,
+      originLeft = if (isPlaceholder(item)) -1 else item.lv + offset - 1,
+      rightParent = -1,
     )
     item.length = offset
     state.items.add(index + 1, right)
+    // The left piece keeps its first unit, so its entry stays; the right piece is new.
+    state.register(right)
   }
 
   // ----------------------------------------------------------------- retreat / advance / apply
 
-  private fun retreat(state: ReplayState, graph: EventGraphImpl, lv: LV) {
-    val isDelete = graph.isDeleteAt(lv)
-    val item = targetItem(state, isDelete, lv)
-    checkRetreat(isDelete, item)
-    item.prepareState--
-  }
-
-  private fun advance(state: ReplayState, graph: EventGraphImpl, lv: LV) {
-    val isDelete = graph.isDeleteAt(lv)
-    val item = targetItem(state, isDelete, lv)
-    checkAdvance(isDelete, item)
-    if (isDelete) {
-      item.prepareState++
-    } else {
-      item.prepareState = INSERTED
+  /**
+   * Moves the prepare version over [lvs], in batches that share one item.
+   *
+   * A retreat walks backwards, so an item is undeleted before it is uninserted. A batch
+   * covers the units that land on one contiguous range of one item, so a whole run
+   * usually moves in one step and the item keeps its span. Only a batch that covers part
+   * of an item splits it.
+   */
+  private fun moveRange(state: ReplayState, graph: EventGraphImpl, lvs: IntArray, retreating: Boolean) {
+    if (retreating) {
+      var end = lvs.size
+      while (end > 0) {
+        val start = batchStart(state, graph, lvs, end)
+        move(state, graph, lvs[start], end - start, true)
+        end = start
+      }
+    }
+    else {
+      var start = 0
+      while (start < lvs.size) {
+        val count = batchLength(state, graph, lvs, start, lvs.size - start)
+        move(state, graph, lvs[start], count, false)
+        start += count
+      }
     }
   }
 
-  private fun targetItem(state: ReplayState, isDelete: Boolean, lv: LV): Item {
-    val targetLv = if (isDelete) state.delTargetOf(lv) else lv
-    return state.itemBy(targetLv)
+  /** The first index of the batch that ends just before [end]. Walks back once, not once per step. */
+  private fun batchStart(state: ReplayState, graph: EventGraphImpl, lvs: IntArray, end: Int): Int {
+    val last = end - 1
+    val isDelete = graph.isDeleteAt(lvs[last])
+    val lastTarget = targetLvOf(state, isDelete, lvs[last])
+    val item = state.itemBy(lastTarget)
+    var start = last
+    while (start > 0) {
+      val previous = start - 1
+      if (lvs[previous] != lvs[start] - 1 || graph.isDeleteAt(lvs[previous]) != isDelete) {
+        break
+      }
+      val target = lastTarget - (last - previous)
+      if (targetLvOf(state, isDelete, lvs[previous]) != target || !containsUnit(item, target)) {
+        break
+      }
+      start--
+    }
+    return start
   }
 
-  private fun apply(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV) {
+  /**
+   * The number of entries from [from], at most [limit], whose targets form one contiguous
+   * range inside one item.
+   */
+  private fun batchLength(state: ReplayState, graph: EventGraphImpl, lvs: IntArray, from: Int, limit: Int): Int {
+    val first = lvs[from]
+    val isDelete = graph.isDeleteAt(first)
+    val firstTarget = targetLvOf(state, isDelete, first)
+    val item = state.itemBy(firstTarget)
+    var count = 1
+    while (count < limit) {
+      val next = lvs[from + count]
+      if (next != first + count || graph.isDeleteAt(next) != isDelete) {
+        break
+      }
+      val target = firstTarget + count
+      if (targetLvOf(state, isDelete, next) != target || !containsUnit(item, target)) {
+        break
+      }
+      count++
+    }
+    return count
+  }
+
+  /** Retreats or advances the [count] units that [lv] starts, all inside one item. */
+  private fun move(state: ReplayState, graph: EventGraphImpl, lv: LV, count: Int, retreating: Boolean) {
+    val isDelete = graph.isDeleteAt(lv)
+    val item = isolate(state, targetLvOf(state, isDelete, lv), count)
+    if (retreating) {
+      checkRetreat(isDelete, item)
+      item.prepareState--
+    }
+    else {
+      checkAdvance(isDelete, item)
+      if (isDelete) {
+        item.prepareState++
+      }
+      else {
+        item.prepareState = INSERTED
+      }
+    }
+  }
+
+  private fun targetLvOf(state: ReplayState, isDelete: Boolean, lv: LV): LV {
+    return if (isDelete) state.delTargetOf(lv) else lv
+  }
+
+  /**
+   * Returns the item that covers exactly the [count] units from [target], and splits the
+   * containing item when it is wider. The whole-item case needs no index, so it never
+   * scans the item list.
+   */
+  private fun isolate(state: ReplayState, target: LV, count: Int): Item {
+    var item = state.itemBy(target)
+    if (item.lv == target && item.length == count) {
+      return item
+    }
+    var index = findItemIdx(state, target)
+    if (item.lv < target) {
+      splitItem(state, index, target - item.lv)
+      index++
+      item = state.items[index]
+    }
+    if (item.length > count) {
+      splitItem(state, index, count)
+      item = state.items[index]
+    }
+    return item
+  }
+
+  private fun apply(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV, count: Int) {
     if (graph.isDeleteAt(lv)) {
-      applyDelete(state, sink, lv, graph.posAt(lv))
+      applyDelete(state, sink, lv, count, graph.posAt(lv))
     } else {
-      applyInsert(state, graph, sink, lv, graph.posAt(lv), graph.charAt(lv))
+      applyInsert(state, graph, sink, lv, count, graph.posAt(lv))
     }
   }
 
-  private fun applyDelete(state: ReplayState, sink: Sink?, lv: LV, pos: Int) {
-    val cursor = findByCurPos(state, pos)
-    // Skip the items that do not exist in the prepare version.
-    while (state.items[cursor.idx].prepareState != INSERTED) {
+  /**
+   * Deletes [count] units at [pos]. Every unit of a delete run removes at the same
+   * position, so the run eats the items there one after another. An item that reaches
+   * past the run splits, so the deleted part stays exact.
+   */
+  private fun applyDelete(state: ReplayState, sink: Sink?, lv: LV, count: Int, pos: Int) {
+    var done = 0
+    while (done < count) {
+      val cursor = findByCurPos(state, pos)
+      // Skip the items that do not exist in the prepare version.
+      while (state.items[cursor.idx].prepareState != INSERTED) {
+        val item = state.items[cursor.idx]
+        cursor.endPos += effectWidth(item)
+        cursor.idx++
+      }
+      val taken = minOf(count - done, state.items[cursor.idx].length)
+      if (state.items[cursor.idx].length > taken) {
+        splitItem(state, cursor.idx, taken)
+      }
       val item = state.items[cursor.idx]
-      cursor.endPos += effectWidth(item)
-      cursor.idx++
+      checkDeleteTarget(item)
+      // A concurrent delete may have removed the characters from the effect version.
+      if (item.effectState == INSERTED) {
+        // Each removal shifts the next character to the same position.
+        repeat(taken) {
+          sink?.delete(cursor.endPos)
+        }
+      }
+      item.prepareState = DELETED
+      item.effectState = DELETED
+      for (k in 0 until taken) {
+        state.setDelTarget(lv + done + k, item.lv + k)
+      }
+      // The rest of the run targets the same position, right after this item.
+      state.cacheCursor(cursor.idx + 1, pos, cursor.endPos)
+      done += taken
     }
-    if (state.items[cursor.idx].length > 1) {
-      // A delete consumes one unit: split it off the placeholder span.
-      splitPlaceholder(state, cursor.idx, 1)
-    }
-    val item = state.items[cursor.idx]
-    checkDeleteTarget(item)
-    // A concurrent delete may have removed the character from the effect version already.
-    if (item.effectState == INSERTED) {
-      sink?.delete(cursor.endPos)
-    }
-    item.prepareState = DELETED
-    item.effectState = DELETED
-    state.setDelTarget(lv, item.lv)
-    state.register(item.lv, item)
-    // The next unit of a delete run targets the same position, right after this item.
-    state.cacheCursor(cursor.idx + 1, pos, cursor.endPos)
   }
 
-  private fun applyInsert(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV, pos: Int, character: Char) {
+  /**
+   * Inserts [count] units from [lv] as one span at [pos].
+   *
+   * Only the first unit of a run needs the Fugue integration. A later unit lands right
+   * after the one before it, because its left origin is that unit and no other item can
+   * name it yet: the walk visits the units in one go, with no retreat or advance between
+   * them. So the span carries the first unit's origins, and a split gives the right piece
+   * the origins that a later unit would have had.
+   */
+  private fun applyInsert(state: ReplayState, graph: EventGraphImpl, sink: Sink?, lv: LV, count: Int, pos: Int) {
     val cursor = findByCurPos(state, pos)
     checkInsertPoint(state, cursor)
     // The left origin is the last unit the left neighbor covers.
@@ -318,24 +489,30 @@ internal object EgWalkerReplay {
     for (i in cursor.idx until state.items.size) {
       val next = state.items[i]
       if (next.prepareState != NOT_YET_INSERTED) {
-        rightParent = if (next.originLeft == originLeft) next.lv else -1
+        // A right parent always names the FIRST unit of a span, and a left origin always
+        // names the LAST unit of one. A split keeps both, so the two stay comparable.
+        rightParent = if (next.originLeft == originLeft) firstUnitLv(next) else -1
         break
       }
     }
     val newItem = Item(
       lv = lv,
-      length = 1,
+      length = count,
       prepareState = INSERTED,
       effectState = INSERTED,
       originLeft = originLeft,
       rightParent = rightParent,
     )
-    state.register(lv, newItem)
+    state.register(newItem)
     integrate(state, graph, newItem, cursor)
     state.items.add(cursor.idx, newItem)
-    sink?.insert(cursor.endPos, character)
-    // The next unit of an insert run lands right after this item.
-    state.cacheCursor(cursor.idx + 1, pos + 1, cursor.endPos + 1)
+    if (sink != null) {
+      for (k in 0 until count) {
+        sink.insert(cursor.endPos + k, graph.charAt(lv + k))
+      }
+    }
+    // The next run lands right after this span.
+    state.cacheCursor(cursor.idx + 1, pos + count, cursor.endPos + count)
   }
 
   // --------------------------------------------------------------------------------- the scan
@@ -412,8 +589,8 @@ internal object EgWalkerReplay {
       val item = state.items[i]
       val width = prepareWidth(item)
       if (curPos + width > targetPos) {
-        // The boundary falls inside this placeholder span: split it, retry the piece.
-        splitPlaceholder(state, i, targetPos - curPos)
+        // The boundary falls inside this span: split it, then retry the left piece.
+        splitItem(state, i, targetPos - curPos)
         continue
       }
       curPos += width
@@ -433,9 +610,7 @@ internal object EgWalkerReplay {
   /** Finds the item that covers [needleLv]: an exact item, or the containing span. */
   private fun findItemIdx(state: ReplayState, needleLv: LV): Int {
     for (i in state.items.indices) {
-      val item = state.items[i]
-      // Unit ids descend within a span, so the covered range is (lv - length, lv].
-      if (needleLv <= item.lv && needleLv > item.lv - item.length) {
+      if (containsUnit(state.items[i], needleLv)) {
         return i
       }
     }
@@ -487,18 +662,12 @@ internal object EgWalkerReplay {
   }
 
   private fun checkNotRightParent(other: Item, newItem: Item) {
-    require(other.lv != newItem.rightParent) {
+    require(!containsUnit(other, newItem.rightParent)) {
       "The scan reached the right parent of the new item"
     }
   }
 
   private fun checkSplit(item: Item, offset: Int) {
-    require(item.lv <= PLACEHOLDER_BASE) {
-      "Split of a real item ${item.lv}"
-    }
-    require(item.prepareState == INSERTED && item.effectState == INSERTED) {
-      "Split of a consumed placeholder ${item.lv}"
-    }
     require(offset in 1 until item.length) {
       "The split offset $offset is out of the span of length ${item.length}"
     }

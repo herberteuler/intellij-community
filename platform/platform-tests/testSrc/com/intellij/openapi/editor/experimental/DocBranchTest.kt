@@ -573,6 +573,22 @@ class DocBranchTest {
   }
 
   @Test
+  fun `a concurrent delete inside a long run splits the span`() {
+    // One paste op makes one run, and the replay covers it with one span. The other
+    // branch deletes the middle of that run, so the merge must split the span in three
+    // and retreat only the middle part.
+    val base = DocBranch.createBranch("[]", agent("a"))
+    val a = base.applyOp(insertOp(1, "0123456789"))
+    val b = base.fork(agent("b")).merge(a).applyOp(deleteOp(4, 4)) // removes "3456"
+    val a2 = a.applyOp(insertOp(6, "X")) // inside the range that b deletes
+    val forward = b.merge(a2)
+    val backward = a2.merge(b)
+    assertEquals("[012X789]", forward.string())
+    assertEquals(forward.string(), backward.string())
+    assertEquals(forward.graph().replay().string(), forward.string())
+  }
+
+  @Test
   fun `a replay at a merged past version returns that merged text`() {
     val base = DocBranch.createBranch("abc", agent("a"))
     val a1 = base.applyOp(insertOp(3, "1"))

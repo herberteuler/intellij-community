@@ -38,7 +38,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   private val itemsByUnit = TreeMap<LV, Item>()
 
   /** The prepare version. The reference calls this `curVersion`. */
-  private var curVersion = IntArray(0)
+  private var curVersion: Frontier = IntArray(0)
 
   /**
    * The last boundary a lookup produced, or that an apply advanced past. A sequential run
@@ -74,10 +74,16 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   // ------------------------------------------------------------------------------- the two walks
 
-  /** Starts the prepare version at [ancestor], which the walk never moves below. */
-  fun startAt(ancestor: IntArray) {
+  /**
+   * Starts the prepare version at [ancestor], which the walk never moves below.
+   *
+   * This takes a [VersionImpl] and not a [Frontier], although the walk keeps a frontier.
+   * The caller has an [EventGraphImpl.Conflict] in hand, whose other two fields are lists
+   * of units, and a real type is what stops one of those reaching here by mistake.
+   */
+  fun startAt(ancestor: VersionImpl) {
     // A copy, because the walk writes the single-head array in place.
-    curVersion = ancestor.copyOf()
+    curVersion = ancestor.toLvs()
   }
 
   /** Walks the whole graph, or the part of it that a past [version] selects. */
@@ -102,7 +108,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /** Walks an ascending lv list, one whole run per step where the list allows it. */
-  fun walk(lvs: IntArray, sink: EgWalkerReplay.Sink?) {
+  fun walk(lvs: LvList, sink: EgWalkerReplay.Sink?) {
     this.sink = sink
     var i = 0
     while (i < lvs.size) {
@@ -163,7 +169,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * moves in one step and the item keeps its span. Only a batch that covers part of an item
    * splits it.
    */
-  private fun moveRange(lvs: IntArray, retreating: Boolean) {
+  private fun moveRange(lvs: LvList, retreating: Boolean) {
     if (retreating) {
       var end = lvs.size
       while (end > 0) {
@@ -182,7 +188,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /** The number of entries from [from], at most [limit], that form one batch. */
-  private fun batchLength(lvs: IntArray, from: Int, limit: Int): Int {
+  private fun batchLength(lvs: LvList, from: Int, limit: Int): Int {
     val anchor = Batch(lvs, from)
     var count = 1
     while (count < limit && anchor.covers(from + count)) {
@@ -192,7 +198,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /** The first index of the batch that ends just before [end]. */
-  private fun batchStart(lvs: IntArray, end: Int): Int {
+  private fun batchStart(lvs: LvList, end: Int): Int {
     val last = end - 1
     val anchor = Batch(lvs, last)
     var start = last
@@ -207,7 +213,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * entry belongs to the same batch. Both scan directions ask the same question, so the
    * rule lives in one place.
    */
-  private inner class Batch(private val lvs: IntArray, private val anchorIndex: Int) {
+  private inner class Batch(private val lvs: LvList, private val anchorIndex: Int) {
     private val isDelete = graph.isDeleteAt(lvs[anchorIndex])
     private val target: LV = targetUnitOf(isDelete, lvs[anchorIndex])
     private val item: Item = itemBy(target)

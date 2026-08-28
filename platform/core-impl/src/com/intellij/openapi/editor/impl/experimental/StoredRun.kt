@@ -13,7 +13,7 @@ import com.intellij.openapi.editor.experimental.Event
 internal class StoredRun(
   val event: Event,
   val lvStart: LV,
-  private val parents: IntArray,
+  private val parents: Frontier,
 ) {
   /** The lv after the last unit. */
   fun lvEnd(): LV {
@@ -41,7 +41,7 @@ internal class StoredRun(
    * The parents of the unit [lv]. The first unit keeps the parents the append recorded;
    * every later unit has the one implicit parent `lv - 1`.
    */
-  fun parentsOf(lv: LV): IntArray {
+  fun parentsOf(lv: LV): Frontier {
     return if (lv == lvStart) {
       parents
     } else {
@@ -50,7 +50,7 @@ internal class StoredRun(
   }
 
   /** The parents of the first unit, which are the parents of the whole run. */
-  fun runParents(): IntArray {
+  fun runParents(): Frontier {
     return parents
   }
 

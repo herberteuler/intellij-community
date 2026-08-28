@@ -163,7 +163,7 @@ internal class EventGraphImpl private constructor(
     return store.runAt(lo)
   }
 
-  fun parentsOf(lv: LV): IntArray {
+  fun parentsOf(lv: LV): Frontier {
     return runAt(lv).parentsOf(lv)
   }
 
@@ -230,7 +230,7 @@ internal class EventGraphImpl private constructor(
    * Both results are ascending. A per-unit port of `diff` from the reference
    * implementation's causal-graph library.
    */
-  fun diff(a: IntArray, b: IntArray): Diff {
+  fun diff(a: Frontier, b: Frontier): Diff {
     val flags = HashMap<Int, Int>()
     val queue = PriorityQueue<Int>(11, Collections.reverseOrder())
     var numShared = 0
@@ -286,13 +286,13 @@ internal class EventGraphImpl private constructor(
    * causal-graph library: a max-first walk over version points; paths merge when they
    * name the same version, and the walk stops when one point survives -- the ancestor.
    */
-  fun findConflicting(a: IntArray, b: IntArray): Conflict {
+  fun findConflicting(a: Frontier, b: Frontier): Conflict {
     val conflictLvs = ArrayList<Int>()
     val newLvs = ArrayList<Int>()
     val queue = PriorityQueue(11, POINT_MAX_FIRST)
     queue.add(Point(descending(a), FLAG_A))
     queue.add(Point(descending(b), FLAG_B))
-    val commonAncestor: IntArray = run {
+    val commonAncestor: Frontier = run {
       while (true) {
         val point = queue.poll()
         var flag = point.flag
@@ -341,7 +341,7 @@ internal class EventGraphImpl private constructor(
     // The walk emits in descending order; the results must ascend.
     conflictLvs.reverse()
     newLvs.reverse()
-    return Conflict(commonAncestor, conflictLvs.toIntArray(), newLvs.toIntArray())
+    return Conflict(VersionImpl(commonAncestor), conflictLvs.toIntArray(), newLvs.toIntArray())
   }
 
   // ------------------------------------------------------------------------------------ checks
@@ -441,14 +441,21 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  internal class Diff(val aOnly: IntArray, val bOnly: IntArray) {
+  internal class Diff(val aOnly: LvList, val bOnly: LvList) {
     /** Whether the two versions name the same event set, so no item changes state. */
     fun isEmpty(): Boolean {
       return aOnly.isEmpty() && bOnly.isEmpty()
     }
   }
 
-  internal class Conflict(val commonAncestor: IntArray, val conflictLvs: IntArray, val newLvs: IntArray)
+  /**
+   * The region above the common ancestor, split by which side holds it.
+   *
+   * [commonAncestor] is a version, while [conflictLvs] and [newLvs] are lists of every
+   * unit to walk. A real type marks the difference here, because the two are used side by
+   * side and a swap would replay the wrong thing.
+   */
+  internal class Conflict(val commonAncestor: VersionImpl, val conflictLvs: LvList, val newLvs: LvList)
 
   private class StringBuilderSink(private val text: StringBuilder) : EgWalkerReplay.Sink {
     override fun insert(pos: Int, character: Char) {
@@ -461,7 +468,7 @@ internal class EventGraphImpl private constructor(
   }
 
   /** A version under the walk of [findConflicting]: the lvs sorted descending, plus the flag. */
-  private class Point(val v: IntArray, val flag: Int)
+  private class Point(val v: Frontier, val flag: Int)
 
   companion object {
     fun empty(): EventGraphImpl {
@@ -500,11 +507,11 @@ internal class EventGraphImpl private constructor(
       p2.flag - p1.flag
     }
 
-    private fun descending(lvs: IntArray): IntArray {
+    private fun descending(lvs: Frontier): Frontier {
       return lvs.sortedArrayDescending()
     }
 
-    private fun ascending(lvs: IntArray): IntArray {
+    private fun ascending(lvs: Frontier): Frontier {
       return lvs.sortedArray()
     }
   }

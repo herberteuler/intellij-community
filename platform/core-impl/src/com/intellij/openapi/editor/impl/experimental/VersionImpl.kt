@@ -9,7 +9,7 @@ import java.util.Arrays
  * calls the index of an event a local version (LV).
  */
 internal class VersionImpl(
-  val lvs: IntArray,
+  val lvs: Frontier,
 ) : Version {
 
   init {
@@ -61,6 +61,11 @@ internal class VersionImpl(
     return Arrays.binarySearch(lvs, lv) >= 0
   }
 
+  /** The heads as a fresh array, which the caller is free to change in place. */
+  fun toLvs(): Frontier {
+    return lvs.copyOf()
+  }
+
   override fun equals(other: Any?): Boolean {
     return other is VersionImpl && lvs.contentEquals(other.lvs)
   }
@@ -73,7 +78,7 @@ internal class VersionImpl(
     return lvs.joinToString(prefix = "v[", postfix = "]")
   }
 
-  private fun checkSorted(lvs: IntArray) {
+  private fun checkSorted(lvs: Frontier) {
     for (i in 1 until lvs.size) {
       require(lvs[i - 1] < lvs[i]) {
         "The version is not sorted or not distinct: ${lvs.contentToString()}"

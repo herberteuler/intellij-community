@@ -70,14 +70,12 @@ internal class DocBranchImpl private constructor(
   override fun merge(other: DocBranch): DocBranch {
     val otherImpl = implOf(other)
     val result = graph.mergeFromImpl(otherImpl.graph)
-    val merged = result.graph
-    if (merged.size() == graph.size()) {
-      // The other branch brought nothing new.
+    if (result.addsNothing()) {
       return this
     }
-    val mergedVersion = merged.versionImpl()
-    val newDocText = if (mergedVersion == result.remappedOtherVersion) {
-      // A fast-forward: this branch's history is inside the other branch's history.
+    val merged = result.graph
+    val newDocText = if (result.isFastForward()) {
+      // This branch's history is inside the other branch's history, so its text is ready.
       otherImpl.docText
     } else {
       // A partial replay: only the region above the common ancestor is walked, and

@@ -6,7 +6,6 @@ import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
 import com.intellij.openapi.editor.experimental.Version
-import java.util.Arrays
 import java.util.BitSet
 import java.util.Collections
 import java.util.PriorityQueue
@@ -78,10 +77,9 @@ internal class EventGraphImpl private constructor(
 
     fun remap(otherLv: LV): LV {
       val run = other.runAt(otherLv)
-      val event = run.event
       val lv = graph.store.lvOfSeq(
-        agent = event.agent(),
-        seq = event.seq() + (otherLv - run.lvStart),
+        agent = run.event.agent(),
+        seq = run.seqAt(otherLv),
         lvLimit = graph.size,
       )
       checkRemapped(lv, otherLv)
@@ -105,7 +103,7 @@ internal class EventGraphImpl private constructor(
           break
         }
         val destRun = graph.runAt(destLv)
-        val overlap = minOf(length - known, destRun.lvEnd() - destLv)
+        val overlap = minOf(length - known, destRun.unitsFrom(destLv))
         checkSameOverlap(destRun, destLv, event, known, overlap)
         known += overlap
       }
@@ -113,8 +111,9 @@ internal class EventGraphImpl private constructor(
         continue
       }
       val parents = if (known == 0) {
-        val remapped = IntArray(run.parents.size) { j: Int ->
-          remap(run.parents[j])
+        val runParents = run.runParents()
+        val remapped = IntArray(runParents.size) { j: Int ->
+          remap(runParents[j])
         }
         remapped.sort()
         remapped
@@ -126,14 +125,14 @@ internal class EventGraphImpl private constructor(
         )
         intArrayOf(lv)
       }
-      graph = graph.appendImpl(suffixOf(event, known), VersionImpl(parents))
+      graph = graph.appendImpl(event.suffixFrom(known), VersionImpl(parents))
     }
 
     val remappedVersion = IntArray(other.version.lvs.size) { i: Int ->
       remap(other.version.lvs[i])
     }
     remappedVersion.sort()
-    return MergeResult(graph, VersionImpl(remappedVersion))
+    return MergeResult(graph, size, VersionImpl(remappedVersion))
   }
 
   fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
@@ -143,8 +142,7 @@ internal class EventGraphImpl private constructor(
     val run = StoredRun(event, size, parents.lvs)
     val newStore = store.appendAt(size, runCount, run)
     val newLastLv = size + event.length() - 1
-    val newVersion = VersionImpl(advanceFrontier(version.lvs, parents.lvs, newLastLv))
-    return EventGraphImpl(newStore, runCount + 1, size + event.length(), newVersion)
+    return EventGraphImpl(newStore, runCount + 1, size + event.length(), version.advancedBy(parents, newLastLv))
   }
 
   // ------------------------------------------------------------------- queries for the replay
@@ -156,7 +154,7 @@ internal class EventGraphImpl private constructor(
     var hi = runCount - 1
     while (lo < hi) {
       val mid = (lo + hi + 1) ushr 1
-      if (store.runAt(mid).lvStart <= lv) {
+      if (store.runAt(mid).startsAtOrBefore(lv)) {
         lo = mid
       } else {
         hi = mid - 1
@@ -166,16 +164,11 @@ internal class EventGraphImpl private constructor(
   }
 
   fun parentsOf(lv: LV): IntArray {
-    val run = runAt(lv)
-    return if (lv == run.lvStart) {
-      run.parents
-    } else {
-      intArrayOf(lv - 1)
-    }
+    return runAt(lv).parentsOf(lv)
   }
 
   fun isDeleteAt(lv: LV): Boolean {
-    return runAt(lv).event is Event.Delete
+    return runAt(lv).isDelete
   }
 
   /**
@@ -187,17 +180,11 @@ internal class EventGraphImpl private constructor(
   }
 
   fun posAt(lv: LV): Int {
-    val run = runAt(lv)
-    return unitPos(run.event, lv - run.lvStart)
+    return runAt(lv).offsetAt(lv)
   }
 
   fun charAt(lv: LV): Char {
-    val run = runAt(lv)
-    val insert = run.event as? Event.Insert
-    require(insert != null) {
-      "The lv $lv is not an insert"
-    }
-    return insert.content()[lv - run.lvStart]
+    return runAt(lv).charAt(lv)
   }
 
   /**
@@ -211,9 +198,7 @@ internal class EventGraphImpl private constructor(
     if (byAgent != 0) {
       return byAgent
     }
-    val seqA = runA.event.seq() + (lvA - runA.lvStart)
-    val seqB = runB.event.seq() + (lvB - runB.lvStart)
-    return seqA.compareTo(seqB)
+    return runA.seqAt(lvA).compareTo(runB.seqAt(lvB))
   }
 
   /** The paper's `Events(V)`: [version] and all its ancestors, as a set of lvs. */
@@ -231,7 +216,7 @@ internal class EventGraphImpl private constructor(
       // The units before lv in the same run are its chain of ancestors: mark them at once.
       val run = runAt(lv)
       seen.set(run.lvStart, lv + 1)
-      for (parent in run.parents) {
+      for (parent in run.runParents()) {
         if (!seen.get(parent)) {
           stack.addLast(parent)
         }
@@ -258,8 +243,7 @@ internal class EventGraphImpl private constructor(
         if (flag == FLAG_SHARED) {
           numShared++
         }
-      }
-      else if (flag != current && current != FLAG_SHARED) {
+      } else if (flag != current && current != FLAG_SHARED) {
         flags[lv] = FLAG_SHARED
         numShared++
       }
@@ -363,8 +347,7 @@ internal class EventGraphImpl private constructor(
   // ------------------------------------------------------------------------------------ checks
 
   private fun checkVersionOfThisGraph(version: VersionImpl) {
-    val lvs = version.lvs
-    require(lvs.isEmpty() || lvs[lvs.size - 1] < size) {
+    require(version.unitSpan() <= size) {
       "The version $version does not belong to a graph of size $size"
     }
   }
@@ -417,16 +400,14 @@ internal class EventGraphImpl private constructor(
   }
 
   private fun checkSameUnit(destRun: StoredRun, destLv: LV, event: Event, offset: Int) {
-    val destEvent = destRun.event
-    val destOffset = destLv - destRun.lvStart
-    require((destEvent is Event.Delete) == (event is Event.Delete)) {
+    require(destRun.isDelete == (event is Event.Delete)) {
       idClash(event, offset, "the operation kind")
     }
-    require(unitPos(destEvent, destOffset) == unitPos(event, offset)) {
+    require(destRun.offsetAt(destLv) == event.offsetOfUnit(offset)) {
       idClash(event, offset, "the position")
     }
-    if (destEvent is Event.Insert && event is Event.Insert) {
-      require(destEvent.content()[destOffset] == event.content()[offset]) {
+    if (!destRun.isDelete && event is Event.Insert) {
+      require(destRun.charAt(destLv) == event.fragment()[offset]) {
         idClash(event, offset, "the inserted character")
       }
     }
@@ -437,35 +418,35 @@ internal class EventGraphImpl private constructor(
            "One agent authored both; a branch that edits concurrently must come from fork(agent)."
   }
 
-  /** The position of the unit at [offset] inside the run of [event]. */
-  private fun unitPos(event: Event, offset: Int): Int {
-    // A delete removes at one position repeatedly; an insert walks forward.
-    return if (event is Event.Insert) event.pos() + offset else event.pos()
-  }
-
-  private fun suffixOf(event: Event, from: Int): Event {
-    if (from == 0) {
-      return event
+  /**
+   * The union graph, plus the two questions a caller asks about it. [sourceSize] is the
+   * size of the graph the merge started from, so the result can answer them itself.
+   */
+  internal class MergeResult(
+    val graph: EventGraphImpl,
+    private val sourceSize: Int,
+    private val remappedOtherVersion: VersionImpl,
+  ) {
+    /** Whether the other graph brought nothing: its whole history was already here. */
+    fun addsNothing(): Boolean {
+      return graph.size == sourceSize
     }
-    return when (event) {
-      is Event.Insert -> Event.createInsert(
-        event.agent(),
-        event.seq() + from,
-        event.pos() + from,
-        event.content().subSequence(from, event.length()),
-      )
-      is Event.Delete -> Event.createDelete(
-        event.agent(),
-        event.seq() + from,
-        event.pos(),
-        event.length() - from,
-      )
+
+    /**
+     * Whether the source history sits inside the other one. The other branch's text is
+     * then already the merged text, so no replay is needed.
+     */
+    fun isFastForward(): Boolean {
+      return graph.version == remappedOtherVersion
     }
   }
 
-  internal class MergeResult(val graph: EventGraphImpl, val remappedOtherVersion: VersionImpl)
-
-  internal class Diff(val aOnly: IntArray, val bOnly: IntArray)
+  internal class Diff(val aOnly: IntArray, val bOnly: IntArray) {
+    /** Whether the two versions name the same event set, so no item changes state. */
+    fun isEmpty(): Boolean {
+      return aOnly.isEmpty() && bOnly.isEmpty()
+    }
+  }
 
   internal class Conflict(val commonAncestor: IntArray, val conflictLvs: IntArray, val newLvs: IntArray)
 
@@ -517,26 +498,6 @@ internal class EventGraphImpl private constructor(
         return@Comparator b.size - a.size
       }
       p2.flag - p1.flag
-    }
-
-    /** The new frontier after an append: `(frontier - parents) + newLastLv`. */
-    private fun advanceFrontier(frontier: IntArray, parents: IntArray, newLastLv: LV): IntArray {
-      var kept = 0
-      for (lv in frontier) {
-        if (Arrays.binarySearch(parents, lv) < 0) {
-          kept++
-        }
-      }
-      val result = IntArray(kept + 1)
-      var i = 0
-      for (lv in frontier) {
-        if (Arrays.binarySearch(parents, lv) < 0) {
-          result[i] = lv
-          i++
-        }
-      }
-      result[i] = newLastLv // the new lv is greater than every existing lv, so the order holds
-      return result
     }
 
     private fun descending(lvs: IntArray): IntArray {

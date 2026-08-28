@@ -43,22 +43,12 @@ internal class BatchingSink(
 
   private fun flush() {
     when (kind) {
-      INSERT -> updated = updated.applyOp(InsertDocOp(start, fragment.toString()))
-      DELETE -> updated = updated.applyOp(DeleteDocOp(start, deleteCount))
+      INSERT -> updated = updated.applyOp(DocOp.ins(start, fragment.toString()))
+      DELETE -> updated = updated.applyOp(DocOp.del(start, deleteCount))
     }
     kind = NONE
     fragment.setLength(0)
     deleteCount = 0
-  }
-
-  private class InsertDocOp(private val offset: Int, private val fragment: String) : DocOp.Insert {
-    override fun offset(): Int = offset
-    override fun fragment(): CharSequence = fragment
-  }
-
-  private class DeleteDocOp(private val offset: Int, private val length: Int) : DocOp.Delete {
-    override fun offset(): Int = offset
-    override fun length(): Int = length
   }
 
   companion object {

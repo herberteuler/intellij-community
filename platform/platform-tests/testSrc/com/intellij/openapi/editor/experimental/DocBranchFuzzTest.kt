@@ -60,8 +60,7 @@ class DocBranchFuzzTest {
         y = y.applyOp(randomOp(random, y.length()))
         if (random.nextBoolean()) {
           x = x.merge(y)
-        }
-        else {
+        } else {
           y = y.merge(x)
         }
       }

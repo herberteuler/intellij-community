@@ -55,10 +55,10 @@ internal class EventStore private constructor(
           hi = mid - 1
         }
       }
-      if (floor == null || seq >= floor.seqStart + floor.length || floor.lvStart >= lvLimit) {
+      if (floor == null || !floor.covers(seq) || !floor.isVisible(lvLimit)) {
         return -1
       }
-      return floor.lvStart + (seq - floor.seqStart)
+      return floor.lvOf(seq)
     }
   }
 
@@ -72,7 +72,7 @@ internal class EventStore private constructor(
       var hi = list.size
       while (lo < hi) {
         val mid = (lo + hi) ushr 1
-        if (list[mid].seqStart + list[mid].length <= seq) {
+        if (list[mid].endSeq() <= seq) {
           lo = mid + 1
         } else {
           hi = mid
@@ -80,8 +80,8 @@ internal class EventStore private constructor(
       }
       // Walk the contiguous block of entries that intersect `[seq, seq + length)`.
       var i = lo
-      while (i < list.size && list[i].seqStart < seq + length) {
-        if (list[i].lvStart < lvLimit) {
+      while (i < list.size && list[i].overlaps(seq, length)) {
+        if (list[i].isVisible(lvLimit)) {
           return true
         }
         i++
@@ -98,8 +98,8 @@ internal class EventStore private constructor(
       // visible entry has the greatest end. The scan usually stops at the first entry.
       for (i in list.indices.reversed()) {
         val entry = list[i]
-        if (entry.lvStart < lvLimit) {
-          return entry.seqStart + entry.length
+        if (entry.isVisible(lvLimit)) {
+          return entry.endSeq()
         }
       }
       return 0
@@ -170,12 +170,40 @@ internal class EventStore private constructor(
     }
   }
 
-  /** One per-agent index entry: the seqs `[seqStart, seqStart + length)` start at [lvStart]. */
+  /**
+   * One per-agent index entry: the seqs `[seqStart, endSeq())` start at [lvStart]. The
+   * entry owns the translation between a seq and an lv.
+   */
   private class AgentRun(
     val seqStart: Int,
-    val length: Int,
+    private val length: Int,
     val lvStart: LV,
-  )
+  ) {
+    /** The first seq after this entry. */
+    fun endSeq(): Int {
+      return seqStart + length
+    }
+
+    /** Whether this entry names [seq]. */
+    fun covers(seq: Int): Boolean {
+      return seq >= seqStart && seq < endSeq()
+    }
+
+    /** Whether this entry names any seq in `[seq, seq + count)`. */
+    fun overlaps(seq: Int, count: Int): Boolean {
+      return seqStart < seq + count && seq < endSeq()
+    }
+
+    /** The lv of [seq], which this entry must cover. */
+    fun lvOf(seq: Int): LV {
+      return lvStart + (seq - seqStart)
+    }
+
+    /** Whether the graph bounded by [lvLimit] can see this entry at all. */
+    fun isVisible(lvLimit: LV): Boolean {
+      return lvStart < lvLimit
+    }
+  }
 
   companion object {
     private const val INITIAL_CAPACITY = 16

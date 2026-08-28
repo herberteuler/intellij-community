@@ -50,8 +50,7 @@ class DocBranchGossipFuzzTest {
             }
             replicas[i] = merged
           }
-        }
-        else {
+        } else {
           replicas[i] = replicas[i].applyOp(randomOp(random, replicas[i].length()))
         }
         history[i].add(replicas[i].graph().version() to replicas[i].string())

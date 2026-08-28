@@ -49,8 +49,7 @@ class EventGraphFuzzTest {
           }
           text.insert(pos, content)
           seq += content.length
-        }
-        else {
+        } else {
           val pos = random.nextInt(text.length)
           val length = 1 + random.nextInt(minOf(3, text.length - pos))
           whole = whole.append(Event.createDelete(u, seq, pos, length), whole.version())

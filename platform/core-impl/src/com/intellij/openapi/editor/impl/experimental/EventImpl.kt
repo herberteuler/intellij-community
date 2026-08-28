@@ -8,64 +8,88 @@ import com.intellij.util.text.ImmutableCharSequence
 internal class InsertEventImpl(
   private val agent: Agent,
   private val seq: Int,
-  private val pos: Int,
-  content: CharSequence,
+  private val offset: Int,
+  fragment: CharSequence,
 ) : Event.Insert {
-  // A copy detaches the event from a mutable CharSequence the caller may hold.
-  private val content: CharSequence = ImmutableCharSequence.asImmutable(content)
+  // A copy detaches the event from a mutable CharSequence the caller may hold. An op is
+  // transient and may alias, but an event lives in the graph forever.
+  private val fragment: CharSequence = ImmutableCharSequence.asImmutable(fragment)
 
   init {
-    checkEvent(seq, pos)
-    checkContent(this.content)
-    checkIdSpace(seq, this.content.length)
-    checkPosSpace(pos, this.content.length)
+    checkEvent(seq, offset)
+    checkFragment(this.fragment)
+    checkIdSpace(seq, this.fragment.length)
+    checkOffsetSpace(offset, this.fragment.length)
   }
 
   override fun agent(): Agent = agent
   override fun seq(): Int = seq
-  override fun pos(): Int = pos
-  override fun length(): Int = content.length
-  override fun content(): CharSequence = content
+  override fun offset(): Int = offset
+  override fun length(): Int = fragment.length
+  override fun fragment(): CharSequence = fragment
+
+  override fun offsetOfUnit(index: Int): Int = offset + index
+
+  override fun suffixFrom(units: Int): Event {
+    if (units == 0) {
+      return this
+    }
+    return InsertEventImpl(
+      agent,
+      seq + units,
+      offset + units,
+      fragment.subSequence(units, fragment.length),
+    )
+  }
 
   override fun toString(): String {
-    return "ins($agent, $seq, $pos, \"$content\")"
+    return "ins($agent, $seq, $offset, ${fragment.quotedForMessage()})"
   }
 }
 
 internal class DeleteEventImpl(
   private val agent: Agent,
   private val seq: Int,
-  private val pos: Int,
+  private val offset: Int,
   private val length: Int,
 ) : Event.Delete {
   init {
-    checkEvent(seq, pos)
+    checkEvent(seq, offset)
     checkLength(length)
     checkIdSpace(seq, length)
   }
 
   override fun agent(): Agent = agent
   override fun seq(): Int = seq
-  override fun pos(): Int = pos
+  override fun offset(): Int = offset
   override fun length(): Int = length
 
+  override fun offsetOfUnit(index: Int): Int = offset
+
+  override fun suffixFrom(units: Int): Event {
+    if (units == 0) {
+      return this
+    }
+    return DeleteEventImpl(agent, seq + units, offset, length - units)
+  }
+
   override fun toString(): String {
-    return "del($agent, $seq, $pos, len=$length)"
+    return "del($agent, $seq, $offset, len=$length)"
   }
 }
 
-private fun checkEvent(seq: Int, pos: Int) {
+private fun checkEvent(seq: Int, offset: Int) {
   require(seq >= 0) {
     "Negative seq: $seq"
   }
-  require(pos >= 0) {
-    "Negative pos: $pos"
+  require(offset >= 0) {
+    "Negative offset: $offset"
   }
 }
 
-private fun checkContent(content: CharSequence) {
-  require(content.isNotEmpty()) {
-    "The insert content is empty"
+private fun checkFragment(fragment: CharSequence) {
+  require(fragment.isNotEmpty()) {
+    "The insert fragment is empty"
   }
 }
 
@@ -81,8 +105,8 @@ private fun checkIdSpace(seq: Int, length: Int) {
   }
 }
 
-private fun checkPosSpace(pos: Int, length: Int) {
-  require(length <= Int.MAX_VALUE - pos) {
-    "The position space overflows: pos $pos + length $length"
+private fun checkOffsetSpace(offset: Int, length: Int) {
+  require(length <= Int.MAX_VALUE - offset) {
+    "The offset space overflows: offset $offset + length $length"
   }
 }

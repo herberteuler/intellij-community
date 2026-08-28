@@ -171,8 +171,7 @@ class DocBranchTest {
       y = y.applyOp(insertOp(y.text().length(), " y$round"))
       if (round % 2 == 0) {
         x = x.merge(y)
-      }
-      else {
+      } else {
         y = y.merge(x)
       }
       val forward = x.merge(y)
@@ -608,19 +607,9 @@ internal fun DocBranch.string(): String = text().string()
 
 internal fun DocBranch.length(): Int = text().length()
 
-internal fun insertOp(offset: Int, fragment: CharSequence): DocOp.Insert {
-  return object : DocOp.Insert {
-    override fun offset(): Int = offset
-    override fun fragment(): CharSequence = fragment
-  }
-}
+internal fun insertOp(offset: Int, fragment: CharSequence): DocOp.Insert = DocOp.ins(offset, fragment)
 
-internal fun deleteOp(offset: Int, length: Int): DocOp.Delete {
-  return object : DocOp.Delete {
-    override fun offset(): Int = offset
-    override fun length(): Int = length
-  }
-}
+internal fun deleteOp(offset: Int, length: Int): DocOp.Delete = DocOp.del(offset, length)
 
 internal fun assertSameText(expected: DocText, actual: DocText) {
   assertEquals(expected.string(), actual.string())

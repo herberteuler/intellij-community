@@ -155,13 +155,50 @@ class EventGraphTest {
     val insert = Event.createInsert(agent("u"), 5, 2, "abc")
     assertEquals(agent("u"), insert.agent())
     assertEquals(5, insert.seq())
-    assertEquals(2, insert.pos())
+    assertEquals(2, insert.offset())
     assertEquals(3, insert.length())
-    assertEquals("abc", insert.content().toString())
+    assertEquals("abc", insert.fragment().toString())
     val delete = Event.createDelete(agent("u"), 8, 1, 4)
     assertEquals(8, delete.seq())
-    assertEquals(1, delete.pos())
+    assertEquals(1, delete.offset())
     assertEquals(4, delete.length())
+  }
+
+  @Test
+  fun `a long fragment stays short in a message`() {
+    // An insert fragment can be a whole pasted file, and toString reaches the messages of
+    // the id checks. A line break escapes too, so a message stays on one line.
+    val short = Event.createInsert(agent("u"), 0, 0, "a\nb")
+    assertTrue(short.toString().contains("\"a\\nb\"")) { short.toString() }
+
+    val pasted = Event.createInsert(agent("u"), 0, 0, "x".repeat(5000))
+    val message = pasted.toString()
+    assertTrue(message.length < 100) { "The message is not short: $message" }
+    assertTrue(message.contains("...")) { message }
+    assertTrue(message.contains("5000 chars")) { message }
+
+    // The same protection reaches the message of a rejected id, through the event.
+    val graph = EventGraph.createGraph().append(pasted, Version.root())
+    val clash = assertThrows(IllegalArgumentException::class.java) {
+      graph.append(Event.createInsert(agent("u"), 0, 0, "y".repeat(5000)), Version.root())
+    }
+    assertTrue(clash.message!!.length < 200) { "The message is not short: ${clash.message}" }
+  }
+
+  @Test
+  fun `an event is the op it records`() {
+    // An event is a DocOp with an identity, so one value serves both contracts. These two
+    // assignments are the test: they compile only while that stays true.
+    val insert: DocOp.Insert = Event.createInsert(agent("u"), 0, 2, "abc")
+    assertEquals(2, insert.offset())
+    assertEquals("abc", insert.fragment().toString())
+    val delete: DocOp.Delete = Event.createDelete(agent("u"), 3, 1, 4)
+    assertEquals(1, delete.offset())
+    assertEquals(4, delete.length())
+    // A document applies an event exactly like the op it was made from.
+    val text = DocText.createText("xyz")
+    assertEquals(text.applyOp(DocOp.ins(1, "Q")).string(),
+                 text.applyOp(Event.createInsert(agent("u"), 0, 1, "Q")).string())
   }
 
   @Test

@@ -170,6 +170,7 @@ public final class LocalOptionsConfigurer {
     if (!isWindows) {
       envs.put("TERM", "xterm-256color");
     }
+    envs.put("COLORTERM", "truecolor");
     envs.put(TERMINAL_EMULATOR, "JetBrains-JediTerm");
     envs.put(TERM_SESSION_ID, UUID.randomUUID().toString());
 

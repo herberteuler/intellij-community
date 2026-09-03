@@ -22,6 +22,7 @@ import com.intellij.psi.search.UsageSearchContext;
 import com.intellij.util.Processors;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.indexing.DumbModeAccessType;
+import com.intellij.workspaceModel.core.fileIndex.WorkspaceFileIndex;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
@@ -49,6 +50,7 @@ public final class IdeaIndexBasedFindInProjectSearchEngine implements FindInProj
 
     private final @NotNull Project project;
     private final @NotNull ProjectFileIndex fileIndex;
+    private final @NotNull WorkspaceFileIndex workspaceFileIndex;
 
     /**
      * If findModel's search pattern is a regexp -- trigram index could still be used to provide candidate files.
@@ -64,6 +66,7 @@ public final class IdeaIndexBasedFindInProjectSearchEngine implements FindInProj
       this.project = project;
       this.findModel = findModel;
       this.fileIndex = ProjectFileIndex.getInstance(project);
+      this.workspaceFileIndex = WorkspaceFileIndex.getInstance(project);
 
       String stringToFind = findModel.getStringToFind();
       stringToFindInIndices = findModel.isRegularExpressions() ?
@@ -158,7 +161,9 @@ public final class IdeaIndexBasedFindInProjectSearchEngine implements FindInProj
 
     @Override
     public boolean isCovered(@NotNull VirtualFile file) {
+      //the trigram index filter accepts a non-indexable text file, so the indexability check comes first
       return hasTrigrams
+             && workspaceFileIndex.isIndexable(file)
              && isCoveredByIndex(file)
              && (fileIndex.isInContent(file) || fileIndex.isInLibrary(file));
     }

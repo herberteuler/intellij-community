@@ -77,6 +77,7 @@ import com.intellij.usages.ConfigurableUsageTarget;
 import com.intellij.usages.FindUsagesProcessPresentation;
 import com.intellij.usages.UsageView;
 import com.intellij.usages.UsageViewPresentation;
+import com.intellij.util.AstLoadingFilter;
 import com.intellij.util.PatternUtil;
 import com.intellij.util.Processor;
 import org.jetbrains.annotations.ApiStatus;
@@ -96,6 +97,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -316,7 +318,8 @@ public final class FindInProjectUtil {
       tooManyUsagesStatus.pauseProcessingIfTooManyUsages(); // wait for user out-of-read action
       before = offsetRef[0];
       boolean success = ReadAction.computeBlocking(() -> !psiFile.isValid() ||
-                                                         processSomeOccurrencesInFile(document, findModel, psiFile, offsetRef, consumer));
+                                                         processSomeOccurrencesInFile(document, findModel, psiFile, virtualFile,
+                                                                                      offsetRef, consumer));
       if (!success) {
         return false;
       }
@@ -328,34 +331,20 @@ public final class FindInProjectUtil {
   private static boolean processSomeOccurrencesInFile(@NotNull Document document,
                                                       @NotNull FindModel findModel,
                                                       @NotNull PsiFile psiFile,
+                                                      @NotNull VirtualFile virtualFile,
                                                       int @NotNull [] offsetRef,
                                                       @NotNull Processor<? super UsageInfo> consumer) {
     CharSequence text = document.getCharsSequence();
     int textLength = document.getTextLength();
-    int offset = offsetRef[0];
 
     Project project = psiFile.getProject();
 
     FindManager findManager = FindManager.getInstance(project);
+    Supplier<String> debugInfo = () -> "Find in Files scans " + virtualFile.getPath();
     int count = 0;
-    while (offset < textLength) {
-      ProgressManager.checkCanceled();
-
-      FindResult result = findManager.findString(text, offset, findModel, psiFile.getVirtualFile());
-      if (!result.isStringFound()) break;
-
-      int prevOffset = offset;
-      offset = result.getEndOffset();
-      if (prevOffset == offset || offset == result.getStartOffset()) {
-        // for regular expr the size of the match could be zero -> could be infinite loop in finding usages!
-        ++offset;
-      }
-
-      SearchScope customScope = findModel.getCustomScope();
-      if (customScope instanceof LocalSearchScope) {
-        if (!((LocalSearchScope)customScope).containsRange(psiFile, result)) continue;
-      }
-      UsageInfo info = new FindResultUsageInfo(findManager, psiFile, prevOffset, findModel, result);
+    while (true) {
+      UsageInfo info = findNextUsage(text, textLength, findModel, psiFile, findManager, offsetRef, debugInfo);
+      if (info == null) break;
       if (!consumer.process(info)) {
         return false;
       }
@@ -365,8 +354,46 @@ public final class FindInProjectUtil {
         break;
       }
     }
-    offsetRef[0] = offset;
     return true;
+  }
+
+  /**
+   * Finds the next occurrence in the scope from {@code offsetRef[0]} and moves {@code offsetRef[0]} past it.
+   *
+   * @return the usage of the occurrence, or null when there are no more occurrences
+   */
+  private static @Nullable UsageInfo findNextUsage(@NotNull CharSequence text,
+                                                   int textLength,
+                                                   @NotNull FindModel findModel,
+                                                   @NotNull PsiFile psiFile,
+                                                   @NotNull FindManager findManager,
+                                                   int @NotNull [] offsetRef,
+                                                   @NotNull Supplier<String> debugInfo) {
+    while (offsetRef[0] < textLength) {
+      ProgressManager.checkCanceled();
+
+      int prevOffset = offsetRef[0];
+      // the text match needs the text only; a language that would build the tree here makes the search slow on large projects.
+      // The scope check and the usage run outside the guard: a LocalSearchScope element may need its tree for its range,
+      // and the consumer may need the tree of the usage's file or of any other file
+      FindResult result = AstLoadingFilter.disallowTreeLoading(
+        () -> findManager.findString(text, prevOffset, findModel, psiFile.getVirtualFile()), debugInfo);
+      if (!result.isStringFound()) break;
+
+      int offset = result.getEndOffset();
+      if (prevOffset == offset || offset == result.getStartOffset()) {
+        // for regular expr the size of the match could be zero -> could be infinite loop in finding usages!
+        ++offset;
+      }
+      offsetRef[0] = offset;
+
+      SearchScope customScope = findModel.getCustomScope();
+      if (customScope instanceof LocalSearchScope) {
+        if (!((LocalSearchScope)customScope).containsRange(psiFile, result)) continue;
+      }
+      return new FindResultUsageInfo(findManager, psiFile, prevOffset, findModel, result);
+    }
+    return null;
   }
 
   public static @NotNull @Nls String getTitleForScope(@NotNull FindModel findModel) {

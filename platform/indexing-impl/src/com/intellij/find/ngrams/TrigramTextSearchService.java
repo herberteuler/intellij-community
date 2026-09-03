@@ -13,6 +13,7 @@ import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.Processor;
 import com.intellij.util.indexing.FileBasedIndex;
 import com.intellij.util.indexing.IndexedFileImpl;
+import com.intellij.workspaceModel.core.fileIndex.WorkspaceFileIndex;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -48,7 +49,9 @@ public final class TrigramTextSearchService implements TextSearchService {
   @Override
   public boolean isInSearchableScope(@NotNull VirtualFile file,
                                      @NotNull Project project) {
+    //the trigram index filter accepts a non-indexable text file, so the workspace indexability check comes first
     return !file.isDirectory()
+           && WorkspaceFileIndex.getInstance(project).isIndexable(file)
            && isIndexable(file, project)
            && !isProjectOrWorkspaceFile(file)
            && !SingleRootFileViewProvider.isTooLargeForIntelligence(file);

@@ -10,7 +10,6 @@ import com.intellij.find.ngrams.TrigramTextSearchService;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.ProjectFileIndex;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.util.text.TrigramBuilder;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -48,7 +47,6 @@ public final class IdeaIndexBasedFindInProjectSearchEngine implements FindInProj
     private final @NotNull TextSearchService textSearchService = TextSearchService.getInstance();
 
     private final @NotNull Project project;
-    private final @NotNull ProjectFileIndex fileIndex;
 
     /**
      * If findModel's search pattern is a regexp -- trigram index could still be used to provide candidate files.
@@ -63,7 +61,6 @@ public final class IdeaIndexBasedFindInProjectSearchEngine implements FindInProj
                                  @NotNull FindModel findModel) {
       this.project = project;
       this.findModel = findModel;
-      this.fileIndex = ProjectFileIndex.getInstance(project);
 
       String stringToFind = findModel.getStringToFind();
       stringToFindInIndices = findModel.isRegularExpressions() ?
@@ -158,9 +155,7 @@ public final class IdeaIndexBasedFindInProjectSearchEngine implements FindInProj
 
     @Override
     public boolean isCovered(@NotNull VirtualFile file) {
-      return hasTrigrams
-             && isCoveredByIndex(file)
-             && (fileIndex.isInContent(file) || fileIndex.isInLibrary(file));
+      return hasTrigrams && isCoveredByIndex(file);
     }
 
     private boolean isCoveredByIndex(@NotNull VirtualFile file) {

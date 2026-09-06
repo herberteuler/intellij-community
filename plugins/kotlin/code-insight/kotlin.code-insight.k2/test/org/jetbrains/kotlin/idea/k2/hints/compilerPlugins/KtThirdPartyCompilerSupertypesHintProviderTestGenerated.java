@@ -18,10 +18,10 @@ import org.junit.runner.RunWith;
 @TestDataPath("$CONTENT_ROOT")
 @RunWith(JUnit3RunnerWithInners.class)
 @TestMetadata("testData/hints/compilerPlugins/supertypes")
-public abstract class KtCompilerSupertypesHintProviderTestGenerated extends AbstractKtCompilerSupertypesHintProviderTest {
+public abstract class KtThirdPartyCompilerSupertypesHintProviderTestGenerated extends AbstractKtThirdPartyCompilerSupertypesHintProviderTest {
     @RunWith(JUnit3RunnerWithInners.class)
     @TestMetadata("testData/hints/compilerPlugins/supertypes/serialization")
-    public static class Serialization extends AbstractKtCompilerSupertypesHintProviderTest {
+    public static class Serialization extends AbstractKtThirdPartyCompilerSupertypesHintProviderTest {
         private void runTest(String testDataFilePath) throws Exception {
             KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
         }

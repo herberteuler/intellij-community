@@ -23,9 +23,12 @@ import org.jetbrains.kotlin.idea.k2.hints.AbstractKtParameterHintsProviderTest
 import org.jetbrains.kotlin.idea.k2.hints.AbstractKtReferenceTypeHintsProviderTest
 import org.jetbrains.kotlin.idea.k2.hints.AbstractKtValuesHintsProviderTest
 import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractCompilerPluginDeclarationHighlighterTest
-import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtCompilerDeclarationsHintProviderTest
-import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtCompilerPluginModalityHintProviderTest
-import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtCompilerSupertypesHintProviderTest
+import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtBundledCompilerDeclarationsHintProviderTest
+import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtBundledCompilerPluginModalityHintProviderTest
+import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtBundledCompilerSupertypesHintProviderTest
+import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtThirdPartyCompilerDeclarationsHintProviderTest
+import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtThirdPartyCompilerPluginModalityHintProviderTest
+import org.jetbrains.kotlin.idea.k2.hints.compilerPlugins.AbstractKtThirdPartyCompilerSupertypesHintProviderTest
 import org.jetbrains.kotlin.idea.k2.moveUpDown.AbstractFirMoveLeftRightTest
 import org.jetbrains.kotlin.idea.k2.moveUpDown.AbstractKotlinFirMoveStatementTest
 import org.jetbrains.kotlin.idea.k2.quickDoc.AbstractFirRenderingKDocTest
@@ -200,11 +203,19 @@ internal fun MutableTWorkspace.generateK2CodeInsightTests() {
             model("../../../idea/tests/testData/codeInsight/hints/defaultParameters", pattern = inlayHintsFileRegexp)
         }
 
-        testClass<AbstractKtCompilerPluginModalityHintProviderTest> {
+        testClass<AbstractKtBundledCompilerPluginModalityHintProviderTest> {
             model("hints/compilerPlugins/modality", pattern = inlayHintsFileRegexp)
         }
 
-        testClass<AbstractKtCompilerDeclarationsHintProviderTest> {
+        testClass<AbstractKtThirdPartyCompilerPluginModalityHintProviderTest> {
+            model("hints/compilerPlugins/modality", pattern = inlayHintsFileRegexp)
+        }
+
+        testClass<AbstractKtBundledCompilerDeclarationsHintProviderTest> {
+            model("hints/compilerPlugins/declarations", pattern = inlayHintsFileRegexp)
+        }
+
+        testClass<AbstractKtThirdPartyCompilerDeclarationsHintProviderTest> {
             model("hints/compilerPlugins/declarations", pattern = inlayHintsFileRegexp)
         }
 
@@ -212,7 +223,11 @@ internal fun MutableTWorkspace.generateK2CodeInsightTests() {
             model("hints/compilerPlugins/highlighger", pattern = inlayHintsFileRegexp)
         }
 
-        testClass<AbstractKtCompilerSupertypesHintProviderTest> {
+        testClass<AbstractKtBundledCompilerSupertypesHintProviderTest> {
+            model("hints/compilerPlugins/supertypes", pattern = inlayHintsFileRegexp)
+        }
+
+        testClass<AbstractKtThirdPartyCompilerSupertypesHintProviderTest> {
             model("hints/compilerPlugins/supertypes", pattern = inlayHintsFileRegexp)
         }
 

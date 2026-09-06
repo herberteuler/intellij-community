@@ -18,10 +18,10 @@ import org.junit.runner.RunWith;
 @TestDataPath("$CONTENT_ROOT")
 @RunWith(JUnit3RunnerWithInners.class)
 @TestMetadata("testData/hints/compilerPlugins/declarations")
-public abstract class KtCompilerDeclarationsHintProviderTestGenerated extends AbstractKtCompilerDeclarationsHintProviderTest {
+public abstract class KtBundledCompilerDeclarationsHintProviderTestGenerated extends AbstractKtBundledCompilerDeclarationsHintProviderTest {
     @RunWith(JUnit3RunnerWithInners.class)
     @TestMetadata("testData/hints/compilerPlugins/declarations/serialization")
-    public static class Serialization extends AbstractKtCompilerDeclarationsHintProviderTest {
+    public static class Serialization extends AbstractKtBundledCompilerDeclarationsHintProviderTest {
         private void runTest(String testDataFilePath) throws Exception {
             KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
         }

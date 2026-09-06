@@ -18,10 +18,10 @@ import org.junit.runner.RunWith;
 @TestDataPath("$CONTENT_ROOT")
 @RunWith(JUnit3RunnerWithInners.class)
 @TestMetadata("testData/hints/compilerPlugins/modality")
-public abstract class KtCompilerPluginModalityHintProviderTestGenerated extends AbstractKtCompilerPluginModalityHintProviderTest {
+public abstract class KtBundledCompilerPluginModalityHintProviderTestGenerated extends AbstractKtBundledCompilerPluginModalityHintProviderTest {
     @RunWith(JUnit3RunnerWithInners.class)
     @TestMetadata("testData/hints/compilerPlugins/modality/allopen")
-    public static class Allopen extends AbstractKtCompilerPluginModalityHintProviderTest {
+    public static class Allopen extends AbstractKtBundledCompilerPluginModalityHintProviderTest {
         private void runTest(String testDataFilePath) throws Exception {
             KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
         }

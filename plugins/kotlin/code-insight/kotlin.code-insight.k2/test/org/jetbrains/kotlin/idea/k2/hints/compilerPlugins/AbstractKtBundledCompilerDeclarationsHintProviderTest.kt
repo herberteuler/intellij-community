@@ -4,6 +4,8 @@ package org.jetbrains.kotlin.idea.k2.hints.compilerPlugins
 import com.intellij.codeInsight.hints.InlayDumpUtil
 import com.intellij.codeInsight.hints.InlayHintsProviderExtension
 import com.intellij.testFramework.LightProjectDescriptor
+import com.intellij.testFramework.common.runAll
+import com.intellij.testFramework.rules.TempDirectory
 import com.intellij.testFramework.utils.inlays.InlayHintsProviderTestCase
 import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
 import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
@@ -17,7 +19,18 @@ import java.nio.file.Paths
 import kotlin.io.path.name
 import kotlin.io.path.readText
 
-abstract class AbstractKtCompilerDeclarationsHintProviderTest : InlayHintsProviderTestCase() {
+abstract class AbstractKtCompilerDeclarationsHintProviderTestBase(val treatAsThirdParty: Boolean) : InlayHintsProviderTestCase() {
+    val tempDir = TempDirectory()
+
+    override fun setUp() {
+        super.setUp()
+        tempDir.before(name)
+    }
+
+    override fun tearDown() {
+        runAll({ tempDir.after() }, { super.tearDown() })
+    }
+
     private val provider
         get() = InlayHintsProviderExtension.findProviders()
             .map { it.provider }
@@ -34,9 +47,11 @@ abstract class AbstractKtCompilerDeclarationsHintProviderTest : InlayHintsProvid
         val testFile = Paths.get(testPath)
         val text = testFile.readText()
         val settings = parseSettings(text)
+        val plugin = KotlinK2BundledCompilerPlugins.KOTLINX_SERIALIZATION_COMPILER_PLUGIN
 
         module.withCompilerPlugin(
-            KotlinK2BundledCompilerPlugins.KOTLINX_SERIALIZATION_COMPILER_PLUGIN,
+            plugin,
+            pluginJar = if (treatAsThirdParty) createThirdPartyCompilerPluginJar(plugin, tempDir) else plugin.bundledJarLocation,
         ) {
             performTest(testFile, text, settings)
         }
@@ -68,3 +83,9 @@ abstract class AbstractKtCompilerDeclarationsHintProviderTest : InlayHintsProvid
         private const val WITH_HIDDEN_MEMBERS_DIRECTIVE = "WITH_HIDDEN_MEMBERS"
     }
 }
+
+abstract class AbstractKtBundledCompilerDeclarationsHintProviderTest :
+    AbstractKtCompilerDeclarationsHintProviderTestBase(treatAsThirdParty = false)
+
+abstract class AbstractKtThirdPartyCompilerDeclarationsHintProviderTest :
+    AbstractKtCompilerDeclarationsHintProviderTestBase(treatAsThirdParty = true)

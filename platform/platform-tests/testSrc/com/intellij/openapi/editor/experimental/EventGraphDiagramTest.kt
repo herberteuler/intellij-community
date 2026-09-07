@@ -1,0 +1,209 @@
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.openapi.editor.experimental
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+/**
+ * Tests the box diagram that the `toString` of an event graph draws.
+ *
+ * Each test states the whole diagram, because the art is the thing under test and a reader
+ * has to see it. A test that only counts lines instead covers a bound, where the exact art
+ * carries nothing.
+ *
+ * The shapes below cover every part of the notation: a straight step, a fork, a merge, a
+ * branch that ends, a branch that waits a row, a history with no common root, and the two
+ * bounds that keep the diagram out of a log.
+ */
+class EventGraphDiagramTest {
+
+  @Test
+  fun `a linear history draws one box under the other`() {
+    val u = agent("user1")
+    var graph = EventGraph.createGraph()
+    graph = graph.append(Event.createInsert(u, 0, 0, "abc"), graph.version())
+    graph = graph.append(Event.createDelete(u, 3, 1, 1), graph.version())
+    assertEquals(
+      """
+      EventGraph(units=4, runs=2, version=v[3])
+      ┌───────────────┐
+      │ insert "abc"  │
+      │ offset 0      │
+      │ lv 0..2       │
+      │ agent "user1" │
+      └───────┬───────┘
+              │
+      ┌───────┴───────┐
+      │ delete 1 char │
+      │ offset 1      │
+      │ lv 3          │
+      │ agent "user1" │
+      └───────────────┘
+      """.trimIndent(),
+      graph.toString(),
+    )
+  }
+
+  @Test
+  fun `a fork draws the branches side by side and a head keeps a plain border`() {
+    val u1 = agent("user1")
+    val u2 = agent("user2")
+    var graph = EventGraph.createGraph()
+    graph = graph.append(Event.createInsert(u1, 0, 0, "ab"), graph.version())
+    val base = graph.version()
+    graph = graph.append(Event.createInsert(u1, 2, 2, "c"), base)
+    graph = graph.append(Event.createInsert(u1, 3, 3, "d"), graph.version())
+    graph = graph.append(Event.createInsert(u2, 0, 2, "Z"), base)
+    // The run of user2 has no child, so its lower border carries no join.
+    assertEquals(
+      """
+      EventGraph(units=5, runs=4, version=v[3, 4])
+      ┌───────────────┐
+      │ insert "ab"   │
+      │ offset 0      │
+      │ lv 0..1       │
+      │ agent "user1" │
+      └───────┬───────┘
+              │
+              ├──────────────────┐
+              │                  │
+      ┌───────┴───────┐  ┌───────┴───────┐
+      │ insert "c"    │  │ insert "Z"    │
+      │ offset 2      │  │ offset 2      │
+      │ lv 2          │  │ lv 4          │
+      │ agent "user1" │  │ agent "user2" │
+      └───────┬───────┘  └───────────────┘
+              │
+      ┌───────┴───────┐
+      │ insert "d"    │
+      │ offset 3      │
+      │ lv 3          │
+      │ agent "user1" │
+      └───────────────┘
+      """.trimIndent(),
+      graph.toString(),
+    )
+  }
+
+  @Test
+  fun `a branch that skips a row keeps its line, and a merge closes it`() {
+    val u1 = agent("user1")
+    val u2 = agent("user2")
+    val root = Version.root()
+    val shared = EventGraph.createGraph().append(Event.createInsert(u1, 0, 0, "a"), root)
+    // One side makes a single edit while the other makes two, so the short side waits one
+    // row for its merge. Its column carries the line down beside the box it skips.
+    val shortSide = shared.append(Event.createInsert(u1, 1, 1, "b"), shared.version())
+    var longSide = shared.append(Event.createInsert(u2, 0, 1, "X"), shared.version())
+    longSide = longSide.append(Event.createInsert(u2, 1, 2, "Y"), longSide.version())
+    val merged = shortSide.mergeFrom(longSide)
+    assertEquals(
+      """
+      EventGraph(units=5, runs=5, version=v[4])
+      ┌───────────────┐
+      │ insert "a"    │
+      │ offset 0      │
+      │ lv 0          │
+      │ agent "user1" │
+      └───────┬───────┘
+              │
+              ├──────────────────┐
+              │                  │
+      ┌───────┴───────┐  ┌───────┴───────┐
+      │ insert "b"    │  │ insert "X"    │
+      │ offset 1      │  │ offset 1      │
+      │ lv 1          │  │ lv 2          │
+      │ agent "user1" │  │ agent "user2" │
+      └───────┬───────┘  └───────┬───────┘
+              │                  │
+              │          ┌───────┴───────┐
+              │          │ insert "Y"    │
+              │          │ offset 2      │
+              │          │ lv 3          │
+              │          │ agent "user2" │
+              │          └───────┬───────┘
+              │                  │
+              ├──────────────────┘
+              │
+      ┌───────┴───────┐
+      │ insert "c"    │
+      │ offset 3      │
+      │ lv 4          │
+      │ agent "user1" │
+      └───────────────┘
+      """.trimIndent(),
+      merged.append(Event.createInsert(u1, 2, 3, "c"), merged.version()).toString(),
+    )
+  }
+
+  @Test
+  fun `two histories with no common root stand side by side`() {
+    val u1 = agent("user1")
+    val u2 = agent("user2")
+    val root = Version.root()
+    val first = EventGraph.createGraph().append(Event.createInsert(u1, 0, 0, "ab"), root)
+    val second = EventGraph.createGraph().append(Event.createInsert(u2, 0, 0, "cd"), root)
+    // Neither run descends from the other, so both sit at depth 0 and neither takes a join.
+    assertEquals(
+      """
+      EventGraph(units=4, runs=2, version=v[1, 3])
+      ┌───────────────┐  ┌───────────────┐
+      │ insert "ab"   │  │ insert "cd"   │
+      │ offset 0      │  │ offset 0      │
+      │ lv 0..1       │  │ lv 2..3       │
+      │ agent "user1" │  │ agent "user2" │
+      └───────────────┘  └───────────────┘
+      """.trimIndent(),
+      first.mergeFrom(second).toString(),
+    )
+  }
+
+  @Test
+  fun `a row of many concurrent runs stops and says what it hid`() {
+    var graph = EventGraph.createGraph()
+    for (i in 0 until 9) {
+      graph = graph.append(Event.createInsert(agent("u$i"), 0, 0, "x"), Version.root())
+    }
+    val diagram = graph.toString()
+    // Nine roots are all concurrent, so one row holds them and draws the first six.
+    assertEquals(6, diagram.lines()[1].split("┌").size - 1) { "not six boxes: $diagram" }
+    assertTrue(diagram.endsWith("... 3 more concurrent runs ...")) { "not bounded: $diagram" }
+  }
+
+  @Test
+  fun `a long fragment stays short in a box`() {
+    val graph = EventGraph.createGraph()
+      .append(Event.createInsert(agent("u"), 0, 0, "z".repeat(500)), Version.root())
+    val diagram = graph.toString()
+    assertTrue(diagram.contains("...")) { "the fragment is not shortened: $diagram" }
+    assertTrue(diagram.contains("(500 chars)")) { "the length is not reported: $diagram" }
+    // A box of six lines, each one under 80 characters, plus the header.
+    assertEquals(7, diagram.lines().size)
+    assertTrue(diagram.lines().all { it.length < 80 }) { "a line is too wide: $diagram" }
+  }
+
+  @Test
+  fun `a long history loses its middle and keeps the newest runs`() {
+    val u = agent("u")
+    var graph = EventGraph.createGraph()
+    for (seq in 0 until 45) {
+      graph = graph.append(Event.createInsert(u, seq, seq, "x"), graph.version())
+    }
+    assertEquals(45, graph.runCount())
+    val lines = graph .toString().lines()
+    // The header, the first two boxes with the line between them, the count of what went,
+    // then the newest 38 boxes with their 37 lines.
+    assertEquals(1 + (2 * 6 + 1) + 1 + (38 * 6 + 37), lines.size)
+    assertEquals("... 5 more runs ...", lines[14])
+    // The two ends of the history are both there, and the middle is not.
+    assertTrue(lines.any { it.contains("lv 0") }) { "the first run is gone" }
+    assertTrue(lines.any { it.contains("lv 44") }) { "the last run is gone" }
+    assertFalse(lines.any { it.contains("lv 5 ") }) { "run 5 is in the middle and must go" }
+    // The run under the count line follows one that went, so its border still joins.
+    assertTrue(lines[15].contains('┴')) { "the join is missing: ${lines[15]}" }
+    // The box holds the kind, the offset, the lv and the agent, one per line.
+    assertTrue(lines[18].contains("lv 7")) { "the newest runs do not start at lv 7: ${lines[18]}" }
+  }
+}

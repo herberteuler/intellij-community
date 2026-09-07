@@ -149,6 +149,11 @@ internal class EventGraphImpl private constructor(
 
   /** The run that covers [lv]. */
   fun runAt(lv: LV): StoredRun {
+    return runByIndex(runIndexOf(lv))
+  }
+
+  /** The index of the run that covers [lv]. An index counts runs, and an lv counts units. */
+  fun runIndexOf(lv: LV): Int {
     checkLv(lv)
     var lo = 0
     var hi = runCount - 1
@@ -160,7 +165,12 @@ internal class EventGraphImpl private constructor(
         hi = mid - 1
       }
     }
-    return store.runAt(lo)
+    return lo
+  }
+
+  /** The run stored at [index], which must be below [runCount]. */
+  fun runByIndex(index: Int): StoredRun {
+    return store.runAt(index)
   }
 
   fun parentsOf(lv: LV): Frontier {
@@ -411,6 +421,11 @@ internal class EventGraphImpl private constructor(
         idClash(event, offset, "the inserted character")
       }
     }
+  }
+
+  /** The graph as a text diagram. See [EventGraphDiagram] for the notation and its limits. */
+  override fun toString(): String {
+    return EventGraphDiagram.render(this)
   }
 
   private fun idClash(event: Event, offset: Int, difference: String): String {

@@ -2,6 +2,7 @@
 
 package com.jetbrains.performancePlugin.remotedriver.xpath
 
+import com.intellij.util.ReflectionUtil
 import com.intellij.util.createDocumentBuilder
 import com.jetbrains.performancePlugin.remotedriver.dataextractor.TextParser
 import com.jetbrains.performancePlugin.remotedriver.dataextractor.TextToKeyCache
@@ -253,9 +254,9 @@ class XpathDataModelCreator(val onlyVisibleComponents: Boolean = true) {
       return try {
         component.toolTipText
         ?: component.getClientProperty("JComponent.helpTooltip")?.let {
-          it.javaClass.getDeclaredField("title").apply {
-            isAccessible = true
-          }.get(it)?.let { title ->
+          ReflectionUtil.findFieldInHierarchy(it.javaClass) { field ->
+            field.name == "title"
+          }?.get(it)?.let { title ->
             when (title) {
               is String -> title
               is Supplier<*> -> title.get()?.toString()

@@ -45,6 +45,7 @@
     <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.AnalysisToolset" />
     <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.FileToolset" />
     <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.FormattingToolset" />
+    <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.ImportsToolset" />
     <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.ReadToolset" />
     <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.PatchToolset" />
     <mcpServer.mcpToolset implementation="com.intellij.mcpserver.toolsets.general.SearchToolset" />

@@ -95,6 +95,7 @@ dev_dist_plugin(
         "kotlin.base.injection",
         "intellij.kotlin.j2k",
         "intellij.kotlin.j2k.mcp",
+        "intellij.kotlin.mcp",
         "intellij.kotlin.internal",
         "intellij.kotlin.performanceExtendedPlugin",
         "intellij.kotlin.base.analysis",

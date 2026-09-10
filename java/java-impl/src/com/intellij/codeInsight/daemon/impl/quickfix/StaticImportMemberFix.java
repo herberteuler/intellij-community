@@ -45,7 +45,6 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.TestOnly;
 
 import java.util.Collections;
 import java.util.List;
@@ -115,7 +114,6 @@ public abstract class StaticImportMemberFix<T extends PsiMember, R extends PsiEl
   /**
    * @return the members the editor hint offers
    */
-  @TestOnly
   public @NotNull List<T> getHintCandidates() {
     return hintCandidates;
   }

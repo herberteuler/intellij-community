@@ -117,6 +117,7 @@
     <orderEntry type="module" module-name="intellij.kotlin.projectWizard.compose" exported="" />
     <orderEntry type="module" module-name="kotlin.scripting" exported="" />
     <orderEntry type="module" module-name="intellij.kotlin.uast.base" exported="" />
+    <orderEntry type="module" module-name="intellij.kotlin.mcp" exported="" />
     <orderEntry type="module" module-name="intellij.kotlin.uast.idea.base" exported="" />
     <orderEntry type="module" module-name="intellij.kotlin.compilerReferenceIndex" exported="" />
     <orderEntry type="module" module-name="intellij.kotlin.coverage" exported="" />

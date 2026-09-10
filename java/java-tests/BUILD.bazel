@@ -473,6 +473,8 @@ jvm_library(
         "//java/java-completion-tests:completion-tests_test_lib",
         "//plugins/java-decompiler/engine:java-decompiler-engine-tests",
         "//plugins/java-decompiler/engine:java-decompiler-engine-tests_test_lib",
+        "//java/mcp:mcp-tests",
+        "//java/mcp:mcp-tests_test_lib",
         "//plugins/java-decompiler/plugin:java-decompiler-tests",
         "//plugins/java-decompiler/plugin:java-decompiler-tests_test_lib",
         "//java/java-features-trainer:featuresTrainer-tests",

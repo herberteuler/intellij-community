@@ -358,6 +358,7 @@ java/jsp-spi
 java/langInjection
 java/langInjection/jps
 java/manifest
+java/mcp
 java/openapi
 java/performancePlugin
 java/plugin
@@ -1598,6 +1599,7 @@ plugins/kotlin/lombok
 plugins/kotlin/lombok/tests
 plugins/kotlin/maven
 plugins/kotlin/maven/tests
+plugins/kotlin/mcp
 plugins/kotlin/migration
 plugins/kotlin/ml-completion
 plugins/kotlin/ml-completion/tests

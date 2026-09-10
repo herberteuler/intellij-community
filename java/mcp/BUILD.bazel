@@ -1,0 +1,179 @@
+load("@community//build:tests-options.bzl", "jps_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
+
+### auto-generated section `dev intellij.java.mcp` start
+content_module_jar(module = ":mcp")
+### auto-generated section `dev intellij.java.mcp` end
+
+### auto-generated section `build intellij.java.mcp` start
+jvm_library(
+    name = "mcp",
+    srcs = glob(
+        [
+            "src/**/*.kt",
+            "src/**/*.java",
+            "src/**/*.form",
+        ],
+        allow_empty = True,
+    ),
+    module_name = "intellij.java.mcp",
+    resource_strip_prefix = "resources",
+    resources = glob(
+        ["resources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        # do not sort,
+        "@lib//:kotlin-stdlib",
+        "//plugins/mcp-server:mcpserver",
+        "//java/java-impl:impl",
+        "//java/java-psi-api:psi",
+        "//platform/analysis-api:analysis",
+        "//platform/core-api:core",
+        "//platform/indexing-api:indexing",
+        "//platform/projectModel-api:projectModel",
+        "//platform/util",
+        "//java/java-frontback-psi-api:frontback-psi",
+        "//platform/editor-ui-api:editor-ui",
+        "//java/java-indexing-api:indexing",
+        "//platform/code-style-api:codeStyle",
+    ],
+)
+
+jvm_library(
+    name = "mcp_test_lib",
+    testonly = True,
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.java.mcp",
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        # do not sort,
+        ":mcp",
+        "//plugins/mcp-server:mcpserver_test_lib",
+        "//java/java-impl:impl_test_lib",
+        "//java/java-psi-api:psi_test_lib",
+        "//platform/analysis-api:analysis_test_lib",
+        "//platform/core-api:core_test_lib",
+        "//platform/indexing-api:indexing_test_lib",
+        "//platform/projectModel-api:projectModel_test_lib",
+        "//platform/util:util_test_lib",
+        "//java/java-frontback-psi-api:frontback-psi_test_lib",
+        "//platform/editor-ui-api:editor-ui_test_lib",
+        "//java/java-indexing-api:indexing_test_lib",
+        "//platform/code-style-api:codeStyle_test_lib",
+    ],
+)
+### auto-generated section `build intellij.java.mcp` end
+
+### auto-generated section `iml intellij.java.mcp` start
+exports_files(
+    [
+        "intellij.java.mcp.iml",
+        "resources/intellij.java.mcp.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.java.mcp` end
+
+### auto-generated section `build intellij.java.mcp.tests` start
+jvm_library(
+    name = "mcp-tests",
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.java.mcp.tests",
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        # do not sort,
+        "//plugins/mcp-server/mcpserver.plugin",
+        "//platform/structure-view-impl/plugin",
+        "//aether-dependency-resolver/plugin",
+        "//platform/todo/plugin",
+    ],
+)
+
+jvm_library(
+    name = "mcp-tests_test_lib",
+    testonly = True,
+    srcs = glob(
+        [
+            "testSrc/**/*.kt",
+            "testSrc/**/*.java",
+            "testSrc/**/*.form",
+        ],
+        allow_empty = True,
+    ),
+    associates = [
+        "//java/mcp",
+        "//java/mcp:mcp_test_lib",
+    ],
+    resource_strip_prefix = "testResources",
+    resources = glob(
+        ["testResources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        # do not sort,
+        ":mcp-tests",
+        "//plugins/mcp-server/mcpserver.plugin:mcpserver.plugin_test_lib",
+        "//platform/structure-view-impl/plugin:plugin_test_lib",
+        "//aether-dependency-resolver/plugin:plugin_test_lib",
+        "//platform/todo/plugin:plugin_test_lib",
+    ],
+    deps = [
+        # do not sort,
+        "@lib//:kotlin-stdlib",
+        "//java/testFramework",
+        "//java/testFramework:testFramework_test_lib",
+        "//libraries/junit5",
+        "//libraries/junit5:junit5_test_lib",
+        "//libraries/junit5-jupiter",
+        "//libraries/junit5-jupiter:junit5-jupiter_test_lib",
+        "//libraries/kotlin/test:libraries-kotlinTest",
+        "//libraries/kotlin/test:libraries-kotlinTest_test_lib",
+        "//libraries/kotlin/test-assertions-core-jvm:libraries-kotlinTestAssertionsCoreJvm",
+        "//libraries/kotlin/test-assertions-core-jvm:libraries-kotlinTestAssertionsCoreJvm_test_lib",
+        "//libraries/kotlinx/coroutines/core",
+        "//libraries/kotlinx/coroutines/core:core_test_lib",
+        "//libraries/kotlinx/serialization/json",
+        "//libraries/kotlinx/serialization/json:json_test_lib",
+        "//libraries/mcp-kotlin-sdk",
+        "//libraries/mcp-kotlin-sdk:mcp-kotlin-sdk_test_lib",
+        "//plugins/mcp-server:mcpserver",
+        "//plugins/mcp-server:mcpserver_test_lib",
+        "//plugins/mcp-server/mcpserver.testFramework",
+        "//plugins/mcp-server/mcpserver.testFramework:mcpserver.testFramework_test_lib",
+        "//plugins/mcp-server/mcpserver.toolsets",
+        "//plugins/mcp-server/mcpserver.toolsets:mcpserver.toolsets_test_lib",
+        "//platform/core-api:core",
+        "//platform/core-api:core_test_lib",
+        "//platform/projectModel-api:projectModel",
+        "//platform/projectModel-api:projectModel_test_lib",
+        "//platform/testFramework",
+        "//platform/testFramework:testFramework_test_lib",
+        "//platform/testFramework/junit5",
+        "//platform/testFramework/junit5:junit5_test_lib",
+    ],
+)
+### auto-generated section `build intellij.java.mcp.tests` end
+
+### auto-generated section `iml intellij.java.mcp.tests` start
+exports_files(
+    [
+        "intellij.java.mcp.tests.iml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.java.mcp.tests` end
+
+### auto-generated section `test intellij.java.mcp.tests` start
+jps_test(
+    name = "mcp-tests_test",
+    runtime_deps = [":mcp-tests_test_lib"],
+)
+### auto-generated section `test intellij.java.mcp.tests` end

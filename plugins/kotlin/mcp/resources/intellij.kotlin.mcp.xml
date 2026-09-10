@@ -1,0 +1,26 @@
+<idea-plugin>
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.java.indexing"/>
+    <module name="intellij.java.psi"/>
+    <module name="intellij.kotlin.base.analysis.utils"/>
+    <module name="intellij.kotlin.codeInsight.api"/>
+    <module name="intellij.kotlin.codeInsight.fixes"/>
+    <module name="intellij.kotlin.references"/>
+    <module name="intellij.libraries.kotlinc.kotlin.compiler.common"/>
+    <module name="intellij.mcpserver"/>
+    <module name="intellij.platform.analysis"/>
+    <module name="intellij.platform.codeStyle"/>
+    <module name="intellij.platform.codeStyle.impl"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.impl"/>
+    <module name="intellij.platform.editor.ui"/>
+    <module name="intellij.platform.indexing"/>
+    <module name="intellij.platform.projectModel"/>
+    <module name="kotlin.fir.frontend-independent"/>
+  </dependencies>
+  <!-- endregion -->
+  <extensions defaultExtensionNs="com.intellij.mcpServer">
+    <missingImportProvider language="kotlin" implementationClass="org.jetbrains.kotlin.mcp.imports.KotlinMissingImportProvider"/>
+  </extensions>
+</idea-plugin>

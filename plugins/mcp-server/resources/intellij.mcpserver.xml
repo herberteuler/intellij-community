@@ -63,6 +63,9 @@
     <extensionPoint qualifiedName="com.intellij.mcpServer.projectDependenciesProvider" interface="com.intellij.mcpserver.McpProjectDependenciesProvider" dynamic="true" />
     <extensionPoint qualifiedName="com.intellij.mcpServer.statusBarWidgetProvider" interface="com.intellij.mcpserver.widget.McpServerStatusBarWidgetProvider" dynamic="true" />
     <extensionPoint qualifiedName="com.intellij.mcpServer.mcpCallOwnerTelemetryProvider" interface="com.intellij.mcpserver.McpCallOwnerTelemetryProvider" dynamic="true" />
+    <extensionPoint qualifiedName="com.intellij.mcpServer.missingImportProvider" beanClass="com.intellij.lang.LanguageExtensionPoint" dynamic="true">
+      <with attribute="implementationClass" implements="com.intellij.mcpserver.imports.McpMissingImportProvider"/>
+    </extensionPoint>
   </extensionPoints>
 
   <extensions defaultExtensionNs="com.intellij">

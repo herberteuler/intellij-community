@@ -28,6 +28,7 @@ jvm_library(
     ),
     module_name = "intellij.mcpserver.tests",
     visibility = ["//visibility:public"],
+    exports = ["//plugins/mcp-server/mcpserver.testFramework"],
     runtime_deps = ["//xml/plugin"],
 )
 
@@ -51,6 +52,11 @@ jvm_library(
         ["testResources/**/*"],
     ),
     visibility = ["//visibility:public"],
+    exports = [
+        # do not sort,
+        "//plugins/mcp-server/mcpserver.testFramework",
+        "//plugins/mcp-server/mcpserver.testFramework:mcpserver.testFramework_test_lib",
+    ],
     runtime_deps = [
         # do not sort,
         ":tests",

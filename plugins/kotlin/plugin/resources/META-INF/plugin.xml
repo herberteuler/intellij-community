@@ -136,6 +136,7 @@
 
     <module name="intellij.kotlin.j2k" required-if-available="intellij.platform.backend"/>
     <module name="intellij.kotlin.j2k.mcp"/>
+    <module name="intellij.kotlin.mcp" loading="optional"/>
     <module name="intellij.kotlin.internal" required-if-available="intellij.platform.backend"/>
 
     <module name="intellij.kotlin.performanceExtendedPlugin"/>

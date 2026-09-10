@@ -78,6 +78,7 @@ dev_dist_plugin(
         "intellij.java.execution.impl.dashboard",
         "intellij.java.langInjection",
         "intellij.java.langInjection.jps",
+        "intellij.java.mcp",
         "intellij.java.copyright",
         "intellij.java.promo",
         "intellij.libraries.completion.ranking.java",

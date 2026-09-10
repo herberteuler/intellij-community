@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.kotlin.idea.imports
 
 import com.intellij.psi.PsiElement
@@ -84,7 +84,8 @@ private fun createCopyOfDanglingFile(danglingKtFile: KtFile): KtFile {
 
     val psiFactory = KtPsiFactory(danglingKtFile.project)
     return psiFactory.createFile("fakeFileWithSubstitutedImports.kt", danglingKtFile.text).apply {
-        // to make analysis of this file equivalent to the original dangling file
-        analysisContext = danglingKtFile.analysisContext
+        // to make analysis of this file equivalent to the original dangling file;
+        // a copy that a ModCommand edits knows its file only as the original file, not as the analysis context
+        analysisContext = danglingKtFile.analysisContext ?: danglingKtFile.originalFile.takeIf { it !== danglingKtFile }
     }
 }

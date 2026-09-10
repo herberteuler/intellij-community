@@ -80,6 +80,7 @@ Notes:
 - `search_*`, `lint_files` and `reformat_file` are upstream tools passed through unchanged; the proxy only normalizes their arguments and, in a dual-IDE setup, splits and merges them across IDEA and Rider.
 - `get_file_problems` is hidden: it is the per-file variant of `lint_files`, and exposing both invites the agent to lint one file at a time.
 - `build_project` is hidden: this repo builds through Bazel wrappers (`bazel build`, `tests.cmd`), and an IDE JPS build duplicates and conflicts with them.
+- `add_missing_imports` is an upstream tool passed through unchanged, and it needs no entry here. In a dual-IDE setup it goes to the primary IDE, because its argument is named `files` and `PATH_ARG_KEYS` does not cover it. That is the correct target: the tool exists only in an IDE that registers a Java or a Kotlin import provider, and Rider registers none. Do not add it to `SPLIT_MERGE_TOOL_NAMES` for the same reason, because the slice sent to Rider would fail.
 - `lint_files` responses may include file entries with `timedOut: true` and empty `problems`; top-level `more: true` still means the overall batch is incomplete.
 - Search tools are documented in `search.md`.
 

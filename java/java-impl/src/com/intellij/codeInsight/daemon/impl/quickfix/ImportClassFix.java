@@ -36,6 +36,7 @@ import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiUtil;
 import com.intellij.util.containers.ContainerUtil;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
@@ -48,6 +49,15 @@ import java.util.Objects;
 public class ImportClassFix extends ImportClassFixBase<PsiJavaCodeReferenceElement, PsiJavaCodeReferenceElement> {
   public ImportClassFix(@NotNull PsiJavaCodeReferenceElement element) {
     super(element, element);
+  }
+
+  /**
+   * @param narrowByUsage whether to narrow the candidates also by the members the code calls on the
+   *                      declared variable and by the type the method returns.
+   */
+  @ApiStatus.Internal
+  public ImportClassFix(@NotNull PsiJavaCodeReferenceElement element, boolean narrowByUsage) {
+    super(element, element, narrowByUsage);
   }
 
   @Override
@@ -167,6 +177,14 @@ public class ImportClassFix extends ImportClassFixBase<PsiJavaCodeReferenceEleme
 
   @Override
   protected @Unmodifiable @NotNull Collection<PsiClass> filterByContext(@NotNull Collection<PsiClass> candidates, @NotNull PsiJavaCodeReferenceElement referenceElement) {
+    Collection<PsiClass> filtered = filterByDeclaration(candidates, referenceElement);
+    if (!isNarrowByUsage()) return filtered;
+    if (filtered.isEmpty()) return candidates;
+    return ImportClassUsageNarrowing.narrow(filtered, referenceElement);
+  }
+
+  private @Unmodifiable @NotNull Collection<PsiClass> filterByDeclaration(@NotNull Collection<PsiClass> candidates,
+                                                                          @NotNull PsiJavaCodeReferenceElement referenceElement) {
     if (referenceElement instanceof PsiReferenceExpression) {
       return Collections.emptyList();
     }

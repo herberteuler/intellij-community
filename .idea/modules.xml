@@ -751,6 +751,8 @@
       <module fileurl="file://$PROJECT_DIR$/java/langInjection/jps/intellij.java.langInjection.jps.iml" filepath="$PROJECT_DIR$/java/langInjection/jps/intellij.java.langInjection.jps.iml" />
       <module fileurl="file://$PROJECT_DIR$/java/manifest/intellij.java.manifest.iml" filepath="$PROJECT_DIR$/java/manifest/intellij.java.manifest.iml" />
       <module fileurl="file://$PROJECT_DIR$/java/manifest/intellij.java.manifest.tests.iml" filepath="$PROJECT_DIR$/java/manifest/intellij.java.manifest.tests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/java/mcp/intellij.java.mcp.iml" filepath="$PROJECT_DIR$/java/mcp/intellij.java.mcp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/java/mcp/intellij.java.mcp.tests.iml" filepath="$PROJECT_DIR$/java/mcp/intellij.java.mcp.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/java/performancePlugin/intellij.java.performancePlugin.iml" filepath="$PROJECT_DIR$/java/performancePlugin/intellij.java.performancePlugin.iml" />
       <module fileurl="file://$PROJECT_DIR$/java/plugin/intellij.java.plugin.iml" filepath="$PROJECT_DIR$/java/plugin/intellij.java.plugin.iml" />
       <module fileurl="file://$PROJECT_DIR$/java/java-promo/intellij.java.promo.iml" filepath="$PROJECT_DIR$/java/java-promo/intellij.java.promo.iml" />
@@ -1001,6 +1003,8 @@
       <module fileurl="file://$PROJECT_DIR$/plugins/kotlin/lombok/tests/intellij.kotlin.lombok.tests.iml" filepath="$PROJECT_DIR$/plugins/kotlin/lombok/tests/intellij.kotlin.lombok.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/kotlin/maven/intellij.kotlin.maven.iml" filepath="$PROJECT_DIR$/plugins/kotlin/maven/intellij.kotlin.maven.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/kotlin/maven/tests/intellij.kotlin.maven.tests.iml" filepath="$PROJECT_DIR$/plugins/kotlin/maven/tests/intellij.kotlin.maven.tests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/plugins/kotlin/mcp/intellij.kotlin.mcp.iml" filepath="$PROJECT_DIR$/plugins/kotlin/mcp/intellij.kotlin.mcp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/plugins/kotlin/mcp/intellij.kotlin.mcp.tests.iml" filepath="$PROJECT_DIR$/plugins/kotlin/mcp/intellij.kotlin.mcp.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/kotlin/migration/intellij.kotlin.migration.iml" filepath="$PROJECT_DIR$/plugins/kotlin/migration/intellij.kotlin.migration.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/kotlin/native/intellij.kotlin.native.iml" filepath="$PROJECT_DIR$/plugins/kotlin/native/intellij.kotlin.native.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/kotlin/native/tests/intellij.kotlin.native.tests.iml" filepath="$PROJECT_DIR$/plugins/kotlin/native/tests/intellij.kotlin.native.tests.iml" />

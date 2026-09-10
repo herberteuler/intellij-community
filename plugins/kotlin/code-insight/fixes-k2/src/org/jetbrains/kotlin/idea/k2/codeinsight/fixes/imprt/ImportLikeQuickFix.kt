@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.kotlin.idea.k2.codeinsight.fixes.imprt
 
 import com.intellij.codeInsight.hint.QuestionAction
@@ -18,7 +18,13 @@ import org.jetbrains.kotlin.psi.KtFile
 @ApiStatus.Internal
 abstract class ImportLikeQuickFix(
     element: KtElement,
-    protected val importVariants: List<AutoImportVariant>
+    /**
+     * The imports that fix the name, best candidate first.
+     *
+     * A headless caller reads them instead of showing the popup. The MCP tool `add_missing_imports`
+     * is such a caller.
+     */
+    val importVariants: List<AutoImportVariant>
 ) : KotlinImportQuickFixAction<KtElement>(element) {
     private val modificationCountOnCreate: Long = PsiModificationTracker.getInstance(element.project).modificationCount
 
@@ -35,7 +41,7 @@ abstract class ImportLikeQuickFix(
     override fun createImportAction(editor: Editor, file: KtFile): QuestionAction? =
         if (element != null) ImportQuestionAction(file.project, editor, file, importVariants) else null
 
-    override fun isAvailable(project: Project, editor: Editor?, file: KtFile): Boolean {
+    public override fun isAvailable(project: Project, editor: Editor?, file: KtFile): Boolean {
         if (modificationCountOnCreate == PsiModificationTracker.getInstance(project).modificationCount) {
             // optimization: we know nothing was changed since the last isAvailable() call
             return true

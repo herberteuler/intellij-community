@@ -110,6 +110,7 @@
     <orderEntry type="module" module-name="intellij.kotlin.onboarding.gradle.tests" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.kotlin.onboarding.tests" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.kotlin.uast.base.tests" scope="RUNTIME" />
+    <orderEntry type="module" module-name="intellij.kotlin.mcp.tests" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.kotlin.uast.idea.base.tests" scope="RUNTIME" />
     <orderEntry type="module" module-name="kotlin.completion.tests.shared" scope="RUNTIME" />
     <orderEntry type="module" module-name="kotlin.gradle.gradle-java.tests.shared" scope="RUNTIME" />

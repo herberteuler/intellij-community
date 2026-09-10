@@ -3,18 +3,6 @@ package com.intellij.openapi.editor.impl.experimental
 
 import java.util.TreeMap
 
-/** The prepare version has not reached the op that creates the item. */
-private const val NOT_YET_INSERTED = -1
-
-/** The version has the characters. */
-private const val INSERTED = 0
-
-/** The version removed the characters. A prepare state counts stacked concurrent deletes. */
-private const val DELETED = 1
-
-/** No unit: the document start for a left origin, the document end for a right parent. */
-private const val NO_UNIT: LV = -1
-
 /**
  * The engine behind [EgWalkerReplay]: the reference implementation's `EditContext`, plus the
  * walk that drives it. See [EgWalkerReplay] for the algorithm and the port conventions.
@@ -45,7 +33,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * lands at or after it, so the walk resumes there instead of rescanning from the head. A
    * retreat or an advance changes prepare widths anywhere, which resets the cache.
    */
-  private var cachedIndex = 0
+  private var cachedItemIndex = 0
   private var cachedPreparePos = 0
   private var cachedEffectPos = 0
 
@@ -63,8 +51,6 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
         Item(
           lv = -1 - placeholderCount,
           length = placeholderCount,
-          prepareState = INSERTED,
-          effectState = INSERTED,
           originLeft = NO_UNIT,
           rightParent = NO_UNIT,
         ),
@@ -101,7 +87,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
         lv++
         continue
       }
-      val count = runBatch(lv) { next -> subset == null || subset.get(next) }
+      val count = runBatch(lv) { next: LV ->
+        subset == null || subset.get(next)
+      }
       step(lv, count)
       lv += count
     }
@@ -113,7 +101,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     var i = 0
     while (i < lvs.size) {
       val lv = lvs[i]
-      val count = runBatch(lv) { next -> i + (next - lv) < lvs.size && lvs[i + (next - lv)] == next }
+      val count = runBatch(lv) { next: LV ->
+        i + (next - lv) < lvs.size && lvs[i + (next - lv)] == next
+      }
       step(lv, count)
       i += count
     }
@@ -213,16 +203,22 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * entry belongs to the same batch. Both scan directions ask the same question, so the
    * rule lives in one place.
    */
-  private inner class Batch(private val lvs: LvList, private val anchorIndex: Int) {
-    private val isDelete = graph.isDeleteAt(lvs[anchorIndex])
+  private inner class Batch(
+    private val lvs: LvList,
+    private val anchorIndex: Int,
+  ) {
+    private val isDelete: Boolean = graph.isDeleteAt(lvs[anchorIndex])
     private val target: LV = targetUnitOf(isDelete, lvs[anchorIndex])
     private val item: Item = itemBy(target)
 
-    /** Whether the entry at [index] is the same kind, the next lv, and the next unit of the item. */
-    fun covers(index: Int): Boolean {
-      val offset = index - anchorIndex
+    /**
+     * Whether the entry at [entryIndex] is the same kind, the next lv, and the next unit of
+     * the item. [entryIndex] indexes [lvs] and never the item list.
+     */
+    fun covers(entryIndex: Int): Boolean {
+      val offset = entryIndex - anchorIndex
       val lv = lvs[anchorIndex] + offset
-      if (lvs[index] != lv || graph.isDeleteAt(lv) != isDelete) {
+      if (lvs[entryIndex] != lv || graph.isDeleteAt(lv) != isDelete) {
         return false
       }
       val unit = target + offset
@@ -290,14 +286,14 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     var done = 0
     while (done < count) {
       // Skip the items that the prepare version does not have.
-      while (!items[cursor.index].inPrepare) {
-        cursor.advanceOver(items[cursor.index])
+      while (!items[cursor.itemIndex].inPrepare) {
+        cursor.advanceOver(items[cursor.itemIndex])
       }
-      val taken = minOf(count - done, items[cursor.index].length)
-      if (items[cursor.index].length > taken) {
-        splitItem(cursor.index, taken)
+      val taken = minOf(count - done, items[cursor.itemIndex].length)
+      if (items[cursor.itemIndex].length > taken) {
+        splitItem(cursor.itemIndex, taken)
       }
-      val item = items[cursor.index]
+      val item = items[cursor.itemIndex]
       // A concurrent delete may have removed the characters from the effect version.
       if (item.inEffect) {
         // Each removal shifts the next character to the same position.
@@ -326,26 +322,27 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    */
   private fun applyInsert(lv: LV, count: Int, pos: Int) {
     val cursor = findByCurPos(pos)
-    require(cursor.index == 0 || items[cursor.index - 1].inPrepare) {
+    require(cursor.itemIndex == 0 || items[cursor.itemIndex - 1].inPrepare) {
       "The item before the insert point is not inserted in the prepare version"
     }
     // The left origin is the last unit the left neighbour covers.
-    val originLeft = if (cursor.index == 0) NO_UNIT else items[cursor.index - 1].lastUnit
+    val originLeft = if (cursor.itemIndex == 0) NO_UNIT else items[cursor.itemIndex - 1].lastUnit
+    val rightParent = rightParentAt(cursor.itemIndex, originLeft)
     val newItem = Item(
       lv = lv,
       length = count,
-      prepareState = INSERTED,
-      effectState = INSERTED,
       originLeft = originLeft,
-      rightParent = rightParentAt(cursor.index, originLeft),
+      rightParent = rightParent,
     )
     integrate(newItem, cursor)
-    addItem(cursor.index, newItem)
+    addItem(cursor.itemIndex, newItem)
     // A silent phase skips this: every character would cost a run lookup for nothing.
     val out = sink
     if (out != null) {
       for (k in 0 until count) {
-        out.insert(cursor.effectPos + k, graph.charAt(lv + k))
+        val charPos = cursor.effectPos + k
+        val char = graph.charAt(lv + k)
+        out.insert(charPos, char)
       }
     }
     cursor.advanceOver(newItem)
@@ -380,13 +377,13 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    */
   private fun integrate(newItem: Item, cursor: Cursor) {
     // Without concurrency there is nothing to scan.
-    if (cursor.index >= items.size || items[cursor.index].appliedInPrepare) {
+    if (cursor.itemIndex >= items.size || items[cursor.itemIndex].appliedInPrepare) {
       return
     }
     var scanning = false
-    var scanIdx = cursor.index
+    var scanIdx = cursor.itemIndex
     var scanEndPos = cursor.effectPos
-    val leftIdx = cursor.index - 1
+    val leftIdx = cursor.itemIndex - 1
     val rightIdx = indexOfBound(newItem.rightParent)
     while (scanIdx < items.size) {
       val other = items[scanIdx]
@@ -423,18 +420,18 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   /** Finds the insert point for a prepare-version position, walking from the cached cursor. */
   private fun findByCurPos(targetPos: Int): Cursor {
     val cursor = if (cachedPreparePos <= targetPos) {
-      Cursor(cachedIndex, cachedPreparePos, cachedEffectPos)
+      Cursor(cachedItemIndex, cachedPreparePos, cachedEffectPos)
     } else {
       Cursor(0, 0, 0)
     }
     while (cursor.preparePos < targetPos) {
-      require(cursor.index < items.size) {
+      require(cursor.itemIndex < items.size) {
         "The document is not long enough for the requested position"
       }
-      val item = items[cursor.index]
+      val item = items[cursor.itemIndex]
       if (cursor.preparePos + item.prepareWidth > targetPos) {
         // The boundary falls inside this span: split it, then retry the left piece.
-        splitItem(cursor.index, targetPos - cursor.preparePos)
+        splitItem(cursor.itemIndex, targetPos - cursor.preparePos)
         continue
       }
       cursor.advanceOver(item)
@@ -442,8 +439,8 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     // A cached start can sit after zero-width items at this position. Back up to the
     // earliest boundary: that is where a head-to-target walk stops, and the insert
     // anchoring depends on it.
-    while (cursor.index > 0 && items[cursor.index - 1].prepareWidth == 0) {
-      cursor.retreatOver(items[cursor.index - 1])
+    while (cursor.itemIndex > 0 && items[cursor.itemIndex - 1].prepareWidth == 0) {
+      cursor.retreatOver(items[cursor.itemIndex - 1])
     }
     return cursor
   }
@@ -460,14 +457,16 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   // ------------------------------------------------------------------------- the item bookkeeping
 
-  /** Splits the span at [index] after [offset] units and files the new right piece. */
-  private fun splitItem(index: Int, offset: Int) {
-    addItem(index + 1, items[index].splitAfter(offset))
+  /** Splits the span at [itemIndex] after [offset] units and files the new right piece. */
+  private fun splitItem(itemIndex: Int, offset: Int) {
+    addItem(itemIndex + 1, items[itemIndex].splitAfter(offset))
   }
 
-  /** Adds [item] to the list at [index] and to the unit index. The two must stay in step. */
-  private fun addItem(index: Int, item: Item) {
-    items.add(index, item)
+  /**
+   * Adds [item] to the list at [itemIndex] and to the unit index. The two must stay in step.
+   */
+  private fun addItem(itemIndex: Int, item: Item) {
+    items.add(itemIndex, item)
     itemsByUnit[item.lv] = item
   }
 
@@ -480,11 +479,11 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   private fun cacheCursor(cursor: Cursor) {
-    cacheCursor(cursor.index, cursor.preparePos, cursor.effectPos)
+    cacheCursor(cursor.itemIndex, cursor.preparePos, cursor.effectPos)
   }
 
-  private fun cacheCursor(index: Int, preparePos: Int, effectPos: Int) {
-    cachedIndex = index
+  private fun cacheCursor(itemIndex: Int, preparePos: Int, effectPos: Int) {
+    cachedItemIndex = itemIndex
     cachedPreparePos = preparePos
     cachedEffectPos = effectPos
   }
@@ -495,162 +494,6 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       curVersion[0] = lv
     } else {
       curVersion = intArrayOf(lv)
-    }
-  }
-
-  // ------------------------------------------------------------------------------- the item state
-
-  /**
-   * A span of document characters that share one state: the replay's unit of work.
-   *
-   * The span covers the unit ids `[lv, lv + length)`, which always ascend. A real id is a
-   * graph lv, so it is at or above 0. A placeholder span ends at -2, so every placeholder id
-   * stays below 0, and [NO_UNIT] stays free for the document edges.
-   *
-   * The two states are the paper's `sp` and `se`. They are private: every transition is a
-   * method here, so the rules that guard them cannot be bypassed from the walk.
-   *
-   * [originLeft] and [rightParent] order concurrent insertions, and they belong to the FIRST
-   * unit of the span. Inside an insert run every later unit has the unit before it as the
-   * left origin and no right parent, so [splitAfter] rebuilds them without storing them.
-   */
-  private class Item(
-    val lv: LV,
-    length: Int,
-    private var prepareState: Int,
-    private var effectState: Int,
-    val originLeft: LV,
-    val rightParent: LV,
-  ) {
-    var length: Int = length
-      private set
-
-    /** The unit id of the first character. A right parent always names this one. */
-    val firstUnit: LV get() = lv
-
-    /** The unit id of the last character. A left origin always names this one. */
-    val lastUnit: LV get() = lv + length - 1
-
-    /** Whether the prepare version has these characters. */
-    val inPrepare: Boolean get() = prepareState == INSERTED
-
-    /** Whether the effect version has these characters. */
-    val inEffect: Boolean get() = effectState == INSERTED
-
-    /** Whether the prepare version already reached the op that creates the item. */
-    val appliedInPrepare: Boolean get() = prepareState != NOT_YET_INSERTED
-
-    val prepareWidth: Int get() = if (inPrepare) length else 0
-
-    val effectWidth: Int get() = if (inEffect) length else 0
-
-    fun contains(unit: LV): Boolean = unit >= lv && unit < lv + length
-
-    fun coversExactly(unit: LV, units: Int): Boolean = lv == unit && length == units
-
-    fun startsBefore(unit: LV): Boolean = lv < unit
-
-    /** Takes the span back out of the prepare version: one delete, or the insert itself. */
-    fun retreat(isDelete: Boolean) {
-      if (isDelete) {
-        require(prepareState >= DELETED) {
-          "Retreat of a delete, but the item is not deleted in the prepare version"
-        }
-        require(effectState == DELETED) {
-          "Retreat of a delete, but the item is not deleted in the effect version"
-        }
-      } else {
-        require(inPrepare) {
-          "Retreat of an insert, but the item is not inserted in the prepare version"
-        }
-      }
-      prepareState--
-    }
-
-    /** Puts the span back into the prepare version: one delete, or the insert itself. */
-    fun advance(isDelete: Boolean) {
-      if (isDelete) {
-        require(prepareState >= INSERTED) {
-          "Advance of a delete, but the item is not yet inserted in the prepare version"
-        }
-        require(effectState == DELETED) {
-          "Advance of a delete, but the item is not deleted in the effect version"
-        }
-        prepareState++
-      } else {
-        require(!appliedInPrepare) {
-          "Advance of an insert, but the item is already inserted in the prepare version"
-        }
-        prepareState = INSERTED
-      }
-    }
-
-    /** Removes the span from both versions. */
-    fun deleteHere() {
-      require(inPrepare) {
-        "Delete of an item that is not inserted in the prepare version"
-      }
-      prepareState = DELETED
-      effectState = DELETED
-    }
-
-    /**
-     * Splits after [offset] units. This item keeps the left part; the right part is
-     * returned, and the caller files it in the list and the unit index.
-     *
-     * A placeholder piece keeps `originLeft = NO_UNIT`, because the reference gives that
-     * origin to every placeholder unit. A real piece anchors on the unit before it and has
-     * no right parent: inside an insert run, every unit but the first has those two origins.
-     */
-    fun splitAfter(offset: Int): Item {
-      require(offset in 1 until length) {
-        "The split offset $offset is out of the span of length $length"
-      }
-      val isPlaceholder = lv < 0
-      val right = Item(
-        lv = lv + offset,
-        length = length - offset,
-        prepareState = prepareState,
-        effectState = effectState,
-        originLeft = if (isPlaceholder) NO_UNIT else lv + offset - 1,
-        rightParent = NO_UNIT,
-      )
-      length = offset
-      return right
-    }
-
-    override fun toString(): String = "[$lv..$lastUnit] sp=$prepareState se=$effectState"
-  }
-
-  /**
-   * Where the walk is in the item list: the index, plus the matching position in each of the
-   * two versions. The positions are the summed widths of the items before the index, so all
-   * three only ever move together.
-   */
-  private class Cursor(index: Int, preparePos: Int, effectPos: Int) {
-    var index: Int = index
-      private set
-    var preparePos: Int = preparePos
-      private set
-    var effectPos: Int = effectPos
-      private set
-
-    fun advanceOver(item: Item) {
-      index++
-      preparePos += item.prepareWidth
-      effectPos += item.effectWidth
-    }
-
-    fun retreatOver(item: Item) {
-      index--
-      preparePos -= item.prepareWidth
-      effectPos -= item.effectWidth
-    }
-
-    /** Jumps to the place that the Fugue scan chose. The scan crosses no prepare width. */
-    fun moveTo(index: Int, effectPos: Int) {
-      this.index = index
-      this.effectPos = effectPos
     }
   }
 }

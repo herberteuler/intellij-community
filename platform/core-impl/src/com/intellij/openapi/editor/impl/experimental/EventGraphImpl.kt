@@ -135,7 +135,7 @@ internal class EventGraphImpl private constructor(
     return MergeResult(graph, size, VersionImpl(remappedVersion))
   }
 
-  fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
+  private fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
     checkVersionOfThisGraph(parents)
     checkLvSpace(event)
     checkNewIds(event)

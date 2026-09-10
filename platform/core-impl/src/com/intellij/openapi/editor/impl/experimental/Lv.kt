@@ -14,6 +14,9 @@ package com.intellij.openapi.editor.impl.experimental
  */
 internal typealias LV = Int
 
+/** No unit: the document start for a left origin, the document end for a right parent. */
+internal const val NO_UNIT: LV = -1
+
 /**
  * A version, which the paper calls the frontier: the LVs that have no child. The array is
  * sorted ascending, holds no duplicate, and is transitively reduced, so no entry is an

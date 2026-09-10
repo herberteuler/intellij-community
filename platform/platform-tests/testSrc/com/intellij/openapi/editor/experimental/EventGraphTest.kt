@@ -22,10 +22,12 @@ class EventGraphTest {
   @Test
   fun `an appended run advances the size by its length`() {
     val empty = EventGraph.createGraph()
-    val graph = empty.append(Event.createInsert(agent("u"), 0, 0, "xyz"), empty.version())
+    val event = Event.createInsert(agent("u"), 0, 0, "xyz")
+    val graph = empty.append(event, empty.version())
     assertEquals(3, graph.size())
     assertEquals(1, graph.runCount())
     assertFalse(graph.version().isRoot())
+    assertEquals("xy", graph.replay(Version.of(1)).string())
     assertEquals("xyz", graph.replay().string())
     // The old value did not change.
     assertEquals(0, empty.size())

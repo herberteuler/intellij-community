@@ -254,6 +254,10 @@ abstract class GradleImportingTestCase : JavaExternalSystemImportingTestCase() {
       config = injectRepo(config)
     }
     super.importProject(config, skipIndexing)
+  }
+
+  override fun importProject() {
+    super.importProject()
     handleDeprecationError(deprecationError.get())
   }
 

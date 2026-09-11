@@ -21,12 +21,18 @@ import com.intellij.openapi.editor.impl.DocTextImpl
  * A merge with concurrent history replays only the region above the common ancestor
  * (the paper's partial replay): one lazily-split placeholder item stands in for the
  * older document, and the new units apply to [docText] as ordinary [DocOp]s. The merge
- * cost depends on the size of the concurrent region, not on the document size.
+ * cost depends on the size of the change and of the concurrent region, not on the size of
+ * either history.
  *
  * Prototype limits, deliberate:
- * - The events are run-length encoded, but adjacent runs never coalesce, and the replay
- *   tracks one item per character of the region.
- * - An edit that lands far from the cached cursor scans the region's item list linearly.
+ * - The events are run-length encoded, but adjacent runs never coalesce. Typing therefore
+ *   produces one run per keystroke, which is where the run-length gains go unclaimed.
+ * - The replay scans its item list linearly. `findItemIdx` always starts at the head, and
+ *   `findByCurPos` restarts there whenever the target sits before the cached cursor. The
+ *   list holds the walked region and not the document, so a merge stays cheap and a FULL
+ *   replay is what this costs.
+ * - A merge that starts from a value which is no longer the tip of its store copies the run
+ *   prefix, which is linear in the history. See [EventStore].
  */
 internal class DocBranchImpl private constructor(
   private val docText: DocText,

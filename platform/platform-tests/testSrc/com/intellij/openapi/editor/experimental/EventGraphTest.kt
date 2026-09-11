@@ -276,7 +276,7 @@ class EventGraphTest {
     val root = Version.root()
     val mine = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), root)
     // Each graph gives the ids (u, 0) and (u, 1) to different operations. The check
-    // samples the two ends of the overlap, so a difference at either end is caught.
+    // samples the two ends of the SHARED SEQ RANGE, so a difference at either end is caught.
     val clashes = listOf(
       Event.createInsert(u, 0, 0, "Zb"), // another character at the first unit
       Event.createInsert(u, 0, 0, "aZ"), // another character at the last unit
@@ -293,6 +293,41 @@ class EventGraphTest {
     recut = recut.append(Event.createInsert(u, 1, 1, "b"), recut.version())
     assertEquals("ab", mine.mergeFrom(recut).replay().string())
     assertEquals("ab", recut.mergeFrom(mine).replay().string())
+    // A clash is caught whichever graph is further ahead, because the sample stops at the
+    // end of the shared range and not at the end of either history.
+    val ahead = mine.append(Event.createInsert(u, 2, 2, "c"), mine.version())
+    val clashingPrefix = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "Zb"), root)
+    assertThrows(IllegalArgumentException::class.java) { ahead.mergeFrom(clashingPrefix) }
+    assertThrows(IllegalArgumentException::class.java) { clashingPrefix.mergeFrom(ahead) }
+    // A shared range of ONE seq has both ends at seq 0, so the second sample is skipped.
+    val oneUnit = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "a"), root)
+    val otherUnit = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "Q"), root)
+    assertThrows(IllegalArgumentException::class.java) { oneUnit.mergeFrom(otherUnit) }
+    assertThrows(IllegalArgumentException::class.java) { otherUnit.mergeFrom(oneUnit) }
+  }
+
+  /**
+   * A DELIBERATE limit, and the price of a merge that costs the change instead of the
+   * session: the id check samples only the two ends of the shared seq range, so a clash
+   * strictly inside it goes unseen and the two graphs then disagree.
+   *
+   * This test exists to keep that visible. Do not "fix" it by comparing every shared id:
+   * that makes every merge cost the whole shared history. See `checkSharedIds`.
+   */
+  @Test
+  fun `a clash inside the shared range is not caught`() {
+    val u = agent("u")
+    val root = Version.root()
+    fun graphOf(middle: String): EventGraph {
+      var graph = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "a"), root)
+      graph = graph.append(Event.createInsert(u, 1, 1, middle), graph.version())
+      return graph.append(Event.createInsert(u, 2, 2, "c"), graph.version())
+    }
+    val mine = graphOf("b")
+    val theirs = graphOf("Z")
+    // Both ends of the shared range agree, so neither merge throws.
+    assertEquals("abc", mine.mergeFrom(theirs).replay().string())
+    assertEquals("aZc", theirs.mergeFrom(mine).replay().string())
   }
 
   @Test
@@ -314,36 +349,219 @@ class EventGraphTest {
     assertEquals("ab", graph.replay(afterAb).string())
   }
 
+  /**
+   * The seqs of one agent must ascend and leave no gap. That rejects a reused id, and it is
+   * also what lets a merge describe a whole history with one integer per agent, so it can
+   * skip a shared history without reading it.
+   */
   @Test
-  fun `the agent index accepts runs whose seqs arrive out of order`() {
+  fun `an append must continue the seqs of its agent`() {
+    val u = agent("u")
+    var graph = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "abc"), Version.root())
+    // A reused seq, a seq inside the stored range, and a gap are all rejected.
+    for (seq in intArrayOf(0, 1, 2, 4, 100)) {
+      assertThrows(
+        IllegalArgumentException::class.java,
+        { graph.append(Event.createInsert(u, seq, 3, "x"), graph.version()) },
+        "seq $seq",
+      )
+    }
+    // Only the exact next seq is accepted.
+    graph = graph.append(Event.createInsert(u, 3, 3, "de"), graph.version())
+    assertEquals("abcde", graph.replay().string())
+    // Each agent owns its own seq space, so a second agent starts again at 0.
+    val v = agent("v")
+    graph = graph.append(Event.createInsert(v, 0, 5, "Z"), graph.version())
+    assertEquals("abcdeZ", graph.replay().string())
+    // The two spaces advanced on their own: u is at 5 now, and v is at 1.
+    assertEquals(8, graph.append(Event.createInsert(u, 5, 6, "fg"), graph.version()).size())
+    assertEquals(7, graph.append(Event.createInsert(v, 1, 6, "Y"), graph.version()).size())
+    assertThrows(IllegalArgumentException::class.java) {
+      graph.append(Event.createInsert(v, 5, 6, "Y"), graph.version())
+    }
+  }
+
+  @Test
+  fun `a graph value answers for its own seqs`() {
+    val u = agent("u")
+    val older = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), Version.root())
+    // Two siblings both continue the older value, so both legally mint the seq 2. An older
+    // value must not see the seq that a newer one took.
+    val newer = older.append(Event.createInsert(u, 2, 2, "c"), older.version())
+    val sibling = older.append(Event.createInsert(u, 2, 2, "C"), older.version())
+    assertEquals("abc", newer.replay().string())
+    assertEquals("abC", sibling.replay().string())
+    // The newer value moved on: it wants 3 and refuses 2. The older value still wants 2.
+    assertEquals(4, newer.append(Event.createInsert(u, 3, 3, "d"), newer.version()).size())
+    assertThrows(IllegalArgumentException::class.java) {
+      newer.append(Event.createInsert(u, 2, 2, "d"), newer.version())
+    }
+  }
+
+  /**
+   * The delta merge collects the new runs per AGENT and then sorts them by lv. Without that
+   * sort a run would reach the graph before a parent that another agent authored.
+   */
+  @Test
+  fun `a merge appends the new runs in a parent-first order`() {
+    val u = agent("u")
+    val v = agent("v")
+    var src = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "a"), Version.root())
+    // The two agents alternate, so every run but the first has a parent of the OTHER agent.
+    // Per-agent order alone would be u0, u1, u2, v0, v1, v2, which is not causal.
+    for (step in 0 until 3) {
+      src = src.append(Event.createInsert(v, step, 1 + 2 * step, "B"), src.version())
+      src = src.append(Event.createInsert(u, 1 + step, 2 + 2 * step, "a"), src.version())
+    }
+    assertEquals(7, src.size())
+    val expected = src.replay().string()
+    assertEquals("aBaBaBa", expected)
+    // An empty graph has to take all seven, in an order where every parent lands first.
+    assertEquals(expected, EventGraph.createGraph().mergeFrom(src).replay().string())
+    // So does a graph that already holds the first three.
+    var behind = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "a"), Version.root())
+    behind = behind.append(Event.createInsert(v, 0, 1, "B"), behind.version())
+    behind = behind.append(Event.createInsert(u, 1, 2, "a"), behind.version())
+    val caughtUp = behind.mergeFrom(src)
+    assertEquals(expected, caughtUp.replay().string())
+    assertEquals(7, caughtUp.size())
+  }
+
+  @Test
+  fun `a merge appends only what the graph is missing`() {
     val u = agent("u")
     val root = Version.root()
-    // The higher seqs land first, so the per-agent id index sorts the second run in
-    // front of the first one. Every id lookup must still find its run.
-    var graph = EventGraph.createGraph()
-    graph = graph.append(Event.createInsert(u, 5, 0, "de"), root)
-    graph = graph.append(Event.createInsert(u, 0, 0, "abc"), graph.version())
-    assertEquals(5, graph.size())
-    assertEquals("abcde", graph.replay().string())
-    // Every id the graph holds is rejected, in both stored ranges.
-    for (seq in intArrayOf(0, 2, 5, 6)) {
-      assertThrows(IllegalArgumentException::class.java) {
-        graph.append(Event.createInsert(u, seq, 0, "x"), root)
-      }
+    val short = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), root)
+    val long = short.append(Event.createInsert(u, 2, 2, "cd"), short.version())
+    // Nothing new: the run count does not move.
+    assertEquals(2, long.mergeFrom(long).runCount())
+    assertEquals(1, short.mergeFrom(short).runCount())
+    // One new run in one direction, none in the other.
+    assertEquals(2, short.mergeFrom(long).runCount())
+    assertEquals("abcd", short.mergeFrom(long).replay().string())
+    assertEquals(2, long.mergeFrom(short).runCount())
+    // An empty graph takes everything; an empty source brings nothing.
+    assertEquals(2, EventGraph.createGraph().mergeFrom(long).runCount())
+    assertEquals(2, long.mergeFrom(EventGraph.createGraph()).runCount())
+    assertEquals(0, EventGraph.createGraph().mergeFrom(EventGraph.createGraph()).size())
+  }
+
+  @Test
+  fun `a merge is one-sided per agent`() {
+    val u = agent("u")
+    val v = agent("v")
+    val root = Version.root()
+    val base = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "a"), root)
+    // "mine" is ahead for u and knows nothing of v; "theirs" is the mirror image.
+    val mine = base.append(Event.createInsert(u, 1, 1, "b"), base.version())
+    val theirs = base.append(Event.createInsert(v, 0, 1, "Z"), base.version())
+    val forward = mine.mergeFrom(theirs)
+    val backward = theirs.mergeFrom(mine)
+    assertEquals(3, forward.size())
+    assertEquals(3, backward.size())
+    assertEquals(forward.replay().string(), backward.replay().string())
+    // An agent that only this graph knows brings nothing back from the other side.
+    assertEquals(3, forward.mergeFrom(theirs).size())
+  }
+
+  /**
+   * The delta merge binary searches the per-agent index twice: once for what this graph
+   * knows, and once for the first entry that goes past it. Both land in the MIDDLE here, and
+   * an off-by-one in either one hides on the short histories the other tests build.
+   */
+  @Test
+  fun `a merge finds the boundary inside a long per-agent history`() {
+    val u = agent("u")
+    val v = agent("v")
+    var base = EventGraph.createGraph()
+    repeat(HALF) { i ->
+      base = base.append(Event.createInsert(u, i, i, "a"), base.version())
     }
-    // A range that starts in the free gap and reaches the second stored range is rejected.
-    assertThrows(IllegalArgumentException::class.java) {
-      graph.append(Event.createInsert(u, 3, 0, "xxx"), root)
+    // The same agent doubles its history, so the destination knows an exact middle prefix.
+    var ahead = base
+    repeat(HALF) { i ->
+      ahead = ahead.append(Event.createInsert(u, HALF + i, HALF + i, "b"), ahead.version())
     }
-    // The free gap between the two stored ranges is accepted.
-    val filled = graph.append(Event.createInsert(u, 3, 0, "xx"), graph.version())
-    assertEquals(7, filled.size())
-    // A merge remaps the same ids through the same index, in either direction.
-    val other = EventGraph.createGraph()
-      .append(Event.createInsert(u, 0, 0, "abc"), root)
-      .append(Event.createInsert(u, 5, 0, "de"), root)
-    assertEquals(5, graph.mergeFrom(other).size())
-    assertEquals(5, other.mergeFrom(graph).size())
+    // A second agent forks off the middle prefix, so the merge also has to place its runs.
+    var side = base
+    repeat(20) { i ->
+      side = side.append(Event.createInsert(v, i, 0, "Z"), side.version())
+    }
+
+    // Catching up over the boundary: every run of the second half arrives, and no more.
+    val caughtUp = base.mergeFrom(ahead)
+    assertEquals(2 * HALF, caughtUp.size())
+    assertEquals(2 * HALF, caughtUp.runCount())
+    assertEquals("a".repeat(HALF) + "b".repeat(HALF), caughtUp.replay().string())
+    // The reverse direction knows it all already.
+    assertEquals(2 * HALF, ahead.mergeFrom(base).size())
+    assertEquals(2 * HALF, ahead.mergeFrom(base).runCount())
+
+    // Each side holds a part the other lacks, and the two converge.
+    val forward = side.mergeFrom(ahead)
+    val backward = ahead.mergeFrom(side)
+    assertEquals(2 * HALF + 20, forward.size())
+    assertEquals(2 * HALF + 20, backward.size())
+    assertEquals(forward.replay().string(), backward.replay().string())
+    assertEquals(forward.replay().string(), forward.mergeFrom(backward).replay().string())
+  }
+
+  /**
+   * A sibling append copies the run prefix and REBUILDS the per-agent index, replaying every
+   * entry in lv order. The index now appends each entry to the end instead of sorting it in,
+   * so that replay is only correct while lv order and seq order agree per agent. A break
+   * would not throw: it would leave every binary search quietly wrong.
+   */
+  @Test
+  fun `a sibling append rebuilds the id index`() {
+    val u = agent("u")
+    val v = agent("v")
+    var base = EventGraph.createGraph()
+    // Two agents interleave, so the rebuilt index has to keep each agent's entries in seq
+    // order while the runs themselves arrive interleaved in lv order.
+    repeat(10) { i ->
+      base = base.append(Event.createInsert(u, i, 2 * i, "a"), base.version())
+      base = base.append(Event.createInsert(v, i, 2 * i + 1, "B"), base.version())
+    }
+    // The first append keeps the store tip. The second finds it taken, so it copies the
+    // prefix and replays all 20 entries into a fresh index.
+    val tip = base.append(Event.createInsert(u, 10, 20, "x"), base.version())
+    val copied = base.append(Event.createInsert(u, 10, 20, "y"), base.version())
+    assertEquals(21, tip.size())
+    assertEquals(21, copied.size())
+
+    // The rebuilt index answers every question an append and a merge ask of it.
+    assertEquals(22, copied.append(Event.createInsert(u, 11, 21, "z"), copied.version()).size())
+    assertEquals(22, copied.append(Event.createInsert(v, 10, 21, "C"), copied.version()).size())
+    for (seq in intArrayOf(0, 5, 10)) {
+      assertThrows(
+        IllegalArgumentException::class.java,
+        { copied.append(Event.createInsert(u, seq, 21, "z"), copied.version()) },
+        "seq $seq",
+      )
+    }
+    // The two siblings gave the id (u, 10) to different characters. That sits at the LAST
+    // shared seq, which is the end the check samples.
+    assertThrows(IllegalArgumentException::class.java) { tip.mergeFrom(copied) }
+    assertThrows(IllegalArgumentException::class.java) { copied.mergeFrom(tip) }
+  }
+
+  @Test
+  fun `a merge splits a straddling run that other runs follow`() {
+    val u = agent("u")
+    val v = agent("v")
+    val root = Version.root()
+    // The source minted "abcd" as one run, then another agent appended after it.
+    var src = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "abcd"), root)
+    src = src.append(Event.createInsert(v, 0, 4, "Z"), src.version())
+    // The destination knows only the first half of that run, so the merge has to split it
+    // AND keep the later run of the other agent after the split piece.
+    val dest = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), root)
+    val merged = dest.mergeFrom(src)
+    assertEquals("abcdZ", merged.replay().string())
+    assertEquals(5, merged.size())
+    assertEquals(3, merged.runCount()) // "ab", the appended "cd" suffix, and "Z"
+    assertEquals("abcdZ", src.mergeFrom(dest).replay().string())
   }
 
   @Test
@@ -352,5 +570,13 @@ class EventGraphTest {
     assertTrue(agent("b") > agent("a"))
     assertEquals(0, agent("a").compareTo(agent("a")))
     assertEquals(agent("a"), agent("a"))
+  }
+
+  private companion object {
+    /**
+     * The runs in each half of the long per-agent history. It has to be big enough that a
+     * binary search over the index takes several steps, so an off-by-one cannot pass.
+     */
+    const val HALF = 40
   }
 }

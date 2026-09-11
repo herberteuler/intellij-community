@@ -62,48 +62,96 @@ internal class EventStore private constructor(
     }
   }
 
-  /** Whether any unit id in `[seq, seq + length)` of [agent] already sits below [lvLimit]. */
-  fun overlaps(agent: Agent, seq: Int, length: Int, lvLimit: LV): Boolean {
-    synchronized(this) {
-      val list = agentIndex[agent] ?: return false
-      // The ranges are sorted by seqStart and do not overlap, so the ends are sorted
-      // too: binary search for the first entry that ends after seq.
-      var lo = 0
-      var hi = list.size
-      while (lo < hi) {
-        val mid = (lo + hi) ushr 1
-        if (list[mid].endSeq() <= seq) {
-          lo = mid + 1
-        } else {
-          hi = mid
-        }
-      }
-      // Walk the contiguous block of entries that intersect `[seq, seq + length)`.
-      var i = lo
-      while (i < list.size && list[i].overlaps(seq, length)) {
-        if (list[i].isVisible(lvLimit)) {
-          return true
-        }
-        i++
-      }
-      return false
-    }
-  }
-
   /** The next free seq of [agent] among the runs below [lvLimit]. */
   fun nextSeq(agent: Agent, lvLimit: LV): Int {
     synchronized(this) {
       val list = agentIndex[agent] ?: return 0
-      // The ranges sort by seqStart and do not overlap, so the ends ascend: the last
-      // visible entry has the greatest end. The scan usually stops at the first entry.
-      for (i in list.indices.reversed()) {
-        val entry = list[i]
-        if (entry.isVisible(lvLimit)) {
-          return entry.endSeq()
+      return endSeqBelow(list, lvLimit)
+    }
+  }
+
+  /**
+   * What the runs below [lvLimit] know, by agent. The reference implementation calls this
+   * `summarizeVersion`. It costs one entry per agent and reads no run.
+   */
+  fun summarizeVersion(lvLimit: LV): VersionSummary {
+    synchronized(this) {
+      val endSeqs = HashMap<Agent, Int>(agentIndex.size)
+      for ((agent, list) in agentIndex) {
+        val endSeq = endSeqBelow(list, lvLimit)
+        // An agent whose every run sits at or above lvLimit is invisible to this graph.
+        if (endSeq > 0) {
+          endSeqs[agent] = endSeq
         }
       }
-      return 0
+      return VersionSummary(endSeqs)
     }
+  }
+
+  /**
+   * The [StoredRun.lvStart] of every run below [lvLimit] that holds at least one unit
+   * [summary] does not cover, ASCENDING. This is the delta: the merge appends exactly these
+   * runs, and never looks at a run both graphs already share.
+   *
+   * The result MUST ascend, because a parent always sits at a smaller lv, and appending in
+   * lv order therefore puts every parent in place before its child names it. The per-agent
+   * lists each ascend already, so the sort only merges them.
+   *
+   * An entry this returns always holds a unit the [summary] lacks, so the caller never
+   * builds an empty suffix event.
+   */
+  fun newRunStarts(summary: VersionSummary, lvLimit: LV): IntArray {
+    synchronized(this) {
+      val starts = ArrayList<Int>()
+      for ((agent, list) in agentIndex) {
+        var i = firstEntryPast(list, summary.endSeq(agent))
+        // The entries ascend by lvStart too, so the first invisible one ends the agent.
+        while (i < list.size && list[i].isVisible(lvLimit)) {
+          starts.add(list[i].lvStart)
+          i++
+        }
+      }
+      starts.sort()
+      return starts.toIntArray()
+    }
+  }
+
+  /**
+   * The first seq that the entries of one agent below [lvLimit] do not hold, or 0 when they
+   * hold none. The entries ascend by seqStart AND by lvStart and leave no gap, so the last
+   * visible entry holds the greatest seq.
+   *
+   * A graph's size is always a run boundary, because every append adds a whole run and
+   * [copyPrefix] copies whole runs. So [lvLimit] never cuts an entry in half, and visibility
+   * is a property of the whole entry. That is what makes this a binary search.
+   */
+  private fun endSeqBelow(list: ArrayList<AgentRun>, lvLimit: LV): Int {
+    var lo = 0
+    var hi = list.size
+    while (lo < hi) {
+      val mid = (lo + hi) ushr 1
+      if (list[mid].isVisible(lvLimit)) {
+        lo = mid + 1
+      } else {
+        hi = mid
+      }
+    }
+    return if (lo == 0) 0 else list[lo - 1].endSeq()
+  }
+
+  /** The first entry of one agent that holds a seq at or after [seq]. The ends ascend. */
+  private fun firstEntryPast(list: ArrayList<AgentRun>, seq: Int): Int {
+    var lo = 0
+    var hi = list.size
+    while (lo < hi) {
+      val mid = (lo + hi) ushr 1
+      if (list[mid].endSeq() <= seq) {
+        lo = mid + 1
+      } else {
+        hi = mid
+      }
+    }
+    return lo
   }
 
   /**
@@ -144,13 +192,10 @@ internal class EventStore private constructor(
     val list = agentIndex.getOrPut(event.agent()) {
       ArrayList()
     }
-    val entry = AgentRun(event.seq(), event.length(), run.lvStart)
-    // Keep the list sorted by seqStart. An append usually goes to the end.
-    var i = list.size
-    while (i > 0 && list[i - 1].seqStart > entry.seqStart) {
-      i--
-    }
-    list.add(i, entry)
+    // The seqs of one agent ascend and leave no gap, so an entry always goes to the end.
+    // EventGraphImpl.checkNextSeq enforces that at the append, and one integer per agent
+    // then describes everything a graph knows. See VersionSummary.
+    list.add(AgentRun(event.seq(), event.length(), run.lvStart))
   }
 
   private fun copyPrefix(runCount: Int, lvs: Int): EventStore {
@@ -197,11 +242,6 @@ internal class EventStore private constructor(
     /** Whether this entry names [seq]. */
     fun covers(seq: Int): Boolean {
       return seq >= seqStart && seq < endSeq()
-    }
-
-    /** Whether this entry names any seq in `[seq, seq + count)`. */
-    fun overlaps(seq: Int, count: Int): Boolean {
-      return seqStart < seq + count && seq < endSeq()
     }
 
     /** The lv of [seq], which this entry must cover. */

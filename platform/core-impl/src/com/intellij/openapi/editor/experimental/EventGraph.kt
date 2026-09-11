@@ -11,8 +11,7 @@ import com.intellij.openapi.editor.impl.experimental.EventGraphImpl
  * this one untouched. Successive graphs share storage, so an append at the tip is cheap.
  *
  * The storage is run-length encoded: one [Event] run of n characters costs one entry,
- * not n. Adjacent runs never coalesce; the replay still tracks one item per character.
- * Both are follow-up optimizations.
+ * not n. Adjacent runs never coalesce yet, which is a follow-up optimization.
  */
 interface EventGraph {
   /** The number of single-character operations in the graph, summed over all runs. */
@@ -28,7 +27,11 @@ interface EventGraph {
    * Returns a graph with the [event] run appended.
    *
    * [parents] must be a version of this graph, and must be transitively reduced.
-   * Every id the run covers must be new: one (agent, seq) pair names one unit forever.
+   *
+   * The seq of the run must be the next free seq of its agent in this graph. So the seqs of
+   * one agent ascend and leave no gap, which keeps the rule that one (agent, seq) pair names
+   * one unit forever, and lets [mergeFrom] compare two histories by agent instead of by run.
+   * Each agent owns its own seq space, so two agents interleave freely.
    */
   fun append(event: Event, parents: Version): EventGraph
 
@@ -36,6 +39,9 @@ interface EventGraph {
    * Returns the union of this graph and [other], joined by event ids.
    * Units of [other] that this graph already contains are kept once; when this graph
    * holds only the leading units of a run, the rest of the run is appended.
+   *
+   * The cost is the size of the CHANGE. The two graphs compare one integer per agent, so a
+   * merge never reads a run that both of them already hold.
    */
   fun mergeFrom(other: EventGraph): EventGraph
 

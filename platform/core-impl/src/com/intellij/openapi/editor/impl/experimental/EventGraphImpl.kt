@@ -2,7 +2,6 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
@@ -69,6 +68,10 @@ internal class EventGraphImpl private constructor(
    * re-expressed in the result graph's lvs. A run of [other] that this graph knows
    * in part contributes only its unknown suffix, as a new run.
    *
+   * The cost is the size of the CHANGE, not the size of either history. A [VersionSummary]
+   * holds one integer per agent, so the two graphs compare their histories without reading
+   * a run, and only the runs that go past this graph are ever loaded.
+   *
    * The merge is not atomic. It appends run by run, so a rejected run leaves the earlier
    * ones in the shared store with no graph above them. The caller keeps its old value, so
    * the text stays correct. The orphans cost one prefix copy at the next append.
@@ -87,30 +90,18 @@ internal class EventGraphImpl private constructor(
       return lv
     }
 
-    for (i in 0 until other.runCount) {
-      val run = other.store.runAt(i)
+    // The delta: what this graph knows, then only the runs of the other graph that go
+    // past it. Neither step reads a run the two graphs share, so a merge costs the
+    // CHANGE and not the session. The reference does this with summarizeVersion and
+    // intersectWithSummary.
+    val summary = store.summarizeVersion(size)
+    checkSharedIds(other, summary)
+    for (lvStart in other.store.newRunStarts(summary, other.size)) {
+      val run = other.runAt(lvStart)
       val event = run.event
-      val length = event.length()
-      // Count the leading units this graph already has. A parent always precedes its
-      // child, so under causal delivery the known part is always a prefix.
-      var known = 0
-      while (known < length) {
-        val destLv = graph.store.lvOfSeq(
-          agent = event.agent(),
-          seq = event.seq() + known,
-          lvLimit = graph.size,
-        )
-        if (destLv < 0) {
-          break
-        }
-        val destRun = graph.runAt(destLv)
-        val overlap = minOf(length - known, destRun.unitsFrom(destLv))
-        checkSameOverlap(destRun, destLv, event, known, overlap)
-        known += overlap
-      }
-      if (known >= length) {
-        continue
-      }
+      // This graph holds the seqs [0, endSeq) of the agent, so what it already has of
+      // this run is a leading piece, and this is how long that piece is.
+      val known = (summary.endSeq(event.agent()) - event.seq()).coerceIn(0, event.length())
       val parents = if (known == 0) {
         val runParents = run.runParents()
         val remapped = IntArray(runParents.size) { j: Int ->
@@ -139,7 +130,7 @@ internal class EventGraphImpl private constructor(
   private fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
     checkVersionOfThisGraph(parents)
     checkLvSpace(event)
-    checkNewIds(event)
+    checkNextSeq(event)
     val run = StoredRun(event, size, parents.lvs)
     val newStore = store.appendAt(size, runCount, run)
     val newLastLv = size + event.length() - 1
@@ -365,9 +356,20 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  private fun checkNewIds(event: Event) {
-    require(!store.overlaps(event.agent(), event.seq(), event.length(), size)) {
-      "An event id of $event is already in the graph"
+  /**
+   * Fails when [event] does not continue the seqs of its agent.
+   *
+   * The seqs of one agent must ascend and leave no gap. That rejects a reused id, which is
+   * the rule one (agent, seq) pair names one unit forever. It also buys the delta merge:
+   * a graph then holds exactly the seqs `[0, nextSeq)` of each agent, so a
+   * [VersionSummary] is one integer per agent instead of a set of ranges.
+   *
+   * Each agent owns its own seq space, so two agents interleave freely.
+   */
+  private fun checkNextSeq(event: Event) {
+    val expected = nextSeqFor(event.agent())
+    require(event.seq() == expected) {
+      "The event $event does not continue the seqs of its agent: expected $expected"
     }
   }
 
@@ -390,8 +392,7 @@ internal class EventGraphImpl private constructor(
   }
 
   /**
-   * Fails when the [overlap] units that [event] names from [offset] differ from the units
-   * the merged graph already holds from [destLv], inside [destRun].
+   * Fails when the two graphs disagree about an id they both hold.
    *
    * One (agent, seq) pair names one operation forever. A difference means two branches
    * minted the same id, which the agent contract of
@@ -400,30 +401,45 @@ internal class EventGraphImpl private constructor(
    * operation, drops the other, and reports nothing. The two branches then disagree, and
    * a merge stops giving the same text in both directions.
    *
-   * The check samples the two ends of the overlap, so it costs O(1) and adds no lookup:
-   * [destRun] is already in hand. It does not see a difference that sits only strictly
-   * inside a long overlap. A full content compare would make every merge cost the
-   * document size, and a merge must cost the size of the concurrent region.
+   * Both graphs hold the seqs `[0, endSeq)` of an agent, so the shared range of an agent is
+   * `[0, min(endSeq, endSeq))`. The check SAMPLES its two ends, so it costs two lookups per
+   * shared agent and nothing per run. It does not see a difference that sits strictly inside
+   * the shared range. A full compare would make every merge cost the whole shared history,
+   * and a merge must cost the size of the change.
    */
-  private fun checkSameOverlap(destRun: StoredRun, destLv: LV, event: Event, offset: Int, overlap: Int) {
-    checkSameUnit(destRun, destLv, event, offset)
-    if (overlap > 1) {
-      checkSameUnit(destRun, destLv + overlap - 1, event, offset + overlap - 1)
+  private fun checkSharedIds(other: EventGraphImpl, summary: VersionSummary) {
+    val otherSummary = other.store.summarizeVersion(other.size)
+    for (agent in otherSummary.agents()) {
+      val sharedEnd = minOf(summary.endSeq(agent), otherSummary.endSeq(agent))
+      if (sharedEnd == 0) {
+        continue
+      }
+      checkSameId(other, agent, 0)
+      if (sharedEnd > 1) {
+        checkSameId(other, agent, sharedEnd - 1)
+      }
     }
   }
 
-  private fun checkSameUnit(destRun: StoredRun, destLv: LV, event: Event, offset: Int) {
-    val op = event.op()
-    require(destRun.isDelete == (op is DocOp.Delete)) {
-      idClash(event, offset, "the operation kind")
+  /** Fails when the unit ([agent], [seq]) is a different operation in the two graphs. */
+  private fun checkSameId(other: EventGraphImpl, agent: Agent, seq: Int) {
+    val lv = store.lvOfSeq(agent, seq, size)
+    val otherLv = other.store.lvOfSeq(agent, seq, other.size)
+    require(lv >= 0 && otherLv >= 0) {
+      "The id ($agent, $seq) is inside the shared range, but one graph does not hold it"
     }
-    require(destRun.offsetAt(destLv) == event.offsetOfUnit(offset)) {
-      idClash(event, offset, "the position")
+    val run = runAt(lv)
+    val otherRun = other.runAt(otherLv)
+    require(run.isDelete == otherRun.isDelete) {
+      idClash(agent, seq, "the operation kind")
     }
-    // The kind check passed, so an insert op means the stored run is an insert too.
-    if (op is DocOp.Insert) {
-      require(destRun.charAt(destLv) == op.fragment()[offset]) {
-        idClash(event, offset, "the inserted character")
+    require(run.offsetAt(lv) == otherRun.offsetAt(otherLv)) {
+      idClash(agent, seq, "the position")
+    }
+    // The kind check passed, so a run that is not a delete is an insert in both graphs.
+    if (!run.isDelete) {
+      require(run.charAt(lv) == otherRun.charAt(otherLv)) {
+        idClash(agent, seq, "the inserted character")
       }
     }
   }
@@ -433,8 +449,8 @@ internal class EventGraphImpl private constructor(
     return EventGraphDiagram.render(this)
   }
 
-  private fun idClash(event: Event, offset: Int, difference: String): String {
-    return "Two events share the id (${event.agent()}, ${event.seq() + offset}) and differ in $difference. " +
+  private fun idClash(agent: Agent, seq: Int, difference: String): String {
+    return "Two events share the id ($agent, $seq) and differ in $difference. " +
            "One agent authored both; a branch that edits concurrently must come from fork(agent)."
   }
 

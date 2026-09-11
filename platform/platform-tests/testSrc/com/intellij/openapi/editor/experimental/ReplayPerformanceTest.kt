@@ -119,6 +119,36 @@ class ReplayPerformanceTest {
   }
 
   /**
+   * A merge that brings NOTHING, over a history of growing size. This is the row that
+   * isolates the id join: the merge appends no run, so it never copies a store prefix, and
+   * every repeat measures the join alone.
+   *
+   * A gossip protocol spends most of its merges here, because a replica usually has nothing
+   * new to give. A time that grows with the history says the join walks the whole history to
+   * discover that.
+   */
+  @Test
+  fun `a merge that brings nothing over a growing history`() {
+    println("=== a merge that brings nothing, by history size ===")
+    println("  %-14s %10s %10s %9s".format("history", "runs", "merge", "per run"))
+    for (runs in HISTORY_RUNS) {
+      var branch = DocBranch.createBranch("", agent("u"))
+      repeat(runs) {
+        branch = branch.applyOp(DocOp.ins(branch.text().length(), "x"))
+      }
+      // The fork adds no op, so it holds exactly the history of the branch.
+      val same = branch.fork(agent("aaa"))
+      val expected = branch.text().length()
+      val millis = bestOf {
+        assertEquals(expected, branch.merge(same).text().length())
+      }
+      val perRun = millis * 1_000_000 / runs
+      println("  %-14s %10d %8.3f ms %7.1f ns".format("$runs runs", branch.graph().runCount(), millis, perRun))
+    }
+    println()
+  }
+
+  /**
    * Builds a history of [UNITS] units in runs of [runLength], each run inserted at the
    * position that [positionOf] picks from the current length, then times a full replay and
    * returns it. [control] is the time of the `len 1` row, or 0 for the row that sets it.

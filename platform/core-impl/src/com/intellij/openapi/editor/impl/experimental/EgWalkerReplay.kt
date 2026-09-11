@@ -15,6 +15,12 @@ package com.intellij.openapi.editor.impl.experimental
  * walk moves the prepare version to each event's parents, applies the event, and reports
  * the effect to a [Sink].
  *
+ * Three documents therefore carry a position, and the names keep them apart. An `offset`
+ * belongs to an op or an event, and it indexes the document at the PARENT version, which is
+ * what the public `DocOp.offset` means. A `preparePos` indexes the prepare version, and an
+ * `effectPos` indexes the effect version. A bare `pos` names no document, so the code does
+ * not use one.
+ *
  * The walk is run-length encoded on both sides. One item covers a whole run, and the walk
  * consumes as much of a run as the version list holds. An item splits only where an op
  * needs a boundary inside it: a concurrent insert, a partial delete, or a partial retreat
@@ -29,11 +35,11 @@ internal object EgWalkerReplay {
    * run-length encoded on both sides and a span never crosses a run.
    */
   internal interface Sink {
-    /** Inserts [fragment] at [pos]. */
-    fun insert(pos: Int, fragment: CharSequence)
+    /** Inserts [fragment] at [effectPos]. */
+    fun insert(effectPos: Int, fragment: CharSequence)
 
-    /** Removes [count] characters at [pos]. */
-    fun delete(pos: Int, count: Int)
+    /** Removes [count] characters at [effectPos]. */
+    fun delete(effectPos: Int, count: Int)
   }
 
   /**

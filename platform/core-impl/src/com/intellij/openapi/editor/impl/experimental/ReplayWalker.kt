@@ -127,6 +127,10 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * Consumes [count] units of one run from [lv]: moves the prepare version to the first
    * unit's parents, then applies the whole span. Every unit of a run after the first has
    * the one parent `lv - 1`, so the later units need no version move.
+   *
+   * The version move is also what lets an apply take an OFFSET. An offset indexes the
+   * document at the event's parents, and the prepare version is that document once the move
+   * is done. So the two spaces coincide exactly here, and nowhere else.
    */
   private fun step(lv: LV, count: Int) {
     val parents = graph.parentsOf(lv)
@@ -142,9 +146,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       moveRange(diff.bOnly, retreating = false)
     }
     if (graph.isDeleteAt(lv)) {
-      applyDelete(lv, count, graph.posAt(lv))
+      applyDelete(lv, count, graph.offsetAt(lv))
     } else {
-      applyInsert(lv, count, graph.posAt(lv))
+      applyInsert(lv, count, graph.offsetAt(lv))
     }
     setCurVersion(lv + count - 1)
   }
@@ -278,16 +282,16 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   // ------------------------------------------------------------------------------------- the ops
 
   /**
-   * Deletes [count] units at [pos]. Every unit of a delete run removes at the same
-   * position, so the run eats the items there one after another. An item that reaches past
-   * the run splits, so the deleted part stays exact.
+   * Deletes [count] units at [offset], the offset the run itself recorded. Every unit of a
+   * delete run removes at the same offset, so the run eats the items there one after
+   * another. An item that reaches past the run splits, so the deleted part stays exact.
    *
    * One lookup carries the whole run, because a consumed item keeps no prepare width. A
    * fresh lookup per item would first back up over everything the run already consumed, and
    * then walk forward over it again.
    */
-  private fun applyDelete(lv: LV, count: Int, pos: Int) {
-    val cursor = findByCurPos(pos)
+  private fun applyDelete(lv: LV, count: Int, offset: Int) {
+    val cursor = findByCurPos(offset)
     var done = 0
     while (done < count) {
       // Skip the items that the prepare version does not have.
@@ -316,15 +320,15 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /**
-   * Inserts [count] units from [lv] as one span at [pos].
+   * Inserts [count] units from [lv] as one span at [offset], the offset the run recorded.
    *
    * Only the first unit of a run needs the Fugue integration. A later unit lands right
    * after the one before it, because its left origin is that unit and no other item can
    * name it yet: the walk visits the units in one go, with no retreat or advance between
    * them. So the span carries the first unit's origins.
    */
-  private fun applyInsert(lv: LV, count: Int, pos: Int) {
-    val cursor = findByCurPos(pos)
+  private fun applyInsert(lv: LV, count: Int, offset: Int) {
+    val cursor = findByCurPos(offset)
     require(cursor.itemIndex == 0 || items[cursor.itemIndex - 1].inPrepare) {
       "The item before the insert point is not inserted in the prepare version"
     }
@@ -379,7 +383,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     }
     var scanning = false
     var scanIdx = cursor.itemIndex
-    var scanEndPos = cursor.effectPos
+    var scanEffectPos = cursor.effectPos
     val leftIdx = cursor.itemIndex - 1
     val rightIdx = indexOfBound(newItem.rightParent)
     while (scanIdx < items.size) {
@@ -401,10 +405,10 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
         }
         scanning = otherRightIdx < rightIdx
       }
-      scanEndPos += other.effectWidth
+      scanEffectPos += other.effectWidth
       scanIdx++
       if (!scanning) {
-        cursor.moveTo(scanIdx, scanEndPos)
+        cursor.moveTo(scanIdx, scanEffectPos)
       }
     }
   }
@@ -414,21 +418,24 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     return if (rightParent == NO_UNIT) items.size else findItemIdx(rightParent)
   }
 
-  /** Finds the insert point for a prepare-version position, walking from the cached cursor. */
-  private fun findByCurPos(targetPos: Int): Cursor {
-    val cursor = if (cachedPreparePos <= targetPos) {
+  /**
+   * Finds the insert point for [targetPreparePos], walking from the cached cursor. The
+   * reference calls this `findByCurPos`, and its `curPos` is this port's prepare position.
+   */
+  private fun findByCurPos(targetPreparePos: Int): Cursor {
+    val cursor = if (cachedPreparePos <= targetPreparePos) {
       Cursor(cachedItemIndex, cachedPreparePos, cachedEffectPos)
     } else {
       Cursor(0, 0, 0)
     }
-    while (cursor.preparePos < targetPos) {
+    while (cursor.preparePos < targetPreparePos) {
       require(cursor.itemIndex < items.size) {
         "The document is not long enough for the requested position"
       }
       val item = items[cursor.itemIndex]
-      if (cursor.preparePos + item.prepareWidth > targetPos) {
+      if (cursor.preparePos + item.prepareWidth > targetPreparePos) {
         // The boundary falls inside this span: split it, then retry the left piece.
-        splitItem(cursor.itemIndex, targetPos - cursor.preparePos)
+        splitItem(cursor.itemIndex, targetPreparePos - cursor.preparePos)
         continue
       }
       cursor.advanceOver(item)

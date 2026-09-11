@@ -189,7 +189,8 @@ internal class EventGraphImpl private constructor(
     return runAt(lv).lvEnd()
   }
 
-  fun posAt(lv: LV): Int {
+  /** The offset that the unit [lv] edits, in the document at its own parent version. */
+  fun offsetAt(lv: LV): Int {
     return runAt(lv).offsetAt(lv)
   }
 
@@ -492,12 +493,12 @@ internal class EventGraphImpl private constructor(
   }
 
   private class StringBuilderSink(private val text: StringBuilder) : EgWalkerReplay.Sink {
-    override fun insert(pos: Int, fragment: CharSequence) {
-      text.insert(pos, fragment)
+    override fun insert(effectPos: Int, fragment: CharSequence) {
+      text.insert(effectPos, fragment)
     }
 
-    override fun delete(pos: Int, count: Int) {
-      text.delete(pos, pos + count)
+    override fun delete(effectPos: Int, count: Int) {
+      text.delete(effectPos, effectPos + count)
     }
 
     override fun toString(): String {

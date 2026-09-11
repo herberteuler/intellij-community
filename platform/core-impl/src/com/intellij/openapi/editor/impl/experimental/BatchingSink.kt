@@ -17,24 +17,24 @@ internal class BatchingSink(
   private var updated: DocText,
 ) : EgWalkerReplay.Sink {
   private var kind: Int = NONE
-  private var start: Int = 0
+  private var startEffectPos: Int = 0
   private val pendingFragment = StringBuilder()
   private var deleteCount: Int = 0
 
-  override fun insert(pos: Int, fragment: CharSequence) {
-    if (kind != INSERT || pos != start + pendingFragment.length) {
+  override fun insert(effectPos: Int, fragment: CharSequence) {
+    if (kind != INSERT || effectPos != startEffectPos + pendingFragment.length) {
       flush()
       kind = INSERT
-      start = pos
+      startEffectPos = effectPos
     }
     pendingFragment.append(fragment)
   }
 
-  override fun delete(pos: Int, count: Int) {
-    if (kind != DELETE || pos != start) {
+  override fun delete(effectPos: Int, count: Int) {
+    if (kind != DELETE || effectPos != startEffectPos) {
       flush()
       kind = DELETE
-      start = pos
+      startEffectPos = effectPos
     }
     deleteCount += count
   }
@@ -47,17 +47,18 @@ internal class BatchingSink(
   /** The text length so far, plus the op that still waits for its neighbour. */
   override fun toString(): String {
     val pending = when (kind) {
-      INSERT -> "insert at $start of ${pendingFragment.quotedForMessage()}"
-      DELETE -> "delete of $deleteCount at $start"
+      INSERT -> "insert at $startEffectPos of ${pendingFragment.quotedForMessage()}"
+      DELETE -> "delete of $deleteCount at $startEffectPos"
       else -> "nothing"
     }
     return "BatchingSink(length=${updated.length()}, pending=$pending)"
   }
 
   private fun flush() {
+    // The effect version IS the text this sink builds, so its position is the op's offset.
     when (kind) {
-      INSERT -> updated = updated.applyOp(DocOp.ins(start, pendingFragment.toString()))
-      DELETE -> updated = updated.applyOp(DocOp.del(start, deleteCount))
+      INSERT -> updated = updated.applyOp(DocOp.ins(startEffectPos, pendingFragment.toString()))
+      DELETE -> updated = updated.applyOp(DocOp.del(startEffectPos, deleteCount))
     }
     kind = NONE
     pendingFragment.setLength(0)

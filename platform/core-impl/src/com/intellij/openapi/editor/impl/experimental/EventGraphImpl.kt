@@ -72,36 +72,60 @@ internal class EventGraphImpl private constructor(
    * holds one integer per agent, so the two graphs compare their histories without reading
    * a run, and only the runs that go past this graph are ever loaded.
    *
-   * The merge is not atomic. It appends run by run, so a rejected run leaves the earlier
-   * ones in the shared store with no graph above them. The caller keeps its old value, so
-   * the text stays correct. The orphans cost one prefix copy at the next append.
+   * The merge is ATOMIC. It plans every new run first, and the plan touches no store, so a
+   * rejected merge leaves nothing behind. Only then does it append, and by then no append
+   * can fail. Before that split a rejected run left the earlier ones in the shared store
+   * with no graph above them, which leaked and moved the tip away from the surviving value.
    */
   fun mergeFromImpl(other: EventGraphImpl): MergeResult {
-    var graph = this
-
-    fun remap(otherLv: LV): LV {
-      val run = other.runAt(otherLv)
-      val lv = graph.store.lvOfSeq(
-        agent = run.event.agent(),
-        seq = run.seqAt(otherLv),
-        lvLimit = graph.size,
-      )
-      checkRemapped(lv, otherLv)
-      return lv
-    }
-
     // The delta: what this graph knows, then only the runs of the other graph that go
     // past it. Neither step reads a run the two graphs share, so a merge costs the
     // CHANGE and not the session. The reference does this with summarizeVersion and
     // intersectWithSummary.
     val summary = store.summarizeVersion(size)
     checkSharedIds(other, summary)
-    for (lvStart in other.store.newRunStarts(summary, other.size)) {
-      val run = other.runAt(lvStart)
+    val newStarts = other.store.newRunStarts(summary, other.size)
+
+    // The plan, by position in [newStarts]: the run to append, the parents it gets, and the
+    // lv it lands on. [destStarts] is what lets the plan remap a parent that the plan itself
+    // is about to bring in, without asking a store that does not hold it yet.
+    val plannedRuns = arrayOfNulls<Event>(newStarts.size)
+    val plannedParents = arrayOfNulls<Frontier>(newStarts.size)
+    val destStarts = IntArray(newStarts.size) { NO_UNIT }
+
+    /** The leading units of [event] that this graph already holds. */
+    fun knownUnits(event: Event): Int {
+      return (summary.endSeq(event.agent()) - event.seq()).coerceIn(0, event.length())
+    }
+
+    /**
+     * The lv that the unit [otherLv] of [other] has in the merged graph: the one this graph
+     * already gave it, or the one the plan reserves for it.
+     */
+    fun remap(otherLv: LV): LV {
+      val run = other.runAt(otherLv)
+      val event = run.event
+      val seq = run.seqAt(otherLv)
+      if (seq < summary.endSeq(event.agent())) {
+        val lv = store.lvOfSeq(event.agent(), seq, size)
+        checkRemapped(lv, otherLv)
+        return lv
+      }
+      // A planned run keeps the place its lvStart has in newStarts. Its dest lv is filled in
+      // by now, because a parent always precedes its child and so was planned earlier.
+      val piece = newStarts.binarySearch(run.lvStart)
+      val destStart = if (piece >= 0) destStarts[piece] else NO_UNIT
+      checkRemapped(destStart, otherLv)
+      return destStart + (otherLv - run.lvStart - knownUnits(event))
+    }
+
+    var nextLv = size
+    for (i in newStarts.indices) {
+      val run = other.runAt(newStarts[i])
       val event = run.event
       // This graph holds the seqs [0, endSeq) of the agent, so what it already has of
       // this run is a leading piece, and this is how long that piece is.
-      val known = (summary.endSeq(event.agent()) - event.seq()).coerceIn(0, event.length())
+      val known = knownUnits(event)
       val parents = if (known == 0) {
         val runParents = run.runParents()
         val remapped = IntArray(runParents.size) { j: Int ->
@@ -110,26 +134,37 @@ internal class EventGraphImpl private constructor(
         remapped.sort()
         remapped
       } else {
-        val lv = graph.store.lvOfSeq(
-          agent = event.agent(),
-          seq = event.seq() + known - 1,
-          lvLimit = graph.size,
-        )
+        // This graph holds the leading units, so the last of them is the only parent.
+        val lv = store.lvOfSeq(event.agent(), event.seq() + known - 1, size)
+        checkRemapped(lv, newStarts[i])
         intArrayOf(lv)
       }
-      graph = graph.appendImpl(event.suffixFrom(known), VersionImpl(parents))
+      val suffix = event.suffixFrom(known)
+      checkLvSpace(suffix.length(), nextLv)
+      plannedRuns[i] = suffix
+      plannedParents[i] = parents
+      destStarts[i] = nextLv
+      nextLv += suffix.length()
     }
-
+    // The version remap rejects an unknown unit too, so it belongs in the plan and not
+    // after the appends.
     val remappedVersion = IntArray(other.version.lvs.size) { i: Int ->
       remap(other.version.lvs[i])
     }
     remappedVersion.sort()
+
+    // Apply. Every check inside appendImpl already held against the plan, so each one now
+    // re-asserts the plan and none of them can reject.
+    var graph = this
+    for (i in newStarts.indices) {
+      graph = graph.appendImpl(plannedRuns[i]!!, VersionImpl(plannedParents[i]!!))
+    }
     return MergeResult(graph, size, VersionImpl(remappedVersion))
   }
 
   private fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
     checkVersionOfThisGraph(parents)
-    checkLvSpace(event)
+    checkLvSpace(event.length(), size)
     checkNextSeq(event)
     val run = StoredRun(event, size, parents.lvs)
     val newStore = store.appendAt(size, runCount, run)
@@ -373,9 +408,15 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  private fun checkLvSpace(event: Event) {
-    require(event.length() <= Int.MAX_VALUE - size) {
-      "The graph unit space overflows: size $size + run length ${event.length()}"
+  /**
+   * Fails when a run of [length] units cannot fit after [atSize] units.
+   *
+   * [atSize] is a parameter and not [size], because a merge checks the whole plan before it
+   * appends anything, and the plan grows a virtual size.
+   */
+  private fun checkLvSpace(length: Int, atSize: Int) {
+    require(length <= Int.MAX_VALUE - atSize) {
+      "The graph unit space overflows: size $atSize + run length $length"
     }
   }
 

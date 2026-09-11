@@ -192,10 +192,27 @@ internal class EventStore private constructor(
     val list = agentIndex.getOrPut(event.agent()) {
       ArrayList()
     }
-    // The seqs of one agent ascend and leave no gap, so an entry always goes to the end.
-    // EventGraphImpl.checkNextSeq enforces that at the append, and one integer per agent
-    // then describes everything a graph knows. See VersionSummary.
+    checkSeqContinues(list, event.agent(), event.seq())
     list.add(AgentRun(event.seq(), event.length(), run.lvStart))
+  }
+
+  /**
+   * Fails when the seq [seq] of [agent] does not continue the entries already in [list].
+   *
+   * The seqs of one agent ascend and leave no gap, so an entry always goes to the END of the
+   * list, and one integer per agent then describes everything a graph knows. See
+   * [VersionSummary]. Every search in this class rests on that order.
+   *
+   * `EventGraphImpl.checkNextSeq` already rejects such an append, so this never fires for a
+   * caller that behaves. The store checks it anyway, because a break here would not throw
+   * later: it would leave every binary search quietly wrong. It also covers [copyPrefix],
+   * which replays the whole prefix through this method.
+   */
+  private fun checkSeqContinues(list: ArrayList<AgentRun>, agent: Agent, seq: Int) {
+    val expected = if (list.isEmpty()) 0 else list[list.size - 1].endSeq()
+    require(seq == expected) {
+      "The seq $seq of $agent does not continue the stored seqs: expected $expected"
+    }
   }
 
   private fun copyPrefix(runCount: Int, lvs: Int): EventStore {

@@ -193,8 +193,9 @@ internal class EventGraphImpl private constructor(
     return runAt(lv).offsetAt(lv)
   }
 
-  fun charAt(lv: LV): Char {
-    return runAt(lv).charAt(lv)
+  /** The characters that the [count] units from [lv] insert, which must be one insert run. */
+  fun fragmentAt(lv: LV, count: Int): CharSequence {
+    return runAt(lv).fragmentFrom(lv, count)
   }
 
   /**
@@ -473,12 +474,12 @@ internal class EventGraphImpl private constructor(
   internal class Conflict(val commonAncestor: VersionImpl, val conflictLvs: LvList, val newLvs: LvList)
 
   private class StringBuilderSink(private val text: StringBuilder) : EgWalkerReplay.Sink {
-    override fun insert(pos: Int, character: Char) {
-      text.insert(pos, character)
+    override fun insert(pos: Int, fragment: CharSequence) {
+      text.insert(pos, fragment)
     }
 
-    override fun delete(pos: Int) {
-      text.deleteCharAt(pos)
+    override fun delete(pos: Int, count: Int) {
+      text.delete(pos, pos + count)
     }
   }
 

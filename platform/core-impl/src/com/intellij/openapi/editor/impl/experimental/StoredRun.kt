@@ -73,6 +73,19 @@ internal class StoredRun(
     return insert.fragment()[lv - lvStart]
   }
 
+  /**
+   * The characters that the [count] units from [lv] insert. The run must be an insert, and
+   * it must cover the whole span.
+   */
+  fun fragmentFrom(lv: LV, count: Int): CharSequence {
+    val insert = event as? Event.Insert
+    require(insert != null) {
+      "The lv $lv is not an insert"
+    }
+    val from = lv - lvStart
+    return insert.fragment().subSequence(from, from + count)
+  }
+
   override fun toString(): String {
     return "run[$lvStart..${lvEnd() - 1}] $event"
   }

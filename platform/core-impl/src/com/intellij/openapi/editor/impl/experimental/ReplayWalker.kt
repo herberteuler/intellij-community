@@ -296,10 +296,8 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       val item = items[cursor.itemIndex]
       // A concurrent delete may have removed the characters from the effect version.
       if (item.inEffect) {
-        // Each removal shifts the next character to the same position.
-        repeat(taken) {
-          sink?.delete(cursor.effectPos)
-        }
+        // Every unit of the run removes at the same position, so one call carries them all.
+        sink?.delete(cursor.effectPos, taken)
       }
       item.deleteHere()
       for (k in 0 until taken) {
@@ -336,15 +334,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     )
     integrate(newItem, cursor)
     addItem(cursor.itemIndex, newItem)
-    // A silent phase skips this: every character would cost a run lookup for nothing.
-    val out = sink
-    if (out != null) {
-      for (k in 0 until count) {
-        val charPos = cursor.effectPos + k
-        val char = graph.charAt(lv + k)
-        out.insert(charPos, char)
-      }
-    }
+    // The span sits inside one run, so one slice of its fragment covers it. A silent phase
+    // skips the slice, which is the only work the report costs.
+    sink?.insert(cursor.effectPos, graph.fragmentAt(lv, count))
     cursor.advanceOver(newItem)
     cacheCursor(cursor)
   }

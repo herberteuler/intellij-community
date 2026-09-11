@@ -24,9 +24,16 @@ package com.intellij.openapi.editor.impl.experimental
  */
 internal object EgWalkerReplay {
 
+  /**
+   * Where the walk reports its effects. Both methods take a whole span, because the walk is
+   * run-length encoded on both sides and a span never crosses a run.
+   */
   internal interface Sink {
-    fun insert(pos: Int, character: Char)
-    fun delete(pos: Int)
+    /** Inserts [fragment] at [pos]. */
+    fun insert(pos: Int, fragment: CharSequence)
+
+    /** Removes [count] characters at [pos]. */
+    fun delete(pos: Int, count: Int)
   }
 
   /**

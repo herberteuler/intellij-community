@@ -5,35 +5,38 @@ import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.DocText
 
 /**
- * Coalesces the per-unit merge effects into fragment and range ops before they reach
- * the text. N successive inserts at the positions `pos, pos + 1, ...` equal one
- * fragment insert at `pos`; N successive deletes at one position equal one delete of
- * the length N. This is also the op stream an editor integration would fire as events.
+ * Coalesces the merge effects into fragment and range ops before they reach the text.
+ * Successive inserts that meet end to end equal one fragment insert at the first position;
+ * successive deletes at one position equal one delete of their total length. This is also
+ * the op stream an editor integration would fire as events.
+ *
+ * The walk already reports one span per run, so this class earns its keep across runs: two
+ * runs that land side by side arrive as two calls and still leave as one op.
  */
 internal class BatchingSink(
   private var updated: DocText,
 ) : EgWalkerReplay.Sink {
   private var kind: Int = NONE
   private var start: Int = 0
-  private val fragment = StringBuilder()
+  private val pendingFragment = StringBuilder()
   private var deleteCount: Int = 0
 
-  override fun insert(pos: Int, character: Char) {
-    if (kind != INSERT || pos != start + fragment.length) {
+  override fun insert(pos: Int, fragment: CharSequence) {
+    if (kind != INSERT || pos != start + pendingFragment.length) {
       flush()
       kind = INSERT
       start = pos
     }
-    fragment.append(character)
+    pendingFragment.append(fragment)
   }
 
-  override fun delete(pos: Int) {
+  override fun delete(pos: Int, count: Int) {
     if (kind != DELETE || pos != start) {
       flush()
       kind = DELETE
       start = pos
     }
-    deleteCount++
+    deleteCount += count
   }
 
   fun result(): DocText {
@@ -43,11 +46,11 @@ internal class BatchingSink(
 
   private fun flush() {
     when (kind) {
-      INSERT -> updated = updated.applyOp(DocOp.ins(start, fragment.toString()))
+      INSERT -> updated = updated.applyOp(DocOp.ins(start, pendingFragment.toString()))
       DELETE -> updated = updated.applyOp(DocOp.del(start, deleteCount))
     }
     kind = NONE
-    fragment.setLength(0)
+    pendingFragment.setLength(0)
     deleteCount = 0
   }
 

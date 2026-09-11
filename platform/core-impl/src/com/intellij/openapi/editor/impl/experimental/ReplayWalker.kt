@@ -224,6 +224,11 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       val unit = target + offset
       return targetUnitOf(isDelete, lv) == unit && item.contains(unit)
     }
+
+    override fun toString(): String {
+      val kind = if (isDelete) "delete" else "insert"
+      return "Batch($kind, anchorLv=${lvs[anchorIndex]}, target=$target, $item)"
+    }
   }
 
   /** Retreats or advances the [count] units that [lv] starts, all inside one item. */
@@ -487,5 +492,15 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     } else {
       curVersion = intArrayOf(lv)
     }
+  }
+
+  /**
+   * The walk state, by size and not by content. The item list holds one entry per span of
+   * the walked region, so printing it would print the region.
+   */
+  override fun toString(): String {
+    val cached = Cursor(cachedItemIndex, cachedPreparePos, cachedEffectPos)
+    return "ReplayWalker(items=${items.size}, delTargets=${delTargets.size}, " +
+           "prepare=v${curVersion.listedForMessage()}, cached=$cached, reporting=${sink != null})"
   }
 }

@@ -19,10 +19,10 @@ package com.intellij.openapi.editor.impl.experimental
 internal class Item(
   val lv: LV,
   length: Int,
-  private var prepareState: Int = INSERTED,
-  private var effectState: Int = INSERTED,
   val originLeft: LV,
   val rightParent: LV,
+  private var prepareState: Int = INSERTED,
+  private var effectState: Int = INSERTED,
 ) {
   var length: Int = length
     private set
@@ -45,6 +45,9 @@ internal class Item(
   val prepareWidth: Int get() = if (inPrepare) length else 0
 
   val effectWidth: Int get() = if (inEffect) length else 0
+
+  /** Whether the span stands in for the document at the common ancestor. */
+  private val isPlaceholder: Boolean get() = lv < 0
 
   fun contains(unit: LV): Boolean = unit >= lv && unit < lv + length
 
@@ -109,21 +112,28 @@ internal class Item(
     require(offset in 1 until length) {
       "The split offset $offset is out of the span of length $length"
     }
-    val isPlaceholder = lv < 0
     val right = Item(
       lv = lv + offset,
       length = length - offset,
-      prepareState = prepareState,
-      effectState = effectState,
       originLeft = if (isPlaceholder) NO_UNIT else lv + offset - 1,
       rightParent = NO_UNIT,
+      prepareState = prepareState,
+      effectState = effectState,
     )
     length = offset
     return right
   }
 
   override fun toString(): String {
-    return "[$lv..$lastUnit] sp=$prepareState se=$effectState"
+    val kind = if (isPlaceholder) "placeholder" else "item"
+    val span = if (lv == lastUnit) "$lv" else "$lv..$lastUnit"
+    // The two states agree most of the time, and a disagreement is what a reader looks for.
+    val states = if (prepareState == effectState) {
+      stateName(prepareState)
+    } else {
+      "prepare=${stateName(prepareState)} effect=${stateName(effectState)}"
+    }
+    return "$kind[$span] $states"
   }
 
   private companion object {
@@ -135,5 +145,17 @@ internal class Item(
 
     /** The version removed the characters. A prepare state counts stacked concurrent deletes. */
     const val DELETED = 1
+
+    /**
+     * The state as a word. A delete states how many deletes stacked on it, because a prepare
+     * state counts them and only the count tells one concurrent delete from several.
+     */
+    fun stateName(state: Int): String {
+      return when (state) {
+        NOT_YET_INSERTED -> "not-inserted"
+        INSERTED -> "inserted"
+        else -> "deleted($state)"
+      }
+    }
   }
 }

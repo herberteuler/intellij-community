@@ -75,7 +75,7 @@ internal class VersionImpl(
   }
 
   override fun toString(): String {
-    return lvs.joinToString(prefix = "v[", postfix = "]")
+    return "v${lvs.listedForMessage()}"
   }
 
   private fun checkSorted(lvs: Frontier) {

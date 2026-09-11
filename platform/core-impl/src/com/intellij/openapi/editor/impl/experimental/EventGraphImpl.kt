@@ -455,12 +455,25 @@ internal class EventGraphImpl private constructor(
     fun isFastForward(): Boolean {
       return graph.version == remappedOtherVersion
     }
+
+    /**
+     * States the two answers and the size of the union, and NOT the graph. A graph prints a
+     * whole box diagram, which no message wants inside another one.
+     */
+    override fun toString(): String {
+      return "MergeResult(units=${graph.size}, runs=${graph.runCount}, " +
+             "addsNothing=${addsNothing()}, fastForward=${isFastForward()})"
+    }
   }
 
   internal class Diff(val aOnly: LvList, val bOnly: LvList) {
     /** Whether the two versions name the same event set, so no item changes state. */
     fun isEmpty(): Boolean {
       return aOnly.isEmpty() && bOnly.isEmpty()
+    }
+
+    override fun toString(): String {
+      return "Diff(aOnly=${aOnly.listedForMessage()}, bOnly=${bOnly.listedForMessage()})"
     }
   }
 
@@ -471,7 +484,12 @@ internal class EventGraphImpl private constructor(
    * unit to walk. A real type marks the difference here, because the two are used side by
    * side and a swap would replay the wrong thing.
    */
-  internal class Conflict(val commonAncestor: VersionImpl, val conflictLvs: LvList, val newLvs: LvList)
+  internal class Conflict(val commonAncestor: VersionImpl, val conflictLvs: LvList, val newLvs: LvList) {
+    override fun toString(): String {
+      return "Conflict(ancestor=$commonAncestor, conflict=${conflictLvs.listedForMessage()}, " +
+             "new=${newLvs.listedForMessage()})"
+    }
+  }
 
   private class StringBuilderSink(private val text: StringBuilder) : EgWalkerReplay.Sink {
     override fun insert(pos: Int, fragment: CharSequence) {
@@ -481,10 +499,18 @@ internal class EventGraphImpl private constructor(
     override fun delete(pos: Int, count: Int) {
       text.delete(pos, pos + count)
     }
+
+    override fun toString(): String {
+      return text.toString()
+    }
   }
 
   /** A version under the walk of [findConflicting]: the lvs sorted descending, plus the flag. */
-  private class Point(val v: Frontier, val flag: Int)
+  private class Point(val v: Frontier, val flag: Int) {
+    override fun toString(): String {
+      return "Point(${v.listedForMessage()}, ${flagName(flag)})"
+    }
+  }
 
   companion object {
     fun empty(): EventGraphImpl {
@@ -506,6 +532,15 @@ internal class EventGraphImpl private constructor(
     private const val FLAG_A = 0
     private const val FLAG_B = 1
     private const val FLAG_SHARED = 2
+
+    /** The side a walk flag names, as a word. */
+    private fun flagName(flag: Int): String {
+      return when (flag) {
+        FLAG_A -> "a"
+        FLAG_B -> "b"
+        else -> "shared"
+      }
+    }
 
     /** Orders the walk points of [findConflicting]: the greatest version first. */
     private val POINT_MAX_FIRST = Comparator<Point> { p1, p2 ->

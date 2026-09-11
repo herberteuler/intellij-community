@@ -26,3 +26,20 @@ internal fun CharSequence.quotedForMessage(): String {
     "$quoted (${text.length} chars)"
   }
 }
+
+/** The longest lv list that a message prints in full. */
+private const val MAX_LISTED_LVS = 10
+
+/**
+ * The lvs as a list that is safe to put in a message.
+ *
+ * A conflict region or a diff holds one entry per unit, so a big paste fills it. A long list
+ * therefore keeps its head and reports its own length. One function serves a [Frontier] and
+ * an [LvList], because Kotlin resolves both to `IntArray`.
+ */
+internal fun IntArray.listedForMessage(): String {
+  if (size <= MAX_LISTED_LVS) {
+    return joinToString(prefix = "[", postfix = "]")
+  }
+  return take(MAX_LISTED_LVS).joinToString(prefix = "[", postfix = ", ... ($size lvs)]")
+}

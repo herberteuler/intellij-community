@@ -44,6 +44,16 @@ internal class BatchingSink(
     return updated
   }
 
+  /** The text length so far, plus the op that still waits for its neighbour. */
+  override fun toString(): String {
+    val pending = when (kind) {
+      INSERT -> "insert at $start of ${pendingFragment.quotedForMessage()}"
+      DELETE -> "delete of $deleteCount at $start"
+      else -> "nothing"
+    }
+    return "BatchingSink(length=${updated.length()}, pending=$pending)"
+  }
+
   private fun flush() {
     when (kind) {
       INSERT -> updated = updated.applyOp(DocOp.ins(start, pendingFragment.toString()))

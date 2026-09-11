@@ -171,6 +171,16 @@ internal class EventStore private constructor(
   }
 
   /**
+   * The committed size and the agents that authored it. This takes the monitor, because the
+   * two counters belong to it, and a `toString` must not be the one reader that skips it.
+   */
+  override fun toString(): String {
+    synchronized(this) {
+      return "EventStore(runs=$committedRuns, units=$committedLvs, agents=${agentIndex.keys.sorted()})"
+    }
+  }
+
+  /**
    * One per-agent index entry: the seqs `[seqStart, endSeq())` start at [lvStart]. The
    * entry owns the translation between a seq and an lv.
    */
@@ -202,6 +212,10 @@ internal class EventStore private constructor(
     /** Whether the graph bounded by [lvLimit] can see this entry at all. */
     fun isVisible(lvLimit: LV): Boolean {
       return lvStart < lvLimit
+    }
+
+    override fun toString(): String {
+      return "seqs[$seqStart..${endSeq() - 1}] at lv $lvStart"
     }
   }
 

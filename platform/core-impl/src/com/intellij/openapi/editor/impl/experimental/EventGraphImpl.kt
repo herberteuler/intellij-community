@@ -2,6 +2,7 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
+import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
@@ -412,14 +413,16 @@ internal class EventGraphImpl private constructor(
   }
 
   private fun checkSameUnit(destRun: StoredRun, destLv: LV, event: Event, offset: Int) {
-    require(destRun.isDelete == (event is Event.Delete)) {
+    val op = event.op()
+    require(destRun.isDelete == (op is DocOp.Delete)) {
       idClash(event, offset, "the operation kind")
     }
     require(destRun.offsetAt(destLv) == event.offsetOfUnit(offset)) {
       idClash(event, offset, "the position")
     }
-    if (!destRun.isDelete && event is Event.Insert) {
-      require(destRun.charAt(destLv) == event.fragment()[offset]) {
+    // The kind check passed, so an insert op means the stored run is an insert too.
+    if (op is DocOp.Insert) {
+      require(destRun.charAt(destLv) == op.fragment()[offset]) {
         idClash(event, offset, "the inserted character")
       }
     }

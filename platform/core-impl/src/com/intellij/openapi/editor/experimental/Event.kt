@@ -1,36 +1,32 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.experimental
 
-import com.intellij.openapi.editor.impl.experimental.DeleteEventImpl
-import com.intellij.openapi.editor.impl.experimental.InsertEventImpl
+import com.intellij.openapi.editor.impl.experimental.EventImpl
 
 /**
  * One node of the Eg-walker event graph: a run of single-character operations with one id range.
  *
- * An event is a [DocOp] with an identity. [Insert] is a [DocOp.Insert] and [Delete] is a
- * [DocOp.Delete], so the change itself needs no second shape. What the event adds is the
- * id: ([agent], [seq]) to ([agent], `seq + length - 1`).
+ * An event is an identity plus the change that the identity names. The identity is
+ * ([agent], [seq]) to ([agent], `seq + length - 1`), and the change is [op].
+ *
+ * An event is NOT a [DocOp], so [DocText.applyOp] will not take one. The offset of [op]
+ * indexes the document as it was in the PARENT VERSION, and applying an old event to a
+ * document at another version is meaningless.
  *
  * The paper (arXiv 2409.14252) models one event per character. This implementation
  * run-length encodes them: one event covers [length] characters. The parents of the first
  * unit live in [EventGraph]; every later unit's parent is the unit before it.
  *
- * [offset] indexes the document as it was in the PARENT VERSION, not the merged document.
- * That is the one place where an event differs from a fresh op: applying an old event to a
- * document at another version is meaningless, even though the types allow it. The unit `i`
- * of an [Insert] puts `fragment()[i]` at `offset + i`. Every unit of a [Delete] removes one
- * character at [offset], because each removal shifts the next character there.
- *
  * An event is immutable: a merge never rewrites it.
  */
-sealed interface Event {
+interface Event {
   fun agent(): Agent
 
   /** The seq of the first unit. The run consumes the seqs `[seq, seq + length)`. */
   fun seq(): Int
 
-  /** The position of the first unit in the parent-version document. */
-  fun offset(): Int
+  /** The change this event records, against the document of its parent version. */
+  fun op(): DocOp
 
   /** The number of single-character operations in this run. At least 1. */
   fun length(): Int
@@ -50,17 +46,24 @@ sealed interface Event {
    */
   fun suffixFrom(units: Int): Event
 
-  /** `fragment().length == length()`. */
-  interface Insert : Event, DocOp.Insert
-
-  interface Delete : Event, DocOp.Delete
-
   companion object {
-    fun createInsert(agent: Agent, seq: Int, offset: Int, fragment: CharSequence): Insert {
-      return InsertEventImpl(agent, seq, offset, fragment)
+    /**
+     * An event that records [op] under the id ([agent], [seq]).
+     *
+     * The event keeps [op] and never copies it, so [op] must come from [DocOp.ins] or
+     * [DocOp.del]. Only those two detach the content from a sequence the caller can still
+     * change, and an event lives in the graph forever.
+     */
+    fun create(agent: Agent, seq: Int, op: DocOp): Event {
+      return EventImpl(agent, seq, op)
     }
-    fun createDelete(agent: Agent, seq: Int, offset: Int, length: Int): Delete {
-      return DeleteEventImpl(agent, seq, offset, length)
+
+    fun createInsert(agent: Agent, seq: Int, offset: Int, fragment: CharSequence): Event {
+      return create(agent, seq, DocOp.ins(offset, fragment))
+    }
+
+    fun createDelete(agent: Agent, seq: Int, offset: Int, length: Int): Event {
+      return create(agent, seq, DocOp.del(offset, length))
     }
   }
 }

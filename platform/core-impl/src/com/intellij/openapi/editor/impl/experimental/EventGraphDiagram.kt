@@ -1,7 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.Event
+import com.intellij.openapi.editor.experimental.DocOp
 
 /**
  * Draws an [EventGraphImpl] as a box diagram. One box is one run, and a line between two
@@ -82,11 +82,12 @@ internal object EventGraphDiagram {
   /** The lines of one box, one field per line. */
   private fun body(run: StoredRun): List<String> {
     val event = run.event
-    val head = when (event) {
-      is Event.Insert -> "insert ${event.fragment().quotedForMessage()}"
-      is Event.Delete -> "delete ${event.length()} ${if (event.length() == 1) "char" else "chars"}"
+    val op = event.op()
+    val head = when (op) {
+      is DocOp.Insert -> "insert ${op.fragment().quotedForMessage()}"
+      is DocOp.Delete -> "delete ${op.length()} ${if (op.length() == 1) "char" else "chars"}"
     }
-    return listOf(head, "offset ${event.offset()}", "lv ${lvs(run)}", "agent \"${event.agent()}\"")
+    return listOf(head, "offset ${op.offset()}", "lv ${lvs(run)}", "agent \"${event.agent()}\"")
   }
 
   /** The lv range of [run]: one lv for a run of one unit, and `first..last` for a longer one. */

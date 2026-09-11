@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.Event
 
 /**
@@ -35,7 +36,7 @@ internal class StoredRun(
     return lvEnd() - lv
   }
 
-  val isDelete: Boolean get() = event is Event.Delete
+  val isDelete: Boolean get() = event.op() is DocOp.Delete
 
   /**
    * The parents of the unit [lv]. The first unit keeps the parents the append recorded;
@@ -66,11 +67,7 @@ internal class StoredRun(
 
   /** The character that the unit [lv] inserts. The run must be an insert. */
   fun charAt(lv: LV): Char {
-    val insert = event as? Event.Insert
-    require(insert != null) {
-      "The lv $lv is not an insert"
-    }
-    return insert.fragment()[lv - lvStart]
+    return insertOp(lv).fragment()[lv - lvStart]
   }
 
   /**
@@ -78,12 +75,17 @@ internal class StoredRun(
    * it must cover the whole span.
    */
   fun fragmentFrom(lv: LV, count: Int): CharSequence {
-    val insert = event as? Event.Insert
-    require(insert != null) {
+    val from = lv - lvStart
+    return insertOp(lv).fragment().subSequence(from, from + count)
+  }
+
+  /** The insert op of this run, for a caller that reads its content. */
+  private fun insertOp(lv: LV): DocOp.Insert {
+    val op = event.op()
+    require(op is DocOp.Insert) {
       "The lv $lv is not an insert"
     }
-    val from = lv - lvStart
-    return insert.fragment().subSequence(from, from + count)
+    return op
   }
 
   override fun toString(): String {

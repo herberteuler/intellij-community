@@ -2,83 +2,68 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
+import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.Event
-import com.intellij.util.text.ImmutableCharSequence
 
-internal class InsertEventImpl(
+internal class EventImpl(
   private val agent: Agent,
   private val seq: Int,
-  private val offset: Int,
-  fragment: CharSequence,
-) : Event.Insert {
-  // A copy detaches the event from a mutable CharSequence the caller may hold. An op is
-  // transient and may alias, but an event lives in the graph forever.
-  private val fragment: CharSequence = ImmutableCharSequence.asImmutable(fragment)
+  private val op: DocOp,
+) : Event {
 
   init {
-    checkEvent(seq, offset)
-    checkFragment(this.fragment)
-    checkIdSpace(seq, this.fragment.length)
-    checkOffsetSpace(offset, this.fragment.length)
-  }
-
-  override fun agent(): Agent = agent
-  override fun seq(): Int = seq
-  override fun offset(): Int = offset
-  override fun length(): Int = fragment.length
-  override fun fragment(): CharSequence = fragment
-
-  override fun offsetOfUnit(index: Int): Int = offset + index
-
-  override fun suffixFrom(units: Int): Event {
-    if (units == 0) {
-      return this
-    }
-    return InsertEventImpl(
-      agent,
-      seq + units,
-      offset + units,
-      fragment.subSequence(units, fragment.length),
-    )
-  }
-
-  override fun toString(): String {
-    return "ins($agent, $seq, $offset, ${fragment.quotedForMessage()})"
-  }
-}
-
-internal class DeleteEventImpl(
-  private val agent: Agent,
-  private val seq: Int,
-  private val offset: Int,
-  private val length: Int,
-) : Event.Delete {
-  init {
-    checkEvent(seq, offset)
+    checkKnownOp(op)
+    val offset = op.offset()
+    val length = op.length()
+    checkNotNegative(seq, offset)
     checkLength(length)
     checkIdSpace(seq, length)
+    checkOffsetSpace(offset, length)
   }
 
   override fun agent(): Agent = agent
   override fun seq(): Int = seq
-  override fun offset(): Int = offset
-  override fun length(): Int = length
+  override fun op(): DocOp = op
+  override fun length(): Int = op.length()
 
-  override fun offsetOfUnit(index: Int): Int = offset
+  override fun offsetOfUnit(index: Int): Int {
+    return when (op) {
+      is DocOp.Insert -> op.offset() + index
+      is DocOp.Delete -> op.offset()
+    }
+  }
 
   override fun suffixFrom(units: Int): Event {
     if (units == 0) {
       return this
     }
-    return DeleteEventImpl(agent, seq + units, offset, length - units)
+    return EventImpl(agent, seq + units, suffixOp(units))
+  }
+
+  /** The part of [op] from the unit [units] onward. A delete keeps its offset; see [offsetOfUnit]. */
+  private fun suffixOp(units: Int): DocOp {
+    return when (op) {
+      is DocOp.Insert -> {
+        val fragment = op.fragment()
+        DocOp.ins(op.offset() + units, fragment.subSequence(units, fragment.length))
+      }
+      is DocOp.Delete -> DocOp.del(op.offset(), op.length() - units)
+    }
   }
 
   override fun toString(): String {
-    return "del($agent, $seq, $offset, len=$length)"
+    return "$op by $agent, seq $seq"
   }
 }
 
-private fun checkEvent(seq: Int, offset: Int) {
+private fun checkKnownOp(op: DocOp) {
+  require(op is InsertDocOpImpl || op is DeleteDocOpImpl) {
+    "Foreign DocOp implementation: ${op.javaClass.name}. An event keeps its op forever, " +
+    "so the op must come from DocOp.ins or DocOp.del."
+  }
+}
+
+private fun checkNotNegative(seq: Int, offset: Int) {
   require(seq >= 0) {
     "Negative seq: $seq"
   }
@@ -87,15 +72,10 @@ private fun checkEvent(seq: Int, offset: Int) {
   }
 }
 
-private fun checkFragment(fragment: CharSequence) {
-  require(fragment.isNotEmpty()) {
-    "The insert fragment is empty"
-  }
-}
-
+/** An empty op is a legal no-op, but an empty event would own no id and name nothing. */
 private fun checkLength(length: Int) {
   require(length >= 1) {
-    "The delete length is not positive: $length"
+    "The event length is not positive: $length"
   }
 }
 

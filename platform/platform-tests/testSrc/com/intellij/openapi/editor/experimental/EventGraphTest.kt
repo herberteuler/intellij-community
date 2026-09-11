@@ -3,6 +3,7 @@ package com.intellij.openapi.editor.experimental
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -157,13 +158,14 @@ class EventGraphTest {
     val insert = Event.createInsert(agent("u"), 5, 2, "abc")
     assertEquals(agent("u"), insert.agent())
     assertEquals(5, insert.seq())
-    assertEquals(2, insert.offset())
     assertEquals(3, insert.length())
-    assertEquals("abc", insert.fragment().toString())
+    val insertOp = insert.op() as DocOp.Insert
+    assertEquals(2, insertOp.offset())
+    assertEquals("abc", insertOp.fragment().toString())
     val delete = Event.createDelete(agent("u"), 8, 1, 4)
     assertEquals(8, delete.seq())
-    assertEquals(1, delete.offset())
     assertEquals(4, delete.length())
+    assertEquals(1, (delete.op() as DocOp.Delete).offset())
   }
 
   @Test
@@ -187,20 +189,20 @@ class EventGraphTest {
     assertTrue(clash.message!!.length < 200) { "The message is not short: ${clash.message}" }
   }
 
+  /**
+   * An event keeps the exact op it records. The other half of the claim is a compile-time
+   * one that no assert can state: an event is not a [DocOp], so it cannot reach
+   * [DocText.applyOp] at all.
+   */
   @Test
-  fun `an event is the op it records`() {
-    // An event is a DocOp with an identity, so one value serves both contracts. These two
-    // assignments are the test: they compile only while that stays true.
-    val insert: DocOp.Insert = Event.createInsert(agent("u"), 0, 2, "abc")
-    assertEquals(2, insert.offset())
-    assertEquals("abc", insert.fragment().toString())
-    val delete: DocOp.Delete = Event.createDelete(agent("u"), 3, 1, 4)
-    assertEquals(1, delete.offset())
+  fun `an event wraps the op it records`() {
+    val op = DocOp.ins(2, "abc")
+    val insert = Event.create(agent("u"), 0, op)
+    assertSame(op, insert.op())
+    assertEquals(3, insert.length())
+    val delete = Event.create(agent("u"), 3, DocOp.del(1, 4))
+    assertEquals(1, (delete.op() as DocOp.Delete).offset())
     assertEquals(4, delete.length())
-    // A document applies an event exactly like the op it was made from.
-    val text = DocText.createText("xyz")
-    assertEquals(text.applyOp(DocOp.ins(1, "Q")).string(),
-                 text.applyOp(Event.createInsert(agent("u"), 0, 1, "Q")).string())
   }
 
   @Test

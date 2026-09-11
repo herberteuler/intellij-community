@@ -94,8 +94,7 @@ internal class DocBranchImpl private constructor(
     }
     // The inner text validates the offset before the graph changes.
     val newDocText = docText.applyOp(op)
-    val insertEvent = Event.createInsert(agent, nextSeq, op.offset(), fragment)
-    val newGraph = graph.appendAtTip(insertEvent)
+    val newGraph = graph.appendAtTip(Event.create(agent, nextSeq, op))
     return DocBranchImpl(newDocText, agent, nextSeq + fragment.length, newGraph)
   }
 
@@ -105,7 +104,7 @@ internal class DocBranchImpl private constructor(
       return this
     }
     val newInner = docText.applyOp(op)
-    val newGraph = graph.appendAtTip(Event.createDelete(agent, nextSeq, op.offset(), length))
+    val newGraph = graph.appendAtTip(Event.create(agent, nextSeq, op))
     return DocBranchImpl(newInner, agent, nextSeq + length, newGraph)
   }
 
@@ -123,7 +122,8 @@ internal class DocBranchImpl private constructor(
     fun create(chars: CharSequence, agent: Agent): DocBranchImpl {
       var graph = EventGraphImpl.empty()
       if (chars.isNotEmpty()) {
-        graph = graph.appendAtTip(Event.createInsert(agent, 0, 0, chars))
+        val insert = Event.create(agent, 0, DocOp.ins(0, chars))
+        graph = graph.appendAtTip(insert)
       }
       return DocBranchImpl(DocText.createText(chars), agent, chars.length, graph)
     }

@@ -13,6 +13,7 @@ internal class InsertDocOpImpl(
   private val fragment: CharSequence = ImmutableCharSequence.asImmutable(fragment)
 
   override fun offset(): Int = offset
+  override fun length(): Int = fragment.length
   override fun fragment(): CharSequence = fragment
 
   override fun toString(): String {

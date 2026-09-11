@@ -7,20 +7,22 @@ import com.intellij.openapi.editor.impl.experimental.InsertDocOpImpl
 /**
  * One edit of a document: what to change, and where.
  *
- * An op is a command, not a record. Its offset indexes the document that the op applies
- * to, so an op is only meaningful against that one document state. An [Event] is the
- * durable form: the same change, plus the identity that names it forever.
+ * An op is a command, not a record. Its [offset] indexes the document that the op applies
+ * to, so an op is only meaningful against that one document state.
  */
 sealed interface DocOp {
+  /** The position in the document that this op changes. */
+  fun offset(): Int
+
+  /** The number of single-character operations this op performs. */
+  fun length(): Int
+
   interface Insert : DocOp {
-    fun offset(): Int
     fun fragment(): CharSequence
   }
 
-  interface Delete : DocOp {
-    fun offset(): Int
-    fun length(): Int
-  }
+  /** A delete carries no content, so [offset] and [length] describe it in full. */
+  interface Delete : DocOp
 
   companion object {
     /**

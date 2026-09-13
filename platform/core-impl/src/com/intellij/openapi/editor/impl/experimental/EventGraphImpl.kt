@@ -58,9 +58,29 @@ internal class EventGraphImpl private constructor(
     return appendImpl(event, version)
   }
 
+  // --------------------------------------------------- what this graph knows, by event id
+  //
+  // Each of these hands the store this graph's own size as the limit, so a caller never
+  // threads an lvLimit through. A graph answers only for itself.
+
   /** The next free seq of [agent] in this graph. */
   fun nextSeqFor(agent: Agent): Int {
     return store.nextSeq(agent, size)
+  }
+
+  /** What this graph knows, as one end seq per agent. */
+  fun summarize(): VersionSummary {
+    return store.summarizeVersion(size)
+  }
+
+  /** The lv of the unit ([agent], [seq]) in this graph, or -1 when it holds no such unit. */
+  fun lvOfUnit(agent: Agent, seq: Int): LV {
+    return store.lvOfSeq(agent, seq, size)
+  }
+
+  /** The [StoredRun.lvStart] of every run of THIS graph that [summary] does not cover. */
+  fun newRunStarts(summary: VersionSummary): IntArray {
+    return store.newRunStarts(summary, size)
   }
 
   /**
@@ -78,88 +98,19 @@ internal class EventGraphImpl private constructor(
    * with no graph above them, which leaked and moved the tip away from the surviving value.
    */
   fun mergeFromImpl(other: EventGraphImpl): MergeResult {
-    // The delta: what this graph knows, then only the runs of the other graph that go
-    // past it. Neither step reads a run the two graphs share, so a merge costs the
-    // CHANGE and not the session. The reference does this with summarizeVersion and
-    // intersectWithSummary.
-    val summary = store.summarizeVersion(size)
+    // The delta: what this graph knows, then only the runs of the other graph that go past
+    // it. Neither step reads a run the two graphs share, so a merge costs the CHANGE and not
+    // the session. The reference does this with summarizeVersion and intersectWithSummary.
+    val summary = summarize()
     checkSharedIds(other, summary)
-    val newStarts = other.store.newRunStarts(summary, other.size)
-
-    // The plan, by position in [newStarts]: the run to append, the parents it gets, and the
-    // lv it lands on. [destStarts] is what lets the plan remap a parent that the plan itself
-    // is about to bring in, without asking a store that does not hold it yet.
-    val plannedRuns = arrayOfNulls<Event>(newStarts.size)
-    val plannedParents = arrayOfNulls<Frontier>(newStarts.size)
-    val destStarts = IntArray(newStarts.size) { NO_UNIT }
-
-    /** The leading units of [event] that this graph already holds. */
-    fun knownUnits(event: Event): Int {
-      return (summary.endSeq(event.agent()) - event.seq()).coerceIn(0, event.length())
-    }
-
-    /**
-     * The lv that the unit [otherLv] of [other] has in the merged graph: the one this graph
-     * already gave it, or the one the plan reserves for it.
-     */
-    fun remap(otherLv: LV): LV {
-      val run = other.runAt(otherLv)
-      val event = run.event
-      val seq = run.seqAt(otherLv)
-      if (seq < summary.endSeq(event.agent())) {
-        val lv = store.lvOfSeq(event.agent(), seq, size)
-        checkRemapped(lv, otherLv)
-        return lv
-      }
-      // A planned run keeps the place its lvStart has in newStarts. Its dest lv is filled in
-      // by now, because a parent always precedes its child and so was planned earlier.
-      val piece = newStarts.binarySearch(run.lvStart)
-      val destStart = if (piece >= 0) destStarts[piece] else NO_UNIT
-      checkRemapped(destStart, otherLv)
-      return destStart + (otherLv - run.lvStart - knownUnits(event))
-    }
-
-    var nextLv = size
-    for (i in newStarts.indices) {
-      val run = other.runAt(newStarts[i])
-      val event = run.event
-      // This graph holds the seqs [0, endSeq) of the agent, so what it already has of
-      // this run is a leading piece, and this is how long that piece is.
-      val known = knownUnits(event)
-      val parents = if (known == 0) {
-        val runParents = run.runParents()
-        val remapped = IntArray(runParents.size) { j: Int ->
-          remap(runParents[j])
-        }
-        remapped.sort()
-        remapped
-      } else {
-        // This graph holds the leading units, so the last of them is the only parent.
-        val lv = store.lvOfSeq(event.agent(), event.seq() + known - 1, size)
-        checkRemapped(lv, newStarts[i])
-        intArrayOf(lv)
-      }
-      val suffix = event.suffixFrom(known)
-      checkLvSpace(suffix.length(), nextLv)
-      plannedRuns[i] = suffix
-      plannedParents[i] = parents
-      destStarts[i] = nextLv
-      nextLv += suffix.length()
-    }
-    // The version remap rejects an unknown unit too, so it belongs in the plan and not
-    // after the appends.
-    val remappedVersion = IntArray(other.version.lvs.size) { i: Int ->
-      remap(other.version.lvs[i])
-    }
-    remappedVersion.sort()
-
+    val plan = MergePlan(this, other, summary)
     // Apply. Every check inside appendImpl already held against the plan, so each one now
     // re-asserts the plan and none of them can reject.
     var graph = this
-    for (i in newStarts.indices) {
-      graph = graph.appendImpl(plannedRuns[i]!!, VersionImpl(plannedParents[i]!!))
+    for (index in 0 until plan.size()) {
+      graph = graph.appendImpl(plan.eventAt(index), plan.parentsAt(index))
     }
-    return MergeResult(graph, size, VersionImpl(remappedVersion))
+    return MergeResult(graph, size, plan.remappedOtherVersion())
   }
 
   private fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
@@ -186,7 +137,7 @@ internal class EventGraphImpl private constructor(
     var hi = runCount - 1
     while (lo < hi) {
       val mid = (lo + hi + 1) ushr 1
-      if (store.runAt(mid).startsAtOrBefore(lv)) {
+      if (store.runByIndex(mid).startsAtOrBefore(lv)) {
         lo = mid
       } else {
         hi = mid - 1
@@ -197,7 +148,7 @@ internal class EventGraphImpl private constructor(
 
   /** The run stored at [index], which must be below [runCount]. */
   fun runByIndex(index: Int): StoredRun {
-    return store.runAt(index)
+    return store.runByIndex(index)
   }
 
   fun parentsOf(lv: LV): Frontier {
@@ -423,12 +374,6 @@ internal class EventGraphImpl private constructor(
   private fun checkLv(lv: LV) {
     require(lv in 0 until size) {
       "The lv $lv is out of the graph of size $size"
-    }
-  }
-
-  private fun checkRemapped(lv: LV, otherLv: LV) {
-    require(lv >= 0) {
-      "The unit at the other graph's lv $otherLv is not in the merged graph"
     }
   }
 

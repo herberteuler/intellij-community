@@ -29,7 +29,11 @@ internal class EventStore private constructor(
   private val agentIndex: HashMap<Agent, ArrayList<AgentRun>>,
 ) {
 
-  fun runAt(index: Int): StoredRun {
+  /**
+   * The run in the slot [index], which counts RUNS. [EventGraphImpl.runAt] takes an lv, which
+   * counts units, so the two names have to differ.
+   */
+  fun runByIndex(index: Int): StoredRun {
     val run = runs[index]
     require(run != null) {
       "The run slot $index is not committed"

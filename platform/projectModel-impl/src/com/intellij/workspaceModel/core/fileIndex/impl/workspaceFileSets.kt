@@ -28,7 +28,28 @@ internal sealed interface StoredFileSetCollection {
   /** Adds a new element to the collection and return the updated set. */
   fun add(fileSet: StoredFileSet): StoredFileSetCollection
 
-  /** Removes elements satisfying the given predicate and returns the update collection if `null` if all elements were removed. */
+  /**
+   * Adds all [fileSets] at once and returns the updated collection. Prefer this to a loop over [add], which rebuilds
+   * the backing list once per element.
+   *
+   * Like [add], this appends within each of the two groups, so elements stay in registration order. [find] returns
+   * the first match, so the order decides which file set wins for a root that has several.
+   */
+  fun addAll(fileSets: List<StoredFileSet>): StoredFileSetCollection {
+    if (fileSets.isEmpty()) return this
+    if (fileSets.size == 1) return add(fileSets[0])
+    val combined = ArrayList<StoredFileSet>(fileSets.size + 2)
+    forEach { if (it is ExcludedFileSet) combined.add(it) }
+    fileSets.filterTo(combined) { it is ExcludedFileSet }
+    forEach { if (it !is ExcludedFileSet) combined.add(it) }
+    fileSets.filterTo(combined) { it !is ExcludedFileSet }
+    return MultipleStoredWorkspaceFileSets(combined)
+  }
+
+  /**
+   * Removes elements satisfying the given predicate and returns the update collection if `null` if all elements were removed.
+   * [predicate] is called exactly once per element, so a caller may collect the removed elements from it.
+   */
   fun removeIf(predicate: (StoredFileSet) -> Boolean): StoredFileSetCollection?
 
   /**
@@ -175,7 +196,9 @@ internal class WorkspaceFileSetImpl(
  */
 private data class TwoWorkspaceFileSets(private val first: WorkspaceFileSetImpl, private val second: WorkspaceFileSetImpl): StoredFileSetCollection, MultipleWorkspaceFileSets {
   override fun add(fileSet: StoredFileSet): StoredFileSetCollection {
-    return MultipleStoredWorkspaceFileSets(listOf(fileSet, first, second))
+    val all: List<StoredFileSet> =
+      if (fileSet is ExcludedFileSet) listOf(fileSet, first, second) else listOf(first, second, fileSet)
+    return MultipleStoredWorkspaceFileSets(all)
   }
 
   override fun removeIf(predicate: (StoredFileSet) -> Boolean): StoredFileSetCollection? {
@@ -236,14 +259,29 @@ private data class TwoWorkspaceFileSets(private val first: WorkspaceFileSetImpl,
  * Represents a generic case with multiple elements in [StoredFileSetCollection].
  */
 internal class MultipleStoredWorkspaceFileSets(private val storedFileSets: List<StoredFileSet>) : StoredFileSetCollection, MultipleWorkspaceFileSets {
+  /**
+   * Returns a new list with [added] merged in, keeping every [ExcludedFileSet] before every [WorkspaceFileSetImpl]
+   * and appending within each of the two groups.
+   */
+  private fun merged(added: List<StoredFileSet>): List<StoredFileSet> {
+    val excluded = added.filterIsInstance<ExcludedFileSet>()
+    if (excluded.isEmpty()) return storedFileSets + added
+    val boundary = storedFileSets.indexOfFirst { it !is ExcludedFileSet }.let { if (it < 0) storedFileSets.size else it }
+    val combined = ArrayList<StoredFileSet>(storedFileSets.size + added.size)
+    combined.addAll(storedFileSets.subList(0, boundary))
+    combined.addAll(excluded)
+    combined.addAll(storedFileSets.subList(boundary, storedFileSets.size))
+    added.filterTo(combined) { it !is ExcludedFileSet }
+    return combined
+  }
+
   override fun add(fileSet: StoredFileSet): StoredFileSetCollection {
-    val updated = if (fileSet is ExcludedFileSet && storedFileSets.last() !is ExcludedFileSet) {
-      listOf(fileSet) + storedFileSets
-    }
-    else {
-      storedFileSets + fileSet
-    }
-    return MultipleStoredWorkspaceFileSets(updated)
+    return MultipleStoredWorkspaceFileSets(merged(listOf(fileSet)))
+  }
+
+  override fun addAll(fileSets: List<StoredFileSet>): StoredFileSetCollection {
+    if (fileSets.isEmpty()) return this
+    return MultipleStoredWorkspaceFileSets(merged(fileSets))
   }
 
   override fun removeIf(predicate: (StoredFileSet) -> Boolean): StoredFileSetCollection? {

@@ -61,16 +61,12 @@ class ShellCommandSpecsManagerImpl(coroutineScope: CoroutineScope) : ShellComman
   private val tracer = TelemetryManager.getTracer(TerminalCompletionScope)
 
   /**
-   * Cache for all **Light** json-based and code based specs with resolved conflicts.
-   * Key is a lowercase name of the command.
+   * Cache for all **Light** json-based and code based specs with resolved conflicts,
+   * together with the json-based **Light** command spec providers.
+   * All the specs are loaded at once, so they are stored as a single cache entry.
    */
-  private val lightSpecsCache: Cache<String, ShellCommandSpec> = Caffeine.newBuilder()
-    .expireAfterAccess(Duration.ofMinutes(5))
-    .scheduler(Scheduler.systemScheduler())
-    .build()
-
-  /** Cache for json-based **Light** command spec providers. Key is a lowercase name of the command */
-  private val jsonBasedSpecProviders: Cache<String, ShellJsonCommandSpecsProvider> = Caffeine.newBuilder()
+  private val commandSpecsCache: Cache<Unit, CommandSpecs> = Caffeine.newBuilder()
+    .maximumSize(1)
     .expireAfterAccess(Duration.ofMinutes(5))
     .scheduler(Scheduler.systemScheduler())
     .build()
@@ -134,21 +130,22 @@ class ShellCommandSpecsManagerImpl(coroutineScope: CoroutineScope) : ShellComman
    * Intended that this method should return fast in most of the cases, because it should not load the whole command specification.
    */
   fun getLightCommandSpec(commandName: String): ShellCommandSpec? {
-    loadCommandSpecsIfNeeded()
-    return lightSpecsCache.getIfPresent(transformCommandName(commandName))
+    return getOrLoadCommandSpecs().lightSpecs[transformCommandName(commandName)]
   }
 
   private fun getJsonCommandSpecProvider(commandName: String): ShellJsonCommandSpecsProvider? {
-    loadCommandSpecsIfNeeded()
-    return jsonBasedSpecProviders.getIfPresent(transformCommandName(commandName))
+    return getOrLoadCommandSpecs().jsonBasedSpecProviders[transformCommandName(commandName)]
   }
 
-  private fun loadCommandSpecsIfNeeded() {
-    if (lightSpecsCache.estimatedSize() != 0L && jsonBasedSpecProviders.estimatedSize() != 0L) {
-      return
-    }
+  private fun getOrLoadCommandSpecs(): CommandSpecs {
+    return commandSpecsCache.get(Unit) { buildCommandSpecs() }
+  }
 
+  private fun buildCommandSpecs(): CommandSpecs {
     val specsDataMap: MultiMap<String, ShellCommandSpecData> = loadCommandSpecs()
+
+    val lightSpecs = HashMap<String, ShellCommandSpec>()
+    val jsonBasedSpecProviders = HashMap<String, ShellJsonCommandSpecsProvider>()
 
     for ((name, specs) in specsDataMap.entrySet()) {
       val specData = if (specs.size > 1) {
@@ -158,13 +155,15 @@ class ShellCommandSpecsManagerImpl(coroutineScope: CoroutineScope) : ShellComman
         specs.first()
       }
 
-      lightSpecsCache.put(transformCommandName(name), specData.spec)
+      lightSpecs[transformCommandName(name)] = specData.spec
 
       val jsonSpecData = specs.find { it.spec is ShellJsonBasedCommandSpec }
       if (jsonSpecData != null) {
-        jsonBasedSpecProviders.put(transformCommandName(name), jsonSpecData.provider as ShellJsonCommandSpecsProvider)
+        jsonBasedSpecProviders[transformCommandName(name)] = jsonSpecData.provider as ShellJsonCommandSpecsProvider
       }
     }
+
+    return CommandSpecs(lightSpecs, jsonBasedSpecProviders)
   }
 
   private fun loadCommandSpecs(): MultiMap<String, ShellCommandSpecData> {
@@ -184,8 +183,7 @@ class ShellCommandSpecsManagerImpl(coroutineScope: CoroutineScope) : ShellComman
   }
 
   private fun clearCaches() {
-    lightSpecsCache.invalidateAll()
-    jsonBasedSpecProviders.invalidateAll()
+    commandSpecsCache.invalidateAll()
     fullSpecsCache.invalidateAll()
   }
 
@@ -268,6 +266,12 @@ class ShellCommandSpecsManagerImpl(coroutineScope: CoroutineScope) : ShellComman
     val spec: ShellCommandSpec,
     val conflictStrategy: ShellCommandSpecConflictStrategy,
     val provider: ShellCommandSpecsProvider
+  )
+
+  /** Keys of both maps are lowercase names of the commands. */
+  private class CommandSpecs(
+    val lightSpecs: Map<String, ShellCommandSpec>,
+    val jsonBasedSpecProviders: Map<String, ShellJsonCommandSpecsProvider>,
   )
 
   companion object {

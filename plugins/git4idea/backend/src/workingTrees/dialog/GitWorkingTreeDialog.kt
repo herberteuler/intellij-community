@@ -4,6 +4,7 @@ package git4idea.workingTrees.dialog
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.observable.properties.GraphProperty
 import com.intellij.openapi.observable.properties.PropertyGraph
 import com.intellij.openapi.observable.util.whenDocumentChanged
@@ -17,6 +18,7 @@ import com.intellij.openapi.ui.validation.WHEN_GRAPH_PROPAGATION_FINISHED
 import com.intellij.openapi.ui.validation.WHEN_PROPERTY_CHANGED
 import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
@@ -79,7 +81,8 @@ internal class GitWorkingTreeDialog(
 
   /** Repositories the user can pick from; the worktree is created for [selectedRepository]. */
   private val candidateRepositories: List<GitRepository> = data.candidateRepositories
-  private val selectedRepository: GraphProperty<GitRepository> = propertyGraph.property(data.initialRepository)
+  private val selectedRepository: GraphProperty<GitRepository> =
+    propertyGraph.property(data.initialState?.repository ?: data.initialRepository)
 
   private lateinit var parentPathCell: Cell<TextFieldWithBrowseButton>
   private lateinit var projectNameCell: Cell<JBTextField>
@@ -87,6 +90,13 @@ internal class GitWorkingTreeDialog(
   private lateinit var refCellRenderer: RefWithTreeCellRenderer
   private lateinit var submoduleWarningRow: Row
   private lateinit var existingRefCell: Cell<ComboBox<RefWithWorkingTree?>>
+  private val additionalSettingsHandles = mutableListOf<GitWorktreeSettingsPanelHandle>()
+  private val configCategoriesPanel: GitWorktreeConfigCategoriesPanel
+  private val setupScriptPanel: GitWorktreeSetupScriptPanel
+
+  /** The .worktreeinclude file the user just created or opened for editing, if any; set right before [close]. */
+  var worktreeIncludeFile: VirtualFile? = null
+    private set
 
   private val validator = GitRefNameValidator.getInstance()
   private val existingRefWithWorkingTree: GraphProperty<RefWithWorkingTree?>
@@ -96,11 +106,18 @@ internal class GitWorkingTreeDialog(
   private val newBranchName: GraphProperty<String>
 
   init {
-    existingRefWithWorkingTree = propertyGraph.property(data.initialExistingRef?.toRefWithWorkingTree())
-    createNewBranch = propertyGraph.property(false)
-    newBranchName = propertyGraph.property("")
-    projectName = propertyGraph.property(suggestProjectName())
-    parentPath = propertyGraph.property(data.initialParentPath ?: "")
+    val savedState = data.initialState
+    existingRefWithWorkingTree = propertyGraph.property((savedState?.existingRef ?: data.initialExistingRef)?.toRefWithWorkingTree())
+    createNewBranch = propertyGraph.property(savedState?.createNewBranch ?: false)
+    newBranchName = propertyGraph.property(savedState?.newBranchName ?: "")
+    setupScriptPanel = GitWorktreeSetupScriptPanel(propertyGraph, savedState, data.project)
+    configCategoriesPanel = GitWorktreeConfigCategoriesPanel(propertyGraph, savedState, ::getCurrentRepository, setupScriptPanel) { file ->
+      worktreeIncludeFile = file
+      close(CREATE_WORKTREE_INCLUDE_EXIT_CODE)
+      OpenFileDescriptor(data.project, file).navigate(true)
+    }
+    projectName = propertyGraph.property(savedState?.projectName ?: suggestProjectName())
+    parentPath = propertyGraph.property(savedState?.parentPath ?: data.initialParentPath ?: "")
     listOf(existingRefWithWorkingTree, createNewBranch, newBranchName).forEach {
       propertyGraph.dependsOn(projectName, it, true, ::suggestProjectName)
     }
@@ -138,7 +155,8 @@ internal class GitWorkingTreeDialog(
   }
 
   override fun createCenterPanel(): JComponent {
-    val newBranchNameField = TextFieldWithCompletion(data.project, createBranchNameCompletion(), "", true, true, false, false)
+    val newBranchNameField =
+      TextFieldWithCompletion(data.project, createBranchNameCompletion(), newBranchName.get(), true, true, false, false)
       .apply {
         minimumSize = JBUI.size(240, 0)
         setupCleanBranchNameAndAdjustCursorIfNeeded()
@@ -229,6 +247,12 @@ internal class GitWorkingTreeDialog(
 
         supportPathComment()
       }
+
+      configCategoriesPanel.buildPanel(this)
+
+      GitWorktreeSettingsPanelProvider.forEachExtensionSafe { provider ->
+        additionalSettingsHandles += provider.createPanel(this, data.project)
+      }
     }
   }
 
@@ -267,6 +291,13 @@ internal class GitWorkingTreeDialog(
     existingRefWithWorkingTree.set(refs.firstOrNull { it.ref == currentBranch } ?: refs.firstOrNull())
     submoduleWarningRow.visible(getCurrentRepository().isSubmodule())
     refCellRenderer.updateRepository(getCurrentRepository())
+    configCategoriesPanel.updateWorktreeIncludeButtons()
+  }
+
+  private fun supportExistingRefComment() {
+    updateExistingRefComment()
+    existingRefWithWorkingTree.afterChange { updateExistingRefComment() }
+    createNewBranch.afterChange { updateExistingRefComment() }
   }
 
   private fun updateExistingRefComment() {
@@ -447,17 +478,46 @@ internal class GitWorkingTreeDialog(
     }
   }
 
+  /** Snapshots the current field values, so a freshly re-created dialog can start from the same state. */
+  internal fun captureState(): GitWorkingTreeDialogState = GitWorkingTreeDialogState(
+    repository = getCurrentRepository(),
+    existingRef = existingRefWithWorkingTree.get()?.ref,
+    createNewBranch = createNewBranch.get(),
+    newBranchName = newBranchName.get(),
+    additionalCopiers = configCategoriesPanel.additionalCopierSelections.mapValues { it.value.get() },
+    copyWorktreeIncludeMatches = configCategoriesPanel.copyWorktreeIncludeMatches.get(),
+    runSetupScript = setupScriptPanel.runSetupScript.get(),
+    setupScriptPath = setupScriptPanel.setupScriptPath.get(),
+    projectName = projectName.get(),
+    parentPath = parentPath.get(),
+    configCategoriesExpanded = configCategoriesPanel.isExpanded(),
+  )
+
   fun getWorkTreeData(): GitWorktreeCreationRequest {
     val path = VcsUtil.getFilePath(Paths.get(parentPath.get()).resolve(projectName.get()), true)
     val ref = existingRefWithWorkingTree.get()!!.ref
     val branch = if (createNewBranch.get()) WorktreeBranchSpec.CreateNewBranch(ref, newBranchName.get())
     else WorktreeBranchSpec.CheckoutExisting(ref)
-    return GitWorktreeCreationRequest(getCurrentRepository(), path, branch)
+    val enabledCopiers = configCategoriesPanel.additionalCopierSelections.filterValues { it.get() }.keys
+    val scriptPath = if (setupScriptPanel.runSetupScript.get() && setupScriptPanel.setupScriptPath.get().isNotBlank()) {
+      Path.of(setupScriptPanel.setupScriptPath.get())
+    }
+    else {
+      null
+    }
+    return GitWorktreeCreationRequest(
+      getCurrentRepository(), path, branch, scriptPath,
+      configCategoriesPanel.copyWorktreeIncludeMatches.get(), additionalSettingsHandles.toList(),
+      enabledCopiers,
+    )
   }
 
   companion object {
 
     const val PROJECT_NAME_FIELD_NAME: String = "Git.Worktree.Dialog.ProjectNameField"
+
+    /** Exit code used when the dialog closes itself to open a newly created or existing .worktreeinclude file. */
+    internal val CREATE_WORKTREE_INCLUDE_EXIT_CODE: Int = DialogWrapper.NEXT_USER_EXIT_CODE
 
     @VisibleForTesting
     internal fun resolveProjectNameBase(repository: GitRepository): Path {

@@ -381,3 +381,26 @@ f:git4idea.validators.GitRefNameValidator
 - checkInput(java.lang.String):Z
 - cleanUpBranchName(java.lang.String):java.lang.String
 - cleanUpBranchNameOnTyping(java.lang.String):java.lang.String
+git4idea.workingTrees.GitWorktreeAdditionalConfigCopier
+- sf:Companion:git4idea.workingTrees.GitWorktreeAdditionalConfigCopier$Companion
+- a:copyAdditionalConfig(git4idea.workingTrees.GitWorktreeConfigCopyContext,kotlin.coroutines.Continuation):java.lang.Object
+- a:getCheckboxText():java.lang.String
+f:git4idea.workingTrees.GitWorktreeAdditionalConfigCopier$Companion
+f:git4idea.workingTrees.GitWorktreeConfigCopyContext
+- <init>(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile,java.nio.file.Path):V
+- f:component1():com.intellij.openapi.project.Project
+- f:component2():com.intellij.openapi.vfs.VirtualFile
+- f:component3():java.nio.file.Path
+- f:copy(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile,java.nio.file.Path):git4idea.workingTrees.GitWorktreeConfigCopyContext
+- bs:copy$default(git4idea.workingTrees.GitWorktreeConfigCopyContext,com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile,java.nio.file.Path,I,java.lang.Object):git4idea.workingTrees.GitWorktreeConfigCopyContext
+- equals(java.lang.Object):Z
+- f:getProject():com.intellij.openapi.project.Project
+- f:getSourceRoot():com.intellij.openapi.vfs.VirtualFile
+- f:getTargetWorktreeDir():java.nio.file.Path
+- hashCode():I
+git4idea.workingTrees.dialog.GitWorktreeSettingsPanelHandle
+- a:apply(git4idea.workingTrees.GitWorktreeConfigCopyContext,kotlin.coroutines.Continuation):java.lang.Object
+git4idea.workingTrees.dialog.GitWorktreeSettingsPanelProvider
+- sf:Companion:git4idea.workingTrees.dialog.GitWorktreeSettingsPanelProvider$Companion
+- a:createPanel(com.intellij.ui.dsl.builder.Panel,com.intellij.openapi.project.Project):git4idea.workingTrees.dialog.GitWorktreeSettingsPanelHandle
+f:git4idea.workingTrees.dialog.GitWorktreeSettingsPanelProvider$Companion

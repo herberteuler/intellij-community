@@ -1106,6 +1106,10 @@
     <extensionPoint interface="git4idea.workingTrees.GitWorktreeOpenPathProvider"
                     qualifiedName="Git4Idea.gitWorktreeOpenPathProvider"
                     dynamic="true"/>
+    <extensionPoint interface="git4idea.workingTrees.GitWorktreeAdditionalConfigCopier"
+                    qualifiedName="Git4Idea.worktreeAdditionalConfigCopier" dynamic="true"/>
+    <extensionPoint interface="git4idea.workingTrees.dialog.GitWorktreeSettingsPanelProvider"
+                    qualifiedName="Git4Idea.worktreeSettingsPanelProvider" dynamic="true"/>
   </extensionPoints>
 
   <projectListeners>

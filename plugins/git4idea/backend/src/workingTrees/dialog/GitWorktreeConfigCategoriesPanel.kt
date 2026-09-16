@@ -1,11 +1,14 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.workingTrees.dialog
 
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.observable.properties.AtomicBooleanProperty
 import com.intellij.openapi.observable.properties.GraphProperty
 import com.intellij.openapi.observable.properties.PropertyGraph
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.ui.components.Badge
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.dsl.builder.AlignX
@@ -21,10 +24,13 @@ import git4idea.i18n.GitBundle
 import git4idea.repo.GitRepository
 import git4idea.workingTrees.GitWorktreeAdditionalConfigCopier
 import git4idea.workingTrees.GitWorktreeIncludeFileService
+import git4idea.workingTrees.GitWorktreeNotifications
+import git4idea.workingTrees.GitWorktreeProjectConfigService
 import git4idea.workingTrees.WORKTREE_INCLUDE_FILE_NAME
 import java.awt.Cursor
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.io.IOException
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JEditorPane
@@ -42,11 +48,20 @@ import javax.swing.SwingConstants
 internal class GitWorktreeConfigCategoriesPanel(
   propertyGraph: PropertyGraph,
   savedState: GitWorkingTreeDialogState?,
+  private val project: Project,
   private val getCurrentRepository: () -> GitRepository,
   private val setupScriptPanel: GitWorktreeSetupScriptPanel,
   private val onEditWorktreeIncludeFile: (VirtualFile) -> Unit,
 ) {
+  companion object {
+    private val LOG = logger<GitWorktreeConfigCategoriesPanel>()
+  }
+
+  private val includeFileService = GitWorktreeIncludeFileService.getInstance(project)
+  private val projectConfigService = GitWorktreeProjectConfigService.getInstance(project)
+
   private val expanded = AtomicBooleanProperty(savedState?.configCategoriesExpanded ?: false)
+  private var previousWorktreeIncludeExists: Boolean? = null
 
   val additionalCopierSelections: Map<GitWorktreeAdditionalConfigCopier, GraphProperty<Boolean>> =
     GitWorktreeAdditionalConfigCopier.getExtensions().associateWith { extension ->
@@ -54,7 +69,7 @@ internal class GitWorktreeConfigCategoriesPanel(
     }
 
   val copyWorktreeIncludeMatches: GraphProperty<Boolean> =
-    propertyGraph.property(savedState?.copyWorktreeIncludeMatches ?: false)
+    propertyGraph.property(savedState?.copyWorktreeIncludeMatches ?: true)
 
   private lateinit var chevron: Cell<JLabel>
   private lateinit var label: Cell<JLabel>
@@ -102,15 +117,24 @@ internal class GitWorktreeConfigCategoriesPanel(
           .gap(RightGap.SMALL)
         worktreeIncludeCreateButton = button(GitBundle.message("working.tree.dialog.button.worktree.include.create")) {
           val repository = getCurrentRepository()
-          val service = GitWorktreeIncludeFileService.getInstance(repository.project)
-          val includeIdeaSettings = !service.isIdeaConfigCommittedToGitBlocking(repository)
+          val includeIdeaSettings = !isIdeaConfigCommittedToGitBlocking(repository)
           val content = GitWorktreeIncludeFileService.generateWorktreeIncludeContent(includeIdeaSettings)
-          service.writeWorktreeIncludeFile(repository, content, includeIdeaSettings)?.let(onEditWorktreeIncludeFile)
+          if (includeFileService.writeWorktreeIncludeFile(repository, content, includeIdeaSettings)) {
+            openWorktreeIncludeFileAndClose()
+          }
+          else {
+            notifyWorktreeIncludeFileWriteFailed(repository)
+          }
         }.gap(RightGap.SMALL)
         worktreeIncludeAddIdeaSettingsButton =
           button(GitBundle.message("working.tree.dialog.button.worktree.include.add.idea.settings")) {
             val repository = getCurrentRepository()
-            GitWorktreeIncludeFileService.getInstance(repository.project).addIdeaSettingsSection(repository)?.let(onEditWorktreeIncludeFile)
+            if (includeFileService.addIdeaSettingsSection(repository)) {
+              openWorktreeIncludeFileAndClose()
+            }
+            else {
+              notifyWorktreeIncludeFileWriteFailed(repository)
+            }
           }.gap(RightGap.SMALL)
         worktreeIncludeEditButton = button(GitBundle.message("working.tree.dialog.button.worktree.include.edit")) {
           openWorktreeIncludeFileAndClose()
@@ -157,11 +181,14 @@ internal class GitWorktreeConfigCategoriesPanel(
     worktreeIncludeCheckBoxCell.enabled(worktreeIncludeExists)
     worktreeIncludeCreateButton.visible(!worktreeIncludeExists)
     worktreeIncludeEditButton.visible(worktreeIncludeExists)
-    copyWorktreeIncludeMatches.set(worktreeIncludeExists)
+    if (!worktreeIncludeExists || previousWorktreeIncludeExists == false) {
+      copyWorktreeIncludeMatches.set(worktreeIncludeExists)
+    }
+    previousWorktreeIncludeExists = worktreeIncludeExists
 
     val canAddIdeaSettings = worktreeIncludeFile != null &&
-      !GitWorktreeIncludeFileService.hasIdeaSettingsSection(VfsUtil.loadText(worktreeIncludeFile)) &&
-      !GitWorktreeIncludeFileService.getInstance(repository.project).isIdeaConfigCommittedToGitBlocking(repository)
+      !hasIdeaSettingsSectionSafely(worktreeIncludeFile) &&
+      !isIdeaConfigCommittedToGitBlocking(repository)
     worktreeIncludeAddIdeaSettingsButton.visible(canAddIdeaSettings)
   }
 
@@ -169,5 +196,27 @@ internal class GitWorktreeConfigCategoriesPanel(
   private fun openWorktreeIncludeFileAndClose() {
     val file = getCurrentRepository().root.findChild(WORKTREE_INCLUDE_FILE_NAME) ?: return
     onEditWorktreeIncludeFile(file)
+  }
+
+  /** Blocks the UI thread behind a modal progress to check whether [repository]'s idea config is committed to git. */
+  private fun isIdeaConfigCommittedToGitBlocking(repository: GitRepository): Boolean =
+    runWithModalProgressBlocking(project, GitBundle.message("working.tree.dialog.worktree.include.checking.idea.config")) {
+      projectConfigService.isIdeaConfigCommittedToGit(repository.root)
+    }
+
+  /** Returns `true` when [file] already has the idea-settings block, or `false` when [file] fails to read. */
+  private fun hasIdeaSettingsSectionSafely(file: VirtualFile): Boolean {
+    val content = try {
+      VfsUtil.loadText(file)
+    }
+    catch (e: IOException) {
+      LOG.warn("Failed to read $file while checking for the idea-settings section", e)
+      return false
+    }
+    return GitWorktreeIncludeFileService.hasIdeaSettingsSection(content)
+  }
+
+  private fun notifyWorktreeIncludeFileWriteFailed(repository: GitRepository) {
+    GitWorktreeNotifications.notifyWorktreeIncludeFileWriteFailed(project, repository.root)
   }
 }

@@ -111,7 +111,7 @@ internal class GitWorkingTreeDialog(
     createNewBranch = propertyGraph.property(savedState?.createNewBranch ?: false)
     newBranchName = propertyGraph.property(savedState?.newBranchName ?: "")
     setupScriptPanel = GitWorktreeSetupScriptPanel(propertyGraph, savedState, data.project)
-    configCategoriesPanel = GitWorktreeConfigCategoriesPanel(propertyGraph, savedState, ::getCurrentRepository, setupScriptPanel) { file ->
+    configCategoriesPanel = GitWorktreeConfigCategoriesPanel(propertyGraph, savedState, data.project, ::getCurrentRepository, setupScriptPanel) { file ->
       worktreeIncludeFile = file
       close(CREATE_WORKTREE_INCLUDE_EXIT_CODE)
       OpenFileDescriptor(data.project, file).navigate(true)
@@ -499,12 +499,7 @@ internal class GitWorkingTreeDialog(
     val branch = if (createNewBranch.get()) WorktreeBranchSpec.CreateNewBranch(ref, newBranchName.get())
     else WorktreeBranchSpec.CheckoutExisting(ref)
     val enabledCopiers = configCategoriesPanel.additionalCopierSelections.filterValues { it.get() }.keys
-    val scriptPath = if (setupScriptPanel.runSetupScript.get() && setupScriptPanel.setupScriptPath.get().isNotBlank()) {
-      Path.of(setupScriptPanel.setupScriptPath.get())
-    }
-    else {
-      null
-    }
+    val scriptPath = setupScriptPanel.getValidatedScriptPath()
     return GitWorktreeCreationRequest(
       getCurrentRepository(), path, branch, scriptPath,
       configCategoriesPanel.copyWorktreeIncludeMatches.get(), additionalSettingsHandles.toList(),
@@ -517,7 +512,7 @@ internal class GitWorkingTreeDialog(
     const val PROJECT_NAME_FIELD_NAME: String = "Git.Worktree.Dialog.ProjectNameField"
 
     /** Exit code used when the dialog closes itself to open a newly created or existing .worktreeinclude file. */
-    internal val CREATE_WORKTREE_INCLUDE_EXIT_CODE: Int = DialogWrapper.NEXT_USER_EXIT_CODE
+    internal const val CREATE_WORKTREE_INCLUDE_EXIT_CODE: Int = NEXT_USER_EXIT_CODE
 
     @VisibleForTesting
     internal fun resolveProjectNameBase(repository: GitRepository): Path {

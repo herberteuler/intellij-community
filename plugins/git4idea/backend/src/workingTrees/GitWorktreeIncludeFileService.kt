@@ -7,7 +7,6 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import git4idea.commands.Git
 import git4idea.commands.GitCommand
 import git4idea.commands.GitLineHandler
@@ -25,7 +24,7 @@ internal const val WORKTREE_INCLUDE_FILE_NAME: String = ".worktreeinclude"
  * [git4idea.workingTrees.dialog.GitWorktreeConfigCategoriesPanel], which only builds and wires up the UI.
  */
 @Service(Service.Level.PROJECT)
-internal class GitWorktreeIncludeFileService(private val project: Project) {
+internal class GitWorktreeIncludeFileService {
 
   companion object {
     private val LOG = logger<GitWorktreeIncludeFileService>()
@@ -99,7 +98,7 @@ internal class GitWorktreeIncludeFileService(private val project: Project) {
     }
 
     internal fun generateWorktreeIncludeContent(includeIdeaSettings: Boolean): String {
-      val content = GitBundle.message("working.tree.dialog.worktree.include.header.comment") +
+      val content = GitBundle.message("working.tree.dialog.worktree.include.header.comment") + "\n" +
         LOCAL_OVERRIDE_NAME_PATTERNS.joinToString("\n") + "\n"
       return if (includeIdeaSettings) content + ideaSettingsSection() else content
     }
@@ -116,7 +115,7 @@ internal class GitWorktreeIncludeFileService(private val project: Project) {
 
     private fun ideaSettingsSection(): String =
       "$IDEA_SETTINGS_SECTION_MARKER\n" +
-      GitBundle.message("working.tree.dialog.worktree.include.idea.settings.comment") +
+      GitBundle.message("working.tree.dialog.worktree.include.idea.settings.comment") + "\n" +
       IDEA_SETTINGS_NAME_PATTERNS.joinToString("\n") + "\n"
 
     /**
@@ -131,52 +130,47 @@ internal class GitWorktreeIncludeFileService(private val project: Project) {
     }
   }
 
-  /** Blocks the UI thread behind a modal progress to check whether [repository]'s idea config is committed to git. */
-  fun isIdeaConfigCommittedToGitBlocking(repository: GitRepository): Boolean =
-    runWithModalProgressBlocking(project, GitBundle.message("working.tree.dialog.worktree.include.checking.idea.config")) {
-      GitWorktreeProjectConfigService.getInstance(project).isIdeaConfigCommittedToGit(repository.root)
-    }
-
   /**
    * Writes a new `.worktreeinclude` file with [content] under [repository]'s root. Also writes this project's
    * own copy of the idea-settings AI-agent skill file when [includeIdeaSettings] is `true`, so an agent working
-   * in this project can find and follow the manual copy procedure. Returns the new file, or `null` on failure.
+   * in this project can find and follow the manual copy procedure. Returns `true` on success; the file always
+   * lands at the fixed [WORKTREE_INCLUDE_FILE_NAME] path under [repository]'s root, so the caller already knows it.
    */
-  fun writeWorktreeIncludeFile(repository: GitRepository, content: String, includeIdeaSettings: Boolean): VirtualFile? {
+  fun writeWorktreeIncludeFile(repository: GitRepository, content: String, includeIdeaSettings: Boolean): Boolean {
     val root = repository.root
-    val fileContent = GitBundle.message("working.tree.dialog.worktree.include.close.comment") + content
+    val fileContent = GitBundle.message("working.tree.dialog.worktree.include.close.comment") + "\n" + content
     return try {
       runWriteAction {
         val newFile = root.createChildData(root, WORKTREE_INCLUDE_FILE_NAME)
         VfsUtil.saveText(newFile, fileContent)
         if (includeIdeaSettings) ensureIdeaSettingsSkillFile(root)
-        newFile
       }
+      true
     }
     catch (e: IOException) {
       LOG.warn("Failed to create $WORKTREE_INCLUDE_FILE_NAME under ${root.path}", e)
-      null
+      false
     }
   }
 
   /**
-   * Appends the idea-settings block to [repository]'s existing `.worktreeinclude` file. Returns the file, or
-   * `null` when it does not exist or the update failed.
+   * Appends the idea-settings block to [repository]'s existing `.worktreeinclude` file. Returns `true` on
+   * success, and `false` both when the file does not exist and when the update fails.
    */
-  fun addIdeaSettingsSection(repository: GitRepository): VirtualFile? {
+  fun addIdeaSettingsSection(repository: GitRepository): Boolean {
     val root = repository.root
-    val file = root.findChild(WORKTREE_INCLUDE_FILE_NAME) ?: return null
-    val updatedContent = appendIdeaSettingsSection(VfsUtil.loadText(file))
+    val file = root.findChild(WORKTREE_INCLUDE_FILE_NAME) ?: return false
     return try {
+      val updatedContent = appendIdeaSettingsSection(VfsUtil.loadText(file))
       runWriteAction {
         VfsUtil.saveText(file, updatedContent)
         ensureIdeaSettingsSkillFile(root)
-        file
       }
+      true
     }
     catch (e: IOException) {
       LOG.warn("Failed to update $WORKTREE_INCLUDE_FILE_NAME under ${root.path}", e)
-      null
+      false
     }
   }
 

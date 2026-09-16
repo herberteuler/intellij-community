@@ -5,8 +5,12 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.JDOMUtil
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vcs.VcsException
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.eel.fs.EelFiles
 import com.intellij.vcsUtil.VcsUtil
 import git4idea.index.getStatus
 import git4idea.index.isAdded
@@ -79,7 +83,7 @@ internal class GitWorktreeProjectConfigService(private val project: Project) {
      *
      * Plain text, not XML-aware: a value already stored relative to `$PROJECT_DIR$` needs no change, since it
      * resolves correctly once the new project opens at the new root, so this only catches a literal absolute
-     * path that leaked in unmacroed, such as a working directory or an env-file path.
+     * path that leaked in without a macro, such as a working directory or an env-file path.
      *
      * A boundary check keeps a match from firing on a path that merely starts with [sourceRootString]: a match
      * is replaced only when the character right after it could not continue the same file or directory name. A
@@ -141,7 +145,7 @@ internal class GitWorktreeProjectConfigService(private val project: Project) {
     private fun readConfigFile(path: Path): String? {
       if (!path.isRegularFile()) return null
       return try {
-        Files.readString(path)
+        EelFiles.readString(path)
       }
       catch (e: IOException) {
         LOG.warn("Failed to read $path", e)
@@ -163,60 +167,67 @@ internal class GitWorktreeProjectConfigService(private val project: Project) {
   }
 
   /**
-   * Returns the subset of [files] that git reports as not yet part of a commit in [root]: untracked, ignored,
-   * or staged but never committed. A staged-but-uncommitted file has no content in any commit yet, so the new
-   * worktree would not have it either unless this service copies it.
+   * Returns the subset of [existingFiles] that git reports as not yet part of a commit in [root]: untracked,
+   * ignored, or staged but never committed. A staged-but-uncommitted file has no content in any commit yet, so
+   * the new worktree would not have it either unless this service copies it.
+   *
+   * The caller filters out a non-regular file first, so this never re-checks one it already ruled out. Throws
+   * [VcsException] when it cannot read the git status, instead of returning an empty set a caller could
+   * mistake for "nothing local to report".
    */
-  private fun findLocalFiles(root: VirtualFile, files: List<Path>): Set<Path> {
-    val existingFiles = files.filter { it.isRegularFile() }
+  private fun findLocalFiles(root: VirtualFile, existingFiles: List<Path>): Set<Path> {
     if (existingFiles.isEmpty()) return emptySet()
 
-    return try {
-      val filePathsByAbsolutePath = existingFiles.associateBy { it.toString() }
-      val filePaths = existingFiles.map { VcsUtil.getFilePath(it.toString(), false) }
-      val statuses = getStatus(project, root, filePaths, withRenames = false, withUntracked = true, withIgnored = true,
-                               expandIgnoredDirectories = true)
-      statuses.asSequence()
-        .filter { !it.isTracked() || isAdded(it.index) }
-        .mapNotNull { filePathsByAbsolutePath[it.path.path] }
-        .toSet()
-    }
-    catch (e: VcsException) {
-      LOG.warn("Failed to read the git status of the local project configuration in $root", e)
-      emptySet()
-    }
+    val filePaths = existingFiles.map { VcsUtil.getFilePath(it.toString(), false) }
+    // Keyed by FilePath.getPath(), not Path.toString(): the latter uses '\' on Windows, while a status
+    // result's path always uses '/', so keying by it would silently drop every match on Windows.
+    val filesByStatusPath = existingFiles.zip(filePaths).associate { (path, filePath) -> filePath.path to path }
+    val statuses = getStatus(project, root, filePaths, withRenames = false, withUntracked = true, withIgnored = true,
+                             expandIgnoredDirectories = true)
+    return statuses.asSequence()
+      .filter { !it.isTracked() || isAdded(it.index) }
+      .mapNotNull { filesByStatusPath[it.path.path] }
+      .toSet()
   }
 
   /**
    * Returns `true` when [sourceRoot]'s `.idea/workspace.xml` is already committed to git. Reuses
    * [findLocalFiles] (git-status-based), not `git ls-files --cached`, since the latter cannot tell a
    * committed file apart from one that is staged but never committed.
+   *
+   * Treats a failed git status read as "not committed", the safer default: it leaves the idea-settings
+   * pattern offered rather than silently skipped.
    */
   internal suspend fun isIdeaConfigCommittedToGit(sourceRoot: VirtualFile): Boolean = withContext(Dispatchers.IO) {
     val workspaceXml = sourceRoot.toNioPath().resolve(IDEA_DIR_NAME).resolve(WORKSPACE_FILE_NAME)
-    workspaceXml.isRegularFile() && findLocalFiles(sourceRoot, listOf(workspaceXml)).isEmpty()
+    if (!workspaceXml.isRegularFile()) return@withContext false
+    try {
+      findLocalFiles(sourceRoot, listOf(workspaceXml)).isEmpty()
+    }
+    catch (e: VcsException) {
+      LOG.warn("Failed to read the git status of $workspaceXml", e)
+      false
+    }
   }
 
   /**
    * Copies every local file under [sourceRoot] that matches a pattern in its `.worktreeinclude` file, then
    * cleans up the freshly copied idea settings so the new worktree does not inherit a stale project identity
    * or an absolute path pointing back at [sourceRoot]. Returns the target paths this run failed to write.
+   *
+   * Throws [VcsException] when it cannot read the `.worktreeinclude` matches or the git status of a match.
+   * An empty result list already means "found nothing to copy", so swallowing either failure here would make
+   * the caller believe nothing needed copying.
    */
-  suspend fun copyWorktreeIncludeFiles(sourceRoot: VirtualFile, targetWorktreeDir: Path): List<Path> {
+  suspend fun copyAndCleanUpWorktreeIncludeFiles(sourceRoot: VirtualFile, targetWorktreeDir: Path): List<Path> {
     val worktreeIncludeFile = sourceRoot.toNioPath().resolve(WORKTREE_INCLUDE_FILE_NAME)
     if (!worktreeIncludeFile.isRegularFile()) return emptyList()
 
     return withContext(Dispatchers.IO) {
-      val matches = try {
-        GitWorktreeIncludeFileService.findWorktreeIncludeMatches(project, sourceRoot, worktreeIncludeFile)
-      }
-      catch (e: VcsException) {
-        LOG.warn("Failed to read .worktreeinclude matches in $sourceRoot", e)
-        return@withContext emptyList()
-      }
+      val matches = GitWorktreeIncludeFileService.findWorktreeIncludeMatches(project, sourceRoot, worktreeIncludeFile)
 
       val sourceRootPath = sourceRoot.toNioPath()
-      val localFiles = findLocalFiles(sourceRoot, matches)
+      val localFiles = findLocalFiles(sourceRoot, matches.filter { it.isRegularFile() })
       val copiedFiles = mutableListOf<Path>()
       val failedFiles = mutableListOf<Path>()
       for (sourceFile in localFiles) {
@@ -224,7 +235,23 @@ internal class GitWorktreeProjectConfigService(private val project: Project) {
         if (targetFile.exists()) continue
         if (copyConfigFile(sourceFile, targetFile)) copiedFiles.add(targetFile) else failedFiles.add(targetFile)
       }
-      failedFiles + cleanUpCopiedProjectFiles(copiedFiles, sourceRootPath, targetWorktreeDir)
+      val failedCleanup = cleanUpCopiedProjectFiles(copiedFiles, sourceRootPath, targetWorktreeDir)
+      // Refreshed last, so the IDE sees cleanUpCopiedProjectFiles' rewritten content, not the raw copy.
+      refreshCopiedFiles(copiedFiles)
+      failedFiles + failedCleanup
+    }
+  }
+
+  /**
+   * Forces the IDE to see every file in [copiedFiles] right away. They were written through raw NIO calls, so
+   * without this the native file watcher has to work through the whole freshly checked-out worktree first,
+   * and can take minutes to notice them.
+   */
+  private fun refreshCopiedFiles(copiedFiles: List<Path>) {
+    val localFileSystem = LocalFileSystem.getInstance()
+    for (path in copiedFiles) {
+      val virtualFile = localFileSystem.refreshAndFindFileByNioFile(path) ?: continue
+      VfsUtil.markDirtyAndRefresh(false, false, false, virtualFile)
     }
   }
 
@@ -236,8 +263,11 @@ internal class GitWorktreeProjectConfigService(private val project: Project) {
    * target paths this failed to write.
    */
   private fun cleanUpCopiedProjectFiles(copiedFiles: List<Path>, sourceRootPath: Path, targetWorktreeDir: Path): List<Path> {
-    val sourceRootString = sourceRootPath.toString()
-    val targetRootString = targetWorktreeDir.toString()
+    // Escaped for XML, since remapAbsolutePaths inserts this text as-is into an .xml or .iml file.
+    val sourceRootString = StringUtil.escapeXmlEntities(sourceRootPath.toString())
+    // Escaped for XML, since remapAbsolutePaths inserts this text as-is into an .xml or .iml file: an
+    // unescaped '&' in the target path would otherwise leave the file unparsable.
+    val targetRootString = StringUtil.escapeXmlEntities(targetWorktreeDir.toString())
     val failedFiles = mutableListOf<Path>()
     for (targetFile in copiedFiles) {
       if (!isCleanupCandidate(targetFile, targetWorktreeDir)) continue

@@ -4,6 +4,7 @@ package git4idea.workingTrees
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.platform.eel.ExecuteProcessException
+import com.intellij.platform.eel.path.EelPathException
 import com.intellij.platform.eel.provider.asEelPath
 import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.platform.eel.provider.toEelApi
@@ -15,6 +16,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * Runs the optional setup script a user picks in the New Worktree dialog, after the worktree and its copied
@@ -22,7 +24,7 @@ import java.nio.file.Path
  */
 internal object GitWorktreeSetupScriptRunner {
   private val LOG = logger<GitWorktreeSetupScriptRunner>()
-  private const val SETUP_SCRIPT_TIMEOUT_MS = 5 * 60 * 1000L
+  private val SETUP_SCRIPT_TIMEOUT = 5.minutes
 
   /**
    * Runs [scriptPath] once, with [worktreeDir] as both the working directory and the sole command-line
@@ -40,19 +42,25 @@ internal object GitWorktreeSetupScriptRunner {
         .workingDirectory(eelWorktreeDir)
         .eelIt()
     }
+    catch (e: EelPathException) {
+      LOG.warn("Could not map the setup script or the worktree path to the eel environment", e)
+      return@withContext false
+    }
     catch (e: ExecuteProcessException) {
       LOG.warn("Failed to start the setup script $scriptPath", e)
       return@withContext false
     }
     try {
-      val result = withTimeoutOrNull(SETUP_SCRIPT_TIMEOUT_MS) { process.awaitProcessResult() }
+      val result = withTimeoutOrNull(SETUP_SCRIPT_TIMEOUT) { process.awaitProcessResult() }
       if (result == null) {
+        // Eel exposes no cross-platform way to kill a process's descendants, so a script that spawns its own
+        // child processes can leave them running after this kill.
         process.kill()
         LOG.warn("The setup script $scriptPath timed out.")
         false
       }
       else {
-        LOG.info("Setup script $scriptPath finished with exit code ${result.exitCode}.")
+        LOG.info("Setup script $scriptPath finished with result $result")
         result.exitCode == 0
       }
     }

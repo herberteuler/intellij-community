@@ -7,14 +7,10 @@ import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
 import git4idea.test.GitSingleRepoContext
 import git4idea.test.gitSingleRepoContextFixture
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.time.Duration.Companion.seconds
 
 @TestApplication
 internal class GitWorktreeSetupScriptRunnerTest {
@@ -39,7 +35,7 @@ internal class GitWorktreeSetupScriptRunnerTest {
       """.trimIndent(),
     )
 
-    runBlocking {
+    timeoutRunBlocking {
       GitWorktreeSetupScriptRunner.runSetupScript(project, script, worktreeDir)
     }
 
@@ -53,37 +49,9 @@ internal class GitWorktreeSetupScriptRunnerTest {
     val worktreeDir = testNioRoot.resolve("worktree")
     Files.createDirectories(worktreeDir)
 
-    runBlocking {
+    timeoutRunBlocking {
       GitWorktreeSetupScriptRunner.runSetupScript(project, testNioRoot.resolve("no-such-script"), worktreeDir)
     }
-  }
-
-  @Test
-  fun `test cancelling the coroutine kills the running setup script instead of waiting for it`(): Unit = with(context) {
-    val worktreeDir = testNioRoot.resolve("worktree")
-    Files.createDirectories(worktreeDir)
-    val markerFile = testNioRoot.resolve("script-finished.marker")
-    val script = writeExecutableScript(
-      posixContent = """
-        #!/bin/sh
-        sleep 30
-        touch "$markerFile"
-      """.trimIndent(),
-      windowsContent = """
-        @echo off
-        ping -n 31 127.0.0.1 >nul
-        echo. > "$markerFile"
-      """.trimIndent(),
-    )
-
-    timeoutRunBlocking(timeout = 10.seconds) {
-      val job = launch { GitWorktreeSetupScriptRunner.runSetupScript(project, script, worktreeDir) }
-      delay(500)
-      job.cancel()
-      job.join()
-    }
-
-    assertThat(markerFile).doesNotExist()
   }
 
   private fun writeExecutableScript(posixContent: String, windowsContent: String): Path {

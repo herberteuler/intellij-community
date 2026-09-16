@@ -3,7 +3,6 @@ package git4idea.workingTrees
 
 import com.intellij.openapi.util.JDOMUtil
 import com.intellij.openapi.util.io.IoTestUtil
-import com.intellij.openapi.vcs.Executor.touch
 import com.intellij.testFramework.junit5.TestApplication
 import git4idea.test.GitSingleRepoContext
 import git4idea.test.file
@@ -17,7 +16,7 @@ import java.nio.file.Path
 import kotlin.io.path.writeText
 
 /**
- * Tests [GitWorktreeProjectConfigService.copyWorktreeIncludeFiles], the single copy mechanism for both idea
+ * Tests [GitWorktreeProjectConfigService.copyAndCleanUpWorktreeIncludeFiles], the single copy mechanism for both idea
  * settings and any other .worktreeinclude match, and its post-copy cleanup pass.
  */
 @TestApplication
@@ -34,7 +33,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(Files.readString(targetDir.resolve("notes/todo.md"))).isEqualTo("buy milk")
@@ -51,7 +50,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.writeString(targetFile, "existing target content")
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(Files.readString(targetFile)).isEqualTo("existing target content")
@@ -67,7 +66,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(targetDir.resolve("config/local.txt")).doesNotExist()
@@ -82,7 +81,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(Files.readString(targetDir.resolve("notes/todo.md"))).isEqualTo("buy milk")
@@ -97,7 +96,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(Files.readString(targetDir.resolve(WORKTREE_INCLUDE_FILE_NAME))).isEqualTo("$WORKTREE_INCLUDE_FILE_NAME\nnotes/*.md\n")
@@ -115,7 +114,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(Files.readString(targetDir.resolve(skillPath))).isEqualTo("skill content")
@@ -129,7 +128,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     Files.list(targetDir).use { assertThat(it.count()).isZero() }
@@ -145,7 +144,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(targetDir.resolve("notes/todo.md")).exists()
@@ -160,7 +159,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(targetDir.resolve("notes/todo.md")).doesNotExist()
@@ -179,7 +178,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     val failedFiles = runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(Files.readString(targetDir.resolve("notes/todo.md"))).isEqualTo("buy milk")
@@ -239,7 +238,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     val targetWorkspace = JDOMUtil.load(targetDir.resolve(".idea/workspace.xml"))
@@ -269,7 +268,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     val targetWorkspace = JDOMUtil.load(targetDir.resolve(".idea/workspace.xml"))
@@ -290,7 +289,7 @@ internal class GitWorktreeIncludeCopyAndCleanupTest {
     Files.createDirectories(targetDir)
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     val targetXml = JDOMUtil.load(targetDir.resolve("config/local.xml"))

@@ -2,7 +2,7 @@
 package git4idea.workingTrees
 
 import com.intellij.openapi.util.JDOMUtil
-import com.intellij.openapi.vcs.Executor.touch
+import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.platform.testFramework.junit5.eel.params.api.DockerTest
 import com.intellij.platform.testFramework.junit5.eel.params.api.EelHolder
 import com.intellij.platform.testFramework.junit5.eel.params.api.TestApplicationWithEel
@@ -16,7 +16,7 @@ import org.junit.jupiter.params.ParameterizedClass
 import java.nio.file.Files
 
 /**
- * Runs [GitWorktreeProjectConfigService.copyWorktreeIncludeFiles] with the source repository and the target
+ * Runs [GitWorktreeProjectConfigService.copyAndCleanUpWorktreeIncludeFiles] with the source repository and the target
  * worktree directory backed by an Eel filesystem, not the JVM default one. [GitWorktreeProjectConfigService.copyConfigFile]
  * needs no change for this: a plain `java.nio.file.Path`/`Files.*` call is already Eel-routed. These tests
  * exist to check that claim, and to check that [GitWorktreeProjectConfigService.remapAbsolutePaths] compares
@@ -50,9 +50,12 @@ internal class GitWorktreeProjectConfigServiceEelTest(@Suppress("unused") val ee
 
     val targetDir = testNioRoot.resolve("target")
     Files.createDirectories(targetDir)
+    // The opened project's own root is allowed by the test framework; this sibling directory, the target of
+    // the new worktree, is not, until refreshCopiedFiles's VFS refresh needs it allowed too.
+    VfsRootAccess.allowRootAccess(project, targetDir.toString())
 
     runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     val targetWorkspace = JDOMUtil.load(targetDir.resolve(".idea/workspace.xml"))
@@ -80,9 +83,10 @@ internal class GitWorktreeProjectConfigServiceEelTest(@Suppress("unused") val ee
 
     val targetDir = testNioRoot.resolve("target")
     Files.createDirectories(targetDir)
+    VfsRootAccess.allowRootAccess(project, targetDir.toString())
 
     val failedFiles = runBlocking {
-      GitWorktreeProjectConfigService.getInstance(project).copyWorktreeIncludeFiles(repo.root, targetDir)
+      GitWorktreeProjectConfigService.getInstance(project).copyAndCleanUpWorktreeIncludeFiles(repo.root, targetDir)
     }
 
     assertThat(failedFiles).isEmpty()

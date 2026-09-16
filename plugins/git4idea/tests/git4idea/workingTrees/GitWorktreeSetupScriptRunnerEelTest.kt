@@ -40,13 +40,14 @@ internal class GitWorktreeSetupScriptRunnerEelTest(@Suppress("unused") val eelHo
     val worktreeDir = testNioRoot.resolve("worktree")
     Files.createDirectories(worktreeDir)
     val outputFile = testNioRoot.resolve("setup-script-output.txt")
+    val eelOutputFile = outputFile.asEelPath()
     val script = testNioRoot.resolve("setup-script.sh")
     Files.writeString(
       script,
       """
         #!/bin/sh
-        pwd > "$outputFile"
-        echo "$1" >> "$outputFile"
+        pwd > "$eelOutputFile"
+        echo "$1" >> "$eelOutputFile"
       """.trimIndent(),
     )
     Files.setPosixFilePermissions(

@@ -2449,7 +2449,6 @@ f:git4idea.index.GitIndexStatusUtilKt
 - sf:getFileStatus(com.intellij.openapi.vfs.VirtualFile,com.intellij.openapi.vcs.FilePath,git4idea.config.GitExecutable):git4idea.index.LightFileStatus
 - sf:getRepositoryPath(git4idea.index.LightFileStatus):java.lang.String
 - sf:getStatus(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile,java.util.List,Z,Z,Z):java.util.List
-- bs:getStatus$default(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile,java.util.List,Z,Z,Z,I,java.lang.Object):java.util.List
 - sf:isAdded(C):Z
 - sf:isConflicted(C,C):Z
 - sf:isDeleted(C):Z

@@ -89,9 +89,18 @@ define_kt_toolchain(
 # Default Kotlin toolchain: `@rules_kotlin//kotlin/internal:default_toolchain` plus multiplex mode, so one worker
 # process serves every `KotlinCompile` action. Each `MODULE.bazel` registers it, and a root-module registration wins
 # over the one from `rules_kotlin`. `--extra_toolchains` overrides it.
+#
+# BAZEL-3397 Also, it sets proper version of annotations library (instead of default one v23) so it properly resolves when monorepo is opened with Bazel plugin
 define_kt_toolchain(
     name = "kotlin_multiplex_toolchain",
     experimental_multiplex_workers = True,
+    jvm_runtime = [
+        ":kotlin-stdlib_import",
+    ],
+    jvm_stdlibs = [
+        ":annotations_import",
+        ":kotlin-stdlib_import",
+    ],
 )
 
 # --@rules_jvm//:trace

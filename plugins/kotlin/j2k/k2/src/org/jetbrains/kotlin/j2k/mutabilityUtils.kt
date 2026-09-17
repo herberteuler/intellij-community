@@ -312,7 +312,7 @@ fun JKVariable.hasWritableUsages(scope: JKTreeElement, context: ConverterContext
     findWritableUsages(scope, context).isNotEmpty()
 
 
-private fun jpaAnnotations(vararg simpleNames: String): Set<String> =
+internal fun jpaAnnotations(vararg simpleNames: String): Set<String> =
     simpleNames.flatMapTo(mutableSetOf()) { listOf("javax.persistence.$it", "jakarta.persistence.$it") }
 
 // JPA and @Volatile fields should always be mutable

@@ -48,7 +48,9 @@ abstract class AbstractJavaToKotlinConverterTest : KotlinLightCodeInsightFixture
 
     protected fun addJpaAnnotations() {
         for (pkg in listOf("javax.persistence", "jakarta.persistence")) {
-            for (name in listOf("Column", "Embedded", "GeneratedValue", "Id", "OneToMany", "Transient", "Version")) {
+            for (name in listOf(
+                "Column", "Embedded", "GeneratedValue", "Id", "ManyToMany", "OneToMany", "Transient", "Version"
+            )) {
                 myFixture.addClass(
                     """
                     package $pkg;

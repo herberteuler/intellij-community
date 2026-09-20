@@ -27,7 +27,8 @@ import java.awt.Color
 
 object ReviewInEditorUtil {
 
-  internal val REVIEW_CHANGED_LINES_COLOR: ColorKey = ColorKey.createColorKey("REVIEW_CHANGED_LINES_COLOR")
+  @ApiStatus.Internal
+  val REVIEW_CHANGED_LINES_COLOR: ColorKey = ColorKey.createColorKey("REVIEW_CHANGED_LINES_COLOR")
 
   val REVIEW_CHANGES_STATUS_COLOR: JBColor =
     JBColor.namedColor("Review.Editor.Line.Status.Marker", JBColor(0xF8A0DF, 0x8A4175))

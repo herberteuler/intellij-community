@@ -351,26 +351,6 @@ e:com.intellij.collaboration.ui.codereview.details.data.ReviewState
 - s:getEntries():kotlin.enums.EnumEntries
 - s:valueOf(java.lang.String):com.intellij.collaboration.ui.codereview.details.data.ReviewState
 - s:values():com.intellij.collaboration.ui.codereview.details.data.ReviewState[]
-a:com.intellij.collaboration.ui.codereview.diff.action.CodeReviewDiscussionsToggleAction
-- com.intellij.openapi.actionSystem.ActionGroup
-- com.intellij.openapi.project.DumbAware
-- <init>():V
-- pa:findViewModel(com.intellij.openapi.actionSystem.DataContext):com.intellij.collaboration.ui.codereview.diff.model.CodeReviewDiscussionsViewModel
-- getActionUpdateThread():com.intellij.openapi.actionSystem.ActionUpdateThread
-- getChildren(com.intellij.openapi.actionSystem.AnActionEvent):com.intellij.openapi.actionSystem.AnAction[]
-- update(com.intellij.openapi.actionSystem.AnActionEvent):V
-com.intellij.collaboration.ui.codereview.diff.viewer.DiffMapped
-- a:getLocation():kotlinx.coroutines.flow.Flow
-- a:isVisible():kotlinx.coroutines.flow.Flow
-f:com.intellij.collaboration.ui.codereview.diff.viewer.DiffViewerUtilKt
-- sf:showCodeReview(com.intellij.diff.tools.util.base.DiffViewerBase,kotlin.jvm.functions.Function6,kotlin.coroutines.Continuation):java.lang.Object
-- sf:showCodeReview(com.intellij.openapi.editor.ex.EditorEx,com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorModel,kotlin.jvm.functions.Function2,kotlin.coroutines.Continuation):java.lang.Object
-f:com.intellij.collaboration.ui.codereview.editor.action.CodeReviewEditorShowFileDiffAction
-- com.intellij.openapi.project.DumbAwareAction
-- <init>():V
-- actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent):V
-- getActionUpdateThread():com.intellij.openapi.actionSystem.ActionUpdateThread
-- update(com.intellij.openapi.actionSystem.AnActionEvent):V
 f:com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory
 - sf:INSTANCE:com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory
 f:com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory$IconConfig
@@ -404,11 +384,6 @@ f:com.intellij.collaboration.util.ChangesSelectionKt
 f:com.intellij.collaboration.util.CodeReviewFilesUtil
 - sf:INSTANCE:com.intellij.collaboration.util.CodeReviewFilesUtil
 f:com.intellij.collaboration.util.ComputableSequenceKt
-f:com.intellij.collaboration.util.ExcludingApproximateChangedRangesShifter
-- sf:INSTANCE:com.intellij.collaboration.util.ExcludingApproximateChangedRangesShifter
-- f:shift(java.lang.Iterable,java.lang.Iterable):java.util.List
-f:com.intellij.collaboration.util.HideableKt
-- sf:syncOrToggleAll(kotlin.sequences.Sequence):V
 f:com.intellij.collaboration.util.IncrementallyComputedValue
 - sf:Companion:com.intellij.collaboration.util.IncrementallyComputedValue$Companion
 - f:getExceptionOrNull():java.lang.Exception
@@ -447,9 +422,6 @@ f:com.intellij.collaboration.util.ProgressIndicatorsProvider
 - f:acquireIndicator():com.intellij.openapi.progress.ProgressIndicator
 - dispose():V
 - f:releaseIndicator(com.intellij.openapi.progress.ProgressIndicator):Z
-f:com.intellij.collaboration.util.RefComparisonChangeKt
-- sf:getFilePath(com.intellij.collaboration.util.RefComparisonChange):com.intellij.openapi.vcs.FilePath
-- sf:getFileStatus(com.intellij.collaboration.util.RefComparisonChange):com.intellij.openapi.vcs.FileStatus
 f:com.intellij.collaboration.util.ResultUtil
 - sf:INSTANCE:com.intellij.collaboration.util.ResultUtil
 - f:processErrorAndGet(java.lang.Object,kotlin.jvm.functions.Function1):java.lang.Object

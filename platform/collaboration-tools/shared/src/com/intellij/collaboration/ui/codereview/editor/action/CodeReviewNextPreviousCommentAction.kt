@@ -1,7 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 @file:Suppress("ActionPresentationInstantiatedInCtor")
 
-package com.intellij.collaboration.action
+package com.intellij.collaboration.ui.codereview.editor.action
 
 import com.intellij.collaboration.messages.CollaborationToolsBundle
 import com.intellij.collaboration.ui.codereview.editor.CodeReviewNavigableEditorViewModel

@@ -677,30 +677,12 @@ f:com.intellij.collaboration.api.json.JsonHttpApiHelperKt
 - getRequiredConversationsResolved():kotlinx.coroutines.flow.SharedFlow
 - a:getShowJobsDetailsRequests():kotlinx.coroutines.flow.SharedFlow
 - a:showJobsDetails():V
-*a:com.intellij.collaboration.ui.codereview.diff.AddCommentGutterIconRenderer
-- com.intellij.openapi.Disposable
-- com.intellij.openapi.editor.markup.GutterIconRenderer
-- com.intellij.openapi.project.DumbAware
-- <init>():V
-- getTooltipText():java.lang.String
-- getVisibleIcon():javax.swing.Icon
-- setVisibleIcon(javax.swing.Icon):V
 *f:com.intellij.collaboration.ui.codereview.diff.AsyncDiffRequestProcessorFactory
 - sf:INSTANCE:com.intellij.collaboration.ui.codereview.diff.AsyncDiffRequestProcessorFactory
 - f:createCombinedIn(kotlinx.coroutines.CoroutineScope,com.intellij.openapi.project.Project,kotlinx.coroutines.flow.Flow,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1):com.intellij.diff.tools.combined.CombinedDiffComponentProcessor
 - f:createIn(kotlinx.coroutines.CoroutineScope,com.intellij.openapi.project.Project,kotlinx.coroutines.flow.Flow,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function1):com.intellij.diff.impl.DiffRequestProcessor
 *:com.intellij.collaboration.ui.codereview.diff.DiffEditorGutterIconRendererFactory
 - a:createCommentRenderer(I):com.intellij.collaboration.ui.codereview.diff.AddCommentGutterIconRenderer
-*e:com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOption
-- java.lang.Enum
-- sf:ALL:com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOption
-- sf:DONT_SHOW:com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOption
-- sf:UNRESOLVED_ONLY:com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOption
-- s:getEntries():kotlin.enums.EnumEntries
-- s:valueOf(java.lang.String):com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOption
-- s:values():com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOption[]
-*f:com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOptionKt
-- sf:toActionName(com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOption):java.lang.String
 *f:com.intellij.collaboration.ui.codereview.diff.EditorComponentInlaysManager
 - com.intellij.openapi.Disposable
 - *sf:Companion:com.intellij.collaboration.ui.codereview.diff.EditorComponentInlaysManager$Companion
@@ -724,9 +706,6 @@ f:com.intellij.collaboration.api.json.JsonHttpApiHelperKt
 - bs:showChange$default(com.intellij.collaboration.ui.codereview.diff.model.CodeReviewDiffProcessorViewModel,java.lang.Object,com.intellij.collaboration.ui.codereview.diff.model.DiffViewerScrollRequest,I,java.lang.Object):V
 *:com.intellij.collaboration.ui.codereview.diff.model.CodeReviewDiffProcessorViewModel$State
 - a:getSelectedChanges():com.intellij.openapi.ListSelection
-*:com.intellij.collaboration.ui.codereview.diff.model.CodeReviewDiscussionsViewModel
-- a:getDiscussionsViewOption():kotlinx.coroutines.flow.StateFlow
-- a:setDiscussionsViewOption(com.intellij.collaboration.ui.codereview.diff.DiscussionsViewOption):V
 *:com.intellij.collaboration.ui.codereview.diff.model.DiffViewerScrollRequest
 - *sf:Companion:com.intellij.collaboration.ui.codereview.diff.model.DiffViewerScrollRequest$Companion
 *f:com.intellij.collaboration.ui.codereview.diff.model.DiffViewerScrollRequest$Companion
@@ -756,44 +735,6 @@ f:com.intellij.collaboration.api.json.JsonHttpApiHelperKt
 - com.intellij.collaboration.ui.codereview.diff.model.RefComparisonChangesSorter
 - sf:INSTANCE:com.intellij.collaboration.ui.codereview.diff.model.RefComparisonChangesSorter$None
 - sort(java.util.List):java.util.List
-f:com.intellij.collaboration.ui.codereview.diff.viewer.DiffViewerUtilKt
-- *sf:controlInlaysIn(com.intellij.diff.tools.util.base.DiffViewerBase,kotlinx.coroutines.CoroutineScope,kotlinx.coroutines.flow.Flow,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2):V
-- *sf:showCodeReview(com.intellij.diff.tools.util.base.DiffViewerBase,kotlin.jvm.functions.Function3,kotlin.jvm.functions.Function2,kotlin.coroutines.Continuation):java.lang.Object
-- *sf:showCodeReview(com.intellij.diff.tools.util.base.DiffViewerBase,kotlin.jvm.functions.Function6,kotlin.jvm.functions.Function2,kotlin.coroutines.Continuation):java.lang.Object
-*:com.intellij.collaboration.ui.codereview.editor.CodeReviewActiveRangesTracker
-- a:getActiveRanges():kotlinx.coroutines.flow.StateFlow
-- a:rangeActivated(com.intellij.diff.util.LineRange,kotlin.coroutines.Continuation):java.lang.Object
-*Fc:com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorGutterChangesRenderer
-- com.intellij.openapi.vcs.ex.LineStatusMarkerRendererWithPopup
-- *sf:Companion:com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorGutterChangesRenderer$Companion
-- <init>(com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorGutterActionableChangesModel,com.intellij.openapi.editor.Editor,com.intellij.openapi.Disposable,com.intellij.openapi.diff.LineStatusMarkerColorScheme):V
-- b:<init>(com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorGutterActionableChangesModel,com.intellij.openapi.editor.Editor,com.intellij.openapi.Disposable,com.intellij.openapi.diff.LineStatusMarkerColorScheme,I,kotlin.jvm.internal.DefaultConstructorMarker):V
-*f:com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorGutterChangesRenderer$Companion
-- f:render(com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorGutterActionableChangesModel,com.intellij.openapi.editor.Editor,kotlin.coroutines.Continuation):java.lang.Object
-*f:com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorInlayRangeOutlineUtils
-- sf:INSTANCE:com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorInlayRangeOutlineUtils
-- f:showInlayOutline(com.intellij.openapi.editor.ex.EditorEx,com.intellij.collaboration.ui.codereview.editor.CodeReviewCommentableEditorModel$WithMultilineComments,com.intellij.collaboration.ui.codereview.editor.CodeReviewInlayModel$Ranged,com.intellij.collaboration.ui.codereview.editor.CodeReviewComponentInlayRenderer,com.intellij.collaboration.ui.codereview.editor.CodeReviewActiveRangesTracker,kotlin.coroutines.Continuation):java.lang.Object
-- f:wrapWithDimming(javax.swing.JComponent,com.intellij.collaboration.ui.codereview.editor.CodeReviewInlayModel$Ranged,com.intellij.collaboration.ui.codereview.editor.CodeReviewActiveRangesTracker):javax.swing.JComponent
-*f:com.intellij.collaboration.ui.codereview.editor.CodeReviewEditorInlayRangeOutlineUtilsKt
-- sf:CodeReviewActiveRangesTracker():com.intellij.collaboration.ui.codereview.editor.CodeReviewActiveRangesTracker
-*:com.intellij.collaboration.ui.codereview.editor.CodeReviewInEditorViewModel
-- com.intellij.collaboration.ui.codereview.diff.model.CodeReviewDiscussionsViewModel
-- a:getUpdateRequired():kotlinx.coroutines.flow.StateFlow
-- a:updateBranch():V
-*f:com.intellij.collaboration.ui.codereview.editor.ReviewInEditorUtil
-- sf:INSTANCE:com.intellij.collaboration.ui.codereview.editor.ReviewInEditorUtil
-- f:getREVIEW_CHANGES_STATUS_COLOR():com.intellij.ui.JBColor
-- f:getREVIEW_STATUS_MARKER_COLOR_SCHEME():com.intellij.openapi.diff.LineStatusMarkerColorScheme
-- f:isLastBlankLine(com.intellij.openapi.editor.Document,I):Z
-- f:showReviewToolbar(com.intellij.collaboration.ui.codereview.editor.CodeReviewInEditorViewModel,com.intellij.openapi.editor.Editor,kotlin.coroutines.Continuation):java.lang.Object
-- f:showReviewToolbarWithActions(com.intellij.collaboration.ui.codereview.editor.CodeReviewInEditorViewModel,com.intellij.openapi.editor.Editor,com.intellij.openapi.actionSystem.AnAction[],kotlin.coroutines.Continuation):java.lang.Object
-- f:trackDocumentDiffSync(com.intellij.openapi.editor.Document,com.intellij.openapi.editor.Document,kotlin.jvm.functions.Function1,kotlin.coroutines.Continuation):java.lang.Object
-- f:trackDocumentDiffSync(java.lang.CharSequence,com.intellij.openapi.editor.Document,kotlin.jvm.functions.Function1,kotlin.coroutines.Continuation):java.lang.Object
-- f:transferLineFromAfter(java.util.List,I,Z):java.lang.Integer
-- bs:transferLineFromAfter$default(com.intellij.collaboration.ui.codereview.editor.ReviewInEditorUtil,java.util.List,I,Z,I,java.lang.Object):java.lang.Integer
-- f:transferLineToAfter(java.util.List,I):I
-*f:com.intellij.collaboration.ui.codereview.editor.ReviewInEditorUtilKt
-- sf:asLst(com.intellij.diff.util.Range):com.intellij.openapi.vcs.ex.Range
 *f:com.intellij.collaboration.ui.codereview.issues.IssueIdsProcessorKt
 - sf:markdownLink(java.lang.String,java.lang.String):java.lang.String
 - sf:processIssueIdsHtml(com.intellij.openapi.project.Project,java.lang.String):java.lang.String
@@ -1318,9 +1259,6 @@ f:com.intellij.collaboration.util.ComputableSequenceKt
 - *sf:map(com.intellij.collaboration.util.ComputableSequence,kotlin.jvm.functions.Function1):com.intellij.collaboration.util.ComputableSequence
 - *sf:mapItems(com.intellij.collaboration.util.ComputableSequence,kotlin.jvm.functions.Function1):com.intellij.collaboration.util.ComputableSequence
 - *sf:toList(com.intellij.collaboration.util.ComputableSequence,kotlin.coroutines.Continuation):java.lang.Object
-*:com.intellij.collaboration.util.Hideable
-- a:getHiddenState():kotlinx.coroutines.flow.StateFlow
-- a:setHidden(Z):V
 *f:com.intellij.collaboration.util.IncrementallyComputedValueKt
 - sf:collectIncrementallyTo(kotlinx.coroutines.flow.Flow,kotlinx.coroutines.flow.FlowCollector,kotlin.coroutines.Continuation):java.lang.Object
 - sf:onNoValue(com.intellij.collaboration.util.IncrementallyComputedValue,kotlin.jvm.functions.Function0):com.intellij.collaboration.util.IncrementallyComputedValue
@@ -1338,23 +1276,6 @@ f:com.intellij.collaboration.util.ComputableSequenceKt
 f:com.intellij.collaboration.util.KeyValuePairKt
 - *sf:clearData(com.intellij.openapi.util.UserDataHolder,com.intellij.collaboration.util.KeyValuePair):V
 - *sf:putData(com.intellij.openapi.util.UserDataHolder,com.intellij.collaboration.util.KeyValuePair):V
-*f:com.intellij.collaboration.util.RefComparisonChange
-- *sf:Companion:com.intellij.collaboration.util.RefComparisonChange$Companion
-- <init>(com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath,com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath):V
-- f:component1():com.intellij.openapi.vcs.history.ShortVcsRevisionNumber
-- f:component2():com.intellij.openapi.vcs.FilePath
-- f:component3():com.intellij.openapi.vcs.history.ShortVcsRevisionNumber
-- f:component4():com.intellij.openapi.vcs.FilePath
-- f:copy(com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath,com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath):com.intellij.collaboration.util.RefComparisonChange
-- bs:copy$default(com.intellij.collaboration.util.RefComparisonChange,com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath,com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath,I,java.lang.Object):com.intellij.collaboration.util.RefComparisonChange
-- equals(java.lang.Object):Z
-- f:getFilePathAfter():com.intellij.openapi.vcs.FilePath
-- f:getFilePathBefore():com.intellij.openapi.vcs.FilePath
-- f:getRevisionNumberAfter():com.intellij.openapi.vcs.history.ShortVcsRevisionNumber
-- f:getRevisionNumberBefore():com.intellij.openapi.vcs.history.ShortVcsRevisionNumber
-- hashCode():I
-*f:com.intellij.collaboration.util.RefComparisonChange$Companion
-- f:getKEY():com.intellij.openapi.util.Key
 *:com.intellij.collaboration.util.SequenceComputer
 - *sf:Companion:com.intellij.collaboration.util.SequenceComputer$Companion
 - a:computeNext(kotlin.coroutines.Continuation):java.lang.Object

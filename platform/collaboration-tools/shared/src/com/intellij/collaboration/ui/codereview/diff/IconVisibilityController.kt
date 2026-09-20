@@ -7,9 +7,11 @@ import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.event.EditorMouseListener
 import com.intellij.openapi.editor.event.EditorMouseMotionListener
 import com.intellij.openapi.editor.ex.RangeHighlighterEx
+import org.jetbrains.annotations.ApiStatus
 import javax.swing.JComponent
 
-internal class IconVisibilityController(private val highlighters: Set<RangeHighlighterEx>) : EditorMouseListener, EditorMouseMotionListener {
+@ApiStatus.Internal
+class IconVisibilityController(private val highlighters: Set<RangeHighlighterEx>) : EditorMouseListener, EditorMouseMotionListener {
 
   override fun mouseMoved(e: EditorMouseEvent) = doUpdate(e.editor, e.logicalPosition.line)
   override fun mouseExited(e: EditorMouseEvent) = doUpdate(e.editor, -1)

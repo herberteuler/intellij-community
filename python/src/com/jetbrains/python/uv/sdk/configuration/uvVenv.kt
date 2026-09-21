@@ -27,6 +27,7 @@ import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.uv.common.UV_TOOL_ID
 import com.jetbrains.python.sdk.add.v2.EelFileSystem
+import com.jetbrains.python.sdk.uv.detectUvMode
 import com.jetbrains.python.sdk.uv.setupExistingEnvAndSdk
 import com.jetbrains.python.sdk.uv.setupNewUvSdkAndEnv
 import kotlinx.coroutines.Dispatchers
@@ -54,16 +55,17 @@ internal suspend fun createUvSdk(pyProject: PyProject, venvs: List<PythonBinary>
   val workingDir = sdkAssociatedProject.baseDir
 
   val errorSink = ErrorSink().withProject(sdkAssociatedProject.project)
+  val mode = detectUvMode(workingDir)
   val sdkSetupResult = if (envExists) {
     target.existing?.let {
-      setupExistingEnvAndSdk(it, uv, workingDir, false)
+      setupExistingEnvAndSdk(it, uv, workingDir, mode)
     } ?: run {
       logger.warn("Can't find existing uv environment in project, but it was expected. " +
                   "Probably it was deleted. New environment will be created")
-      setupNewUvSdkAndEnv(uv, workingDir, null, errorSink)
+      setupNewUvSdkAndEnv(uv, workingDir, null, errorSink, mode)
     }
   }
-  else setupNewUvSdkAndEnv(uv, workingDir, null, errorSink)
+  else setupNewUvSdkAndEnv(uv, workingDir, null, errorSink, mode)
 
   sdkSetupResult.onSuccess {
     withContext(Dispatchers.EDT) {

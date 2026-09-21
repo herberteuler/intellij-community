@@ -9,7 +9,6 @@ import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.platform.eel.provider.toEelApi
 import com.intellij.platform.util.progress.withProgressText
-import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.intellij.python.pytools.resolveExecutable
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.getSdkAPI
@@ -36,7 +35,6 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import java.nio.file.Path
-import kotlin.io.path.exists
 
 /**
  * Execution context for UV SDK operations.
@@ -137,7 +135,7 @@ internal fun PythonInterpreter.getUvExecutionContextAsync(scope: CoroutineScope,
   }
 }
 
-internal suspend fun setupNewUvSdkAndEnv(uvExecutable: Path, workingDir: Path, version: Version?, errorSink: ErrorSink): PyResult<PythonInterpreter> =
+internal suspend fun setupNewUvSdkAndEnv(uvExecutable: Path, workingDir: Path, version: Version?, errorSink: ErrorSink, mode: UvMode): PyResult<PythonInterpreter> =
   setupNewUvSdkAndEnv(
     uvExecutable = PathHolder.Eel(uvExecutable),
     workingDir = workingDir,
@@ -145,8 +143,15 @@ internal suspend fun setupNewUvSdkAndEnv(uvExecutable: Path, workingDir: Path, v
     fileSystem = EelFileSystem(uvExecutable.getEelDescriptor().toEelApi()),
     version = version,
     errorSink = errorSink,
+    mode = mode,
   )
 
+/**
+ * Creates the environment and the SDK for [mode].
+ *
+ * [UvMode.Project] runs `uv init` first when the directory has no `pyproject.toml`, and syncs a project that was
+ * already there. [UvMode.Pip] runs `uv venv` alone and writes no file.
+ */
 internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
   uvExecutable: P,
   workingDir: Path,
@@ -154,6 +159,7 @@ internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
   fileSystem: FileSystem<P>,
   version: Version?,
   errorSink: ErrorSink,
+  mode: UvMode,
   overrideExistingEnv: Boolean = false,
   inheritSitePackages: Boolean = false,
   /**
@@ -162,12 +168,16 @@ internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
    */
   sync: Boolean = true,
 ): PyResult<PythonInterpreter> {
-  val shouldInitProject = !workingDir.resolve(PY_PROJECT_TOML).exists()
+  val hasProject = hasPyProjectToml(workingDir)
+  val (initProject, syncProject) = when (mode) {
+    UvMode.Project -> !hasProject to (hasProject && sync)
+    is UvMode.Pip -> false to false
+  }
   val normalizedUvExecutablePath = fileSystem.normalizePathToRemote(uvExecutable)
 
   val uv = createUvLowLevel(workingDir, validateAndCreateUvCli(normalizedUvExecutablePath, fileSystem).getOr { return it }, venvPath)
   val pythonBinary = withProgressText(PyBundle.message("python.sdk.progress.uv.creating")) {
-    uv.initializeEnvironment(shouldInitProject, version, clearExisting = overrideExistingEnv, inheritSitePackages = inheritSitePackages)
+    uv.initializeEnvironment(initProject, version, clearExisting = overrideExistingEnv, inheritSitePackages = inheritSitePackages)
   }.getOr { return it }
 
   val pythonInterpreter = setupExistingEnvAndSdk(
@@ -175,10 +185,10 @@ internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
     uvPath = normalizedUvExecutablePath,
     workingDir = workingDir,
     fileSystem = fileSystem,
-    usePip = false
+    mode = mode,
   ).getOr { return it }
 
-  if (!shouldInitProject && sync) {
+  if (syncProject) {
     // Told which interpreter to sync with, not left to choose: uv reads `.python-version` and `requires-python`, and
     // where its choice differs from the environment just built it deletes that one and builds another — undoing the
     // version the caller asked for. Null keeps uv's own choice, which is right when the caller expressed none.
@@ -194,25 +204,31 @@ internal suspend fun setupExistingEnvAndSdk(
   pythonBinary: PythonBinary,
   uvPath: Path,
   envWorkingDir: Path,
-  usePip: Boolean,
+  mode: UvMode,
 ): PyResult<PythonInterpreter> =
   setupExistingEnvAndSdk(
     pythonBinary = PathHolder.Eel(pythonBinary),
     uvPath = PathHolder.Eel(uvPath),
     workingDir = envWorkingDir,
     fileSystem = EelFileSystem(pythonBinary.getEelDescriptor().toEelApi()),
-    usePip = usePip
+    mode = mode,
   )
 
+/**
+ * Wraps an existing environment into a uv SDK of [mode], and stores the dependency file of the mode on it.
+ *
+ * Runs no uv command. A caller that asks for [UvMode.Project] in a directory without a `pyproject.toml` runs
+ * [UvLowLevel.initProject] first.
+ */
 internal suspend fun <P : PathHolder> setupExistingEnvAndSdk(
   pythonBinary: P,
   uvPath: P,
   workingDir: Path,
   fileSystem: FileSystem<P>,
-  usePip: Boolean,
+  mode: UvMode,
 ): PyResult<PythonInterpreter> = withProgressText(PyBundle.message("python.sdk.progress.uv.configuring")) {
   val venvPath = fileSystem.resolvePythonHome(pythonBinary).toStringForExecution()
-  val sdkAdditionalData = UvSdkAdditionalData(workingDir, usePip, venvPath, uvPath.toStringForExecution())
-  val pythonInterpreter = fileSystem.setupSdk(null, pythonBinary, sdkAdditionalData, null, null)
-  pythonInterpreter
+  val sdkAdditionalData = UvSdkAdditionalData(workingDir, usePip = null, venvPath, uvPath.toStringForExecution())
+  sdkAdditionalData.requirementsPath = mode.requirementsFile
+  fileSystem.setupSdk(null, pythonBinary, sdkAdditionalData, null, null)
 }

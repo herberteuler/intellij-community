@@ -48,6 +48,22 @@ private class UvLowLevelImpl<P : PathHolder>(
   private val uvCli: UvCli<P>,
   private val fileSystem: FileSystem<P>,
 ) : UvLowLevel<P> {
+  override suspend fun initProject(version: Version?): PyResult<Unit> {
+    val cwd = cwd ?: return PyResult.localizedError(PyBundle.message("python.sdk.uv.failed.to.initialize.uv.environment"))
+    val initArgs = mutableListOf("init")
+    initArgs += pythonArgs(version)
+    initArgs.add("--bare")
+    val projectName = PyPackageName.normalizeProjectName(cwd.name)
+    if (projectName.isNotBlank()) {
+      initArgs.add("--name")
+      initArgs.add(projectName)
+    }
+    initArgs.add("--no-project")
+    uvCli.runUv(cwd, null, true, *initArgs.toTypedArray()).getOr { return it }
+
+    return PyExecResult.success(Unit)
+  }
+
   override suspend fun initializeEnvironment(
     init: Boolean,
     version: Version?,
@@ -56,24 +72,9 @@ private class UvLowLevelImpl<P : PathHolder>(
   ): PyResult<P> {
     // Every other command only forwards the directory to uv. This one reads it, so it needs a real one.
     val cwd = cwd ?: return PyResult.localizedError(PyBundle.message("python.sdk.uv.failed.to.initialize.uv.environment"))
-    val addPythonArg: (MutableList<String>) -> Unit = { args ->
-      version?.let {
-        args.add("--python")
-        args.add("${version.major}.${version.minor}")
-      }
-    }
 
     if (init) {
-      val initArgs = mutableListOf("init")
-      addPythonArg(initArgs)
-      initArgs.add("--bare")
-      val projectName = PyPackageName.normalizeProjectName(cwd.name)
-      if (projectName.isNotBlank()) {
-        initArgs.add("--name")
-        initArgs.add(projectName)
-      }
-      initArgs.add("--no-project")
-      uvCli.runUv(cwd, null, true, *initArgs.toTypedArray()).getOr { return it }
+      initProject(version).getOr { return it }
     }
 
     val venvArgs = mutableListOf("venv")
@@ -90,7 +91,7 @@ private class UvLowLevelImpl<P : PathHolder>(
       venvArgs.add("--python-preference")
       venvArgs.add("system")
     }
-    addPythonArg(venvArgs)
+    venvArgs += pythonArgs(version)
     uvCli.runUv(cwd, null, true, *venvArgs.toTypedArray()).onFailure {
       uvCli.runUv(cwd, null, true, *venvArgs.toTypedArray(), "--force").getOr { return it }
     }.getOr { return it }
@@ -106,6 +107,10 @@ private class UvLowLevelImpl<P : PathHolder>(
 
     return PyResult.success(resolvedFallback)
   }
+
+  /** The `--python major.minor` pair for [version], or nothing when uv chooses the interpreter itself. */
+  private fun pythonArgs(version: Version?): List<String> =
+    if (version == null) emptyList() else listOf("--python", "${version.major}.${version.minor}")
 
   override suspend fun listUvPythons(): PyResult<Set<Path>> {
     var out = uvCli.runUv(cwd, venvPath, false, "python", "dir")

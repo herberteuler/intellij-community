@@ -47,6 +47,7 @@ import com.jetbrains.python.sdk.add.v2.pathHolder
 import com.jetbrains.python.sdk.add.v2.successOrNull
 import com.jetbrains.python.sdk.add.v2.validatablePathField
 import com.jetbrains.python.sdk.baseDir
+import com.jetbrains.python.sdk.uv.UvMode
 import com.jetbrains.python.sdk.uv.impl.createUvLowLevel
 import com.jetbrains.python.sdk.uv.impl.validateAndCreateUvCli
 import com.jetbrains.python.sdk.uv.setupNewUvSdkAndEnv
@@ -287,6 +288,7 @@ internal class EnvironmentCreatorUv<P : PathHolder>(
       fileSystem = model.fileSystem,
       version = pythonVersion.get(),
       errorSink = errorSink,
+      mode = UvMode.Project,
       overrideExistingEnv = venvAlreadyExistsError.get() != null,
       inheritSitePackages = model.uvViewModel.inheritSitePackages.get(),
     )

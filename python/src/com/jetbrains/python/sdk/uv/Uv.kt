@@ -33,6 +33,10 @@ internal interface UvCli<P : PathHolder> {
 
 @ApiStatus.Internal
 internal interface UvLowLevel<P : PathHolder> {
+  /** `uv init --bare --no-project` in the working directory: a `pyproject.toml` named after the directory, nothing else. */
+  suspend fun initProject(version: Version?): PyResult<Unit>
+
+  /** `uv venv`, after [initProject] when [init] is set. Returns the Python binary of the new environment. */
   suspend fun initializeEnvironment(
     init: Boolean,
     version: Version?,

@@ -10,7 +10,9 @@ import com.jetbrains.python.sdk.PythonSdkAdditionalData
 import com.jetbrains.python.sdk.pySdkAdditionalData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.annotations.ApiStatus
 import java.nio.file.Path
+import kotlin.io.path.exists
 
 /**
  * How uv manages the packages of an SDK.
@@ -20,8 +22,11 @@ import java.nio.file.Path
  *
  * A new uv SDK always stores its file, in pip mode too. A stored file is a decision. An SDK without a stored file was
  * saved before the mode existed. [pinLegacyUvMode] resolves such an SDK from its working directory once.
+ *
+ * Public for the test fixtures that create a uv SDK. Everything that reads or resolves a mode stays internal.
  */
-internal sealed interface UvMode {
+@ApiStatus.Internal
+sealed interface UvMode {
   /** The root dependency file to store for this mode, relative to the working directory of the SDK. */
   val requirementsFile: Path
 
@@ -46,6 +51,15 @@ internal val Sdk.uvMode: UvMode
     PY_PROJECT_TOML -> UvMode.Project
     else -> UvMode.Pip(Path.of(fileName))
   }
+
+/** Whether [workingDir] holds a `pyproject.toml`. One file stat, on the IO dispatcher. */
+internal suspend fun hasPyProjectToml(workingDir: Path): Boolean = withContext(Dispatchers.IO) {
+  workingDir.resolve(PY_PROJECT_TOML).exists()
+}
+
+/** The mode a directory calls for: [UvMode.Project] when it holds a `pyproject.toml`, else [UvMode.Pip]. */
+internal suspend fun detectUvMode(workingDir: Path): UvMode =
+  if (hasPyProjectToml(workingDir)) UvMode.Project else UvMode.Pip()
 
 /**
  * Resolves the mode of an SDK that stores no dependency file, and pins a project.

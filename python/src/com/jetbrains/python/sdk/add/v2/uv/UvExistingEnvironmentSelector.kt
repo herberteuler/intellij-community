@@ -18,6 +18,7 @@ import com.jetbrains.python.sdk.add.v2.ToolValidator
 import com.jetbrains.python.sdk.add.v2.ValidatedPath
 import com.intellij.python.uv.backend.UvPyTool
 import com.jetbrains.python.sdk.add.v2.pathHolder
+import com.jetbrains.python.sdk.uv.detectUvMode
 import com.jetbrains.python.sdk.uv.setupExistingEnvAndSdk
 import com.jetbrains.python.statistics.InterpreterType
 import com.jetbrains.python.uv.sdk.configuration.isUvEnv
@@ -47,7 +48,7 @@ internal class UvExistingEnvironmentSelector<P : PathHolder>(model: PythonMutabl
       uvPath = uvPath,
       workingDir = workingDir,
       fileSystem = model.fileSystem,
-      usePip = false
+      mode = detectUvMode(workingDir),
     )
   }
 

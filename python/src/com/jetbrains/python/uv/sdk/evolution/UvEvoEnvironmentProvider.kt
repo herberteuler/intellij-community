@@ -37,6 +37,7 @@ import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.evolution.requiresPython
 import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
 import com.jetbrains.python.sdk.uv.UvSdkFlavor
+import com.jetbrains.python.sdk.uv.detectUvMode
 import com.jetbrains.python.sdk.uv.setupExistingEnvAndSdk
 import com.jetbrains.python.sdk.uv.setupNewUvSdkAndEnv
 import com.jetbrains.python.venvReader.VirtualEnvReader
@@ -82,17 +83,18 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
   }
 
   /**
-   * Adopts an existing virtualenv as a uv env — `usePip = false`, so the SDK is wired to uv rather than to pip even
-   * though the env itself is an ordinary virtualenv either tool could claim.
+   * Adopts an existing virtualenv as a uv env. The mode follows the directory: a `pyproject.toml` makes it a project,
+   * anything else a pip-mode environment.
    */
   override suspend fun createSdkForExistingEnv(context: EvoToolContext, homePath: Path): PyResult<PythonInterpreter> {
     val uvPath = executableOrNull(context.fileSystem) ?: return toolMissing()
+    val baseDir = context.workspace.baseDir
     return setupExistingEnvAndSdk(
       pythonBinary = PathHolder.Eel(homePath),
       uvPath = uvPath,
-      workingDir = context.workspace.baseDir,
+      workingDir = baseDir,
       fileSystem = context.fileSystem,
-      usePip = false,
+      mode = detectUvMode(baseDir),
     )
   }
 
@@ -105,13 +107,15 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     val venvDir = context.resolveNewVenvDir(ref)
     if (venvDir.exists()) return envExistsError(venvDir.fileName.toString())
     val version = parseVersion(ref.token).getOr { return it }
+    val baseDir = context.workspace.baseDir
     return setupNewUvSdkAndEnv(
       uvExecutable = uvExecutable,
-      workingDir = context.workspace.baseDir,
+      workingDir = baseDir,
       venvPath = PathHolder.Eel(venvDir),
       fileSystem = context.fileSystem,
       version = version,
       errorSink = context.errorSink,
+      mode = detectUvMode(baseDir),
     )
   }
 
@@ -154,13 +158,15 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
   override suspend fun recreateEnv(context: EvoToolContext, homePath: Path, spec: EvoRecreateSpec): PyResult<PythonInterpreter> {
     val uvExecutable = executableOrNull(context.fileSystem) ?: return toolMissing()
     val version = parseVersion(spec.baseToken).getOr { return it }
+    val baseDir = context.workspace.baseDir
     return setupNewUvSdkAndEnv(
       uvExecutable = uvExecutable,
-      workingDir = context.workspace.baseDir,
+      workingDir = baseDir,
       venvPath = PathHolder.Eel(VirtualEnvReader().resolvePythonHomeFromPythonBinary(homePath)),
       fileSystem = context.fileSystem,
       version = version,
       errorSink = context.errorSink,
+      mode = detectUvMode(baseDir),
       overrideExistingEnv = true,
       sync = spec.syncPackages,
     )

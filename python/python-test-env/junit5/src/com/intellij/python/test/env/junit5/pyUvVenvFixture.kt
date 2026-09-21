@@ -17,6 +17,7 @@ import com.jetbrains.python.sdk.pythonSdk
 import com.jetbrains.python.sdk.runExecutableWithProgress
 import com.jetbrains.python.sdk.setAssociationToModule
 import com.jetbrains.python.sdk.skeleton.PySkeletonUtil
+import com.jetbrains.python.sdk.uv.UvMode
 import com.jetbrains.python.sdk.uv.setupExistingEnvAndSdk
 import com.jetbrains.python.venvReader.VirtualEnvReader
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,7 @@ import kotlin.time.Duration.Companion.minutes
 fun TestFixture<SdkFixture<PyEnvironment>>.pyUvVenvFixture(
   addToSdkTable: Boolean,
   moduleFixture: TestFixture<Module>,
+  mode: UvMode = UvMode.Project,
 ): TestFixture<Sdk> = testFixture {
   val env = this@pyUvVenvFixture.init().env
   val module = moduleFixture.init()
@@ -58,7 +60,7 @@ fun TestFixture<SdkFixture<PyEnvironment>>.pyUvVenvFixture(
   } ?: error("Python executable not found in UV venv: $venvDir")
 
   val interpreter =
-    setupExistingEnvAndSdk(pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, usePip = true).getOrThrow()
+    setupExistingEnvAndSdk(pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, mode = mode).getOrThrow()
   val sdk = interpreter.getSdkAPI()
   if (addToSdkTable) {
     module.pythonSdk = sdk

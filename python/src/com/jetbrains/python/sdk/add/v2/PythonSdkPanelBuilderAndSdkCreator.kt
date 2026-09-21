@@ -69,11 +69,8 @@ interface PySdkPanelBuilder {
   fun onShownInitialization(scopingComponent: Component)
 }
 
-/**
- * If `onlyAllowedInterpreterTypes` then only these types are displayed. All types displayed otherwise
- */
 internal class PythonSdkPanelBuilderAndSdkCreator(
-  private val limitExistingEnvironments: Boolean = true,
+  private val context: InterpreterCreationContext = InterpreterCreationContext.NEW_PROJECT_WIZARD,
   private val eel: EelApi
 ) : PySdkPanelBuilder, PySdkCreator {
   private val propertyGraph = PropertyGraph()
@@ -117,12 +114,12 @@ internal class PythonSdkPanelBuilderAndSdkCreator(
     propertyGraph.dependsOn(_venvBaseValid, model.state.baseInterpreter, deleteWhenChildModified = false) {
       model.state.baseInterpreter.get()?.let { venvBaseVersionError(it) == null } ?: true
     }
-    uvSection = UvInterpreterSection(model, selectedMode, propertyGraph)
+    uvSection = UvInterpreterSection(model, selectedMode, propertyGraph, context)
 
     custom = PythonAddCustomInterpreter(model = model,
                                         module = null,
                                         errorSink = ErrorSink(),
-                                        limitExistingEnvironments = limitExistingEnvironments,
+                                        context = context,
                                         bestGuessCreateSdkInfo = CompletableDeferred(value = null))
 
     val validationRequestor = WHEN_PROPERTY_CHANGED(selectedMode)

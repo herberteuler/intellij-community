@@ -25,6 +25,7 @@ import com.jetbrains.python.newProjectWizard.projectPath.ProjectPathFlows
 import com.jetbrains.python.onFailure
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.sdk.add.collector.PythonNewInterpreterAddedCollector
+import com.jetbrains.python.sdk.add.v2.InterpreterCreationContext
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.add.v2.PythonAddCustomInterpreter
 import com.jetbrains.python.sdk.add.v2.PythonInterpreterSelectionMode
@@ -71,7 +72,7 @@ internal class PythonLanguageRuntimeUI(
       model = model,
       module = module,
       errorSink = ErrorSink().withProject(project),
-      limitExistingEnvironments = false,
+      context = InterpreterCreationContext.ADD_INTERPRETER,
       bestGuessCreateSdkInfo = CompletableDeferred(value = null)
     )
 

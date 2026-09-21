@@ -25,6 +25,7 @@ import com.jetbrains.python.sdk.add.v2.FileSystem
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.add.v2.TargetFileSystem
 import com.jetbrains.python.sdk.pySdkAdditionalData
+import com.jetbrains.python.sdk.uv.impl.createUvCli
 import com.jetbrains.python.sdk.uv.impl.createUvLowLevel
 import com.jetbrains.python.sdk.uv.impl.validateAndCreateUvCli
 import com.jetbrains.python.target.PyTargetAwareAdditionalData
@@ -149,7 +150,7 @@ internal suspend fun setupNewUvSdkAndEnv(uvExecutable: Path, workingDir: Path, v
 /**
  * Creates the environment and the SDK for [mode].
  *
- * [UvMode.Project] runs `uv init` first when the directory has no `pyproject.toml`, and syncs a project that was
+ * [UvMode.Project] runs `uv init` first when the directory has no `pyproject.toml`. It syncs a project that is
  * already there. [UvMode.Pip] runs `uv venv` alone and writes no file.
  */
 internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
@@ -168,10 +169,10 @@ internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
    */
   sync: Boolean = true,
 ): PyResult<PythonInterpreter> {
-  val hasProject = hasPyProjectToml(workingDir)
-  val (initProject, syncProject) = when (mode) {
-    UvMode.Project -> !hasProject to (hasProject && sync)
-    is UvMode.Pip -> false to false
+  val initProject = mode.needsInit(workingDir)
+  val syncProject = when (mode) {
+    UvMode.Project -> sync && !initProject
+    is UvMode.Pip -> false
   }
   val normalizedUvExecutablePath = fileSystem.normalizePathToRemote(uvExecutable)
 
@@ -198,6 +199,17 @@ internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
   }
 
   return PyResult.success(pythonInterpreter)
+}
+
+/**
+ * Runs `uv init --bare --no-project` in [workingDir] when [mode] needs it. See [UvMode.needsInit].
+ *
+ * [uvExecutable] must be a validated uv executable. This function runs no check on it.
+ */
+internal suspend fun <P : PathHolder> initUvProjectIfNeeded(uvExecutable: P, workingDir: Path, fileSystem: FileSystem<P>, mode: UvMode): PyResult<Unit> {
+  if (!mode.needsInit(workingDir)) return PyResult.success(Unit)
+  val uvCli = createUvCli(fileSystem.normalizePathToRemote(uvExecutable), fileSystem)
+  return createUvLowLevel(workingDir, uvCli).initProject(version = null)
 }
 
 internal suspend fun setupExistingEnvAndSdk(

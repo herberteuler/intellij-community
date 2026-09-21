@@ -61,6 +61,12 @@ internal suspend fun hasPyProjectToml(workingDir: Path): Boolean = withContext(D
 internal suspend fun detectUvMode(workingDir: Path): UvMode =
   if (hasPyProjectToml(workingDir)) UvMode.Project else UvMode.Pip()
 
+/** Whether an SDK of this mode in [workingDir] needs `uv init` first. [UvMode.Project] needs it when the directory has no `pyproject.toml`. */
+internal suspend fun UvMode.needsInit(workingDir: Path): Boolean = when (this) {
+  UvMode.Project -> !hasPyProjectToml(workingDir)
+  is UvMode.Pip -> false
+}
+
 /**
  * Resolves the mode of an SDK that stores no dependency file, and pins a project.
  *

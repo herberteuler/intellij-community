@@ -75,7 +75,7 @@ internal class PythonAddLocalInterpreterDialog(
         model = model,
         module = dialogPresenter.moduleOrProject.moduleIfExists,
         errorSink = errorSink,
-        limitExistingEnvironments = false,
+        context = InterpreterCreationContext.ADD_INTERPRETER,
         bestGuessCreateSdkInfo = dialogPresenter.bestGuessCreateSdkInfo
       )
       mainPanel.setupUI(this, WHEN_PROPERTY_CHANGED(AtomicProperty(basePath)))

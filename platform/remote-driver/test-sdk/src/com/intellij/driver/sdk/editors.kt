@@ -35,6 +35,20 @@ interface Editor {
   fun visualLineToY(visualLine: Int): Int
   fun getMarkupModel(): MarkupModel
   fun getScrollingModel(): ScrollingModel
+  fun getFoldingModel(): FoldingModel
+}
+
+@Remote("com.intellij.openapi.editor.FoldingModel")
+interface FoldingModel {
+  fun getAllFoldRegions(): Array<FoldRegion>
+}
+
+@Remote("com.intellij.openapi.editor.FoldRegion")
+interface FoldRegion {
+  fun isExpanded(): Boolean
+  fun getStartOffset(): Int
+  fun getEndOffset(): Int
+  fun getPlaceholderText(): String
 }
 
 @Remote("com.intellij.openapi.editor.markup.MarkupModel")

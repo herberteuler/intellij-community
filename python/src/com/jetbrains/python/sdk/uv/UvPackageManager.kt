@@ -372,6 +372,7 @@ internal class UvPackageManagerProvider : PythonPackageManagerProvider {
     if (!interpreter.isUv) {
       return null
     }
+    pinLegacyUvMode(project, interpreter.getSdkAPI())
 
     val uvExecutionContext = interpreter.getUvExecutionContextAsync(PyPackageCoroutine.getScope(project), project) ?: return null
     return UvPackageManager(project, interpreter.getSdkAPI(), uvExecutionContext)

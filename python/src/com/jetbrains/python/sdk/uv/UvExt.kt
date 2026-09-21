@@ -41,7 +41,7 @@ import kotlin.io.path.exists
 
 
 internal val Sdk.uvUsePackageManagement: Boolean
-  get() = PythonSdkUtil.isPythonSdk(this) && uvFlavorData?.usePip == true
+  get() = PythonSdkUtil.isPythonSdk(this) && uvMode is UvMode.Pip
 
 /**
  * Execution context for UV SDK operations.

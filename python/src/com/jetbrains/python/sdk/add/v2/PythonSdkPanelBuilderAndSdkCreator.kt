@@ -160,6 +160,8 @@ internal class PythonSdkPanelBuilderAndSdkCreator(
         comment("").bindText(venvHint)
       }.visibleIf((_projectVenv and _venvBaseValid) or (_baseConda and model.condaViewModel.condaExecutable.isNotNull()) or uvSection.hintVisiblePredicate() or _custom)
 
+      uvSection.setupBanner(this)
+
       rowsRange {
         custom.setupUI(this, validationRequestor)
       }.visibleIf(_custom)

@@ -1,13 +1,18 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2.uv
 
+import com.intellij.ide.BrowserUtil
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.observable.properties.ObservableMutableProperty
 import com.intellij.openapi.observable.properties.PropertyGraph
 import com.intellij.openapi.observable.util.and
 import com.intellij.openapi.observable.util.isNotNull
 import com.intellij.openapi.ui.validation.DialogValidationRequestor
+import com.intellij.ui.EditorNotificationPanel
+import com.intellij.ui.InlineBanner
+import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.Panel
+import com.jetbrains.python.PyBundle.message
 import com.jetbrains.python.sdk.add.v2.InterpreterCreationContext
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.add.v2.PythonInterpreterSelectionMode
@@ -42,6 +47,18 @@ internal class UvInterpreterSection(
   }
 
   fun hintVisiblePredicate() = _uv and model.uvViewModel.uvExecutable.isNotNull()
+
+  /** Adds the banner that explains a uv project. It shows together with the uv hint. */
+  fun setupBanner(outerPanel: Panel) {
+    outerPanel.row {
+      cell(InlineBanner(message("sdk.create.uv.project.banner"), EditorNotificationPanel.Status.Info))
+        .applyToComponent {
+          showCloseButton(false)
+          addAction(message("sdk.create.uv.project.banner.link")) { BrowserUtil.browse(message("sdk.create.uv.project.banner.url")) }
+        }
+        .align(AlignX.FILL)
+    }.visibleIf(hintVisiblePredicate())
+  }
 
   fun getUvCreator() = uvCreator
 

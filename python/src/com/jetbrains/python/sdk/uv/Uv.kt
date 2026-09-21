@@ -55,6 +55,12 @@ internal interface UvLowLevel<P : PathHolder> {
   suspend fun installPackage(name: PythonPackageInstallRequest, options: List<String>): PyResult<Unit>
   suspend fun uninstallPackages(pyPackages: Array<out String>): PyResult<Unit>
 
+  /** `uv pip install -r <file>`. Adds what the file names and removes nothing. */
+  suspend fun installRequirements(requirementsFile: Path): PyResult<Unit>
+
+  /** `uv pip sync <file>`. Makes the environment match the file, so it removes what the file does not name. */
+  suspend fun syncRequirements(requirementsFile: Path): PyResult<Unit>
+
   suspend fun listPackages(): PyResult<List<PythonPackage>>
   suspend fun listOutdatedPackages(): PyResult<List<PythonOutdatedPackage>>
   suspend fun listPackageRequirements(name: PythonPackage): PyResult<List<PyPackageName>>

@@ -212,6 +212,20 @@ private class UvLowLevelImpl<P : PathHolder>(
     return PyExecResult.success(Unit)
   }
 
+  override suspend fun installRequirements(requirementsFile: Path): PyResult<Unit> {
+    uvCli.runUv(cwd, venvPath, false, Args("pip", "install", "-r").addLocalFile(requirementsFile))
+      .getOr { return it }
+
+    return PyExecResult.success(Unit)
+  }
+
+  override suspend fun syncRequirements(requirementsFile: Path): PyResult<Unit> {
+    uvCli.runUv(cwd, venvPath, false, Args("pip", "sync").addLocalFile(requirementsFile))
+      .getOr { return it }
+
+    return PyExecResult.success(Unit)
+  }
+
   override suspend fun addDependency(
     pyPackages: PythonPackageInstallRequest,
     options: List<String>,

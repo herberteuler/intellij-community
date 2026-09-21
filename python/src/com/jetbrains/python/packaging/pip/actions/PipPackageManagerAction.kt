@@ -13,7 +13,6 @@ import com.jetbrains.python.packaging.management.PythonPackageManagerAction
 import com.jetbrains.python.packaging.management.getPythonPackageManager
 import com.jetbrains.python.packaging.pip.PipPythonPackageManager
 import com.jetbrains.python.packaging.requirementsTxt.PythonRequirementTxtSdkUtils
-import com.jetbrains.python.sdk.isReadOnly
 
 internal sealed class PipPackageManagerAction : PythonPackageManagerAction<PipPythonPackageManager, String>() {
   override fun isWatchedFile(virtualFile: VirtualFile?): Boolean {
@@ -25,6 +24,9 @@ internal sealed class PipPackageManagerAction : PythonPackageManagerAction<PipPy
 
 
 internal class PipSetDefaultRequirementsAction() : PipPackageManagerAction() {
+  /** Stores a path on the SDK and leaves the environment alone, so a read-only SDK keeps it. */
+  override val modifiesEnvironment: Boolean = false
+
   override suspend fun execute(e: AnActionEvent, manager: PipPythonPackageManager): PyResult<Unit> {
     val envFile = e.getData(PlatformDataKeys.VIRTUAL_FILE) ?: return PyResult.success(Unit)
     val project = e.project ?: return PyResult.success(Unit)
@@ -60,11 +62,7 @@ internal class PipUpdateEnvAction() : PipPackageManagerAction() {
     super.update(e)
     if (!e.presentation.isEnabledAndVisible)
       return
-    val manager = e.getPythonPackageManager<PipPythonPackageManager>() ?: return
-    if (manager.sdk.isReadOnly) {
-      e.presentation.isEnabledAndVisible = false
-    }
-  if (e.place == ActionPlaces.CONTEXT_TOOLBAR) {
+    if (e.place == ActionPlaces.CONTEXT_TOOLBAR) {
       e.presentation.text = PyBundle.message("action.PipUpdateEnvAction.FloatingToolbar.text")
     } else {
       val currentFile = e.getData(PlatformDataKeys.VIRTUAL_FILE)

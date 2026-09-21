@@ -1426,6 +1426,14 @@
               class="com.jetbrains.python.uv.packaging.UvSyncAction"
               icon="com.intellij.icons.AllIcons.Actions.Install"/>
 
+      <action id="UvPipInstallRequirementsAction"
+              class="com.jetbrains.python.uv.packaging.UvPipInstallRequirementsAction"
+              icon="com.intellij.icons.AllIcons.Actions.Install"/>
+
+      <action id="UvPipSyncRequirementsAction"
+              class="com.jetbrains.python.uv.packaging.UvPipSyncRequirementsAction"
+              icon="com.intellij.icons.AllIcons.Actions.Refresh"/>
+
 
       <separator/>
 

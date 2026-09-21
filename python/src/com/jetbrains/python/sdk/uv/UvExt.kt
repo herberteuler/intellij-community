@@ -25,7 +25,6 @@ import com.jetbrains.python.sdk.add.v2.EelFileSystem
 import com.jetbrains.python.sdk.add.v2.FileSystem
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.add.v2.TargetFileSystem
-import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import com.jetbrains.python.sdk.pySdkAdditionalData
 import com.jetbrains.python.sdk.uv.impl.createUvLowLevel
 import com.jetbrains.python.sdk.uv.impl.validateAndCreateUvCli
@@ -38,10 +37,6 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import java.nio.file.Path
 import kotlin.io.path.exists
-
-
-internal val Sdk.uvUsePackageManagement: Boolean
-  get() = PythonSdkUtil.isPythonSdk(this) && uvMode is UvMode.Pip
 
 /**
  * Execution context for UV SDK operations.

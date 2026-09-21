@@ -56,6 +56,13 @@ public abstract class ModCommandQuickFix implements LocalQuickFix {
     ModCommandExecutor.executeInteractively(ActionContext.from(descriptor), getName(), null, () -> perform(project, descriptor));
   }
 
+  /**
+   * Builds the preview from the command that {@link #perform(Project, ProblemDescriptor)} returns.
+   * <p>
+   * The descriptor can refer to the original file or to a preview copy of it. In both cases {@code perform} must only read the PSI.
+   * It must not modify the PSI. The preview executor applies the command to its own copy of the files.
+   * The action context comes from the descriptor, so the descriptor must refer to the file and the range where the fix applies.
+   */
   @Override
   public @NotNull IntentionPreviewInfo generatePreview(@NotNull Project project, @NotNull ProblemDescriptor previewDescriptor) {
     ModCommand modCommand = perform(project, previewDescriptor);

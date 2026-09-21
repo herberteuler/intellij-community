@@ -1,9 +1,18 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.java.codeInsight;
 
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.codeInsight.template.TemplateManager;
+import com.intellij.codeInspection.LocalInspectionTool;
+import com.intellij.codeInspection.ProblemsHolder;
+import com.intellij.modcommand.ActionContext;
+import com.intellij.modcommand.ModPsiUpdater;
+import com.intellij.modcommand.PsiUpdateModCommandAction;
+import com.intellij.psi.JavaElementVisitor;
+import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiElementVisitor;
+import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.testFramework.LightProjectDescriptor;
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase;
 import com.intellij.xml.analysis.XmlAnalysisBundle;
@@ -250,11 +259,58 @@ public class IntentionPreviewTest extends LightJavaCodeInsightFixtureTestCase {
     assertEquals("<b></b>", myFixture.getIntentionPreviewText(action));
   }
 
+  public void testModCommandFixPreviewWithCaretInInjection() {
+    myFixture.setCaresAboutInjection(false);
+    myFixture.enableInspections(new ReplaceLiteralInspection());
+    myFixture.configureByText("Test.java",
+                              """
+                                class Test {
+                                  // language=HTML
+                                  String s = "<a><caret></a>";
+                                }""");
+
+    IntentionAction action = myFixture.findSingleIntention("Replace literal");
+    assertPreviewText(action, """
+      class Test {
+        // language=HTML
+        String s = "replaced";
+      }""");
+  }
+
   public void testCaretOutsideOfProblem() {
     myFixture.configureByText("Test.java", "class Test { int foo() { return 1 } }<caret>");
     String expected = "class Test { int foo() { return 1; } }";
     assertEquals(expected, myFixture.getIntentionPreviewText("Insert"));
     myFixture.launchAction("Insert");
     myFixture.checkResult(expected);
+  }
+
+  private static final class ReplaceLiteralInspection extends LocalInspectionTool {
+    @Override
+    public @NotNull PsiElementVisitor buildVisitor(@NotNull ProblemsHolder holder, boolean isOnTheFly) {
+      return new JavaElementVisitor() {
+        @Override
+        public void visitLiteralExpression(@NotNull PsiLiteralExpression expression) {
+          if (!(expression.getValue() instanceof String)) return;
+          holder.problem(expression, "Literal can be replaced").fix(new ReplaceLiteralFix(expression)).register();
+        }
+      };
+    }
+  }
+
+  private static final class ReplaceLiteralFix extends PsiUpdateModCommandAction<PsiLiteralExpression> {
+    private ReplaceLiteralFix(@NotNull PsiLiteralExpression element) {
+      super(element);
+    }
+
+    @Override
+    public @NotNull String getFamilyName() {
+      return "Replace literal";
+    }
+
+    @Override
+    protected void invoke(@NotNull ActionContext context, @NotNull PsiLiteralExpression literal, @NotNull ModPsiUpdater updater) {
+      literal.replace(JavaPsiFacade.getElementFactory(context.project()).createExpressionFromText("\"replaced\"", literal));
+    }
   }
 }

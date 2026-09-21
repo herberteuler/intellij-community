@@ -1,6 +1,7 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInspection;
 
+import com.intellij.codeInsight.intention.preview.IntentionPreviewUtils;
 import com.intellij.lang.annotation.ProblemGroup;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -84,7 +85,14 @@ public interface ProblemDescriptor extends CommonProblemDescriptor {
       throw e;
     }
     catch (RuntimeException e) {
-      throw new RuntimeException("Failed to obtain element copy for preview; descriptor: " + getDescriptionTemplate(), e);
+      PsiFile previewOriginal = IntentionPreviewUtils.getOriginalFile(target);
+      PsiElement startElement = getStartElement();
+      PsiFile descriptorFile = startElement == null ? null : startElement.getContainingFile();
+      throw new RuntimeException("Failed to obtain element copy for preview; descriptor: " + getDescriptionTemplate() +
+                                 "; descriptor file: " + classOf(descriptorFile) +
+                                 "; preview original: " + classOf(previewOriginal) +
+                                 "; target is the preview copy of the descriptor file: " +
+                                 (descriptorFile != null && descriptorFile == previewOriginal), e);
     }
     ProblemDescriptor pd = this;
     return new ProblemDescriptor() {
@@ -104,5 +112,9 @@ public interface ProblemDescriptor extends CommonProblemDescriptor {
       @Override public @NotNull QuickFix @Nullable [] getFixes() { return QuickFix.EMPTY_ARRAY;}
       //@formatter:on
     };
+  }
+
+  private static @Nullable Class<?> classOf(@Nullable PsiFile file) {
+    return file == null ? null : file.getClass();
   }
 }

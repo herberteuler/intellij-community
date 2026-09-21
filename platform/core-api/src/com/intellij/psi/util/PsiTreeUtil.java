@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.psi.util;
 
 import com.intellij.lang.ASTNode;
@@ -1454,10 +1454,15 @@ public class PsiTreeUtil {
         pos++;
       }
       offsets.add(pos);
-      cur = cur.getParent();
-      if (cur == null) {
-        throw new IllegalStateException("Cannot find parent file; element class: " + element.getClass());
+      PsiElement parent = cur.getParent();
+      if (parent == null) {
+        throw new IllegalStateException("Cannot find parent file; element class: " + element.getClass() +
+                                        "; element language: " + element.getLanguage() +
+                                        "; element valid: " + element.isValid() +
+                                        "; topmost parent class: " + cur.getClass() +
+                                        copyInfo(copy));
       }
+      cur = parent;
     }
 
     cur = copy;
@@ -1465,19 +1470,29 @@ public class PsiTreeUtil {
       int pos = offsets.get(level);
       cur = cur.getFirstChild();
       if (cur == null) {
-        throw new IllegalStateException("File structure differs: no child");
+        throw new IllegalStateException("File structure differs: no child" + copyInfo(copy));
       }
       for (int i = 0; i < pos; i++) {
         cur = cur.getNextSibling();
         if (cur == null) {
-          throw new IllegalStateException("File structure differs: number of siblings is less than " + pos);
+          throw new IllegalStateException("File structure differs: number of siblings is less than " + pos + copyInfo(copy));
         }
       }
     }
     if (!cur.getClass().equals(element.getClass())) {
-      throw new IllegalStateException("File structure differs: " + cur.getClass() + " != " + element.getClass());
+      throw new IllegalStateException("File structure differs: " + cur.getClass() + " != " + element.getClass() + copyInfo(copy));
     }
     //noinspection unchecked
     return (T)cur;
+  }
+
+  /**
+   * Describes the file copy in a message of {@link #findSameElementInCopy}. The class, the language and the file type
+   * tell a copy of the wrong kind from a copy that only differs in structure.
+   */
+  private static @NotNull String copyInfo(@NotNull PsiFile copy) {
+    return "; copy class: " + copy.getClass() +
+           "; copy language: " + copy.getLanguage() +
+           "; copy file type: " + copy.getFileType();
   }
 }

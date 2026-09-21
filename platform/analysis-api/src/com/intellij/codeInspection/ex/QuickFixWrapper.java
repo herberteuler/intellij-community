@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 
 package com.intellij.codeInspection.ex;
 
@@ -47,6 +47,10 @@ public final class QuickFixWrapper implements IntentionAction, PriorityAction, C
                                               PossiblyDumbAware {
   private static final Logger LOG = Logger.getInstance(QuickFixWrapper.class);
 
+  /**
+   * The descriptor always points into the original PSI, never into a preview copy.
+   * Preview code maps it to a copy with {@link ProblemDescriptor#getDescriptorForPreview(PsiFile)} when it is needed.
+   */
   private final ProblemDescriptor myDescriptor;
   private final LocalQuickFix myFix;
 
@@ -324,9 +328,23 @@ public final class QuickFixWrapper implements IntentionAction, PriorityAction, C
       return myFix.perform(context.project(), myDescriptor);
     }
 
+    /**
+     * @param context the file in the context is usually the original file, not a copy.
+     *                {@code IntentionPreviewComputable} passes the original file, and this file can be an injected file
+     *                while the descriptor is in the host file.
+     *                A preview copy comes only from an adapter that wraps this action as an intention.
+     *                The descriptor is mapped to a copy only in this second case.
+     */
     @Override
     public @NotNull IntentionPreviewInfo generatePreview(@NotNull ActionContext context) {
-      return myFix.generatePreview(context.project(), myDescriptor.getDescriptorForPreview(context.file()));
+      PsiFile target = context.file();
+      // Map the descriptor to the copy only when the file is a preview copy.
+      // Otherwise the file is the original, possibly an injected one, and the descriptor element can be in the host file.
+      // Such a file has another class, so the mapping would fail. The command preview copies the files itself.
+      ProblemDescriptor descriptor = IntentionPreviewUtils.isPreviewElement(target)
+                                     ? myDescriptor.getDescriptorForPreview(target)
+                                     : myDescriptor;
+      return myFix.generatePreview(context.project(), descriptor);
     }
 
     @Override

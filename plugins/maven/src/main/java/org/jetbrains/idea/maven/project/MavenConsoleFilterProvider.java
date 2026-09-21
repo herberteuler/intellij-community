@@ -27,7 +27,8 @@ public final class MavenConsoleFilterProvider implements ConsoleFilterProvider {
       new RegexpFilterMaven(project, CONSOLE_FILTER_REGEXP_KT),
       new MavenGroovyConsoleFilter(project),
       new MavenScalaConsoleFilter(project),
-      new MavenTestConsoleFilter()
+      new MavenTestConsoleFilter(),
+      new MavenModelProblemFilter(project)
     };
   }
 

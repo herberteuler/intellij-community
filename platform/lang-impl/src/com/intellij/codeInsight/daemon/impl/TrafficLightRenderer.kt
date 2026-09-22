@@ -18,6 +18,7 @@ import com.intellij.codeInspection.InspectionsBundle
 import com.intellij.diff.util.DiffUserDataKeys
 import com.intellij.icons.AllIcons
 import com.intellij.ide.PowerSaveMode
+import com.intellij.ide.welcomeScreen.WelcomeUtils
 import com.intellij.lang.Language
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.lang.injection.InjectedLanguageManager
@@ -340,7 +341,9 @@ open class TrafficLightRenderer private constructor(
     status.passes = daemonCodeAnalyzer.getPassesToShowProgressFor(document)
       .filter { !it.presentableName.isNullOrEmpty() && it.getProgress() >= 0 }
 
-    status.errorAnalyzingFinished = daemonCodeAnalyzer.isAllAnalysisFinished(psiFile)
+    // there is no daemon on non modal welcome screen, but we need to display highlighters for file-based program files RIDER-138333
+    // so we need to flip this to true
+    status.errorAnalyzingFinished = if (!WelcomeUtils.isWelcomeProject(project)) daemonCodeAnalyzer.isAllAnalysisFinished(psiFile) else true
     if (!daemonCodeAnalyzer.isUpdateByTimerEnabled) {
       status.reasonWhySuspended = DaemonBundle.message("process.title.highlighting.is.paused.temporarily")
     }

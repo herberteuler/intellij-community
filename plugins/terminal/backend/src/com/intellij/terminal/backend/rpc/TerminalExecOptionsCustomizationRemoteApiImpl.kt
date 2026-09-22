@@ -69,7 +69,7 @@ internal class TerminalExecOptionsCustomizationRemoteApiImpl : TerminalExecOptio
  * Must be called on a background thread without a read action: the customizers may perform blocking operations
  * (see [ShellExecOptionsCustomizer.customizeExecOptions]).
  */
-@RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+@RequiresReadLockAbsence
 @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
 private fun customizeShellExecOptions(
   project: Project,

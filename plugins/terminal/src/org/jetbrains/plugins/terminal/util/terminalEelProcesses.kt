@@ -43,7 +43,7 @@ import org.jetbrains.plugins.terminal.original
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-@RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+@RequiresReadLockAbsence
 @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
 internal fun hasRunningCommandsBlocking(shellEelProcess: ShellEelProcess): Boolean {
   if (EDT.isCurrentThreadEdt()) {

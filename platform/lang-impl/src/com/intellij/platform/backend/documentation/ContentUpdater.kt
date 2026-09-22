@@ -18,7 +18,7 @@ fun interface ContentUpdater {
    * @return a series of content updates,
    * which will continuously replace browser content until the returned flow is fully collected
    */
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
   fun prepareContentUpdates(currentContent: @Nls String): Flow<@Nls String>
 }

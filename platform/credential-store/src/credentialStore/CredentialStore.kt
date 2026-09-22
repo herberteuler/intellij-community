@@ -13,11 +13,11 @@ import org.jetbrains.concurrency.runAsync
  */
 interface CredentialStore {
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   operator fun get(attributes: CredentialAttributes): Credentials?
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   operator fun set(attributes: CredentialAttributes, credentials: Credentials?)
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)

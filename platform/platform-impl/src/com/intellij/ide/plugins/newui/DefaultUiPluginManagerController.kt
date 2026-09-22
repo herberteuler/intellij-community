@@ -930,14 +930,14 @@ object DefaultUiPluginManagerController : UiPluginManagerController {
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @Throws(IOException::class)
   override suspend fun loadPluginReviews(pluginId: PluginId, page: Int): List<PluginReviewComment>? {
     return MarketplaceRequests.getInstance().loadPluginReviews(pluginId, page)
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   override suspend fun loadPluginMetadata(externalPluginId: String): IntellijPluginMetadata? {
     return MarketplaceRequests.getInstance().loadPluginMetadata(externalPluginId)
   }

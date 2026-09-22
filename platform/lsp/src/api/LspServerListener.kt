@@ -16,7 +16,7 @@ interface LspServerListener {
    * notification to the server and calls this function.
    */
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   fun serverInitialized(params: InitializeResult) {
   }
 
@@ -31,7 +31,7 @@ interface LspServerListener {
    * - the LSP server process has terminated
    */
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   fun serverStopped(shutdownNormally: Boolean) {
   }
 }

@@ -10,7 +10,7 @@ import com.intellij.util.concurrency.annotations.RequiresReadLockAbsence
 interface OpenPredefinedTerminalActionProvider {
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   fun listOpenPredefinedTerminalActions(project: Project): List<AnAction>
 
   companion object {
@@ -19,7 +19,7 @@ interface OpenPredefinedTerminalActionProvider {
 
     @JvmStatic
     @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-    @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+    @RequiresReadLockAbsence
     fun collectAll(project: Project): List<AnAction> = EP_NAME.extensionList.flatMap {
       it.listOpenPredefinedTerminalActions(project)
     }

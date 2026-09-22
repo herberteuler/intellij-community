@@ -140,7 +140,7 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
 
     @Deprecated("use #loadLastCompatiblePluginModels(Set<PluginId>, BuildNumber, Boolean)")
     @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-    @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+    @RequiresReadLockAbsence
     @JvmStatic
     @JvmOverloads
     fun loadLastCompatiblePluginDescriptors(
@@ -152,7 +152,7 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
     }
 
     @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-    @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+    @RequiresReadLockAbsence
     @JvmStatic
     @JvmOverloads
     fun loadLastCompatiblePluginModels(
@@ -225,7 +225,7 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
     }
 
     @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-    @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+    @RequiresReadLockAbsence
     @JvmStatic
     @JvmOverloads
     fun getLastCompatiblePluginUpdate(
@@ -289,7 +289,7 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
     }
 
     @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-    @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+    @RequiresReadLockAbsence
     @JvmStatic
     @JvmOverloads
     fun getNearestUpdate(
@@ -321,7 +321,7 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
     }
 
     @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-    @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+    @RequiresReadLockAbsence
     @JvmStatic
     @JvmOverloads
     @Throws(IOException::class)
@@ -907,14 +907,14 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   internal fun loadPluginMetadata(pluginNode: PluginNode): IntellijPluginMetadata? {
     val externalPluginId = pluginNode.externalPluginId ?: return null
     return loadPluginMetadata(externalPluginId)
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   internal fun loadPluginMetadata(externalPluginId: String): IntellijPluginMetadata? {
     try {
       return readOrUpdateFile(
@@ -932,7 +932,7 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
 
   @Deprecated("use #getLastCompatiblePluginUpdateModel(PluginId, BuildNumber, ProgressIndicator)")
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @JvmOverloads
   fun getLastCompatiblePluginUpdate(
     pluginId: PluginId,
@@ -943,7 +943,7 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @JvmOverloads
   fun getLastCompatiblePluginUpdateModel(
     pluginId: PluginId,
@@ -1116,7 +1116,7 @@ class MarketplaceRequests(private val coroutineScope: CoroutineScope) : PluginIn
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   fun loadPluginReviews(pluginId: PluginId, page: Int): List<PluginReviewComment>? {
     try {
       return HttpRequests.request(MarketplaceUrls.getPluginReviewsUrl(pluginId, page))

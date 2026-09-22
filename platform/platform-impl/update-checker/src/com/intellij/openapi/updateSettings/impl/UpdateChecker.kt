@@ -322,7 +322,7 @@ object UpdateChecker {
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @ApiStatus.Internal
   @JvmStatic
   @JvmOverloads
@@ -671,7 +671,7 @@ object UpdateChecker {
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @ApiStatus.Internal
   @Deprecated("Migrate to PluginUpdateCheckService")
   @ApiStatus.ScheduledForRemoval

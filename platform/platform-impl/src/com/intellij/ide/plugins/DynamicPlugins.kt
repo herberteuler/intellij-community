@@ -56,7 +56,7 @@ object DynamicPlugins {
    * @param pretendEnabled plugins that should be treated as not disabled
    * @param pretendDisabled plugins that should be treated as disabled
    */
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @ApiStatus.Internal
   suspend fun checkCanReconfigureWithoutRestart(
     addNewCustomPlugins: List<PluginMainDescriptor>,
@@ -98,7 +98,7 @@ object DynamicPlugins {
    *   Nothing happens and the result is `false` when the mode cannot move to [targetProductMode], which is also what
    *   a second call with the same target does.
    */
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @ApiStatus.Internal
   suspend fun reconfigure(
     project: Project?,

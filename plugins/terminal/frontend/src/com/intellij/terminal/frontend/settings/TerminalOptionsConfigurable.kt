@@ -582,7 +582,7 @@ private fun Panel.workingDirectoryField(project: Project) {
  * In RemDev, the terminal process is supposed to be started only on the backend,
  * so all file paths suggested in the File Chooser should be restricted to the remote environment.
  */
-@RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+@RequiresReadLockAbsence
 @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
 private fun FileChooserDescriptor.withEelRoot(eelDescriptor: EelDescriptor): FileChooserDescriptor {
   if (!IdeProductMode.isFrontend) {

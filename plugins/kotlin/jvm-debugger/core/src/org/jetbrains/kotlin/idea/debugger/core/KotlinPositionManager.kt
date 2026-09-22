@@ -738,7 +738,7 @@ class KotlinPositionManager(private val debugProcess: DebugProcess) : MultiReque
         return futures.mapNotNull { it.get() }
     }
 
-    @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+    @RequiresReadLockAbsence
     private fun findTargetClasses(candidates: List<ReferenceType>, sourcePosition: SourcePosition): List<ReferenceType> =
         wrapIncompatibleThreadStateException {
             val matchingCandidates = candidates

@@ -51,7 +51,7 @@ internal class Lsp4jServerConnectorSocket(private val lspClient: LspClientImpl) 
     get() = if (::inputStream.isInitialized) inputStream else InputStream.nullInputStream()
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   override fun prepareConnect() {
     var lastException: Throwable? = null
 

@@ -64,7 +64,7 @@ internal class InstallPluginService : RestService() {
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   private fun checkCompatibility(
     request: FullHttpRequest,
     context: ChannelHandlerContext,

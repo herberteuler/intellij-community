@@ -43,7 +43,7 @@ interface UpdateCheckerFacade {
    * otherwise, returns versions compatible with the specified build.
    */
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @ApiStatus.Internal
   fun getPluginUpdates(
     plugins: Collection<PluginId>,
@@ -56,7 +56,7 @@ interface UpdateCheckerFacade {
    * otherwise, returns versions compatible with the specified build.
    */
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   @ApiStatus.Internal
   fun checkInstalledPluginUpdates(
     indicator: ProgressIndicator? = null,

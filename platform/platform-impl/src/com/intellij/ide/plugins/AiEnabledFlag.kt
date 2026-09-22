@@ -27,7 +27,7 @@ object AiEnabledFlag {
    *   active window. It does not change the computed plugin set.
    * @return `false` when the plugin subsystem needs a restart of the IDE to match. The stored flag stays written.
    */
-  @RequiresReadLockAbsence(generateAssertion = false /* IJPL-115548 */)
+  @RequiresReadLockAbsence
   suspend fun setEnabledAndReconfigure(enabled: Boolean, project: Project? = null): Boolean {
     LOG.trace { "a caller asks for AI enabled=$enabled\n${Throwable().stackTraceToString()}" }
     val changed = AiEnabledState.setEnabled(enabled)

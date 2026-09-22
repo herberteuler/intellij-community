@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 final class ProblemsViewStatsCollector extends CounterUsagesCollector {
   private static final String UNKNOWN = "unknown";
-  private static final List<String> TABS = List.of("CurrentFile", "ProjectErrors", "ServerSide", "Vulnerabilities", UNKNOWN);
+  private static final List<String> TABS = List.of("CurrentFile", "ProjectErrors", "ServerSide", "Vulnerabilities", "Security", UNKNOWN);
 
   private static final EventField<String> TAB_NAME = EventFields.String("scope_tab", TABS);
   private static final EventField<Integer> PROBLEMS_COUNT = EventFields.Int("problems_count");

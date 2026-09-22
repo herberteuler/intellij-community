@@ -255,6 +255,11 @@ class IntellijIconClassGeneratorConfig : IconClasses() {
         packageName = "org.intellij.plugins.postcss",
       )
 
+      "intellij.platform.problemView.security" -> IntellijIconClassGeneratorModuleConfig(
+        className = "SecurityProblemsViewIcons",
+        packageName = "com.intellij.platform.problemView.security.icons",
+      )
+
       else -> super.getConfigForModule(moduleName)
     }
   }

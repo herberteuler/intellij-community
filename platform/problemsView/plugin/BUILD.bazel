@@ -12,6 +12,7 @@ dev_dist_plugin(
         "intellij.platform.problemView.ui",
         "intellij.platform.problemView.backend",
         "intellij.platform.problemView.frontend",
+        "intellij.platform.problemView.security",
     ],
     descriptor = "resources/META-INF/plugin.xml",
     jars = {
@@ -62,6 +63,7 @@ ij_plugin(
         "//platform/problemsView/ui",
         "//platform/problemsView/backend",
         "//platform/problemsView/frontend",
+        "//platform/problemsView/security",
     ],
     visibility = ["//visibility:public"],
 )

@@ -1,4 +1,9 @@
 load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
+
+### auto-generated section `dev intellij.platform.problemView.security` start
+content_module_jar(module = ":security")
+### auto-generated section `dev intellij.platform.problemView.security` end
 
 ### auto-generated section `build intellij.platform.problemView.security` start
 jvm_library(
@@ -68,7 +73,6 @@ exports_files(
     [
         "intellij.platform.problemView.security.iml",
         "resources/intellij.platform.problemView.security.xml",
-        "module-content.yaml",
     ],
     visibility = ["//visibility:public"],
 )

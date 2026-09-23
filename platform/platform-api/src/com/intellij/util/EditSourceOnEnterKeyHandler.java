@@ -16,7 +16,6 @@ import com.intellij.platform.ide.navigation.NavigateUtil;
 import com.intellij.platform.ide.navigation.NavigationOptions;
 import com.intellij.pom.Navigatable;
 import com.intellij.util.containers.ContainerUtil;
-import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -60,12 +59,10 @@ public final class EditSourceOnEnterKeyHandler {
       if (project != null && Registry.is("ide.navigation.requests")) {
         var modalityState = ModalityState.current();
         var options = NavigationOptions.defaultOptions().requestFocus(requestFocus);
-        var job = NavigateUtil.requestNavigate(project, navigatables, options, dataContext);
+        var result = NavigateUtil.requestNavigate(project, navigatables, options, dataContext);
         if (whenPerformed != null) {
-          job.invokeOnCompletion(_ -> {
-            ApplicationManager.getApplication().invokeLater(whenPerformed, modalityState, project.getDisposed());
-            return Unit.INSTANCE;
-          });
+          result.whenComplete((_, _) ->
+            ApplicationManager.getApplication().invokeLater(whenPerformed, modalityState, project.getDisposed()));
         }
         return true;
       }

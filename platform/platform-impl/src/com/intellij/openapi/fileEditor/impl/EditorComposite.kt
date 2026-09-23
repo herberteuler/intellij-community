@@ -88,6 +88,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
@@ -266,6 +267,14 @@ open class EditorComposite internal constructor(
   internal suspend fun waitForAvailableWithoutTriggeringInit() {
     availableDeferred.await()
   }
+
+  /**
+   * Completes when the composite publishes its editors, and is canceled with the composite.
+   * It does not start the initialization, so an observer does not change when the editors appear.
+   */
+  @get:Internal
+  val availableJob: Job
+    get() = availableDeferred
 
   @Internal
   fun isAvailable(): Boolean = fileEditorWithProviders.value !== INITIAL_EMPTY

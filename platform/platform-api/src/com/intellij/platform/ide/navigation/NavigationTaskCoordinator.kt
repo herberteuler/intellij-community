@@ -2,7 +2,6 @@
 package com.intellij.platform.ide.navigation
 
 import com.intellij.codeWithMe.ClientId
-import com.intellij.concurrency.ConcurrentCollectionFactory
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
@@ -11,6 +10,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.registry.Registry
+import com.intellij.platform.util.coroutines.AsyncTaskTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -19,7 +19,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.future.asCompletableFuture
 import org.jetbrains.annotations.ApiStatus
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 
 private val shouldRescheduleNavigationFromWriteLock: Boolean
@@ -36,26 +35,13 @@ private val shouldRescheduleNavigationFromWriteLock: Boolean
 @Service(Service.Level.PROJECT)
 class NavigationTaskCoordinator(
   private val navigationScope: CoroutineScope,
-) {
-  private val pendingTasks = ConcurrentCollectionFactory.createConcurrentSet<Job>()
+) : AsyncTaskTracker() {
 
   /**
    * Runs [action] while exposing its execution as pending navigation.
    * A separate token is tracked instead of the caller's job, so completion of [action] completes the tracking entry
    */
-  suspend fun <T> runWithTracking(action: suspend () -> T): T {
-    val task = Job()
-    pendingTasks.add(task)
-    task.invokeOnCompletion {
-      pendingTasks.remove(task)
-    }
-    try {
-      return action()
-    }
-    finally {
-      task.complete()
-    }
-  }
+  public override suspend fun <T> runWithTracking(action: suspend () -> T): T = super.runWithTracking(action)
 
   /**
    * If the UI context is not ready, captures the caller's modality and client until [action] obtains it on the EDT.
@@ -86,10 +72,7 @@ class NavigationTaskCoordinator(
     val task = scope.async(context, start = CoroutineStart.LAZY) {
       action()
     }
-    pendingTasks.add(task)
-    task.invokeOnCompletion {
-      pendingTasks.remove(task)
-    }
+    register(task)
     return task
   }
 
@@ -98,24 +81,7 @@ class NavigationTaskCoordinator(
    * Tasks submitted later are not included. Cancellation of a navigation task counts as completion.
    * Failures of navigation tasks are not propagated through it.
    */
-  internal fun pendingNavigation(): Job {
-    val tasks = pendingTasks.toList()
-    val result = Job()
-    if (tasks.isEmpty()) {
-      result.complete()
-      return result
-    }
-
-    val remainingTasks = AtomicInteger(tasks.size)
-    tasks.forEach { task ->
-      task.invokeOnCompletion {
-        if (remainingTasks.decrementAndGet() == 0) {
-          result.complete()
-        }
-      }
-    }
-    return result
-  }
+  internal fun pendingNavigation(): Job = pending()
 
   private fun CoroutineScope?.orServiceScope(): CoroutineScope = this ?: navigationScope
 

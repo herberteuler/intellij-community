@@ -3647,7 +3647,6 @@ a:com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 - f:openFile(com.intellij.openapi.vfs.VirtualFile,Z,Z):com.intellij.openapi.fileEditor.FileEditor[]
 - f:openFileWithProviders(com.intellij.openapi.vfs.VirtualFile,Z,com.intellij.openapi.fileEditor.impl.EditorWindow):com.intellij.openapi.util.Pair
 - f:openFileWithProviders(com.intellij.openapi.vfs.VirtualFile,Z,Z):com.intellij.openapi.util.Pair
-- f:requestOpenFile(com.intellij.openapi.vfs.VirtualFile):V
 - runWhenLoaded(com.intellij.openapi.editor.Editor,java.lang.Runnable):V
 f:com.intellij.openapi.fileEditor.ex.FileEditorManagerEx$Companion
 - f:getInstanceExAsync(com.intellij.openapi.project.Project,kotlin.coroutines.Continuation):java.lang.Object

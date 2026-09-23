@@ -1646,7 +1646,7 @@ com.intellij.openapi.fileEditor.FileEditorComposite
 - a:getAllEditors():java.util.List
 - a:getAllProviders():java.util.List
 - a:isPreview():Z
-a:com.intellij.openapi.fileEditor.FileEditorManager
+Fa:com.intellij.openapi.fileEditor.FileEditorManager
 - sf:Companion:com.intellij.openapi.fileEditor.FileEditorManager$Companion
 - addFileEditorManagerListener(com.intellij.openapi.fileEditor.FileEditorManagerListener):V
 - a:closeFile(com.intellij.openapi.vfs.VirtualFile):V

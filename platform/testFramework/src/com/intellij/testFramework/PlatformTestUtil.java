@@ -842,7 +842,7 @@ public final class PlatformTestUtil {
     ActionUtil.performAction(action, event);
     var project = event.getData(CommonDataKeys.PROJECT);
     if (project != null) {
-      NavigationTestUtil.awaitPendingNavigationIfEnabled(project);
+      EditorOpenTestUtil.awaitPendingNavigationAndEditorOpenIfEnabled(project);
     }
   }
 

@@ -173,7 +173,7 @@ import com.intellij.testFramework.IndexingTestUtil;
 import com.intellij.testFramework.InspectionTestUtil;
 import com.intellij.testFramework.InspectionsKt;
 import com.intellij.testFramework.LightPlatformTestCase;
-import com.intellij.testFramework.NavigationTestUtil;
+import com.intellij.testFramework.EditorOpenTestUtil;
 import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.PsiTestUtil;
 import com.intellij.testFramework.RunAll;
@@ -1142,7 +1142,7 @@ public class CodeInsightTestFixtureImpl extends BaseFixture implements CodeInsig
     ActionUtil.updateAction(action, e);
     if (e.getPresentation().isEnabled()) {
       ActionUtil.performAction(action, e);
-      NavigationTestUtil.awaitPendingNavigationIfEnabled(getProject());
+      EditorOpenTestUtil.awaitPendingNavigationAndEditorOpenIfEnabled(getProject());
     }
     return e.getPresentation();
   }

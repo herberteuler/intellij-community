@@ -502,6 +502,7 @@ class EditorWindow internal constructor(
     fileIsSecondaryComponent: Boolean = true,
     forceFocus: Boolean = false,
     internalHint: FileEditorOpenOptionsHint?,
+    openOptions: FileEditorOpenOptions? = null,
   ): EditorWindow? {
     checkConsistency()
     if (tabCount < 1) {
@@ -553,7 +554,8 @@ class EditorWindow internal constructor(
       window = newWindow,
       file = nextFile,
       fileEntry = selectedComposite?.takeIf { it.file == nextFile }?.currentStateAsFileEntry(),
-      options = FileEditorOpenOptions(
+      options = openOptions?.copy(isExactState = true, pin = openOptions.pin || getComposite(nextFile)?.isPinned == true)
+                ?: FileEditorOpenOptions(
         requestFocus = focusNew,
         isExactState = true,
         pin = getComposite(nextFile)?.isPinned ?: false,
@@ -562,17 +564,15 @@ class EditorWindow internal constructor(
         internalHint = internalHint
       ),
     ) ?: return newWindow
-    if (!focusNew) {
+    if (composite is EditorComposite && newWindow.selectedComposite == null) {
+      newWindow.setCurrentCompositeAndSelectTab(composite)
+    }
+    if (!focusNew && openOptions == null) {
       LOG.assertTrue(currentCompositeFlow.value == selectedComposite)
       IdeFocusManager.getGlobalInstance().doWhenFocusSettlesDown {
         selectedComposite?.preferredFocusedComponent?.let {
           IdeFocusManager.getGlobalInstance().requestFocus(it, true)
         }
-      }
-
-      // we set selectAsCurrent to false, but the newly created window should have some selected composite
-      if (composite is EditorComposite) {
-        newWindow.setCurrentCompositeAndSelectTab(composite)
       }
     }
     component.revalidate()

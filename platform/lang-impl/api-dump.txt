@@ -3247,6 +3247,10 @@ f:com.intellij.ide.util.EditorHelper
 - s:openFilesInEditor(com.intellij.psi.PsiElement[]):V
 - s:openInEditor(com.intellij.psi.PsiElement):com.intellij.openapi.editor.Editor
 - s:openInMaybeInjectedEditor(com.intellij.psi.PsiElement):com.intellij.openapi.editor.Editor
+- s:requestOpenFilesInEditor(com.intellij.psi.PsiElement[]):java.util.concurrent.CompletableFuture
+- s:requestOpenInEditor(com.intellij.psi.PsiElement):java.util.concurrent.CompletableFuture
+- s:requestOpenInEditor(com.intellij.psi.PsiElement,Z):java.util.concurrent.CompletableFuture
+- s:requestOpenInEditor(com.intellij.psi.PsiElement,Z,Z):java.util.concurrent.CompletableFuture
 c:com.intellij.ide.util.MemberChooser
 - com.intellij.openapi.ui.DialogWrapper
 - com.intellij.openapi.actionSystem.UiCompatibleDataProvider

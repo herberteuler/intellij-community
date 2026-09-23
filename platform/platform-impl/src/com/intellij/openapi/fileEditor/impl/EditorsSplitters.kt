@@ -1241,31 +1241,35 @@ open class EditorsSplitters internal constructor(
     forceFocus: Boolean = false,
     internalHint: FileEditorOpenOptionsHint? = null,
   ): EditorWindow? {
+    return openInRightSplit(file, FileEditorOpenOptions(requestFocus = requestFocus,
+                                                       forceFocus = forceFocus,
+                                                       waitForCompositeOpen = false,
+                                                       internalHint = internalHint), newWindowOptions = null)
+  }
+
+  internal fun openInRightSplit(file: VirtualFile, options: FileEditorOpenOptions): EditorWindow? =
+    openInRightSplit(file, options, newWindowOptions = options)
+
+  private fun openInRightSplit(file: VirtualFile, options: FileEditorOpenOptions, newWindowOptions: FileEditorOpenOptions?): EditorWindow? {
     val window = currentWindow ?: return null
-    val parent = window.component.parent
-    if (parent is Splitter) {
-      val component = parent.secondComponent
-      if (component !== window.component) {
-        // reuse
-        windows.find { SwingUtilities.isDescendingFrom(component, it.component) }?.let { rightSplitWindow ->
-          manager.openFile(
-            file = file,
-            window = rightSplitWindow,
-            options = FileEditorOpenOptions(requestFocus = requestFocus,
-                                            waitForCompositeOpen = false,
-                                            forceFocus = forceFocus,
-                                            internalHint = internalHint),
-          )
-          return rightSplitWindow
-        }
-      }
+    findRightSplitWindow(window)?.let { rightSplitWindow ->
+      manager.openFile(file = file, window = rightSplitWindow, options = options)
+      return rightSplitWindow
     }
     return window.split(orientation = JSplitPane.HORIZONTAL_SPLIT,
                         forceSplit = true,
                         virtualFile = file,
-                        focusNew = requestFocus,
-                        forceFocus = forceFocus,
-                        internalHint = internalHint)
+                        focusNew = options.requestFocus,
+                        forceFocus = options.forceFocus,
+                        internalHint = options.internalHint,
+                        openOptions = newWindowOptions)
+  }
+
+  private fun findRightSplitWindow(window: EditorWindow): EditorWindow? {
+    val parent = window.component.parent as? Splitter ?: return null
+    val component = parent.secondComponent
+    if (component === window.component) return null
+    return windows.find { SwingUtilities.isDescendingFrom(component, it.component) }
   }
 }
 

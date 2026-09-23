@@ -743,7 +743,7 @@ public abstract class LightPlatformCodeInsightTestCase extends LightPlatformTest
     CommandProcessor.getInstance()
       .executeCommand(project, () -> EditorTestUtil.executeAction(editor, actionId, true), "", null, editor.getDocument());
     if (project != null) {
-      NavigationTestUtil.awaitPendingNavigationIfEnabled(project);
+      EditorOpenTestUtil.awaitPendingNavigationAndEditorOpenIfEnabled(project);
     }
   }
 

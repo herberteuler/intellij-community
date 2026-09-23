@@ -68,7 +68,7 @@ abstract class FileEditorManager {
    * The future completes with the composite once it publishes its editors.
    * [FileEditorComposite.EMPTY] means this manager supplies no editor. It does not confirm a remote tab's visibility.
    * The future is canceled when the project closes, or when the tab closes before publication.
-   * Use [openFile] from coroutine code, then [runWhenLoaded] for text-editor readiness.
+   * Use [openFile] from coroutine code, then [awaitLoaded] for text-editor readiness.
    */
   @ApiStatus.Experimental
   open fun requestOpenFile(file: VirtualFile): CompletableFuture<FileEditorComposite> {
@@ -113,7 +113,7 @@ abstract class FileEditorManager {
 
   /**
    * Opens a file with explicit parameters. [FileEditorOpenMode.MANAGED] uses [FileEditorOpenMode.DEFAULT] without reading the current event.
-   * Use [runWhenLoaded] before scrolling or changing folding.
+   * Use [awaitLoaded] before scrolling or changing folding.
    */
   @ApiStatus.Experimental
   open suspend fun openFile(file: VirtualFile, request: FileEditorOpenRequest = FileEditorOpenRequest.defaults()): FileEditorComposite {
@@ -167,7 +167,7 @@ abstract class FileEditorManager {
 
   /**
    * Opens and navigates to a text editor. [FileEditorOpenMode.MANAGED] uses [FileEditorOpenMode.DEFAULT] without reading the current event.
-   * Use [runWhenLoaded] before scrolling or changing folding.
+   * Use [awaitLoaded] before scrolling or changing folding.
    */
   @ApiStatus.Experimental
   open suspend fun openTextEditor(descriptor: OpenFileDescriptor, request: FileEditorOpenRequest): Editor? {
@@ -417,6 +417,13 @@ abstract class FileEditorManager {
    * fully loaded.
    */
   abstract fun runWhenLoaded(editor: Editor, runnable: Runnable)
+
+  /**
+   * Suspends until the text editor finishes loading and applies its initial state.
+   * Throws a cancellation exception if the editor closes before this method returns.
+   */
+  @ApiStatus.Experimental
+  abstract suspend fun awaitLoaded(editor: Editor)
 
   private inline fun <T> submitOpen(crossinline action: suspend () -> T): CompletableFuture<T> {
     val future = EditorOpenFuture<T>()

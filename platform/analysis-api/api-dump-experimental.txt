@@ -451,6 +451,7 @@ com.intellij.modcommand.ModTemplateBuilder
 - setState(com.intellij.openapi.command.undo.ImmutableActionChangeRange):V
 - toImmutable(Z):com.intellij.openapi.command.undo.ImmutableActionChangeRange
 Fa:com.intellij.openapi.fileEditor.FileEditorManager
+- *a:awaitLoaded(com.intellij.openapi.editor.Editor,kotlin.coroutines.Continuation):java.lang.Object
 - *a:canOpenFile(com.intellij.openapi.vfs.VirtualFile):Z
 - *a:getCurrentFile():com.intellij.openapi.vfs.VirtualFile
 - *a:getOpenFilesWithRemotes():java.util.List

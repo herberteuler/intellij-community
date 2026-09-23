@@ -334,6 +334,7 @@ a:com.intellij.openapi.fileEditor.TextEditorWithPreviewProvider
 - *p:createSplitEditorAsync(com.intellij.openapi.project.Project,com.intellij.openapi.fileEditor.TextEditor,com.intellij.openapi.fileEditor.FileEditor,kotlin.coroutines.Continuation):java.lang.Object
 a:com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 - com.intellij.openapi.fileEditor.FileEditorManager
+- *f:awaitLoaded(com.intellij.openapi.editor.Editor,kotlin.coroutines.Continuation):java.lang.Object
 - *:openFile(com.intellij.openapi.vfs.VirtualFile,com.intellij.openapi.fileEditor.FileEditorOpenRequest,kotlin.coroutines.Continuation):java.lang.Object
 - *f:openFileInWindow(com.intellij.openapi.vfs.VirtualFile,com.intellij.openapi.fileEditor.impl.EditorWindow,com.intellij.openapi.fileEditor.FileEditorOpenRequest,kotlin.coroutines.Continuation):java.lang.Object
 - *:openTextEditor(com.intellij.openapi.fileEditor.OpenFileDescriptor,com.intellij.openapi.fileEditor.FileEditorOpenRequest,kotlin.coroutines.Continuation):java.lang.Object

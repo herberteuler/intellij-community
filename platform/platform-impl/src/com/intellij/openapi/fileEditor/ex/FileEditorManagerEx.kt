@@ -23,6 +23,7 @@ import com.intellij.openapi.fileEditor.impl.EditorsSplitters
 import com.intellij.openapi.fileEditor.impl.FileEditorOpenOptions
 import com.intellij.openapi.fileEditor.impl.launchEditorOpenFuture
 import com.intellij.openapi.fileEditor.impl.selectPreferredTextEditor
+import com.intellij.openapi.fileEditor.impl.text.AsyncEditorLoader
 import com.intellij.openapi.fileEditor.impl.text.AsyncEditorLoader.Companion.performWhenLoaded
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Pair
@@ -357,6 +358,11 @@ abstract class FileEditorManagerEx : FileEditorManager() {
 
   override fun runWhenLoaded(editor: Editor, runnable: Runnable) {
     performWhenLoaded(editor, runnable)
+  }
+
+  @ApiStatus.Experimental
+  final override suspend fun awaitLoaded(editor: Editor) {
+    AsyncEditorLoader.awaitLoaded(editor)
   }
 
   @Internal

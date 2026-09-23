@@ -34,6 +34,8 @@ import com.intellij.util.concurrency.annotations.RequiresReadLock
 import com.intellij.util.ui.AnimatedIcon
 import com.intellij.util.ui.AsyncProcessIcon
 import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +72,7 @@ class AsyncEditorLoader internal constructor(
    */
   private val delayedActions: AtomicReference<Array<Runnable>> = AtomicReference(ArrayUtil.EMPTY_RUNNABLE_ARRAY)
   private val delayedScrollState = AtomicReference<DelayedScrollState?>()
+  private val loaded = CompletableDeferred<Unit>(coroutineScope.coroutineContext.job)
 
   companion object {
     @JvmField
@@ -120,6 +123,17 @@ class AsyncEditorLoader internal constructor(
     fun isEditorLoaded(editor: Editor): Boolean {
       val asyncLoader = editor.getUserData(ASYNC_LOADER)
       return asyncLoader == null || asyncLoader.isLoaded()
+    }
+
+    suspend fun awaitLoaded(editor: Editor) {
+      val loader = withContext(Dispatchers.EDT) {
+        if (editor.isDisposed) throw CancellationException("The editor is disposed")
+        editor.getUserData(ASYNC_LOADER)
+      }
+      loader?.loaded?.await()
+      withContext(Dispatchers.EDT) {
+        if (editor.isDisposed) throw CancellationException("The editor is disposed")
+      }
     }
   }
 
@@ -176,12 +190,16 @@ class AsyncEditorLoader internal constructor(
         finally {
           scrollingModel.enableAnimation()
         }
+        loaded.complete(Unit)
       }
       span("editor notifications schedule") {
         project.serviceAsync<EditorNotifications>().scheduleUpdateNotifications(textEditor)
       }
     }
-      .invokeOnCompletion {
+      .invokeOnCompletion { cause ->
+        if (cause != null) {
+          loaded.completeExceptionally(cause)
+        }
         // make sure that async loaded marked as completed
         delayedActions.set(null)
 
@@ -204,6 +222,7 @@ class AsyncEditorLoader internal constructor(
       task.await()
     }
     executeDelayedActions(delayedActions.getAndSet(null))
+    loaded.complete(Unit)
   }
 
   @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)

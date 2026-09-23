@@ -47,6 +47,7 @@ import com.intellij.platform.ide.navigation.NavigationOptions
 import com.intellij.platform.ide.navigation.NavigationService
 import com.intellij.platform.ide.navigation.NavigationTaskCoordinator
 import com.intellij.platform.ide.navigation.RequestedEditor
+import com.intellij.platform.ide.navigation.requestNavigate
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.progress.hasProgressStep
 import com.intellij.platform.util.progress.mapWithProgress
@@ -63,6 +64,7 @@ import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import java.util.concurrent.CompletableFuture
 
 @Service(Service.Level.PROJECT)
 internal class IdeNavigationService(private val project: Project) : NavigationService {
@@ -71,6 +73,14 @@ internal class IdeNavigationService(private val project: Project) : NavigationSe
 
   private val taskCoordinator: NavigationTaskCoordinator
     get() = NavigationTaskCoordinator.getInstance(project)
+
+  override fun requestNavigate(navigatable: Navigatable, options: NavigationOptions): CompletableFuture<Boolean> {
+    return requestNavigate(project, navigatable, options)
+  }
+
+  override fun requestNavigate(request: NavigationRequest, options: NavigationOptions): CompletableFuture<Boolean> {
+    return requestNavigate(project, request, options)
+  }
 
   override suspend fun navigateRequests(options: NavigationOptions, supplier: suspend () -> Collection<NavigationRequest>): Boolean {
     return doExclusively(options) {

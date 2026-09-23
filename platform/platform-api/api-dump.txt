@@ -5478,6 +5478,8 @@ com.intellij.platform.ide.navigation.NavigationService
 - navigate(java.util.Collection,kotlin.coroutines.Continuation):java.lang.Object
 - navigateRequests(com.intellij.platform.ide.navigation.NavigationOptions,kotlin.jvm.functions.Function1,kotlin.coroutines.Continuation):java.lang.Object
 - navigateRequests(kotlin.jvm.functions.Function1,kotlin.coroutines.Continuation):java.lang.Object
+- a:requestNavigate(com.intellij.platform.backend.navigation.NavigationRequest,com.intellij.platform.ide.navigation.NavigationOptions):java.util.concurrent.CompletableFuture
+- a:requestNavigate(com.intellij.pom.Navigatable,com.intellij.platform.ide.navigation.NavigationOptions):java.util.concurrent.CompletableFuture
 f:com.intellij.platform.ide.navigation.NavigationService$Companion
 - f:getInstance(com.intellij.openapi.project.Project):com.intellij.platform.ide.navigation.NavigationService
 com.intellij.platform.ide.productMode.IdeProductMode

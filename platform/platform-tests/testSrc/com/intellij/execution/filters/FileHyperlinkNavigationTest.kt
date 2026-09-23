@@ -19,6 +19,7 @@ import com.intellij.testFramework.replaceService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CompletableFuture
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
@@ -83,6 +84,12 @@ private class RecordingNavigationService : NavigationService {
     private set
   var lastNavigatables: List<Navigatable> = emptyList()
     private set
+
+  override fun requestNavigate(navigatable: Navigatable, options: NavigationOptions): CompletableFuture<Boolean> =
+    error("Unexpected navigation submission")
+
+  override fun requestNavigate(request: NavigationRequest, options: NavigationOptions): CompletableFuture<Boolean> =
+    error("Unexpected navigation submission")
 
   override suspend fun navigate(request: NavigationRequest, options: NavigationOptions): Boolean {
     requestCalls++

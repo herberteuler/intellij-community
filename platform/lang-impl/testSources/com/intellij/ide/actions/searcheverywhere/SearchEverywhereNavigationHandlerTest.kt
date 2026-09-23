@@ -20,6 +20,7 @@ import com.intellij.testFramework.replaceService
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration.Companion.seconds
 
 @TestApplication
@@ -70,6 +71,12 @@ private class GatedNavigationService : NavigationService {
   private val gate = CompletableDeferred<Unit>()
   val entered = CompletableDeferred<Unit>()
   val completed = CompletableDeferred<Unit>()
+
+  override fun requestNavigate(navigatable: Navigatable, options: NavigationOptions): CompletableFuture<Boolean> =
+    error("Unexpected navigation submission")
+
+  override fun requestNavigate(request: NavigationRequest, options: NavigationOptions): CompletableFuture<Boolean> =
+    error("Unexpected navigation submission")
 
   fun openGate() {
     gate.complete(Unit)

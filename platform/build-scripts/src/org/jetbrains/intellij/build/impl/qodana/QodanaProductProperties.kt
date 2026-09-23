@@ -2,6 +2,10 @@
 package org.jetbrains.intellij.build.impl.qodana
 
 
+// list contains non-overridable parameters!
+// user won't be able to change them by using --property in qodana-cli.
+// when adding an overridable parameter (i.e. a default value), add it in qodana-cli instead.
+// if applicable, keep tests equivalent org.jetbrains.qodana.tests.utils.QodanaVmOptions in sync
 private val COMMON_ADDITIONAL_VM_OPTIONS = listOf(
   "-Dqodana.application=true",
   "-Dfus.internal.reduce.initial.delay=true",
@@ -16,14 +20,13 @@ private val COMMON_ADDITIONAL_VM_OPTIONS = listOf(
   "-Dsdk.download.consent=true",
   "-Dide.activity.tracking.enable.debug=true",
   "-Deslint.service.expiration.timeout.ms=5000",
-  "-Dtypescript.service.node.defaultMemoryLimit=1024",
   "-Djetbrains.security.package-checker.requestTimeoutSeconds=15",
   "-Dphp.additional.library.manager.new.updater=true",
   "-Dide.region.url.mapping.expiration.timeout=7200",
   "-Dexternal.system.auto.import.headless.async=true",
   "-Dmaven.default.headless.import=true",
   "-Dide.do.not.check.ls.on.startup=true",
-  )
+)
 
 private const val IS_EAP = true
 

@@ -88,11 +88,21 @@ class FileEditorProviderManagerImpl
         continue
       }
 
-      if (runReadActionBlocking {
+      val accepted = try {
+        runReadActionBlocking {
           SlowOperations.knownIssue("IDEA-307300, EA-816241").use {
             checkProvider(project = project, file = file, provider = provider, suppressors = suppressors)
           }
-        }) {
+        }
+      }
+      catch (e: CancellationException) {
+        throw e
+      }
+      catch (e: Throwable) {
+        LOG.error(PluginException(e, item.pluginDescriptor.pluginId))
+        continue
+      }
+      if (accepted) {
         sharedProviders.add(provider)
       }
     }

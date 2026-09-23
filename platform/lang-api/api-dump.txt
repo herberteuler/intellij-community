@@ -1246,12 +1246,15 @@ com.intellij.navigation.GotoClassContributor
 - a:getQualifiedNameSeparator():java.lang.String
 - getTabTitlePluralized():java.lang.String
 c:com.intellij.navigation.GotoRelatedItem
+- com.intellij.pom.Navigatable
 - <init>(com.intellij.psi.PsiElement):V
+- canNavigate():Z
 - s:createItems(java.util.Collection):java.util.List
 - getCustomIcon():javax.swing.Icon
 - getCustomName():java.lang.String
 - getElement():com.intellij.psi.PsiElement
 - navigate():V
+- navigate(Z):V
 a:com.intellij.navigation.GotoRelatedProvider
 - <init>():V
 - getItems(com.intellij.psi.PsiElement):java.util.List

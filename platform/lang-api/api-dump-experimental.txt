@@ -532,6 +532,12 @@ com.intellij.ide.bookmark.BookmarksManager
 - f:setBoilerplate(Z):V
 - f:setFrameworkLanguage(java.lang.String):V
 - f:setFrameworkVersion(java.lang.String):V
+c:com.intellij.navigation.GotoRelatedItem
+- com.intellij.pom.Navigatable
+- *p:<init>(com.intellij.openapi.project.Project,com.intellij.psi.PsiElement,java.lang.String,I):V
+- *f:getProject():com.intellij.openapi.project.Project
+- *:navigationRequest():com.intellij.platform.backend.navigation.NavigationRequest
+- *:onChosen():V
 com.intellij.openapi.roots.ModifiableModelsProvider
 - *a:getGlobalLibraryTableModifiableModel(com.intellij.openapi.project.Project):com.intellij.openapi.roots.libraries.LibraryTable$ModifiableModel
 c:com.intellij.openapi.roots.ui.configuration.ProjectSettingsService

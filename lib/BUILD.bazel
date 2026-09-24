@@ -6347,14 +6347,6 @@ copy_file(
 )
 
 copy_file(
-    name = "org.jspecify/jspecify-1.0.1.jar_copy",
-    src = "@org_jspecify-jspecify-1_0_1_http//file",
-    out = "org.jspecify/jspecify-1.0.1.jar",
-    allow_symlink = True,
-    visibility = ["//visibility:public"],
-)
-
-copy_file(
     name = "com.google.errorprone/error_prone_annotations-2.50.0.jar_copy",
     src = "@com_google_errorprone-error_prone_annotations-2_50_0_http//file",
     out = "com.google.errorprone/error_prone_annotations-2.50.0.jar",
@@ -6368,7 +6360,6 @@ java_library(
     exports = [
         # do not sort,
         ":com_github_ben-manes_caffeine-caffeine-3_3_0_http_import",
-        ":org_jspecify-jspecify-1_0_1_http_import",
         ":com_google_errorprone-error_prone_annotations-2_50_0_http_import",
     ],
 )
@@ -6377,12 +6368,6 @@ jvm_import(
     name = "com_github_ben-manes_caffeine-caffeine-3_3_0_http_import",
     jar = "@com_github_ben-manes_caffeine-caffeine-3_3_0_http//file",
     source_jar = "@com_github_ben-manes_caffeine-caffeine-3_3_0-sources_http//file",
-)
-
-jvm_import(
-    name = "org_jspecify-jspecify-1_0_1_http_import",
-    jar = "@org_jspecify-jspecify-1_0_1_http//file",
-    source_jar = "@org_jspecify-jspecify-1_0_1-sources_http//file",
 )
 
 jvm_import(
@@ -10416,6 +10401,14 @@ jvm_import(
     name = "libraries-jsp-_j_s_p",
     jar = "@javax_servlet_jsp-javax_servlet_jsp-api-2_2_1_http//file",
     source_jar = "@javax_servlet_jsp-javax_servlet_jsp-api-2_2_1-sources_http//file",
+    visibility = ["//visibility:public"],
+)
+
+copy_file(
+    name = "org.jspecify/jspecify-1.0.1.jar_copy",
+    src = "@org_jspecify-jspecify-1_0_1_http//file",
+    out = "org.jspecify/jspecify-1.0.1.jar",
+    allow_symlink = True,
     visibility = ["//visibility:public"],
 )
 

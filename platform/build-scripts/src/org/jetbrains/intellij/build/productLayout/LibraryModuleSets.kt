@@ -89,6 +89,9 @@ object LibraryModuleSets {
     embeddedModule("intellij.libraries.bouncy.castle.pgp")
     embeddedModule("intellij.libraries.blockmap")
     embeddedModule("intellij.libraries.caffeine")
+    // embedded because caffeine, an embedded library, excludes the jspecify artifact and depends on this wrapper;
+    // the Gradle, Kotlin and Android plugins depend on it as well
+    embeddedModule("intellij.libraries.jspecify")
     embeddedModule("intellij.libraries.classgraph")
     embeddedModule("intellij.libraries.cli.parser")
     module("intellij.libraries.commons.cli")
@@ -324,8 +327,6 @@ object LibraryModuleSets {
    * Each entry is a shared-set placement under ADR 0005 that a plugin-private copy could replace.
    */
   fun librariesIdeCommon(): ModuleSet = moduleSet("libraries.ide.common") {
-    // the jspecify annotations; Gradle, Kotlin, Android and other plugins depend on them
-    module("intellij.libraries.jspecify")
     module("intellij.libraries.javax.activation")
     module("intellij.libraries.opencsv")
     module("intellij.libraries.squareup.okio.jvm")

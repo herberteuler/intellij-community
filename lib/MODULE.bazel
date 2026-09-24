@@ -4950,13 +4950,6 @@ http_file(
 )
 
 http_file(
-    name = "org_jspecify-jspecify-1_0_1_http",
-    downloaded_file_path = "jspecify-1.0.1.jar",
-    sha256 = "070d75f261fe4c5b8202508366715f7f2d4660f88c8ef7e6d3575e48c9683b66",
-    url = "https://cache-redirector.jetbrains.com/repo1.maven.org/maven2/org/jspecify/jspecify/1.0.1/jspecify-1.0.1.jar",
-)
-
-http_file(
     name = "com_google_errorprone-error_prone_annotations-2_50_0_http",
     downloaded_file_path = "error_prone_annotations-2.50.0.jar",
     sha256 = "4667724877f1d37a689202da191e23efa7657c62eef93ccdac406eccfe5cdd0a",
@@ -4968,13 +4961,6 @@ http_file(
     downloaded_file_path = "caffeine-3.3.0-sources.jar",
     sha256 = "b3d73b6460ac46bbeda72372579356d2f47d6bda3d6fb94239fc1e24a1e07879",
     url = "https://cache-redirector.jetbrains.com/repo1.maven.org/maven2/com/github/ben-manes/caffeine/caffeine/3.3.0/caffeine-3.3.0-sources.jar",
-)
-
-http_file(
-    name = "org_jspecify-jspecify-1_0_1-sources_http",
-    downloaded_file_path = "jspecify-1.0.1-sources.jar",
-    sha256 = "230c491aac6d2a2b7e66b68d4331b1d2626f1bf3a372c33bbe2b077297e46c45",
-    url = "https://cache-redirector.jetbrains.com/repo1.maven.org/maven2/org/jspecify/jspecify/1.0.1/jspecify-1.0.1-sources.jar",
 )
 
 http_file(
@@ -8433,6 +8419,20 @@ http_file(
     downloaded_file_path = "javax.servlet.jsp-api-2.2.1-sources.jar",
     sha256 = "d7a9ba1af77c874677a524f35d7fb446faddaad688b6f34e680a54d5dcb43394",
     url = "https://cache-redirector.jetbrains.com/repo1.maven.org/maven2/javax/servlet/jsp/javax.servlet.jsp-api/2.2.1/javax.servlet.jsp-api-2.2.1-sources.jar",
+)
+
+http_file(
+    name = "org_jspecify-jspecify-1_0_1_http",
+    downloaded_file_path = "jspecify-1.0.1.jar",
+    sha256 = "070d75f261fe4c5b8202508366715f7f2d4660f88c8ef7e6d3575e48c9683b66",
+    url = "https://cache-redirector.jetbrains.com/repo1.maven.org/maven2/org/jspecify/jspecify/1.0.1/jspecify-1.0.1.jar",
+)
+
+http_file(
+    name = "org_jspecify-jspecify-1_0_1-sources_http",
+    downloaded_file_path = "jspecify-1.0.1-sources.jar",
+    sha256 = "230c491aac6d2a2b7e66b68d4331b1d2626f1bf3a372c33bbe2b077297e46c45",
+    url = "https://cache-redirector.jetbrains.com/repo1.maven.org/maven2/org/jspecify/jspecify/1.0.1/jspecify-1.0.1-sources.jar",
 )
 
 http_file(

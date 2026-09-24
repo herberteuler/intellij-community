@@ -21,8 +21,16 @@ jvm_library(
         ["resources/**/*"],
     ),
     visibility = ["//visibility:public"],
-    exports = ["@lib//:libraries-caffeine-caffeine"],
-    runtime_deps = ["@lib//:libraries-caffeine-caffeine"],
+    exports = [
+        # do not sort,
+        "@lib//:libraries-caffeine-caffeine",
+        "//libraries/jspecify",
+    ],
+    runtime_deps = [
+        # do not sort,
+        "@lib//:libraries-caffeine-caffeine",
+        "//libraries/jspecify",
+    ],
 )
 
 jvm_library(
@@ -35,8 +43,17 @@ jvm_library(
     kotlinc_opts = "@community//:k8",
     module_name = "intellij.libraries.caffeine",
     visibility = ["//visibility:public"],
-    exports = ["@lib//:libraries-caffeine-caffeine"],
-    runtime_deps = [":caffeine"],
+    exports = [
+        # do not sort,
+        "@lib//:libraries-caffeine-caffeine",
+        "//libraries/jspecify",
+        "//libraries/jspecify:jspecify_test_lib",
+    ],
+    runtime_deps = [
+        # do not sort,
+        ":caffeine",
+        "//libraries/jspecify:jspecify_test_lib",
+    ],
 )
 ### auto-generated section `build intellij.libraries.caffeine` end
 

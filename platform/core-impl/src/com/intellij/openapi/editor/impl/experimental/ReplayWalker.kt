@@ -295,7 +295,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     var done = 0
     while (done < count) {
       // Skip the items that the prepare version does not have.
-      while (!items[cursor.itemIndex].inPrepare) {
+      while (!hasItemToDelete(cursor, lv)) {
         cursor.advanceOver(items[cursor.itemIndex])
       }
       val taken = minOf(count - done, items[cursor.itemIndex].length)
@@ -317,6 +317,19 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       done += taken
     }
     cacheCursor(cursor)
+  }
+
+  /**
+   * Whether the prepare version has the item at the cursor, so the delete takes that one.
+   *
+   * This also bounds the skip loop of [applyDelete]. A run that deletes more units than the
+   * document at its own parents holds would otherwise walk off the end of the item list.
+   */
+  private fun hasItemToDelete(cursor: Cursor, lv: LV): Boolean {
+    require(cursor.itemIndex < items.size) {
+      "The delete run at the lv $lv reached the end of the item list"
+    }
+    return items[cursor.itemIndex].inPrepare
   }
 
   /**

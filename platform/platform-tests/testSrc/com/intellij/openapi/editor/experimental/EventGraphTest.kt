@@ -565,6 +565,21 @@ class EventGraphTest {
   }
 
   @Test
+  fun `a delete that runs past the document says so`() {
+    // The raw API does not compare an offset against the document, so a graph can hold a
+    // delete of more units than the document at its parents has. The replay must then name
+    // the run and not raise a bare index error.
+    val graph = EventGraph.createGraph()
+      .append(Event.createInsert(agent("u"), 0, 0, "ab"), Version.root())
+      .append(Event.createDelete(agent("v"), 0, 0, 5), Version.of(1))
+    val failure = assertThrows(IllegalArgumentException::class.java) { graph.replay() }
+    assertTrue(
+      failure.message!!.contains("reached the end of the item list"),
+      "Unexpected message: ${failure.message}",
+    )
+  }
+
+  @Test
   fun `agents compare by the name`() {
     assertTrue(agent("a") < agent("b"))
     assertTrue(agent("b") > agent("a"))

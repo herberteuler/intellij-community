@@ -31,6 +31,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.newvfs.RefreshQueue
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiModificationTracker
@@ -116,6 +117,9 @@ class ImportsToolset : McpToolset {
     val project = context.project
     val requestedFiles = prepareRequestedImportFiles(project, files)
     context.reportToolActivity(McpServerBundle.message("tool.activity.adding.missing.imports", requestedFiles.size))
+    // The agent writes a file and calls the tool at once, often before the file watcher sees the change.
+    // A synchronous refresh reads every requested file from the disk again.
+    RefreshQueue.getInstance().refresh(recursive = false, files = requestedFiles.map { it.virtualFile })
     // The tool needs the indexes, and no annotation declares that. These two helpers are the whole
     // mechanism: the wait stays outside the timeout, so it does not eat the budget of the work
     // itself, and checkIndexingInProgress marks the answer when indexing started anyway.

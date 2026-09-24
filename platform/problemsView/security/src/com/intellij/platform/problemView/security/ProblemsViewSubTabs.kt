@@ -47,17 +47,17 @@ object ProblemsViewSubTabs {
     if (project.isDisposed) return false
     val window = ProblemsView.getToolWindow(project) ?: return false
     if (!window.isVisible) return false
-    val host = window.contentManagerIfCreated?.selectedContent?.component as? SubTabbedProblemsViewTab ?: return false
-    return host.getTabId() == hostTabId && host.shownSubTabId.value == subTabId
+    val host = window.contentManagerIfCreated?.selectedContent?.component as? ProblemsViewSubTabHost ?: return false
+    return host.hostTabId == hostTabId && host.shownSubTabId.value == subTabId
   }
 
-  private fun hostTab(contentManager: ContentManager?, @NonNls hostTabId: String): SubTabbedProblemsViewTab? =
+  private fun hostTab(contentManager: ContentManager?, @NonNls hostTabId: String): ProblemsViewSubTabHost? =
     contentManager
       ?.contents
       ?.asSequence()
       ?.map { it.component }
-      ?.filterIsInstance<SubTabbedProblemsViewTab>()
-      ?.firstOrNull { it.getTabId() == hostTabId }
+      ?.filterIsInstance<ProblemsViewSubTabHost>()
+      ?.firstOrNull { it.hostTabId == hostTabId }
 
   private fun contentManager(project: Project): ContentManager? =
     if (project.isDisposed) null else ProblemsView.getToolWindow(project)?.contentManager

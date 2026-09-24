@@ -1,6 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.platform.problemView.security
+package com.intellij.platform.problemView.security.frontend
 
+import com.intellij.platform.problemView.security.ProblemsViewSubTab
+import com.intellij.platform.problemView.security.ProblemsViewSubTabHost
+import com.intellij.platform.problemView.security.ProblemsViewSubTabProvider
 import com.intellij.analysis.problemsView.toolWindow.ProblemsView
 import com.intellij.analysis.problemsView.toolWindow.ProblemsViewTabWithMetrics
 import com.intellij.analysis.problemsView.toolWindow.ProblemsViewToolWindowUtils
@@ -59,10 +62,10 @@ import org.jetbrains.annotations.NonNls
 @ApiStatus.Internal
 open class SubTabbedProblemsViewTab(
   final override val project: Project,
-  @param:NonNls private val hostTabId: String,
+  @param:NonNls final override val hostTabId: String,
   @param:NlsContexts.TabTitle private val tabTitle: String,
   final override val usagesTabId: String,
-) : ProblemsViewTabWithMetrics(), Disposable {
+) : ProblemsViewTabWithMetrics(), ProblemsViewSubTabHost, Disposable {
 
   /**
    * The scope of everything that lives as long as this tab: the three collectors this tab starts, the rows of the
@@ -84,7 +87,7 @@ open class SubTabbedProblemsViewTab(
    * of that flow to reach the event dispatch thread — so this is the one to ask about what is on screen, and that one
    * about what was asked for.
    */
-  val shownSubTabId: StateFlow<String?> = _shownSubTabId.asStateFlow()
+  final override val shownSubTabId: StateFlow<String?> = _shownSubTabId.asStateFlow()
 
   /**
    * `true` while this tab is the selected tab of a visible Problems View tool window.
@@ -145,7 +148,7 @@ open class SubTabbedProblemsViewTab(
   /**
    * Requests the sub-tab [subTabId] to be selected. Ids of sub-tabs this tab does not have are ignored.
    */
-  fun selectSubTab(@NonNls subTabId: String) {
+  final override fun selectSubTab(@NonNls subTabId: String) {
     ThreadingAssertions.assertEventDispatchThread()
     selector.select(subTabId)
   }
@@ -155,7 +158,7 @@ open class SubTabbedProblemsViewTab(
    *
    * Call it on the event dispatch thread, as [selectSubTab] asks too.
    */
-  fun findSubTab(@NonNls subTabId: String): ProblemsViewSubTab? {
+  final override fun findSubTab(@NonNls subTabId: String): ProblemsViewSubTab? {
     ThreadingAssertions.assertEventDispatchThread()
     return entries.firstOrNull { it.id == subTabId }
   }

@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.platform.problemView.security
+package com.intellij.platform.problemView.security.frontend
 
+import com.intellij.platform.problemView.security.ProblemsViewSubTabProvider
+import com.intellij.platform.problemView.security.ProblemsViewSubTabs
 import com.intellij.analysis.problemsView.toolWindow.ProblemsView
 import com.intellij.analysis.problemsView.toolWindow.ProblemsViewPanelProvider
 import com.intellij.analysis.problemsView.toolWindow.ProblemsViewTab

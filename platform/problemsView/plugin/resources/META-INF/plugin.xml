@@ -27,5 +27,6 @@
     <module name="intellij.platform.problemView.backend"/>
     <module name="intellij.platform.problemView.frontend"/>
     <module name="intellij.platform.problemView.security"/>
+    <module name="intellij.platform.problemView.security.frontend"/>
   </content>
 </idea-plugin>

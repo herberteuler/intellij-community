@@ -563,13 +563,23 @@ internal class ActionUpdater @JvmOverloads constructor(
     if (roots.isEmpty()) return@flow
     val set = HashSet<AnAction>()
     val queue = ArrayDeque(roots)
+    // Update all the children before a skipped operation is rethrown.
+    // An interceptor can collect data in each update, e.g., the backend action ids in a split mode.
+    var skipOperation: SkipOperation? = null
     while (!queue.isEmpty()) {
       val first = queue.removeFirst()
       if (!set.add(first)) continue
-      val children = tree(first)
+      val children = try {
+        tree(first)
+      }
+      catch (ex: SkipOperation) {
+        if (skipOperation == null) skipOperation = ex
+        continue
+      }
       if (children.isNullOrEmpty()) emit(first)
       else children.reversed().forEach(queue::addFirst)
     }
+    skipOperation?.let { throw it }
   }
 
   suspend fun presentation(action: AnAction): Presentation {

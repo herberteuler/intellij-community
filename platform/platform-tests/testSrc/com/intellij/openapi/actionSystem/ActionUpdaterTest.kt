@@ -63,6 +63,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.event.KeyEvent
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -581,6 +582,27 @@ class ActionUpdaterTest {
                                      ActionPlaces.UNKNOWN, ActionUiKind.NONE, fastTrack = false)
     }
     assertEquals(1, actions.size)
+  }
+
+  @Test
+  fun testSkipOperationInNestedUpdateDoesNotStopChildrenUpdate() = timeoutRunBlocking {
+    val updated = ConcurrentHashMap.newKeySet<Int>()
+    val children = (0 until 3).map { index ->
+      newAction(ActionUpdateThread.BGT) {
+        updated.add(index)
+        throw SkipOperation("update")
+      }
+    }
+    // `NonTrivialActionGroup.update` expands its own children with `ActionGroupUtil.isGroupEmpty`
+    val group = NonTrivialActionGroup().apply {
+      addAll(children)
+      templatePresentation.isPopupGroup = true
+    }
+    withContext(Dispatchers.EDT) {
+      Utils.expandActionGroupSuspend(DefaultActionGroup(group), PresentationFactory(), DataContext.EMPTY_CONTEXT,
+                                     ActionPlaces.UNKNOWN, ActionUiKind.NONE, fastTrack = false)
+    }
+    assertEquals(setOf(0, 1, 2), updated)
   }
 
   @Test

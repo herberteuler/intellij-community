@@ -6,15 +6,12 @@ import com.intellij.codeInsight.daemon.impl.quickfix.ImportClassFix;
 import com.intellij.codeInsight.daemon.impl.quickfix.StaticImportConstantFix;
 import com.intellij.codeInsight.daemon.impl.quickfix.StaticImportMemberFix;
 import com.intellij.codeInsight.daemon.impl.quickfix.StaticImportMethodFix;
+import com.intellij.codeInsight.intention.impl.AddSingleMemberStaticImportAction;
 import com.intellij.mcpserver.imports.McpImportCandidate;
 import com.intellij.mcpserver.imports.McpImportChange;
 import com.intellij.mcpserver.imports.McpMissingImport;
 import com.intellij.mcpserver.imports.McpMissingImportProvider;
-import com.intellij.modcommand.ActionContext;
-import com.intellij.modcommand.ModChooseAction;
 import com.intellij.modcommand.ModCommand;
-import com.intellij.modcommand.ModCommandAction;
-import com.intellij.modcommand.ModCommandExecutor;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
@@ -43,7 +40,6 @@ import com.intellij.psi.codeStyle.PackageEntryTable;
 import com.intellij.psi.javadoc.PsiDocComment;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiUtilCore;
-import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -53,6 +49,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Adds a missing Java import.
@@ -86,17 +83,9 @@ public final class JavaMissingImportProvider implements McpMissingImportProvider
   private record FoundName(int offset, @NotNull List<McpImportCandidate> candidates) {
   }
 
-  /**
-   * The candidates of one reference, next to the declarations that an import binds to.
-   * <p>
-   * {@code chooser} is the fallback action of the fix. Its steps follow {@code steps}, the candidate
-   * list of the fix itself, so the index of a target in {@code steps} names its step.
-   */
-  private record NameCandidates(@NotNull List<McpImportCandidate> candidates,
-                                @NotNull List<? extends PsiMember> targets,
-                                @Nullable ModCommandAction chooser,
-                                @NotNull List<? extends PsiMember> steps) {
-    static final NameCandidates NONE = new NameCandidates(List.of(), List.of(), null, List.of());
+  /** The candidates of one reference, next to the declarations that an import binds to. */
+  private record NameCandidates(@NotNull List<McpImportCandidate> candidates, @NotNull List<PsiMember> targets) {
+    static final NameCandidates NONE = new NameCandidates(List.of(), List.of());
   }
 
   private static void optimizeImports(@NotNull PsiJavaFile file) {
@@ -143,7 +132,7 @@ public final class JavaMissingImportProvider implements McpMissingImportProvider
           undecidedNames.add(name);
           continue;
         }
-        importWithFix(file, candidates, candidates.targets().getFirst());
+        bind(file, reference, candidates.targets().getFirst());
       }
     }
     while (!importsBefore.equals(importsOf(file)));
@@ -163,31 +152,34 @@ public final class JavaMissingImportProvider implements McpMissingImportProvider
       // The fix narrows by how the code uses the type too, a filter that the editor does not run yet.
       ImportClassFix classFix = new ImportClassFix(reference, true);
       if (classFix.isAvailable(project, null, file)) {
-        List<PsiClass> classes = ContainerUtil.filter(classFix.getClassesToImport(), psiClass -> toClassCandidate(psiClass) != null);
-        if (!classes.isEmpty()) {
-          return new NameCandidates(ContainerUtil.mapNotNull(classes, JavaMissingImportProvider::toClassCandidate), classes,
-                                    classFix.getFallbackModCommandAction(), classFix.getClassesToImport());
-        }
+        NameCandidates classes = nameCandidates(classFix.getClassesToImport(), JavaMissingImportProvider::toClassCandidate);
+        if (!classes.targets().isEmpty()) return classes;
       }
     }
     StaticImportMemberFix<? extends PsiMember, ?> staticFix = staticFixOf(file, reference, call);
     if (!staticFix.isAvailable(project, null, file)) return NameCandidates.NONE;
-    List<? extends PsiMember> steps = staticFix.getHintCandidates();
-    List<PsiMember> members = ContainerUtil.filter(steps, member -> toStaticCandidate(member) != null);
-    return new NameCandidates(ContainerUtil.mapNotNull(members, JavaMissingImportProvider::toStaticCandidate), members,
-                              staticFix.getFallbackModCommandAction(), steps);
+    return nameCandidates(staticFix.getHintCandidates(), JavaMissingImportProvider::toStaticCandidate);
   }
 
-  private static void importWithFix(@NotNull PsiJavaFile file, @NotNull NameCandidates candidates, @NotNull PsiMember target) {
-    ModCommandAction chooser = candidates.chooser();
-    int index = candidates.steps().indexOf(target);
-    if (chooser == null || index < 0) return;
+  private static <T extends PsiMember> @NotNull NameCandidates nameCandidates(@NotNull List<? extends T> members,
+                                                                              @NotNull Function<? super T, @Nullable McpImportCandidate> toCandidate) {
+    List<McpImportCandidate> candidates = new ArrayList<>();
+    List<PsiMember> targets = new ArrayList<>();
+    for (T member : members) {
+      McpImportCandidate candidate = toCandidate.apply(member);
+      if (candidate == null) continue;
+      candidates.add(candidate);
+      targets.add(member);
+    }
+    return new NameCandidates(candidates, targets);
+  }
 
-    ActionContext context = ActionContext.from(null, file);
-    if (!(chooser.perform(context) instanceof ModChooseAction choice) || index >= choice.actions().size()) return;
-    ModCommand command = choice.actions().get(index).perform(context);
-    if (!command.isEmpty()) {
-      ModCommandExecutor.getInstance().executeForFileCopy(command, file);
+  private static void bind(@NotNull PsiJavaFile file, @NotNull PsiJavaCodeReferenceElement reference, @NotNull PsiMember target) {
+    if (target instanceof PsiClass psiClass) {
+      reference.bindToElement(psiClass);
+    }
+    else {
+      AddSingleMemberStaticImportAction.bindAllClassRefs(file, target, target.getName(), target.getContainingClass());
     }
   }
 

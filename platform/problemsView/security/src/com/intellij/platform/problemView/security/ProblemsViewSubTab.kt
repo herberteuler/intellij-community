@@ -48,6 +48,10 @@ interface ProblemsViewSubTab : Disposable {
  * The host tab appears only while at least one provider contributes to it, so a feature that ships on its own still
  * gets a complete tab, and no empty tab is shown in IDEs where no feature ships at all. The providers are read when
  * the host tab is built, and a provider that arrives with a plugin, or leaves with one, makes the host tab build again.
+ *
+ * The sub-tabs appear in the order the providers are read, and the first one is selected when the tab is built. The
+ * providers of one host tab usually ship in different plugins, so declare that order with the `id` and `order`
+ * attributes of the extension rather than leaving it to the order the plugins happen to load in.
  */
 @ApiStatus.Internal
 interface ProblemsViewSubTabProvider {

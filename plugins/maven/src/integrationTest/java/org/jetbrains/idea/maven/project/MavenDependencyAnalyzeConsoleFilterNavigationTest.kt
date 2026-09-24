@@ -51,6 +51,7 @@ class MavenDependencyAnalyzeConsoleFilterNavigationTest(mavenVersion: String, mo
         <packaging>pom</packaging>
         <modules>
           <module>m1</module>
+          <module>m2</module>
         </modules>
         """.trimIndent())
 
@@ -72,7 +73,25 @@ class MavenDependencyAnalyzeConsoleFilterNavigationTest(mavenVersion: String, mo
         </dependencies>
         """.trimIndent())
 
-    maven.importProjectsAsync(parentPom, m1Pom)
+    val m2Pom = maven.createModulePom(
+      "m2",
+      """
+        <parent>
+          <groupId>test</groupId>
+          <artifactId>project</artifactId>
+          <version>1</version>
+        </parent>
+        <artifactId>m2</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.0.0-jre</version>
+          </dependency>
+        </dependencies>
+        """.trimIndent())
+
+    maven.importProjectsAsync(parentPom, m1Pom, m2Pom)
 
     // The dependency is declared in the module named by the analyze goal header: navigate straight to its <artifactId>.
     assertNavigatesToArtifactId(m1Pom, "<artifactId>commons-lang3",
@@ -82,13 +101,22 @@ class MavenDependencyAnalyzeConsoleFilterNavigationTest(mavenVersion: String, mo
     assertNavigatesToArtifactId(m1Pom, "<artifactId>commons-lang3",
                                 DependencyHyperlinkInfo("org.apache.commons", "commons-lang3", null))
 
-    // A "used undeclared" coordinate is absent from every pom, so the link falls back to the module's root <artifactId>.
+    // "Used undeclared" in m1 while m2 declares the same coordinate: the link must stay in m1's pom
+    // instead of jumping to the unrelated declaration in m2.
     assertNavigatesToArtifactId(m1Pom, "<artifactId>m1</artifactId>",
                                 DependencyHyperlinkInfo("com.google.guava", "guava", "m1"))
 
-    // Unknown module and unknown coordinate: there is nothing to navigate to.
+    // A "used undeclared" coordinate absent from every pom also falls back to the module's root <artifactId>.
+    assertNavigatesToArtifactId(m1Pom, "<artifactId>m1</artifactId>",
+                                DependencyHyperlinkInfo("org.example", "declared-nowhere", "m1"))
+
+    // No goal header and the coordinate is declared only in m2: scanning the imported projects finds it there.
+    assertNavigatesToArtifactId(m2Pom, "<artifactId>guava",
+                                DependencyHyperlinkInfo("com.google.guava", "guava", null))
+
+    // Unknown module and a coordinate declared nowhere: there is nothing to navigate to.
     val noTarget = readAction {
-      DependencyHyperlinkInfo("com.google.guava", "guava", "unknown-module").findTargetNavigatable(maven.project)
+      DependencyHyperlinkInfo("org.example", "declared-nowhere", "unknown-module").findTargetNavigatable(maven.project)
     }
     assertNull(noTarget, "An unknown module and coordinate should not resolve to any navigation target")
   }

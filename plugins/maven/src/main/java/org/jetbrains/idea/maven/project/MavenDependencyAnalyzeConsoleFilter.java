@@ -33,14 +33,17 @@ import java.util.regex.Pattern;
  */
 public final class MavenDependencyAnalyzeConsoleFilter implements Filter {
   // "[INFO] --- dependency:3.7.0:analyze-only (default-cli) @ dependencies ---"
+  // Whitespace quantifiers in the prefixes are possessive: filters see arbitrary terminal output, and backtracking
+  // over long indentation makes the match time quadratic in the line length.
   private static final Pattern ANALYZE_HEADER_PATTERN = Pattern.compile(
-    "^\\s*(?:\\[[A-Z]+]\\s*)?---\\s+\\S+:analyze(?:-only)?\\s+\\([^)]*\\)\\s+@\\s+(\\S+)\\s+---\\s*$");
+    "^\\s*+(?:\\[[A-Z]+]\\s*+)?---\\s+\\S+:analyze(?:-only)?\\s+\\([^)]*\\)\\s+@\\s+(\\S+)\\s+---\\s*$");
 
   // "[ERROR]    org.apache.commons:commons-lang3:jar:3.18.0:compile"
-  // groupId:artifactId:type[:classifier]:version:scope
+  // groupId:artifactId:type[:classifier]:version:scope; type, classifier and version are any colon-free text
+  // (versions may contain '+' and other punctuation), the scope keyword at the end keeps the pattern selective.
   private static final Pattern COORDINATE_PATTERN = Pattern.compile(
-    "^\\s*(?:\\[[A-Z]+]\\s*)?\\s*" +
-    "(([\\w.\\-]+):([\\w.\\-]+):[\\w.\\-]+(?::[\\w.\\-]+)?:[\\w.\\-]+:" +
+    "^\\s*+(?:\\[[A-Z]+]\\s*+)?" +
+    "(([\\w.\\-]+):([\\w.\\-]+):[^:\\s]+(?::[^:\\s]+)?:[^:\\s]+:" +
     "(?:compile|provided|runtime|test|system|import))\\s*$");
 
   /** ArtifactId of the module whose analyze report is currently being read, taken from the preceding goal header line. */
@@ -106,16 +109,17 @@ public final class MavenDependencyAnalyzeConsoleFilter implements Filter {
       if (modulePom != null) {
         Navigatable navigatable = MavenNavigationUtil.createNavigatableForDependency(project, modulePom, myGroupId, myArtifactId);
         if (navigatable.canNavigate()) return navigatable;
+        // The coordinate is used but not declared in the reporting module ("used undeclared"): stay in that module's
+        // pom.xml instead of jumping to an unrelated module that happens to declare the same dependency.
+        return MavenNavigationUtil.createNavigatableForPom(project, modulePom);
       }
 
       for (MavenProject mavenProject : manager.getProjects()) {
-        VirtualFile pom = mavenProject.getFile();
-        if (pom.equals(modulePom)) continue;
-        Navigatable navigatable = MavenNavigationUtil.createNavigatableForDependency(project, pom, myGroupId, myArtifactId);
+        Navigatable navigatable = MavenNavigationUtil.createNavigatableForDependency(project, mavenProject.getFile(), myGroupId, myArtifactId);
         if (navigatable.canNavigate()) return navigatable;
       }
 
-      return modulePom != null ? MavenNavigationUtil.createNavigatableForPom(project, modulePom) : null;
+      return null;
     }
 
     private @Nullable VirtualFile findModulePom(@NotNull MavenProjectsManager manager) {

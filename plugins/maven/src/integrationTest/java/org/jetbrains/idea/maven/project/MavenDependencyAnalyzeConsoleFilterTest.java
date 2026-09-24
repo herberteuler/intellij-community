@@ -50,6 +50,23 @@ public class MavenDependencyAnalyzeConsoleFilterTest extends CodeInsightFixtureT
     Assert.assertEquals("demo", info.getArtifactId());
   }
 
+  public void testHighlightsVersionWithBuildMetadata() {
+    String coordinate = "org.example:demo:jar:1.0+build:compile";
+    DependencyHyperlinkInfo info = assertSingleLink("[WARNING]    " + coordinate, coordinate);
+    Assert.assertEquals("org.example", info.getGroupId());
+    Assert.assertEquals("demo", info.getArtifactId());
+  }
+
+  public void testLongIndentationIsRejectedInLinearTime() {
+    // Regression for a quadratic-backtracking pattern: this line took minutes to reject before the whitespace
+    // quantifiers became possessive. The generous bound only guards against the quadratic behavior returning.
+    String line = " ".repeat(65536) + "message: not a dependency";
+    long startNanos = System.nanoTime();
+    assertNoLink(line);
+    long elapsedMillis = (System.nanoTime() - startNanos) / 1_000_000;
+    Assert.assertTrue("Rejecting a long all-whitespace prefix took " + elapsedMillis + " ms", elapsedMillis < 10_000);
+  }
+
   public void testModuleTrackingFromAnalyzeOnlyHeader() {
     assertNoLink("[INFO] --- dependency:3.7.0:analyze-only (default-cli) @ my-module ---");
     DependencyHyperlinkInfo info = assertSingleLink("[ERROR]    org.example:used:jar:1.0.0:compile",

@@ -5,10 +5,12 @@ import com.intellij.codeInsight.navigation.NavigationUtil;
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ReadAction;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.ui.popup.ListPopup;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.platform.backend.navigation.NavigationRequest;
+import com.intellij.platform.backend.navigation.impl.SourceNavigationRequest;
 import com.intellij.platform.ide.navigation.CaretPlacement;
 import com.intellij.platform.ide.navigation.NavigateUtil;
 import com.intellij.platform.ide.navigation.NavigationOptions;
@@ -17,6 +19,7 @@ import com.intellij.platform.ide.navigation.RequestedEditor;
 import com.intellij.pom.Navigatable;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.SmartPointerManager;
 import com.intellij.testFramework.LightPlatformCodeInsightTestCase;
 import com.intellij.testFramework.NavigationTestUtil;
 import com.intellij.testFramework.ServiceContainerUtil;
@@ -35,6 +38,42 @@ import java.util.concurrent.atomic.AtomicInteger;
  * The default implementation must resolve its target off the EDT and under a RA
  */
 public class GotoRelatedItemNavigationTest extends LightPlatformCodeInsightTestCase {
+  public void testDeferredRequestHonorsTokenEnd() {
+    configureFromFileText("test.txt", "hello world");
+    var request = deferredRequest();
+    var options = NavigationOptions.defaultOptions().caretPlacement(CaretPlacement.TOKEN_END)
+      .requestedEditor(new RequestedEditor.Specific(getEditor()));
+
+    var result = NavigationService.getInstance(getProject()).requestNavigate(request, options);
+    NavigationTestUtil.awaitPendingNavigation(getProject());
+    assertTrue(result.isDone());
+    assertTrue(result.join());
+    assertEquals(getFile().getTextLength(), getEditor().getCaretModel().getOffset());
+  }
+
+  public void testDeferredRequestPreservesCaretInsideElement() {
+    configureFromFileText("test.txt", "hello world");
+    getEditor().getCaretModel().moveToOffset(5);
+    var request = deferredRequest();
+
+    NavigateUtil.requestNavigate(getProject(), request, NavigationOptions.defaultOptions().preserveCaret(true));
+    NavigationTestUtil.awaitPendingNavigation(getProject());
+    assertSame(getEditor(), FileEditorManager.getInstance(getProject()).getSelectedTextEditor());
+    assertEquals(5, getEditor().getCaretModel().getOffset());
+  }
+
+  private SourceNavigationRequest deferredRequest() {
+    return ReadAction.computeBlocking(() -> {
+      var file = getFile().getVirtualFile();
+      var element = getFile().findElementAt(0);
+      assertNotNull(element);
+      assertFalse(element instanceof PsiFile);
+      return new SourceNavigationRequest(file, null, null, null, file.getModificationStamp(),
+                                         getEditor().getDocument().getModificationStamp(),
+                                         SmartPointerManager.createPointer(element), false, false);
+    });
+  }
+
   public void testTargetIsResolvedOnBackgroundThreadUnderReadAction() {
     configureFromFileText("test.txt", "hello world");
     PsiFile file = getFile();

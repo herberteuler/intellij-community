@@ -260,12 +260,15 @@ private fun fetchDataContext(project: Project): DataContext? {
 
 /**
  * Maps navigation inputs from this context into [options].
+ * Uses [NavigationOptions.KEY] when [options] is omitted, or the default options when the context has no options.
  *
  * A decision the caller already made about [NavigationOptions.requestedEditor] wins over
  * [OpenFileDescriptor.NAVIGATE_IN_EDITOR] from the context.
  */
 @ApiStatus.Internal
-fun DataContext?.toNavigationOptions(options: NavigationOptions = NavigationOptions.requestFocus()): NavigationOptions {
+fun DataContext?.toNavigationOptions(
+  options: NavigationOptions = this?.let { NavigationOptions.fromContext(it) } ?: NavigationOptions.defaultOptions(),
+): NavigationOptions {
   if ((options as NavigationOptions.Impl).requestedEditor != RequestedEditor.Unspecified) {
     return options
   }

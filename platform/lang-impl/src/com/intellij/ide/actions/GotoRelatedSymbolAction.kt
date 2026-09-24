@@ -21,7 +21,7 @@ import com.intellij.openapi.editor.impl.EditorComponentImpl
 import com.intellij.openapi.ui.MessageType
 import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.openapi.ui.popup.JBPopupFactory
-import com.intellij.platform.ide.navigation.NavigationOptions
+import com.intellij.platform.ide.navigation.toNavigationOptions
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +45,7 @@ class GotoRelatedSymbolAction : AnAction() {
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project ?: return
     val dataContext = e.dataContext
-    val options = NavigationOptions.fromContext(dataContext)
+    val options = dataContext.toNavigationOptions()
     val asyncDataContext = IdeUiService.getInstance().createAsyncDataContext(dataContext)
 
     // it's calculated in advance because `NavigationUtil.collectRelatedItems` might be

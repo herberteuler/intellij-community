@@ -9,6 +9,7 @@ import fleet.openmap.SerializedValue
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.jetbrains.annotations.ApiStatus
+import java.awt.KeyboardFocusManager
 import javax.swing.JComponent
 
 /**
@@ -37,6 +38,7 @@ fun JComponent.setupTransfer(disposable: Disposable): ComponentDirectTransferId 
  * In monolith mode this just returns the original source component.
  *
  * @see JComponent.setupTransfer
+ * @see getFocusTargetForTransferredComponent
  */
 @ApiStatus.Internal
 @RequiresEdt(generateAssertion = false /* IJPL-115548 */)
@@ -48,6 +50,18 @@ fun ComponentDirectTransferId.getComponent(): JComponent? {
       }
     }
   } ?: deserializeFromRpc(serializedValue)
+}
+
+/**
+ * Can be used to request focus into the component returned by [ComponentDirectTransferId.getComponent]
+ * (working consistently both on the frontend side and in monolith).
+ * Will return the 'default' component as per the IDE default focus traversal policy.
+ */
+@ApiStatus.Internal
+@RequiresEdt
+fun getFocusTargetForTransferredComponent(component: JComponent): JComponent {
+  val focusTraversalPolicy = KeyboardFocusManager.getCurrentKeyboardFocusManager().defaultFocusTraversalPolicy
+  return focusTraversalPolicy.getDefaultComponent(component) as? JComponent ?: component
 }
 
 /**

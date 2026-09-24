@@ -3,11 +3,11 @@ package com.intellij.platform.ide.nonModalWelcomeScreen.frontend.leftPanel
 
 import com.intellij.ide.SelectInTarget
 import com.intellij.ide.rpc.getComponent
+import com.intellij.ide.rpc.getFocusTargetForTransferredComponent
 import com.intellij.openapi.application.UI
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.wm.ex.IdeFocusTraversalPolicy
 import com.intellij.platform.ide.nonModalWelcomeScreen.NonModalWelcomeScreenBundle
 import com.intellij.platform.ide.nonModalWelcomeScreen.isNonModalWelcomeScreenEnabled
 import com.intellij.platform.ide.nonModalWelcomeScreen.isWelcomeExperienceProject
@@ -24,12 +24,11 @@ import com.intellij.platform.projectView.pane.projectViewPaneId
 import com.intellij.ui.IconManager
 import com.intellij.ui.PlatformIcons
 import com.intellij.ui.components.JBLoadingPanel
-import com.intellij.ui.components.panels.Wrapper
 import com.intellij.util.asDisposable
-import com.intellij.util.concurrency.ThreadingAssertions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -37,10 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jdom.Element
 import java.awt.BorderLayout
-import java.awt.event.ContainerAdapter
-import java.awt.event.ContainerEvent
 import javax.swing.JComponent
-import javax.swing.SwingUtilities
 
 internal class FrontendWelcomeScreenLeftPanelProvider : PureUiProjectViewPaneProvider {
   override fun getPaneModelsFlow(project: Project): Flow<Collection<FrontendProjectViewPaneModel>> {
@@ -95,7 +91,14 @@ internal class FrontendWelcomeScreenLeftPanel(
   scope: CoroutineScope,
 ) : FrontendProjectViewPane {
   override val component = JBLoadingPanel(BorderLayout(), scope.asDisposable())
-  override var componentToFocus: JComponent = component
+
+  @OptIn(ExperimentalCoroutinesApi::class)
+  override val componentToFocus: JComponent
+    get() = runCatching {
+      deferredContent.getCompleted()?.let {
+        getFocusTargetForTransferredComponent(it)
+      }
+    }.getOrNull() ?: component
 
   init {
     scope.launch(Dispatchers.UI) {
@@ -111,41 +114,10 @@ internal class FrontendWelcomeScreenLeftPanel(
       }
 
       component.add(content, BorderLayout.CENTER)
-      val focusTarget = IdeFocusTraversalPolicy.getPreferredFocusedComponent(content) ?: content
-      componentToFocus = focusTarget
       if (component.isFocusOwner) {
-        focusComponent(container = content, focusTarget)
+        getFocusTargetForTransferredComponent(content).requestFocusInWindow()
       }
     }
-  }
-
-  /**
-   * Hack around quirks with focus in Lux.
-   * 1. `Wrapper` may be empty here, we have to wait until content is added to it
-   * 2. When `LuxFrontendPanel` is added to hierarchy, it is still not marked as visible on backend.
-   *    We have to call `container.validate()` to trigger `updateSizeForModel` and
-   *    `setVisible(true)` before we can focus it, otherwise backend will reject the focus event.
-   */
-  private fun focusComponent(container: JComponent, focusTarget: JComponent) {
-    ThreadingAssertions.assertEventDispatchThread()
-    check(container is Wrapper)
-
-    if (container.components.isNotEmpty()) {
-      validateAndFocus(container, focusTarget)
-    } else {
-      container.addContainerListener(object : ContainerAdapter() {
-        override fun componentAdded(e: ContainerEvent?) {
-          SwingUtilities.invokeLater {
-            validateAndFocus(container, focusTarget)
-          }
-        }
-      })
-    }
-  }
-
-  private fun validateAndFocus(container: JComponent, focusTarget: JComponent) {
-    container.validate() // Forces setVisible(true) for LuxFrontendPanel
-    focusTarget.requestFocusInWindow()
   }
 
   override var isCurrent: Boolean = false

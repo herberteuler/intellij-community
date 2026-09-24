@@ -43,6 +43,7 @@ import com.intellij.platform.backend.navigation.impl.DirectoryNavigationRequest
 import com.intellij.platform.backend.navigation.impl.RawNavigationRequest
 import com.intellij.platform.backend.navigation.impl.SourceNavigationRequest
 import com.intellij.platform.backend.navigation.impl.asDecompilerRequestIfAny
+import com.intellij.platform.backend.navigation.impl.contextOrAny
 import com.intellij.platform.ide.navigation.CaretPlacement
 import com.intellij.platform.ide.navigation.NavigationOptions
 import com.intellij.platform.ide.navigation.NavigationService
@@ -482,7 +483,7 @@ private suspend fun navigateToSourceImpl(
     else {
       val requestedEditor = (options.requestedEditor as? RequestedEditor.Specific)?.editor
       if (requestedEditor != null) {
-        val descriptor = OpenFileDescriptor(project, request.file, offset)
+        val descriptor = OpenFileDescriptor(project, request.file, request.contextOrAny, offset)
         val fileNavigator = serviceAsync<FileNavigator>()
         if (fileNavigator is FileNavigatorImpl &&
             fileNavigator.navigateInRequestedEditorAsync(descriptor, requestedEditor, options.requestFocus)) {
@@ -564,7 +565,7 @@ private suspend fun openFile(
     return true
   }
 
-  val descriptor = OpenFileDescriptor(project, file, hostOffset)
+  val descriptor = OpenFileDescriptor(project, file, request.contextOrAny, hostOffset)
   val fileNavigator = serviceAsync<FileNavigator>()
   suspend fun tryNavigate(fileEditors: Sequence<FileEditor>): Boolean {
     for (editor in fileEditors) {

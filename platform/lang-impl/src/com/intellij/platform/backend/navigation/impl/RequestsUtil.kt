@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.backend.navigation.impl
 
-import com.intellij.codeInsight.multiverse.anyContext
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.psi.PsiFile
@@ -18,7 +17,7 @@ internal suspend fun SourceNavigationRequest.asDecompilerRequestIfAny(): SourceN
     val range = element.textRange?.takeIf { it.endOffset <= document.textLength }
     SharedSourceNavigationRequest(
       file = file,
-      context = (this as? SharedSourceNavigationRequest)?.context ?: anyContext(),
+      context = contextOrAny,
       offsetMarker = document.createRangeMarker(offset, offset),
       elementRangeMarker = range?.let { document.createRangeMarker(it) },
       initialOffset = offset,

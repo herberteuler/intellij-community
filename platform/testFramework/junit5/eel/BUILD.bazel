@@ -44,6 +44,7 @@ jvm_library(
         "//platform/projectModel-api:projectModel",
         "//platform/eel-nioFs-impl",
         "//platform/eel-impl-base",
+        "//platform/util/annotations",
     ],
 )
 
@@ -77,6 +78,7 @@ jvm_library(
         "//platform/projectModel-api:projectModel_test_lib",
         "//platform/eel-nioFs-impl:eel-nioFs-impl_test_lib",
         "//platform/eel-impl-base:eel-impl-base_test_lib",
+        "//platform/util/annotations:annotations_test_lib",
     ],
 )
 ### auto-generated section `build intellij.platform.testFramework.junit5.eel` end

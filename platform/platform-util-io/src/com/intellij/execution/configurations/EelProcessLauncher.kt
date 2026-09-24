@@ -8,7 +8,7 @@ import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.EelExecApi
 import com.intellij.platform.eel.ThrowsChecked
 import com.intellij.platform.eel.convertToJVMProcess
-import com.intellij.platform.eel.annotations.MultiRoutingFileSystemPath
+import com.intellij.platform.util.annotations.paths.NioPath
 import com.intellij.platform.eel.environmentVariables
 import com.intellij.platform.eel.path.EelPath
 import com.intellij.platform.eel.path.EelPathException
@@ -141,7 +141,7 @@ private fun toEelPath(path: Path, descriptor: EelDescriptor, role: String): EelP
   return eelPath
 }
 
-private fun toPath(@MultiRoutingFileSystemPath string: String): Path? = try {
+private fun toPath(@NioPath string: String): Path? = try {
   Path.of(string)
 }
 catch (_: InvalidPathException) {

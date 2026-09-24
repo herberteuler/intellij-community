@@ -19,7 +19,7 @@ object WindowsPathUtils {
    * is per-drive (`/<mount>/@/C`), so customRoots must list each drive.
    *
    * [mountRoot] is normalized internally to forward slashes with no trailing `/` (matching the
-   * `@MultiRoutingFileSystemPath` convention enforced by `MultiRoutingFileSystem.sanitizeRoot`),
+   * `@NioPath` convention enforced by `MultiRoutingFileSystem.sanitizeRoot`),
    * so it is safe to pass a raw `Path.toString()` result from any host OS.
    *
    * If the normalized mount already ends with `/@`, drive letters are appended directly; otherwise

@@ -16,7 +16,7 @@ import com.intellij.platform.eel.EelDescriptorWithoutNativeFileChooserSupport
 import com.intellij.platform.eel.EelMachine
 import com.intellij.platform.eel.EelOsFamily
 import com.intellij.platform.eel.EelPathBoundDescriptor
-import com.intellij.platform.eel.annotations.MultiRoutingFileSystemPath
+import com.intellij.platform.util.annotations.paths.NioPath
 import com.intellij.platform.eel.nioFs.impl.MultiRoutingFileSystemBackend
 import com.intellij.platform.eel.provider.EelAlternativeRootProvider
 import com.intellij.platform.eel.provider.EelEnvironmentInitializer
@@ -138,7 +138,7 @@ class EelWslMrfsBackend(private val coroutineScope: CoroutineScope) : MultiRouti
     }
   }
 
-  override fun getCustomRoots(): Collection<@MultiRoutingFileSystemPath String> {
+  override fun getCustomRoots(): Collection<@NioPath String> {
     // IJPL-172763: read the cache only; `installedDistributionsFuture` would spawn `wsl.exe --list`.
     val distributions = WslDistributionManager.getInstance().lastInstalledDistributions ?: return emptyList()
     return distributions.map { it.preferredRoot }
@@ -188,7 +188,7 @@ class WslEelEnvironmentInitializer : EelEnvironmentInitializer {
 
 @ApiStatus.Internal
 class WslEelAlternativeRootProvider : EelAlternativeRootProvider {
-  override fun getAlternativeRoots(descriptor: EelDescriptor): Collection<@MultiRoutingFileSystemPath String>? =
+  override fun getAlternativeRoots(descriptor: EelDescriptor): Collection<@NioPath String>? =
     (descriptor as? WslEelDescriptor)?.distribution?.roots
 }
 
@@ -197,7 +197,7 @@ private val WSL_UNC_SERVER_NAMES: List<String> = WSL_PREFIXES.map { "//$it/" }
 internal object WslPathParser {
   // wsl root -> distribution id
   internal fun parsePath(sanitizedPath: String): Pair<String, String>? {
-    @MultiRoutingFileSystemPath
+    @NioPath
     val wslRoot: String
     val distributionId: String
 

@@ -3,9 +3,9 @@ package com.intellij.compose.ide.plugin.resources.completion
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
-import com.intellij.openapi.externalSystem.util.runReadAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.awt.Component
 import java.awt.Graphics

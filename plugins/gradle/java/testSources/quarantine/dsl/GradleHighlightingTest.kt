@@ -2,8 +2,8 @@
 package org.jetbrains.plugins.gradle.quarantine.dsl
 
 import com.intellij.codeInspection.deadCode.UnusedDeclarationInspectionBase
-import com.intellij.openapi.externalSystem.util.runReadAction
 import com.intellij.openapi.vfs.readText
+import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
 import com.intellij.psi.PsiMethod
 import com.intellij.testFramework.assertInstanceOf
 import org.gradle.util.GradleVersion

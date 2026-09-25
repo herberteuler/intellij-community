@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 @file:JvmName("JavaCompileTestUtil")
 
 package com.intellij.openapi.externalSystem.test
@@ -6,13 +6,13 @@ package com.intellij.openapi.externalSystem.test
 import com.intellij.compiler.impl.ModuleCompileScope
 import com.intellij.openapi.compiler.CompileScope
 import com.intellij.openapi.compiler.CompilerMessageCategory
-import com.intellij.openapi.externalSystem.util.runReadAction
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.packaging.artifacts.Artifact
 import com.intellij.packaging.artifacts.ArtifactManager
 import com.intellij.packaging.impl.compiler.ArtifactCompileScope
+import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
 import com.intellij.task.ProjectTaskManager
 import com.intellij.testFramework.CompilerTester
 import com.intellij.testFramework.concurrency.waitForPromiseAndPumpEdt

@@ -1,11 +1,11 @@
-// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.kotlin.idea.codeInsight.gradle
 
 import com.intellij.gradle.toolingExtension.util.GradleVersionUtil.isGradleOlderThan
 import com.intellij.lang.documentation.psi.createPsiDocumentationTarget
-import com.intellij.openapi.externalSystem.util.runReadAction
 import com.intellij.platform.backend.documentation.DocumentationData
 import com.intellij.platform.backend.documentation.DocumentationResult
+import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
 import com.intellij.testFramework.findReferenceByText
 import com.intellij.testFramework.utils.vfs.getPsiFile
 import kotlinx.coroutines.runBlocking

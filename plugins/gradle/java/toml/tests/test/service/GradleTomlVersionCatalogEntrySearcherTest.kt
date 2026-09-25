@@ -3,7 +3,7 @@ package com.intellij.gradle.java.toml.tests.service
 
 import com.intellij.gradle.java.toml.service.GradleTomlVersionCatalogEntrySearcher
 import com.intellij.gradle.java.toml.service.TomlCatalogEntry
-import com.intellij.openapi.externalSystem.util.runReadAction
+import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
 import com.intellij.platform.testFramework.assertion.collectionAssertion.CollectionAssertions.assertEqualsUnordered
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFileFactory

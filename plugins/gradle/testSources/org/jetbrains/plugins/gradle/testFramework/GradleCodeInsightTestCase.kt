@@ -4,8 +4,8 @@ package org.jetbrains.plugins.gradle.testFramework
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationAction
 import com.intellij.groovy.testFramework.ExpressionTest
-import com.intellij.openapi.externalSystem.util.runReadAction
-import com.intellij.openapi.externalSystem.util.runWriteActionAndWait
+import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
+import com.intellij.platform.externalSystem.testFramework.utils.runWriteActionAndWait
 import com.intellij.platform.testFramework.assertion.collectionAssertion.CollectionAssertions
 import com.intellij.psi.PsiElement
 import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture

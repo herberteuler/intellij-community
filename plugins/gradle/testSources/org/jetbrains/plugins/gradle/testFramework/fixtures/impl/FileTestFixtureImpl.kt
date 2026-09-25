@@ -7,8 +7,6 @@ import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.application.runWriteActionAndWait
 import com.intellij.openapi.externalSystem.autoimport.changes.vfs.VirtualFileChangesListener
 import com.intellij.openapi.externalSystem.autoimport.changes.vfs.VirtualFileChangesListener.Companion.installBulkVirtualFileListener
-import com.intellij.openapi.externalSystem.util.runReadAction
-import com.intellij.openapi.externalSystem.util.runWriteActionAndGet
 import com.intellij.openapi.observable.operation.core.onFailureCatching
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.JDOMUtil
@@ -26,6 +24,8 @@ import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.openapi.vfs.readText
 import com.intellij.openapi.vfs.refreshAndFindVirtualFile
 import com.intellij.openapi.vfs.writeText
+import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
+import com.intellij.platform.externalSystem.testFramework.utils.runWriteActionAndGet
 import com.intellij.testFramework.common.runAll
 import com.intellij.testFramework.utils.editor.reloadFromDisk
 import com.intellij.testFramework.utils.vfs.deleteChildrenRecursively

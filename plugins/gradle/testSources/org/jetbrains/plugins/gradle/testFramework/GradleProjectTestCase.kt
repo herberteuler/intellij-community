@@ -2,8 +2,6 @@
 package org.jetbrains.plugins.gradle.testFramework
 
 import com.intellij.gradle.toolingExtension.util.GradleVersionUtil
-import com.intellij.openapi.externalSystem.util.runWriteActionAndGet
-import com.intellij.openapi.externalSystem.util.runWriteActionAndWait
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -11,6 +9,8 @@ import com.intellij.openapi.vfs.findDocument
 import com.intellij.openapi.vfs.findOrCreateFile
 import com.intellij.openapi.vfs.readText
 import com.intellij.openapi.vfs.writeText
+import com.intellij.platform.externalSystem.testFramework.utils.runWriteActionAndGet
+import com.intellij.platform.externalSystem.testFramework.utils.runWriteActionAndWait
 import com.intellij.testFramework.utils.editor.commitToPsi
 import com.intellij.testFramework.utils.editor.reloadFromDisk
 import com.intellij.testFramework.utils.vfs.createFile

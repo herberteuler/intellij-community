@@ -2,12 +2,12 @@
 package com.intellij.openapi.externalSystem.autoimport
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.externalSystem.testFramework.fixtures.multiProjectFixture
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.platform.backend.workspace.WorkspaceModelCache
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestObservation.awaitProjectActivity
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestUtil
+import com.intellij.platform.externalSystem.testFramework.fixtures.multiProjectFixture
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.disposableFixture

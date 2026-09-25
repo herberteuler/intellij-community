@@ -23,8 +23,6 @@ import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjec
 import com.intellij.openapi.externalSystem.service.project.manage.ExternalSystemTaskActivator
 import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataService
 import com.intellij.openapi.externalSystem.task.ExternalSystemTaskManager
-import com.intellij.openapi.externalSystem.testFramework.fixtures.multiProjectFixture
-import com.intellij.openapi.externalSystem.testFramework.fixtures.projectFixture
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.externalSystem.util.ExternalSystemConstants
 import com.intellij.openapi.observable.util.whenDisposed
@@ -36,6 +34,8 @@ import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestUtil
 import com.intellij.platform.externalSystem.testFramework.TestExternalProjectSettings
 import com.intellij.platform.externalSystem.testFramework.TestExternalSystemExecutionSettings
 import com.intellij.platform.externalSystem.testFramework.TestExternalSystemManager
+import com.intellij.platform.externalSystem.testFramework.fixtures.multiProjectFixture
+import com.intellij.platform.externalSystem.testFramework.fixtures.projectFixture
 import com.intellij.platform.externalSystem.testFramework.linkProject
 import com.intellij.platform.externalSystem.testFramework.project
 import com.intellij.platform.externalSystem.testFramework.toDataNode

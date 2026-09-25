@@ -179,7 +179,8 @@ public class ImportClassFix extends ImportClassFixBase<PsiJavaCodeReferenceEleme
   protected @Unmodifiable @NotNull Collection<PsiClass> filterByContext(@NotNull Collection<PsiClass> candidates, @NotNull PsiJavaCodeReferenceElement referenceElement) {
     Collection<PsiClass> filtered = filterByDeclaration(candidates, referenceElement);
     if (!isNarrowByUsage()) return filtered;
-    if (filtered.isEmpty()) return candidates;
+    // An expression gets no filter by the declaration, so its empty list does not mean that no candidate fits.
+    if (referenceElement instanceof PsiReferenceExpression) return ImportClassUsageNarrowing.narrow(candidates, referenceElement);
     return ImportClassUsageNarrowing.narrow(filtered, referenceElement);
   }
 

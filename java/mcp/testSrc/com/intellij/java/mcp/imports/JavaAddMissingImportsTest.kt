@@ -148,6 +148,47 @@ class JavaAddMissingImportsTest : JavaImportsTestBase() {
   }
 
   @Test
+  fun `a static member taken from the type name narrows the candidates of the type`() = runBlocking {
+    testMcpTool(toolName = ADD_MISSING_IMPORTS, input = request("src/StaticMember.java")) { result ->
+      val text = result.textContent.text
+      assertContains(text, "+import one.Clock;")
+      assertFalse("two.Clock" in text, "The other candidate has no static member `start`: $text")
+      assertContains(text, EMPTY_AMBIGUOUS_LIST)
+    }
+  }
+
+  @Test
+  fun `a static member narrows the candidates when the type name is only a qualifier`() = runBlocking {
+    testMcpTool(toolName = ADD_MISSING_IMPORTS, input = request("src/StaticMemberOnly.java")) { result ->
+      val text = result.textContent.text
+      assertContains(text, "+import one.Clock;")
+      assertFalse("two.Clock" in text, "The other candidate has no static member `start`: $text")
+      assertContains(text, EMPTY_AMBIGUOUS_LIST)
+    }
+  }
+
+  @Test
+  fun `a qualifier that can be an inherited field narrows nothing`() = runBlocking {
+    testMcpTool(toolName = ADD_MISSING_IMPORTS, input = request("src/InheritedQualifier.java")) { result ->
+      val text = result.textContent.text
+      assertContains(text, "one.Clock")
+      assertContains(text, "two.Clock")
+      assertFalse("import one.Clock;" in text, "An unresolved super type can declare a field `Clock`: $text")
+      assertFalse("import two.Clock;" in text, "An unresolved super type can declare a field `Clock`: $text")
+    }
+  }
+
+  @Test
+  fun `the arguments of a call on the variable narrow the candidates of its type`() = runBlocking {
+    testMcpTool(toolName = ADD_MISSING_IMPORTS, input = request("src/CalledArguments.java")) { result ->
+      val text = result.textContent.text
+      assertContains(text, "+import one.Journal;")
+      assertFalse("two.Journal" in text, "The `write` of the other candidate takes no `one.Alpha`: $text")
+      assertContains(text, EMPTY_AMBIGUOUS_LIST)
+    }
+  }
+
+  @Test
   fun `the optimize flag runs optimize imports`() = runBlocking {
     testMcpTool(toolName = ADD_MISSING_IMPORTS, input = request("src/CollapseOnePackage.java", optimize = true)) { result ->
       val text = result.textContent.text

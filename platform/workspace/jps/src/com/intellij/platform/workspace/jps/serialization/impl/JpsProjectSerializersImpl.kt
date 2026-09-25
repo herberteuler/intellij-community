@@ -711,6 +711,8 @@ class JpsProjectSerializersImpl(
 
     val obsoleteSources = affectedSources - entitiesToSave.keys
     LOG.trace { "Obsolete sources: $obsoleteSources" }
+    // Compute before the loop, because the loop removes associations from `fileIdToFileName`
+    val fileUrlsToSave = if (obsoleteSources.isEmpty()) emptySet() else entitiesToSave.keys.mapNotNullTo(HashSet()) { getActualFileUrl(it) }
     for (source in obsoleteSources) {
       val fileUrl = getActualFileUrl(source)
       if (fileUrl != null) {
@@ -728,9 +730,12 @@ class JpsProjectSerializersImpl(
         // - Imported module had user-configured information (like custom content roots). This additional information is stored in the local
         //    `.iml` file, and the `.iml` should be removed in case all custom elements are removed.
         // - TO DO: Fill new cases if found!
-        val deleteObsoleteFile = shouldDeleteImportedFile(source, fileUrl) ||
-                                 source in internalSourceConvertedToImported ||
-                                 (affectedImportedSourceStoredExternally != null && affectedImportedSourceStoredExternally !in obsoleteSources)
+        val rewrittenInThisSave = fileUrl in fileUrlsToSave
+        val deleteObsoleteFile = !rewrittenInThisSave && (
+          shouldDeleteImportedFile(source, fileUrl) ||
+          source in internalSourceConvertedToImported ||
+          (affectedImportedSourceStoredExternally != null && affectedImportedSourceStoredExternally !in obsoleteSources)
+        )
         processObsoleteSource(fileUrl, deleteObsoleteFile, writer, affectedEntityTypeSerializers, affectedModuleListSerializers, storage)
         val actualSource = if (source is JpsImportedEntitySource && !source.storedExternally) source.internalFile else source
         if (actualSource is JpsProjectFileEntitySource.FileInDirectory) {

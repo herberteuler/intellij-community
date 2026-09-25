@@ -135,9 +135,10 @@ private const val MODULE_ROOT_MANAGER_COMPONENT_NAME = "NewModuleRootManager"
 private const val ADDITIONAL_MODULE_ELEMENTS_COMPONENT_NAME = "AdditionalModuleElements"
 internal const val URL_ATTRIBUTE = "url"
 internal const val DUMB_ATTRIBUTE = "dumb"
-private val STANDARD_MODULE_OPTIONS = setOf(
+internal val STANDARD_MODULE_OPTIONS = setOf(
   "type", "external.system.id", "external.system.module.version", "external.linked.project.path", "external.linked.project.id",
-  "external.root.project.path", "external.system.module.group", "external.system.module.type"
+  "external.root.project.path", "external.system.module.group", "external.system.module.type",
+  SerializationConstants.IS_MAVEN_MODULE_IML_ATTRIBUTE
 )
 private val MODULE_OPTIONS_TO_CHECK = setOf(
   "external.system.module.version", "external.linked.project.path", "external.linked.project.id",
@@ -1101,7 +1102,11 @@ internal open class ModuleImlFileEntitiesSerializer(internal val modulePath: Mod
     }
     optionsMap["type"] = moduleType
     if (customImlData != null) {
-      optionsMap.putAll(customImlData.customModuleOptions)
+      for ((key, value) in customImlData.customModuleOptions) {
+        if (key !in STANDARD_MODULE_OPTIONS) {
+          optionsMap[key] = value
+        }
+      }
     }
     val componentTag = JDomSerializationUtil.createComponentElement(DEPRECATED_MODULE_MANAGER_COMPONENT_NAME)
     for ((name, value) in optionsMap) {

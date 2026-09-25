@@ -14,8 +14,6 @@ import com.intellij.openapi.externalSystem.model.ProjectSystemId
 import com.intellij.openapi.externalSystem.model.settings.ExternalSystemExecutionSettings
 import com.intellij.openapi.externalSystem.model.task.ExternalSystemTaskId
 import com.intellij.openapi.externalSystem.model.task.ExternalSystemTaskNotificationListener
-import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver
-import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver.unknownSdkFixMode
 import com.intellij.openapi.externalSystem.service.notification.ExternalSystemProgressNotificationManager
 import com.intellij.openapi.externalSystem.settings.ExternalSystemSettingsListener
 import com.intellij.openapi.externalSystem.test.JavaExternalSystemImportingTestCase
@@ -41,6 +39,8 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.provider.getEelDescriptor
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver.unknownSdkFixMode
 import com.intellij.platform.testFramework.eelJava.EelTestJdkProvider
 import com.intellij.platform.testFramework.eelJava.EelTestUtil
 import com.intellij.platform.testFramework.io.ExternalResourcesChecker.reportUnavailability

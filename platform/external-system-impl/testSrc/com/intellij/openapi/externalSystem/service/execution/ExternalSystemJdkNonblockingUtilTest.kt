@@ -6,11 +6,12 @@ import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUt
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_INTERNAL_JAVA
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_JAVA_HOME
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_PROJECT_JDK
-import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_DOWNLOADABLE_FIX
-import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
 import com.intellij.openapi.roots.ui.configuration.SdkLookupProvider.SdkInfo
 import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
 import com.intellij.openapi.roots.ui.configuration.TestSdkType
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_DOWNLOADABLE_FIX
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
 
 class ExternalSystemJdkNonblockingUtilTest : ExternalSystemJdkNonblockingUtilTestCase() {
   fun `test nonblocking jdk resolution (project jdk)`() {

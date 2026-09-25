@@ -11,6 +11,7 @@ import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
 import com.intellij.openapi.roots.ui.configuration.TestSdkType
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver
 import com.intellij.openapi.util.Disposer
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
 import com.intellij.testFramework.ExtensionTestUtil
 import com.intellij.testFramework.replaceService
 

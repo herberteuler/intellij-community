@@ -7,7 +7,6 @@ import com.intellij.openapi.externalSystem.importing.ImportSpecBuilder
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkProvider
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtilTestCase.TestJdkProvider
-import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
 import com.intellij.openapi.externalSystem.util.environment.Environment
 import com.intellij.openapi.externalSystem.util.environment.TestEnvironment
@@ -21,6 +20,7 @@ import com.intellij.openapi.roots.ui.configuration.SdkTestCase.Companion.assertS
 import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
 import com.intellij.openapi.roots.ui.configuration.TestSdkType
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestObservation.awaitProjectActivity
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
 import com.intellij.testFramework.VfsTestUtil
 import com.intellij.testFramework.common.runAll
 import com.intellij.testFramework.replaceService

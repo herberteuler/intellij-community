@@ -4,10 +4,10 @@ package org.jetbrains.plugins.gradle.util
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.JAVA_HOME
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_JAVA_HOME
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_PROJECT_JDK
-import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver
-import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_DOWNLOADABLE_FIX
-import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
 import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_DOWNLOADABLE_FIX
+import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
 import org.jetbrains.plugins.gradle.util.GradleConstants.GRADLE_USER_HOME_ENV_KEY
 import org.junit.Test
 import org.junit.runner.RunWith

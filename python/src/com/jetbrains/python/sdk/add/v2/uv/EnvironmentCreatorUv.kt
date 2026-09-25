@@ -1,10 +1,12 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2.uv
 
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.observable.properties.AtomicBooleanProperty
 import com.intellij.openapi.observable.properties.ObservableMutableProperty
 import com.intellij.openapi.observable.properties.ObservableProperty
+import com.intellij.openapi.observable.util.isNotNull
 import com.intellij.openapi.observable.util.not
 import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.ui.ComboBox
@@ -20,6 +22,8 @@ import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.uv.backend.UvPyTool
 import com.intellij.python.uv.backend.cli.uv.UvInitVcs
 import com.intellij.python.uv.backend.runtime.uvCli
+import com.intellij.ui.EditorNotificationPanel
+import com.intellij.ui.InlineBanner
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.Panel
 import com.intellij.ui.dsl.builder.Row
@@ -88,6 +92,16 @@ internal fun Panel.uvProjectModeRow(uvViewModel: UvViewModel<*>): Row = row("") 
     .bindSelected(uvViewModel.projectMode)
     .comment(message("sdk.create.custom.uv.project.mode.comment"))
 }
+
+/** The banner that explains a uv project. It shows when the uv executable is found. */
+private fun Panel.uvProjectBannerRow(uvViewModel: UvViewModel<*>): Row = row {
+  cell(InlineBanner(message("sdk.create.uv.project.banner"), EditorNotificationPanel.Status.Info))
+    .applyToComponent {
+      showCloseButton(false)
+      addAction(message("sdk.create.uv.project.banner.link")) { BrowserUtil.browse(message("sdk.create.uv.project.banner.url")) }
+    }
+    .align(AlignX.FILL)
+}.visibleIf(uvViewModel.uvExecutable.isNotNull())
 
 internal class EnvironmentCreatorUv<P : PathHolder>(
   model: PythonMutableTargetAddInterpreterModel<P>,
@@ -197,7 +211,7 @@ internal class EnvironmentCreatorUv<P : PathHolder>(
       }
 
       when (context) {
-        InterpreterCreationContext.NEW_PROJECT_WIZARD -> {}
+        InterpreterCreationContext.NEW_PROJECT_WIZARD -> uvProjectBannerRow(model.uvViewModel)
         InterpreterCreationContext.ADD_INTERPRETER -> uvProjectModeRow(model.uvViewModel)
       }
     }

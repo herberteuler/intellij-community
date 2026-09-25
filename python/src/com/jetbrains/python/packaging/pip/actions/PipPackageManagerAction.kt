@@ -24,7 +24,7 @@ internal sealed class PipPackageManagerAction : PythonPackageManagerAction<PipPy
 
 
 internal class PipSetDefaultRequirementsAction() : PipPackageManagerAction() {
-  /** Stores a path on the SDK and leaves the environment alone, so a read-only SDK keeps it. */
+  /** Stores a path on the SDK and leaves the environment alone. A read-only SDK keeps this action. */
   override val modifiesEnvironment: Boolean = false
 
   override suspend fun execute(e: AnActionEvent, manager: PipPythonPackageManager): PyResult<Unit> {

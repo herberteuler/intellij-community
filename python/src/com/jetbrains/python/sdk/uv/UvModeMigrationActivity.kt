@@ -10,7 +10,7 @@ import com.jetbrains.python.sdk.pySdkAdditionalData
 /**
  * Pins the [UvMode] of every uv SDK saved before the mode existed. See [migrateLegacyUvMode].
  *
- * Runs on every project open. It skips an SDK that stores a file, so after the first run it visits only a legacy plain
+ * Runs on every project open. It skips an SDK that stores a file. After the first run it visits only a legacy plain
  * environment again. [UvPackageManagerProvider] does the same for an SDK that the Packages tool window asks about
  * before this activity reaches it.
  */

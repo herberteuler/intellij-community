@@ -1434,7 +1434,6 @@
               class="com.jetbrains.python.uv.packaging.UvPipSyncRequirementsAction"
               icon="com.intellij.icons.AllIcons.Actions.Refresh"/>
 
-
       <separator/>
 
       <action id="PoetryLockAction"

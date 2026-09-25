@@ -65,7 +65,7 @@ internal abstract class UvPackageManagerBase(
   override suspend fun loadOutdatedPackagesCommand(): PyResult<List<PythonOutdatedPackage>> = withUv { uv -> uv.listOutdatedPackages() }
 }
 
-/** Picks the manager for the [UvMode] of the SDK. A legacy SDK is pinned first, because the manager is cached per SDK. */
+/** Picks the manager for the [UvMode] of the SDK. It pins a legacy SDK first. */
 internal class UvPackageManagerProvider : PythonPackageManagerProvider {
   // The manager constructor still takes the SDK.
   @Suppress("DEPRECATION")

@@ -240,7 +240,7 @@ internal suspend fun <P : PathHolder> setupExistingEnvAndSdk(
   mode: UvMode,
 ): PyResult<PythonInterpreter> = withProgressText(PyBundle.message("python.sdk.progress.uv.configuring")) {
   val venvPath = fileSystem.resolvePythonHome(pythonBinary).toStringForExecution()
-  val sdkAdditionalData = UvSdkAdditionalData(workingDir, usePip = null, venvPath, uvPath.toStringForExecution())
+  val sdkAdditionalData = UvSdkAdditionalData(uvWorkingDirectory = workingDir, usePip = null, venvPath = venvPath, uvPath = uvPath.toStringForExecution())
   sdkAdditionalData.requirementsPath = mode.requirementsFile
   fileSystem.setupSdk(null, pythonBinary, sdkAdditionalData, null, null)
 }

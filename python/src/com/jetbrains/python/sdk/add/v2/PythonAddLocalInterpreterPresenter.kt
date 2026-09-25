@@ -2,8 +2,6 @@
 package com.jetbrains.python.sdk.add.v2
 
 import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.openapi.roots.ModuleRootManager
-import com.intellij.openapi.util.io.toNioPathOrNull
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.getSdkAPI
 import com.jetbrains.python.Result
@@ -13,6 +11,7 @@ import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.sdk.add.collector.PythonNewInterpreterAddedCollector
 import com.jetbrains.python.sdk.configuration.CreateSdkInfoWithTool
 import com.jetbrains.python.sdk.withSdkConfigurationLock
+import com.jetbrains.python.sdk.workingDirectory
 import com.jetbrains.python.venvReader.VirtualEnvReader
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.Flow
@@ -33,15 +32,9 @@ class PythonAddLocalInterpreterPresenter(
   val bestGuessCreateSdkInfo: Deferred<CreateSdkInfoWithTool?>,
 ) {
 
-  /**
-   * Default path to create virtualenv it
-   */
+  /** The directory for a new environment: the working directory of [moduleOrProject], else the venv root of the user. */
   val pathForVEnv: Path
-    get() = when (moduleOrProject) {
-              is ModuleOrProject.ModuleAndProject -> ModuleRootManager.getInstance(moduleOrProject.module).contentRoots.firstOrNull()?.toNioPath()
-                                                     ?: moduleOrProject.project.basePath?.toNioPathOrNull()
-              is ModuleOrProject.ProjectOnly -> moduleOrProject.project.basePath?.toNioPathOrNull()
-            } ?: envReader.getVEnvRootDir()
+    get() = moduleOrProject.workingDirectory ?: envReader.getVEnvRootDir()
 
   private val _sdkShared = MutableSharedFlow<Sdk>(1)
   val sdkCreatedFlow: Flow<Sdk> = _sdkShared.asSharedFlow()

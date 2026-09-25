@@ -29,8 +29,8 @@ import java.nio.file.Path
 /**
  * The uv package manager of an SDK in [UvMode.Pip]: a plain environment with no `pyproject.toml` and no lock file.
  *
- * Every command goes through `uv pip`. The requirements file, when the SDK has one, is the declared list. Installing
- * from it and syncing to it are two separate operations, because `uv pip sync` removes what the file does not name.
+ * Every command goes through `uv pip`. The requirements file, when the SDK has one, is the declared list. Install and
+ * sync are two separate operations. `uv pip sync` removes what the file does not name.
  */
 internal class UvPipPackageManager internal constructor(
   project: Project,

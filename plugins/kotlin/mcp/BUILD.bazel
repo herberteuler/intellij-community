@@ -106,6 +106,7 @@ jvm_library(
         # do not sort,
         "//plugins/mcp-server/mcpserver.plugin",
         "//plugins/kotlin:kotlin-plugin-community-main",
+        "//xml/plugin",
     ],
 )
 
@@ -134,6 +135,7 @@ jvm_library(
         ":mcp-tests",
         "//plugins/mcp-server/mcpserver.plugin:mcpserver.plugin_test_lib",
         "//plugins/kotlin:kotlin-plugin-community-main_test_lib",
+        "//xml/plugin:plugin_test_lib",
     ],
     deps = [
         # do not sort,

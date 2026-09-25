@@ -96,6 +96,7 @@ jvm_library(
         "//platform/structure-view-impl/plugin",
         "//aether-dependency-resolver/plugin",
         "//platform/todo/plugin",
+        "//xml/plugin",
     ],
 )
 
@@ -126,6 +127,7 @@ jvm_library(
         "//platform/structure-view-impl/plugin:plugin_test_lib",
         "//aether-dependency-resolver/plugin:plugin_test_lib",
         "//platform/todo/plugin:plugin_test_lib",
+        "//xml/plugin:plugin_test_lib",
     ],
     deps = [
         # do not sort,

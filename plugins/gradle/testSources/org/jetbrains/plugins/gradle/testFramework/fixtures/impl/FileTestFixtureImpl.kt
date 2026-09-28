@@ -4,6 +4,7 @@ package org.jetbrains.plugins.gradle.testFramework.fixtures.impl
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.edtWriteAction
+import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.openapi.application.runWriteActionAndWait
 import com.intellij.openapi.externalSystem.autoimport.changes.vfs.VirtualFileChangesListener
 import com.intellij.openapi.externalSystem.autoimport.changes.vfs.VirtualFileChangesListener.Companion.installBulkVirtualFileListener
@@ -24,7 +25,6 @@ import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.openapi.vfs.readText
 import com.intellij.openapi.vfs.refreshAndFindVirtualFile
 import com.intellij.openapi.vfs.writeText
-import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
 import com.intellij.platform.externalSystem.testFramework.utils.runWriteActionAndGet
 import com.intellij.testFramework.common.runAll
 import com.intellij.testFramework.utils.editor.reloadFromDisk
@@ -154,7 +154,7 @@ internal class FileTestFixtureImpl(
 
   private fun readFixtureState(): State {
     return runCatching {
-      runReadAction {
+      runReadActionBlocking {
         val element = JDOMUtil.load(fixtureStateFile.toNioPath())
         XmlSerializer.deserialize(element, State::class.java)
       }

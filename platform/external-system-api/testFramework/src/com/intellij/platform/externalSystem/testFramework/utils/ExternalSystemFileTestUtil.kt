@@ -7,10 +7,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.util.ThrowableComputable
 
-fun <R> runReadAction(action: () -> R): R {
-  return ApplicationManager.getApplication().runReadAction(ThrowableComputable(action))
-}
-
 fun <R> runWriteActionAndGet(action: () -> R): R {
   return invokeAndWaitIfNeeded {
     ApplicationManager.getApplication().runWriteAction(ThrowableComputable(action))

@@ -4,7 +4,7 @@ package org.jetbrains.plugins.gradle.testFramework
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationAction
 import com.intellij.groovy.testFramework.ExpressionTest
-import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
+import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.platform.externalSystem.testFramework.utils.runWriteActionAndWait
 import com.intellij.platform.testFramework.assertion.collectionAssertion.CollectionAssertions
 import com.intellij.psi.PsiElement
@@ -31,7 +31,7 @@ abstract class GradleCodeInsightTestCase : GradleCodeInsightBaseTestCase(), Expr
   fun testBuildscript(expression: String, test: () -> Unit) {
     checkCaret(expression)
     updateProjectFile(expression)
-    runReadAction {
+    runReadActionBlocking {
       test()
     }
   }

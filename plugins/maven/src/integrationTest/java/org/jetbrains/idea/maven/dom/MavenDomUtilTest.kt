@@ -3,7 +3,7 @@ package org.jetbrains.idea.maven.dom
 
 import com.intellij.ide.highlighter.XmlFileType
 import com.intellij.maven.testFramework.fixtures.mavenFixture
-import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
+import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiFileFactory
 import com.intellij.testFramework.junit5.TestApplication
@@ -20,7 +20,7 @@ class MavenDomUtilTest {
 
   @Test
   fun testIsProjectFileWithModel400() {
-    assertFalse(runReadAction {
+    assertFalse(runReadActionBlocking {
       MavenDomUtil.isProjectFileWithModel410(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -40,7 +40,7 @@ class MavenDomUtilTest {
 
   @Test
   fun testIsProjectFileWithModel410() {
-    assertTrue(runReadAction {
+    assertTrue(runReadActionBlocking {
       MavenDomUtil.isProjectFileWithModel410(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -60,7 +60,7 @@ class MavenDomUtilTest {
 
   @Test
   fun testIsProjectFileWithModel410Incomplete() {
-    assertFalse(runReadAction {
+    assertFalse(runReadActionBlocking {
       MavenDomUtil.isProjectFileWithModel410(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -80,7 +80,7 @@ class MavenDomUtilTest {
 
   @Test
   fun testIsProjectFileWithModel410Incomplete2() {
-    assertFalse(runReadAction {
+    assertFalse(runReadActionBlocking {
       MavenDomUtil.isProjectFileWithModel410(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -100,7 +100,7 @@ class MavenDomUtilTest {
 
   @Test
   fun testIsProjectFileWithModel410NoModel() {
-    assertTrue(runReadAction {
+    assertTrue(runReadActionBlocking {
       MavenDomUtil.isProjectFileWithModel410(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -120,7 +120,7 @@ class MavenDomUtilTest {
   @Test
   fun testIsProjectFileWithModel400NoModelVersionInferred() {
     // 4.0.0 namespace without modelVersion tag - should infer 4.0.0 and return false
-    assertFalse(runReadAction {
+    assertFalse(runReadActionBlocking {
       MavenDomUtil.isProjectFileWithModel410(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -140,7 +140,7 @@ class MavenDomUtilTest {
   @Test
   fun testIsProjectFileWithModel410HttpsNoModelVersion() {
     // https namespace without modelVersion tag - should infer 4.1.0 and return true
-    assertTrue(runReadAction {
+    assertTrue(runReadActionBlocking {
       MavenDomUtil.isProjectFileWithModel410(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -160,7 +160,7 @@ class MavenDomUtilTest {
   @Test
   fun testGetXmlProjectModelVersionInferredFromNamespace410() {
     // When modelVersion tag is missing, should infer from namespace
-    assertEquals("4.1.0", runReadAction {
+    assertEquals("4.1.0", runReadActionBlocking {
       MavenDomUtil.getXmlProjectModelVersion(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -180,7 +180,7 @@ class MavenDomUtilTest {
   @Test
   fun testGetXmlProjectModelVersionInferredFromNamespace400() {
     // When modelVersion tag is missing, should infer from namespace
-    assertEquals("4.0.0", runReadAction {
+    assertEquals("4.0.0", runReadActionBlocking {
       MavenDomUtil.getXmlProjectModelVersion(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -200,7 +200,7 @@ class MavenDomUtilTest {
   @Test
   fun testGetXmlProjectModelVersionExplicitTakesPrecedence() {
     // When modelVersion tag is present, use it even if namespace differs
-    assertEquals("4.0.0", runReadAction {
+    assertEquals("4.0.0", runReadActionBlocking {
       MavenDomUtil.getXmlProjectModelVersion(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -221,7 +221,7 @@ class MavenDomUtilTest {
   @Test
   fun testGetXmlProjectModelVersionNoNamespace() {
     // When no namespace and no modelVersion tag, return null
-    assertNull(runReadAction {
+    assertNull(runReadActionBlocking {
       MavenDomUtil.getXmlProjectModelVersion(
         createXmlFile("""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -236,7 +236,7 @@ class MavenDomUtilTest {
   }
 
   fun createXmlFile(text: String): PsiFile {
-    return runReadAction {
+    return runReadActionBlocking {
       PsiFileFactory.getInstance (maven.project).createFileFromText("pom.xml", XmlFileType.INSTANCE, text)
     }
   }

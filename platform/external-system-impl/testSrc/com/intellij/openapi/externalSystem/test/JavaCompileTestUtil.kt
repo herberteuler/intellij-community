@@ -4,6 +4,7 @@
 package com.intellij.openapi.externalSystem.test
 
 import com.intellij.compiler.impl.ModuleCompileScope
+import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.openapi.compiler.CompileScope
 import com.intellij.openapi.compiler.CompilerMessageCategory
 import com.intellij.openapi.module.Module
@@ -12,7 +13,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.packaging.artifacts.Artifact
 import com.intellij.packaging.artifacts.ArtifactManager
 import com.intellij.packaging.impl.compiler.ArtifactCompileScope
-import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
 import com.intellij.task.ProjectTaskManager
 import com.intellij.testFramework.CompilerTester
 import com.intellij.testFramework.concurrency.waitForPromiseAndPumpEdt
@@ -21,7 +21,7 @@ import kotlin.time.Duration.Companion.minutes
 
 
 fun compileModules(project: Project, useProjectTaskManager: Boolean, vararg moduleNames: String) {
-  val modules = runReadAction { collectModules(project, *moduleNames) }
+  val modules = runReadActionBlocking { collectModules(project, *moduleNames) }
   if (useProjectTaskManager) {
     val projectTaskManager = ProjectTaskManager.getInstance(project)
     val promise = projectTaskManager.build(*modules.toTypedArray())
@@ -36,7 +36,7 @@ fun compileModules(project: Project, useProjectTaskManager: Boolean, vararg modu
 }
 
 fun buildArtifacts(project: Project, useProjectTaskManager: Boolean, vararg artifactNames: String) {
-  val artifacts = runReadAction { collectArtifacts(project, *artifactNames) }
+  val artifacts = runReadActionBlocking { collectArtifacts(project, *artifactNames) }
   if (useProjectTaskManager) {
     val projectTaskManager = ProjectTaskManager.getInstance(project)
     val promise = projectTaskManager.build(*artifacts.toTypedArray())

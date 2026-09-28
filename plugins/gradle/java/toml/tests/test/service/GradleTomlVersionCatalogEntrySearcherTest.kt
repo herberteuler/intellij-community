@@ -3,7 +3,7 @@ package com.intellij.gradle.java.toml.tests.service
 
 import com.intellij.gradle.java.toml.service.GradleTomlVersionCatalogEntrySearcher
 import com.intellij.gradle.java.toml.service.TomlCatalogEntry
-import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
+import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.platform.testFramework.assertion.collectionAssertion.CollectionAssertions.assertEqualsUnordered
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFileFactory
@@ -40,7 +40,7 @@ class GradleTomlVersionCatalogEntrySearcherTest {
       versionCatalogText: String,
       expectedToFind: String? = null,
       checker: (PsiElement?) -> Unit = {},
-    ) = runReadAction {
+    ) = runReadActionBlocking {
       val tomPsiFile = PsiFileFactory.getInstance(project)
         .createFileFromText(TomlLanguage, versionCatalogText) as TomlFile
       val element = entrySearcher.findEntryElement(tomPsiFile, givenEntryPath)
@@ -211,7 +211,7 @@ class GradleTomlVersionCatalogEntrySearcherTest {
     private fun test(
       sectionsFilter: Set<VersionCatalogSection>,
       expectedEntries: List<TomlCatalogEntry>,
-    ) = runReadAction {
+    ) = runReadActionBlocking {
       val versionCatalogText = """
         [plugins]
         my-plugin-simple = { id = "my.plugin.id1", version.ref = "my-plugin-version" }

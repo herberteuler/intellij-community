@@ -2,8 +2,8 @@
 package org.jetbrains.plugins.gradle.quarantine.dsl
 
 import com.intellij.codeInspection.deadCode.UnusedDeclarationInspectionBase
+import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.openapi.vfs.readText
-import com.intellij.platform.externalSystem.testFramework.utils.runReadAction
 import com.intellij.psi.PsiMethod
 import com.intellij.testFramework.assertInstanceOf
 import org.gradle.util.GradleVersion
@@ -40,7 +40,7 @@ class GradleHighlightingTest : GradleCodeInsightTestCase() {
   fun testConfigurationResolve(gradleVersion: GradleVersion) {
     test(gradleVersion, MY_CONFIGURATION_FIXTURE) {
       val file = getFile("build.gradle")
-      runReadAction {
+      runReadActionBlocking {
         val psiFile = fixture.psiManager.findFile(file)!!
         val offset = file.readText().indexOf("transitive") + 1
         val reference = psiFile.findReferenceAt(offset)!!

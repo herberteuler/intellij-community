@@ -124,6 +124,9 @@ internal class PythonPackageManagerServiceImpl(
    * In practice the first call happens during project/SDK setup on a background thread,
    * so subsequent EDT callers always get a cached instance.
    *
+   * A cached manager that no longer [PythonPackageManager.matchesSdk] is replaced. Its watcher and the manager are
+   * disposed, and a new manager is built. The check runs on every call and never inside the build.
+   *
    * The interpreter paths are watched only while a module of the project uses [interpreter]; see [syncWatchers].
    *
    * Requires the SDK of [interpreter] to be a Python SDK with [com.jetbrains.python.sdk.PythonSdkAdditionalData].
@@ -132,38 +135,55 @@ internal class PythonPackageManagerServiceImpl(
     // The managers are keyed by the SDK and its additional data, so this service reads the SDK.
     @Suppress("DEPRECATION")
     val sdk = interpreter.getSdkAPI()
-    val cacheKey = (sdk.pySdkAdditionalData).uuid
+    val cacheKey = sdk.pySdkAdditionalData.uuid
+    cache[cacheKey]?.takeIf { it.manager.matchesSdk() }?.let { return it.manager }
 
     var newEntry = false
-    val entry = cache.computeIfAbsent(cacheKey) {
-      newEntry = true
-      if (sdk is Disposable) {
-        val localCache = cache
-        try {
-          Disposer.register(sdk, Disposable { localCache.remove(cacheKey) })
-        }
-        catch (e: IncorrectOperationException) {
-          throw AlreadyDisposedException("Requesting a package manager for an already disposed SDK $sdk, ${e.localizedMessage}")
-        }
-      }
-
-      val manager = PythonPackageManagerProvider.EP_NAME.extensionList.firstNotNullOf { it.createPackageManager(project, interpreter) }
-      try {
-        Disposer.register(PyPackageCoroutine.getInstance(project), manager)
-      }
-      catch (e: IncorrectOperationException) {
-          throw AlreadyDisposedException("Requesting a package manager for an already disposed Project $project, ${e.localizedMessage}")
-      }
-
-      // I don't think it should be here
-      PythonRequirementTxtSdkUtils.migrateRequirementsTxtPathFromModuleToSdk(project, sdk)
-
-      CachedManager(interpreter, manager)
+    val entry = watchersLock.withLock {
+      cache.compute(cacheKey) { _, cached ->
+        if (cached != null && cached.manager.matchesSdk()) return@compute cached
+        newEntry = true
+        if (cached == null) removeOnSdkDisposal(sdk, cacheKey) else dropEntry(cached)
+        CachedManager(interpreter, createManager(project, interpreter))
+      }!!
     }
     // Only a new entry needs one: an entry that is already cached gets its watcher from the next structure that moves
     // its interpreter into use or out of it. A structure that has not landed yet arrives on the flow shortly.
     if (newEntry) syncWatchers(EvoPyProjectModel.getInstance(project).snapshotOrNull())
     return entry.manager
+  }
+
+  /** Always call under [watchersLock]. Disposes the watcher of [entry], whose parent is the SDK, and then its manager. */
+  private fun dropEntry(entry: CachedManager) {
+    logger.info("The dependency file of '${entry.sdk.name}' selects another package manager, so the manager is rebuilt")
+    entry.watcher?.let { Disposer.dispose(it) }
+    entry.watcher = null
+    Disposer.dispose(entry.manager)
+  }
+
+  private fun removeOnSdkDisposal(sdk: Sdk, cacheKey: UUID) {
+    if (sdk !is Disposable) return
+    val localCache = cache
+    try {
+      Disposer.register(sdk, Disposable { localCache.remove(cacheKey) })
+    }
+    catch (e: IncorrectOperationException) {
+      throw AlreadyDisposedException("Requesting a package manager for an already disposed SDK $sdk, ${e.localizedMessage}")
+    }
+  }
+
+  private fun createManager(project: Project, interpreter: PythonInterpreter): PythonPackageManager {
+    val manager = PythonPackageManagerProvider.EP_NAME.extensionList.firstNotNullOf { it.createPackageManager(project, interpreter) }
+    try {
+      Disposer.register(PyPackageCoroutine.getInstance(project), manager)
+    }
+    catch (e: IncorrectOperationException) {
+      throw AlreadyDisposedException("Requesting a package manager for an already disposed Project $project, ${e.localizedMessage}")
+    }
+    // I don't think it should be here
+    @Suppress("DEPRECATION")
+    PythonRequirementTxtSdkUtils.migrateRequirementsTxtPathFromModuleToSdk(project, interpreter.getSdkAPI())
+    return manager
   }
 
   /** The disposable that owns the watcher of the paths of [sdk], or `null` when they are not watched. */

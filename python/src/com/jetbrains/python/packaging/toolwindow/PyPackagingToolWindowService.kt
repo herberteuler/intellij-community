@@ -7,6 +7,8 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.roots.ModuleRootEvent
+import com.intellij.openapi.roots.ModuleRootListener
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -66,6 +68,7 @@ import com.jetbrains.python.packaging.toolwindow.model.PyPackagesViewData
 import com.jetbrains.python.packaging.toolwindow.model.RequirementPackage
 import com.jetbrains.python.packaging.toolwindow.model.UndeclaredPackagesGroup
 import com.jetbrains.python.packaging.toolwindow.model.WorkspaceMember
+import com.jetbrains.python.sdk.pySdkAdditionalData
 import com.jetbrains.python.statistics.PythonPackagesIdsHolder.Companion.PYTHON_PACKAGE_DELETED
 import com.jetbrains.python.statistics.PythonPackagesIdsHolder.Companion.PYTHON_PACKAGE_INSTALLED
 import kotlinx.coroutines.CoroutineScope
@@ -575,7 +578,30 @@ internal class PyPackagingToolWindowService(val project: Project, val serviceSco
 
   private fun subscribeToChanges() {
     followSharedInterpreter()
+    followPackageManager()
     subscribeToPackageManagementChanges()
+  }
+
+  /**
+   * Rebinds this view when the bound manager no longer [PythonPackageManager.matchesSdk] its interpreter.
+   * The commit that changes the root dependency file of the interpreter fires [ModuleRootListener.rootsChanged].
+   * The rebind runs off the event thread.
+   */
+  private fun followPackageManager() {
+    project.messageBus.connect(serviceScope).subscribe(ModuleRootListener.TOPIC, object : ModuleRootListener {
+      override fun rootsChanged(event: ModuleRootEvent) {
+        val context = interpreterContext ?: return
+        if (context.manager.matchesSdk()) return
+        serviceScope.launch(Dispatchers.IO + NON_INTERACTIVE_ROOT_TRACE_CONTEXT) { rebind(context) }
+      }
+    })
+  }
+
+  /** Binds this view to the current manager of the interpreter of [context], while [context] is still the bound one. */
+  private suspend fun rebind(context: InterpreterContext) {
+    if (project.isDisposed || interpreterContext !== context) return
+    interpreterContext = InterpreterContext(context.interpreter, PythonPackageManagerUI.forPythonInterpreter(project, context.interpreter))
+    refreshInstalledPackages()
   }
 
   /**

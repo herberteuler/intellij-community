@@ -73,6 +73,12 @@ internal class UvPackageManager internal constructor(
   override val dependenciesFilesRelativePaths: List<Path>
     get() = listOf(Path.of(PY_PROJECT_TOML))
 
+  /** Project mode only. A stored requirements file selects [UvPipPackageManager]. */
+  override fun matchesSdk(): Boolean = when (sdk.uvMode) {
+    UvMode.Project -> true
+    is UvMode.Pip -> false
+  }
+
   override suspend fun installPackageCommand(
     installRequest: PythonPackageInstallRequest,
     options: List<String>,

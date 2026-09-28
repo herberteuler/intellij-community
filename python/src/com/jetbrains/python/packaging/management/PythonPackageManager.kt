@@ -97,6 +97,13 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
   @ApiStatus.Internal
   open val installedPackagesIncludeTransitive: Boolean = false
 
+  /**
+   * Whether this manager is still the one for its [sdk]. [PythonPackageManager.forSdk] replaces a manager that says no.
+   * The default is yes. A manager whose class the stored data of the SDK selects answers from that data.
+   */
+  @ApiStatus.Internal
+  open fun matchesSdk(): Boolean = true
+
   @get:ApiStatus.Internal
   protected abstract val dependenciesFilesRelativePaths: List<Path>
 

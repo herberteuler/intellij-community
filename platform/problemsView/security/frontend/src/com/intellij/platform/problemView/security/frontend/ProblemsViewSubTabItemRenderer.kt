@@ -43,7 +43,11 @@ internal class ProblemsViewSubTabItemRenderer : ListCellRenderer<ProblemsViewSub
     val count = presentation.problemCount ?: 0
 
     val foundNoIssues = count == 0 && presentation.foundNoIssues
-    countLabel.text = if (count > 0) SecurityProblemsViewBundle.message("security.problems.view.sub.tab.issue.count", count) else ""
+    countLabel.text = when {
+      count > 0 -> SecurityProblemsViewBundle.message("security.problems.view.sub.tab.issue.count", count)
+      foundNoIssues -> SecurityProblemsViewBundle.message("security.problems.view.sub.tab.no.issues")
+      else -> ""
+    }
     countLabel.icon = when {
       count > 0 -> presentation.icon ?: SecurityProblemsViewIcons.Status.IssuesFound
       foundNoIssues -> presentation.icon ?: SecurityProblemsViewIcons.Status.NoIssuesFound

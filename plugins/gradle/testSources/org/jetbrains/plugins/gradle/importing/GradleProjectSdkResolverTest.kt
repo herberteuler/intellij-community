@@ -5,7 +5,7 @@ import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUt
 import com.intellij.openapi.roots.ui.configuration.SdkTestCase.Companion.assertNewlyRegisteredSdks
 import com.intellij.openapi.roots.ui.configuration.SdkTestCase.Companion.assertUnexpectedSdksRegistration
 import com.intellij.openapi.roots.ui.configuration.SdkTestCase.Companion.withRegisteredSdks
-import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.plugins.gradle.tooling.annotation.TargetVersions
 import org.junit.Ignore

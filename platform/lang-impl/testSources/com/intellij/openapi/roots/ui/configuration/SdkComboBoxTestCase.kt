@@ -1,4 +1,4 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.roots.ui.configuration
 
 import com.intellij.openapi.Disposable
@@ -12,6 +12,8 @@ import com.intellij.openapi.projectRoots.SdkType
 import com.intellij.openapi.roots.ui.configuration.SdkComboBoxModel.Companion.createJdkComboBoxModel
 import com.intellij.openapi.roots.ui.configuration.projectRoot.ProjectSdksModel
 import com.intellij.openapi.util.Disposer
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestSdkType
 import java.util.function.Predicate
 
 abstract class SdkComboBoxTestCase : SdkTestCase() {

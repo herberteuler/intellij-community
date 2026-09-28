@@ -2,13 +2,13 @@
 package com.intellij.openapi.roots.ui.configuration
 
 import com.intellij.openapi.projectRoots.SdkType
-import com.intellij.openapi.roots.ui.configuration.TestSdkDownloader
-import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
-import com.intellij.openapi.roots.ui.configuration.TestSdkType
 import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownload
 import com.intellij.testFramework.junit5.fixture.TestFixture
 import com.intellij.testFramework.junit5.fixture.extensionPointFixture
 import com.intellij.testFramework.junit5.fixture.testFixture
+import com.intellij.testFramework.roots.ui.configuration.TestSdkDownloader
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestSdkType
 
 fun testSdkFixture(): TestFixture<TestSdkGenerator> = testFixture {
   extensionPointFixture(SdkType.EP_NAME) { TestSdkType }.init()

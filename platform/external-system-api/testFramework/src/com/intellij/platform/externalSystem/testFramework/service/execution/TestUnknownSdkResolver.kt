@@ -8,14 +8,14 @@ import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.projectRoots.SdkTypeId
 import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkRequirements
-import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
-import com.intellij.openapi.roots.ui.configuration.TestSdkType
 import com.intellij.openapi.roots.ui.configuration.UnknownSdk
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkDownloadableSdkFix
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkLocalSdkFix
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver.UnknownSdkLookup
 import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestSdkType
 import com.intellij.util.lang.JavaVersion
 
 object TestUnknownSdkResolver : UnknownSdkResolver {

@@ -17,13 +17,13 @@ import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.roots.ui.configuration.SdkTestCase
 import com.intellij.openapi.roots.ui.configuration.SdkTestCase.Companion.assertSdk
-import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
-import com.intellij.openapi.roots.ui.configuration.TestSdkType
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestObservation.awaitProjectActivity
 import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
 import com.intellij.testFramework.VfsTestUtil
 import com.intellij.testFramework.common.runAll
 import com.intellij.testFramework.replaceService
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestSdkType
 import com.intellij.util.lang.JavaVersion
 import org.jetbrains.plugins.gradle.service.project.open.linkAndSyncGradleProject
 import org.jetbrains.plugins.gradle.testFramework.util.createBuildFile

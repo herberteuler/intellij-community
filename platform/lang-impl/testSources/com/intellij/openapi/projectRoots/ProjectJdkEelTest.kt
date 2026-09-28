@@ -3,7 +3,6 @@ package com.intellij.openapi.projectRoots
 
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.edtWriteAction
-import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator.SdkInfo
 import com.intellij.openapi.roots.ui.configuration.projectRoot.ProjectSdksModel
 import com.intellij.openapi.roots.ui.configuration.testSdkFixture
 import com.intellij.platform.eel.EelPlatform
@@ -14,6 +13,7 @@ import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.RegistryKey
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.projectFixture
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator.SdkInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope

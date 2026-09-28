@@ -12,6 +12,11 @@ import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownload
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.use
 import com.intellij.testFramework.LightPlatformTestCase
+import com.intellij.testFramework.roots.ui.configuration.DependentTestSdkAdditionalData
+import com.intellij.testFramework.roots.ui.configuration.DependentTestSdkType
+import com.intellij.testFramework.roots.ui.configuration.TestSdkDownloader
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestSdkType
 
 abstract class SdkTestCase : LightPlatformTestCase() {
 

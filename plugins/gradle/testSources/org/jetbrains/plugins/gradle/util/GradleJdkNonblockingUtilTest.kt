@@ -2,7 +2,7 @@
 package org.jetbrains.plugins.gradle.util
 
 import com.intellij.openapi.roots.ui.configuration.SdkLookupProvider.SdkInfo
-import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
 
 class GradleJdkNonblockingUtilTest : GradleJdkNonblockingUtilTestCase() {
   fun `test nonblocking jdk resolution (gradle properties)`() {

@@ -9,7 +9,7 @@ import com.intellij.openapi.roots.ui.configuration.SdkListItem.NoneSdkItem
 import com.intellij.openapi.roots.ui.configuration.SdkListItem.ProjectSdkItem
 import com.intellij.openapi.roots.ui.configuration.SdkListItem.SdkItem
 import com.intellij.openapi.roots.ui.configuration.SdkListItem.SdkReferenceItem
-import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
 
 class ExternalSystemJdkComboBoxUtilTest : ExternalSystemJdkComboBoxUtilTestCase() {
   fun `test reference usage`() {

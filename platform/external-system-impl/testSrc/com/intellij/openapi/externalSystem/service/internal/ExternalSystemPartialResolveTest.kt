@@ -34,8 +34,8 @@ import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestUtil
 import com.intellij.platform.externalSystem.testFramework.TestExternalProjectSettings
 import com.intellij.platform.externalSystem.testFramework.TestExternalSystemExecutionSettings
 import com.intellij.platform.externalSystem.testFramework.TestExternalSystemManager
-import com.intellij.platform.externalSystem.testFramework.fixtures.multiProjectFixture
 import com.intellij.platform.externalSystem.testFramework.fixtures.projectFixture
+import com.intellij.platform.externalSystem.testFramework.fixtures.workspaceFixture
 import com.intellij.platform.externalSystem.testFramework.linkProject
 import com.intellij.platform.externalSystem.testFramework.project
 import com.intellij.platform.externalSystem.testFramework.toDataNode
@@ -65,9 +65,9 @@ internal class ExternalSystemPartialResolveTest {
   private val projectRootFixture = tempPathFixture()
   private val projectRoot by projectRootFixture
 
-  private val projectsFixture = multiProjectFixture()
+  private val workspaceFixture = workspaceFixture()
 
-  private val projectFixture = projectsFixture.projectFixture(projectRootFixture)
+  private val projectFixture = workspaceFixture.projectFixture(projectRootFixture)
   private val project by projectFixture
 
   private val recordingManager by testFixture {

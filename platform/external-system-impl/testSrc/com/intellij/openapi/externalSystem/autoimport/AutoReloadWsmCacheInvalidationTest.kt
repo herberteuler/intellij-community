@@ -7,7 +7,7 @@ import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.platform.backend.workspace.WorkspaceModelCache
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestObservation.awaitProjectActivity
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestUtil
-import com.intellij.platform.externalSystem.testFramework.fixtures.multiProjectFixture
+import com.intellij.platform.externalSystem.testFramework.fixtures.workspaceFixture
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.disposableFixture
@@ -28,7 +28,7 @@ class AutoReloadWsmCacheInvalidationTest {
 
   private val testDisposable by disposableFixture()
   private val testRoot by tempPathFixture()
-  private val multiProjectFixture by multiProjectFixture()
+  private val workspaceFixture by workspaceFixture()
 
   private val Project.workspaceModelCache: WorkspaceModelCache
     get() = requireNotNull(WorkspaceModelCache.getInstance(this)?.takeIf { it.enabled }) {
@@ -48,7 +48,7 @@ class AutoReloadWsmCacheInvalidationTest {
   fun `test triggers reload when WSM cache was invalidated on re-open`(): Unit = timeoutRunBlocking {
     val mockProjectAware = MockProjectAware(testRoot)
 
-    multiProjectFixture.openProject(testRoot)
+    workspaceFixture.openProject(testRoot)
       .useProjectAsync(save = true) { project ->
         initProjectAwareForProject(project, mockProjectAware)
         assertSyncCountAndReset(mockProjectAware, expectedSyncCount = 1) {
@@ -57,7 +57,7 @@ class AutoReloadWsmCacheInvalidationTest {
         project.workspaceModelCache.invalidateCaches()
       }
 
-    multiProjectFixture.openProject(testRoot)
+    workspaceFixture.openProject(testRoot)
       .useProjectAsync { project ->
         initProjectAwareForProject(project, mockProjectAware)
         assertSyncCountAndReset(mockProjectAware, expectedSyncCount = 1) {
@@ -71,7 +71,7 @@ class AutoReloadWsmCacheInvalidationTest {
   fun `test no extra reload when WSM cache persists`(): Unit = timeoutRunBlocking {
     val mockProjectAware = MockProjectAware(testRoot)
 
-    multiProjectFixture.openProject(testRoot)
+    workspaceFixture.openProject(testRoot)
       .useProjectAsync(save = true) { project ->
         initProjectAwareForProject(project, mockProjectAware)
         assertSyncCountAndReset(mockProjectAware, expectedSyncCount = 1) {
@@ -81,7 +81,7 @@ class AutoReloadWsmCacheInvalidationTest {
 
     //No invalidation
 
-    multiProjectFixture.openProject(testRoot)
+    workspaceFixture.openProject(testRoot)
       .useProjectAsync { project ->
         initProjectAwareForProject(project, mockProjectAware)
         assertSyncCountAndReset(mockProjectAware, expectedSyncCount = 0) {

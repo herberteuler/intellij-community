@@ -12,7 +12,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemImportingTestCase
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestObservation.awaitProjectActivity
-import com.intellij.platform.externalSystem.testFramework.fixtures.MultiProjectTestFixture
+import com.intellij.platform.externalSystem.testFramework.fixtures.WorkspaceFixture
 import com.intellij.testFramework.common.runAll
 import org.gradle.util.GradleVersion
 import org.jetbrains.jps.model.java.JdkVersionDetector.JdkVersionInfo
@@ -24,7 +24,7 @@ import org.jetbrains.plugins.gradle.util.getGradleProjectReloadOperation
 import java.nio.file.Path
 
 class GradleTestFixtureImpl(
-  private val multiProjectFixture: MultiProjectTestFixture,
+  private val workspaceFixture: WorkspaceFixture,
   private val gradleJvmFixture: GradleJvmTestFixture,
   override val gradleVersion: GradleVersion,
 ) : GradleTestFixture {
@@ -66,13 +66,13 @@ class GradleTestFixtureImpl(
 
   override suspend fun openProject(projectPath: Path, numProjectSyncs: Int): Project {
     return withAllowedProjectSyncs(numProjectSyncs) {
-      multiProjectFixture.openProject(projectPath)
+      workspaceFixture.openProject(projectPath)
     }
   }
 
   override suspend fun linkProject(project: Project, projectPath: Path) {
     withAllowedProjectSyncs {
-      multiProjectFixture.linkProject(project, projectPath, GradleConstants.SYSTEM_ID)
+      workspaceFixture.linkProject(project, projectPath, GradleConstants.SYSTEM_ID)
     }
   }
 

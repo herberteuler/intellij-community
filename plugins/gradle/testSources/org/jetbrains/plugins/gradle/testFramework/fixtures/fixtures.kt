@@ -2,7 +2,7 @@
 package org.jetbrains.plugins.gradle.testFramework.fixtures
 
 import com.intellij.openapi.project.Project
-import com.intellij.platform.externalSystem.testFramework.fixtures.multiProjectFixture
+import com.intellij.platform.externalSystem.testFramework.fixtures.workspaceFixture
 import com.intellij.testFramework.closeProjectAsync
 import com.intellij.testFramework.fixtures.BuildViewTestFixture
 import com.intellij.testFramework.junit5.fixture.TestFixture
@@ -32,7 +32,7 @@ fun gradleFixture(
   gradleVersion: GradleVersion = GradleVersion.current(),
   javaVersion: JavaVersionRestriction = JavaVersionRestriction.DEFAULT,
 ): TestFixture<GradleTestFixture> = testFixture {
-  val multiProjectFixture = multiProjectFixture().init()
+  val multiProjectFixture = workspaceFixture().init()
   val gradleJvmFixture = gradleJvmFixture(gradleVersion, javaVersion).init()
   val fixture = GradleTestFixtureImpl(multiProjectFixture, gradleJvmFixture, gradleVersion)
   fixture.setUp()

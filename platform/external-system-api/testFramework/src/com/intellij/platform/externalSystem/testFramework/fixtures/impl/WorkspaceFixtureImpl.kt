@@ -8,12 +8,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestObservation.awaitOpenProjectActivity
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestObservation.awaitProjectActivity
-import com.intellij.platform.externalSystem.testFramework.fixtures.MultiProjectTestFixture
+import com.intellij.platform.externalSystem.testFramework.fixtures.WorkspaceFixture
 import com.intellij.testFramework.openProjectAsync
 import org.junit.jupiter.api.Assertions
 import java.nio.file.Path
 
-class MultiProjectTestFixtureImpl: MultiProjectTestFixture {
+class WorkspaceFixtureImpl: WorkspaceFixture {
 
   override suspend fun openProject(projectPath: Path): Project {
     return awaitOpenProjectActivity {

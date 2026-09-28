@@ -5,7 +5,7 @@ import com.intellij.openapi.externalSystem.model.ProjectSystemId
 import com.intellij.openapi.project.Project
 import java.nio.file.Path
 
-interface MultiProjectTestFixture {
+interface WorkspaceFixture {
 
   suspend fun openProject(projectPath: Path): Project
 

@@ -171,6 +171,7 @@ public class DialogWrapperPeerImpl extends DialogWrapperPeer {
         // and suggestParentWindow returned the IDE frame, prefer the focused window as parent.
         // This ensures child dialogs appear over the actual focused window rather than the main frame.
         if (curWindow != null && !(curWindow instanceof IdeFrame) && curWindow.isShowing()
+            && !windowManager.isNotSuggestAsParent(curWindow)
             && (window == null || window instanceof IdeFrame)) {
           window = curWindow;
         }

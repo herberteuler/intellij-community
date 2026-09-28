@@ -1,4 +1,4 @@
-// Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.externalSystem.service.ui
 
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.JAVA_HOME
@@ -9,6 +9,7 @@ import com.intellij.openapi.roots.ui.configuration.SdkListItem.NoneSdkItem
 import com.intellij.openapi.roots.ui.configuration.SdkListItem.ProjectSdkItem
 import com.intellij.openapi.roots.ui.configuration.SdkListItem.SdkItem
 import com.intellij.openapi.roots.ui.configuration.SdkListItem.SdkReferenceItem
+import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
 
 class ExternalSystemJdkComboBoxUtilTest : ExternalSystemJdkComboBoxUtilTestCase() {
   fun `test reference usage`() {

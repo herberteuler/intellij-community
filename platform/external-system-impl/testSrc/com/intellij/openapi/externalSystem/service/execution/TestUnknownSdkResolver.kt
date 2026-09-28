@@ -1,4 +1,4 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.externalSystem.service.execution
 
 import com.intellij.openapi.progress.ProgressIndicator
@@ -7,8 +7,8 @@ import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.projectRoots.SdkTypeId
 import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkRequirements
-import com.intellij.openapi.roots.ui.configuration.SdkTestCase.TestSdkGenerator
-import com.intellij.openapi.roots.ui.configuration.SdkTestCase.TestSdkType
+import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
+import com.intellij.openapi.roots.ui.configuration.TestSdkType
 import com.intellij.openapi.roots.ui.configuration.UnknownSdk
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkDownloadableSdkFix
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkLocalSdkFix

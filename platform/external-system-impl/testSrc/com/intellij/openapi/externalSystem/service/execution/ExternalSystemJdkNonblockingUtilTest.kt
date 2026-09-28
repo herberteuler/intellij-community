@@ -1,4 +1,4 @@
-// Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.externalSystem.service.execution
 
 import com.intellij.idea.IJIgnore
@@ -9,6 +9,8 @@ import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUt
 import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_DOWNLOADABLE_FIX
 import com.intellij.openapi.externalSystem.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
 import com.intellij.openapi.roots.ui.configuration.SdkLookupProvider.SdkInfo
+import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
+import com.intellij.openapi.roots.ui.configuration.TestSdkType
 
 class ExternalSystemJdkNonblockingUtilTest : ExternalSystemJdkNonblockingUtilTestCase() {
   fun `test nonblocking jdk resolution (project jdk)`() {

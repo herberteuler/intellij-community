@@ -2,39 +2,16 @@
 package com.intellij.openapi.roots.ui.configuration
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
-import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.projectRoots.AdditionalDataConfigurable
-import com.intellij.openapi.projectRoots.JavaSdkType
 import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.openapi.projectRoots.SdkAdditionalData
-import com.intellij.openapi.projectRoots.SdkModel
-import com.intellij.openapi.projectRoots.SdkModificator
 import com.intellij.openapi.projectRoots.SdkType
-import com.intellij.openapi.projectRoots.SdkTypeId
-import com.intellij.openapi.projectRoots.impl.DependentSdkType
-import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkItem
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownload
-import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.util.io.FileUtil
-import com.intellij.openapi.util.io.FileUtilRt
-import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.openapi.util.use
 import com.intellij.testFramework.LightPlatformTestCase
-import com.intellij.util.system.OS
-import com.intellij.util.system.OS.CURRENT
-import org.jdom.Element
-import java.io.File
-import java.nio.file.Path
-import java.util.Properties
-import java.util.function.Consumer
-import java.util.function.Predicate
-import javax.swing.JComponent
 
 abstract class SdkTestCase : LightPlatformTestCase() {
 
@@ -73,175 +50,12 @@ abstract class SdkTestCase : LightPlatformTestCase() {
     return withProjectSdk(project, sdk, action)
   }
 
-  interface TestSdkType : JavaSdkType, SdkTypeId {
-    companion object : SdkType("test-type"), TestSdkType {
-      override fun getPresentableName(): String = name
-      override fun isValidSdkHome(path: String): Boolean = true
-      override fun suggestSdkName(currentSdkName: String?, sdkHome: String): String = TestSdkGenerator.findTestSdk(sdkHome)!!.name
-      override fun suggestHomePath(path: Path): String? = null
-      override fun suggestHomePaths(): Collection<String> = TestSdkGenerator.getAllTestSdks().map { it.homePath!! }
-      override fun createAdditionalDataConfigurable(sdkModel: SdkModel, sdkModificator: SdkModificator): AdditionalDataConfigurable? = null
-      override fun saveAdditionalData(additionalData: SdkAdditionalData, additional: Element) {}
-      override fun getBinPath(sdk: Sdk): String = File(sdk.homePath, "bin").path
-      override fun getToolsPath(sdk: Sdk): String = File(sdk.homePath, "lib/tools.jar").path
-      override fun getVMExecutablePath(sdk: Sdk): String = File(sdk.homePath, "bin/java").path
-      override fun getVersionString(sdkHome: String): String? = TestSdkGenerator.findTestSdk(sdkHome)?.versionString
-    }
-  }
-
   internal val Sdk.parent: Sdk
     get() {
       if (sdkType != DependentTestSdkType) error("Unexpected state")
       val parentSdkName = (sdkAdditionalData as DependentTestSdkAdditionalData).patentSdkName
       return ProjectJdkTable.getInstance().findJdk(parentSdkName)!!
     }
-
-  class DependentTestSdkAdditionalData(val patentSdkName: String) : SdkAdditionalData
-
-  object DependentTestSdkType : DependentSdkType("dependent-test-type"), TestSdkType {
-    private fun getParentPath(sdk: Sdk, relativePath: String): String? {
-      if (sdk.sdkType != DependentTestSdkType) return null
-      val additionalData = sdk.sdkAdditionalData
-      val parentSdkName = (additionalData as DependentTestSdkAdditionalData).patentSdkName
-      return ProjectJdkTable.getInstance().findJdk(parentSdkName)?.homePath?.let { File(it, relativePath).path }
-    }
-
-    override fun getPresentableName(): String = name
-    override fun isValidSdkHome(path: String): Boolean = true
-    override fun suggestSdkName(currentSdkName: String?, sdkHome: String): String = "dependent-sdk-name"
-    override fun suggestHomePath(path: Path): String? = null
-    override fun createAdditionalDataConfigurable(sdkModel: SdkModel, sdkModificator: SdkModificator): AdditionalDataConfigurable? = null
-    override fun getBinPath(sdk: Sdk) = getParentPath(sdk, "bin")
-    override fun getToolsPath(sdk: Sdk) = getParentPath(sdk, "lib/tools.jar")
-    override fun getVMExecutablePath(sdk: Sdk) = getParentPath(sdk, "bin/java")
-
-    override fun getUnsatisfiedDependencyMessage() = "Unsatisfied dependency message"
-    override fun isValidDependency(sdk: Sdk) = sdk is TestSdkType
-    override fun getDependencyType() = TestSdkType
-
-    override fun saveAdditionalData(additionalData: SdkAdditionalData, additional: Element) {
-      additional.setAttribute("patentSdkName", (additionalData as DependentTestSdkAdditionalData).patentSdkName)
-    }
-
-    override fun loadAdditionalData(additional: Element): SdkAdditionalData {
-      return DependentTestSdkAdditionalData(additional.getAttributeValue("patentSdkName") ?: "")
-    }
-  }
-
-  object TestSdkDownloader : SdkDownload {
-    override fun supportsDownload(sdkTypeId: SdkTypeId) = sdkTypeId == TestSdkType
-
-    override fun showDownloadUI(
-      sdkTypeId: SdkTypeId,
-      sdkModel: SdkModel,
-      parentComponent: JComponent,
-      selectedSdk: Sdk?,
-      sdkCreatedCallback: Consumer<in SdkDownloadTask>
-    ) {
-      val sdk = TestSdkGenerator.createNextSdk()
-      sdkCreatedCallback.accept(object : SdkDownloadTask {
-        override fun doDownload(indicator: ProgressIndicator) {}
-        override fun getPlannedVersion() = sdk.versionString!!
-        override fun getSuggestedSdkName() = sdk.name
-        override fun getPlannedHomeDir() = sdk.homePath!!
-      })
-    }
-
-    override fun pickSdk(sdkTypeId: SdkTypeId,
-                         sdkModel: SdkModel,
-                         parentComponent: JComponent,
-                         selectedSdk: Sdk?,
-                         sdkFilter: Predicate<JdkItem>?
-    ): SdkDownloadTask? = null
-  }
-
-  object TestSdkGenerator {
-    private var createdSdkCounter = 0
-    private lateinit var createdSdks: MutableMap<String, Sdk>
-
-    fun getAllTestSdks() = createdSdks.values
-
-    fun findTestSdk(sdk: Sdk): Sdk? = findTestSdk(sdk.homePath!!)
-
-    fun findTestSdk(homePath: String): Sdk? = createdSdks[FileUtil.toSystemDependentName(homePath)]
-
-    fun getCurrentSdk() = createdSdks.values.last()
-
-    fun reserveNextSdk(versionString: String = "11"): SdkInfo {
-      val name = "test $versionString (${createdSdkCounter++})"
-      val homePath = FileUtil.toCanonicalPath(FileUtil.join(FileUtil.getTempDirectory(), "jdk-$name"))
-      return SdkInfo(name, versionString, homePath)
-    }
-
-    fun createTestSdk(sdkInfo: SdkInfo): Sdk {
-      val sdk = ProjectJdkTable.getInstance().createSdk(sdkInfo.name, TestSdkType)
-      val sdkModificator = sdk.sdkModificator
-      sdkModificator.homePath = sdkInfo.homePath
-      sdkModificator.versionString = sdkInfo.versionString
-
-      val application = ApplicationManager.getApplication()
-      val runnable = { sdkModificator.commitChanges() }
-      if (application.isDispatchThread) {
-        application.runWriteAction(runnable)
-      } else {
-        application.invokeAndWait { application.runWriteAction(runnable) }
-      }
-      createdSdks[FileUtil.toSystemDependentName(sdkInfo.homePath)] = sdk
-      return sdk
-    }
-
-    fun createNextSdk(versionString: String = "11"): Sdk {
-      val sdkInfo = reserveNextSdk(versionString)
-      generateJdkStructure(sdkInfo)
-      return createTestSdk(sdkInfo)
-    }
-
-    fun createNextDependentSdk(parentSdk: Sdk): Sdk {
-      val name = "dependent-test-name (${createdSdkCounter++})"
-      val versionString = "11"
-      val homePath = Path.of(FileUtilRt.getTempDirectory(), "jdk-$name").toCanonicalPath()
-
-      val sdk = ProjectJdkTable.getInstance().createSdk(name, DependentTestSdkType)
-      val sdkModificator = sdk.sdkModificator
-      sdkModificator.homePath = homePath
-      sdkModificator.versionString = versionString
-      sdkModificator.sdkAdditionalData = DependentTestSdkAdditionalData(parentSdk.name)
-      ApplicationManager.getApplication().runWriteAction { sdkModificator.commitChanges() }
-      createdSdks[homePath] = sdk
-      return sdk
-    }
-
-    fun generateJdkStructure(sdkInfo: SdkInfo) {
-      val homePath = sdkInfo.homePath
-      createFile("$homePath/release")
-      createFile("$homePath/jre/lib/rt.jar")
-      if (CURRENT == OS.Windows) {
-        createFile("$homePath/bin/javac.exe")
-        createFile("$homePath/bin/java.exe")
-      } else {
-        createFile("$homePath/bin/javac")
-        createFile("$homePath/bin/java")
-      }
-      val properties = Properties()
-      properties.setProperty("JAVA_FULL_VERSION", sdkInfo.versionString)
-      File("$homePath/release").outputStream().use {
-        properties.store(it, null)
-      }
-    }
-
-    private fun createFile(path: String) {
-      val file = File(path)
-      file.parentFile.mkdirs()
-      file.createNewFile()
-    }
-
-    fun reset() {
-      createdSdkCounter = 0
-      createdSdks = LinkedHashMap()
-    }
-
-    data class SdkInfo(val name: String, val versionString: String, val homePath: String)
-  }
 
   companion object {
 

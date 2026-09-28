@@ -1,4 +1,4 @@
-// Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.gradle.importing
 
 
@@ -18,7 +18,8 @@ import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.roots.ui.configuration.SdkTestCase
 import com.intellij.openapi.roots.ui.configuration.SdkTestCase.Companion.assertSdk
-import com.intellij.openapi.roots.ui.configuration.SdkTestCase.TestSdkGenerator
+import com.intellij.openapi.roots.ui.configuration.TestSdkGenerator
+import com.intellij.openapi.roots.ui.configuration.TestSdkType
 import com.intellij.platform.externalSystem.testFramework.ExternalSystemTestObservation.awaitProjectActivity
 import com.intellij.testFramework.VfsTestUtil
 import com.intellij.testFramework.common.runAll
@@ -46,7 +47,7 @@ abstract class GradleProjectSdkResolverTestCase : GradleImportingTestCase() {
     setRegistryPropertyForTest("unknown.sdk.auto", "false")
     setRegistryPropertyForTest("use.jdk.vendor.in.suggested.jdk.name", "false") //we have inconsistency between SDK names in JDK
 
-    SdkType.EP_NAME.point.registerExtension(SdkTestCase.TestSdkType, testRootDisposable)
+    SdkType.EP_NAME.point.registerExtension(TestSdkType, testRootDisposable)
 
     environment.variables(ExternalSystemJdkUtil.JAVA_HOME to null)
 

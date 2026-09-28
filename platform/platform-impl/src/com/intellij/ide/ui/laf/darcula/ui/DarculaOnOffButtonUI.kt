@@ -7,7 +7,6 @@ import com.intellij.ui.components.OnOffButton
 import com.intellij.ui.dsl.builder.DslComponentProperty
 import com.intellij.ui.dsl.gridLayout.UnscaledGaps
 import com.intellij.ui.icons.CachedImageIcon
-import com.intellij.ui.scale.JBUIScale
 import com.intellij.ui.svg.ATTR_FILL
 import com.intellij.ui.svg.ATTR_FILL_OPACITY
 import com.intellij.ui.svg.ATTR_STROKE
@@ -21,7 +20,6 @@ import javax.swing.Icon
 import javax.swing.JComponent
 import javax.swing.UIManager
 import javax.swing.plaf.basic.BasicToggleButtonUI
-import kotlin.math.max
 
 /**
  * Attributes naming the theme color a painted element takes its fill or stroke from, the same
@@ -47,9 +45,6 @@ private val TOGGLE_COLOR_KEYS: List<String> = listOf(
 
 /** Identity of this patcher implementation, so its digests never collide with another patcher's. */
 private const val PATCHER_IMPL_ID = 6222195294178155463L
-
-/** Minimum component height, so a toggle lines up with other controls in list rows and forms. */
-private const val MIN_HEIGHT = 32
 
 /**
  * Recolors a `toggle*.svg` element from the theme color its [COLOR_FILL_KEY] / [COLOR_STROKE_KEY]
@@ -90,7 +85,7 @@ private class TogglePalettePatcher(private val colors: Map<String, Color>)
 }
 
 /**
- * Islands-themed on/off toggle UI delegate.
+ * Paints an on/off toggle with the current theme colors.
  *
  * Renders a pill-shaped track with a notch indicator (no text labels) from `toggle*.svg` icons.
  * Track, border, notch and focus ring colors are named by the assets themselves through
@@ -104,24 +99,23 @@ private class TogglePalettePatcher(private val colors: Map<String, Color>)
  * reserves the ring's padding around the track, so gaining focus swaps the image without moving the
  * track or resizing the component.
  *
- * Registered in Islands theme JSON via `"OnOffButtonUI"` key.
+ * The base Darcula theme registers this delegate through the `OnOffButtonUI` key.
  */
 @Suppress("unused")
-internal class IslandsOnOffButtonUI : BasicToggleButtonUI() {
+internal class DarculaOnOffButtonUI : BasicToggleButtonUI() {
 
   companion object {
     @Suppress("UNUSED_PARAMETER")
     @JvmStatic
-    fun createUI(c: JComponent): IslandsOnOffButtonUI {
-      return IslandsOnOffButtonUI()
+    fun createUI(c: JComponent): DarculaOnOffButtonUI {
+      return DarculaOnOffButtonUI()
     }
 
     private var cachedColors: Map<String, Color> = emptyMap()
     private var cachedPatcher: TogglePalettePatcher? = null
 
     /**
-     * Rebuilt whenever the resolved colors change, which covers both theme switches and Islands
-     * being toggled on or off without needing to listen for them.
+     * Rebuilds the patcher when the resolved theme colors change.
      */
     @Synchronized
     private fun patcher(): TogglePalettePatcher {

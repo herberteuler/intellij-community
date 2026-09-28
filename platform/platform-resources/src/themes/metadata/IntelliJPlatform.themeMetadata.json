@@ -2612,6 +2612,11 @@
       "since": "2019.2"
     },
     {
+      "key": "OnOffButtonUI",
+      "description": "UI delegate for the on/off toggle.",
+      "source": "com.intellij.ui.components.OnOffButton"
+    },
+    {
       "key": "ToggleButton.borderColor"
     },
     {
@@ -2621,7 +2626,7 @@
     },
     {
       "key": "ToggleButton.focusBorderColor",
-      "description": "Focus ring stroke for Islands pill toggle (IslandsOnOffButtonUI; Component-specs Figma control-focus-border-brand). ManyIslands themes map to control-brand-border",
+      "description": "Legacy focus color. DarculaOnOffButtonUI uses ColorPalette.toggle-focus-border.",
       "since": "2026.2"
     },
     {

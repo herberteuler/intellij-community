@@ -1,4 +1,4 @@
-# IslandsOnOffButtonUI — Design & Implementation Spec
+# DarculaOnOffButtonUI — Design & Implementation Spec
 
 **Source:** [Int UI Kit - Islands — Toggle Grey bg](https://www.figma.com/design/zKwabe7qCf1c0LFu93997q/Int-UI-Kit--Islands?node-id=18954-37397&m=dev)
 
@@ -8,7 +8,7 @@
 
 The toggle is a **pill-shaped track** with a small **notch indicator** (no text labels). It visually represents a binary on/off state. This is a modernized design compared to the legacy `OnOffButton` which uses text labels and a sliding rectangular knob.
 
-**Implementation:** `IslandsOnOffButtonUI.kt` (`platform-impl/.../darcula/ui/`)
+**Implementation:** `DarculaOnOffButtonUI.kt` (`platform-impl/.../darcula/ui/`)
 **API component:** `OnOffButton.java` (this directory)
 
 ---
@@ -44,7 +44,7 @@ Everything, including the focus ring, is drawn from SVG assets in
 There is one asset per state and no per-theme copies. Each painted element names the theme color it
 takes its fill or stroke from in a `color-fill-key` / `color-stroke-key` attribute — the convention
 the Got It tooltip icons use (`com.intellij.ui.GotItComponentBuilderKt#colorizeIfPossible`).
-`TogglePalettePatcher` in `IslandsOnOffButtonUI` resolves each name against UI defaults, where
+`TogglePalettePatcher` in `DarculaOnOffButtonUI` resolves each name against UI defaults, where
 `UITheme` registers every theme color under a `ColorPalette.` prefix. Colors baked into the assets
 are only a fallback for themes that declare none of these colors.
 
@@ -190,7 +190,9 @@ literal colors, matching how those themes handle checkbox palette keys.
 
 ## 7. UI Delegate Registration
 
-Registered programmatically by `IslandsUICustomization.applyMissingKeys()` whenever Islands mode is enabled (`IslandsState.isEnabled()`). The delegate class name is injected into `UIManager` defaults as `"OnOffButtonUI"` if not already set by the theme, so any Islands-enabled theme — including custom themes — gets the Islands toggle automatically without explicit JSON configuration.
+The base Darcula theme registers `DarculaOnOffButtonUI` through the `OnOffButtonUI` key.
+The New UI and Islands themes inherit this registration and supply their toggle colors.
+Custom themes can override the delegate or its colors.
 
 ---
 

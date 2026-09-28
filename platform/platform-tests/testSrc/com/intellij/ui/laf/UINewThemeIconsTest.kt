@@ -40,8 +40,8 @@ class UINewThemeIconsTest {
   private val lafIconsPath = "/com/intellij/ide/ui/laf/icons/"
 
   /**
-   * Islands toggles have no per-theme copies — a single asset per state, recolored by
-   * [com.intellij.ide.ui.laf.darcula.ui.IslandsOnOffButtonUI] from the theme color each element
+   * Toggles use one asset per state, recolored by
+   * [com.intellij.ide.ui.laf.darcula.ui.DarculaOnOffButtonUI] from the theme color each element
    * names in its `color-fill-key` / `color-stroke-key` attribute.
    */
   private val toggleIcons: Set<String> = setOf(

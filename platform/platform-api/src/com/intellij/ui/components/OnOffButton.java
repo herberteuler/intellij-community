@@ -33,9 +33,6 @@ import java.util.Locale;
  * @author Konstantin Bulenkov
  */
 public class OnOffButton extends JToggleButton {
-  private @NlsContexts.Button String myOnText = IdeBundle.message("ui.button.on");
-  private @NlsContexts.Button String myOffText = IdeBundle.message("ui.button.off");
-
   /**
    * Internal padding
    */
@@ -47,37 +44,39 @@ public class OnOffButton extends JToggleButton {
   }
 
   /**
-   * This method is no longer supported for the Islands themes
+   * Returns the default localized on-state label for legacy UI delegates.
+   *
+   * @deprecated State labels are no longer configurable. Use {@link #isSelected()} to read the toggle state.
    */
   @ApiStatus.Internal
   @Deprecated(forRemoval = true)
   public @NlsContexts.Button String getOnText() {
-    return myOnText;
+    return IdeBundle.message("ui.button.on");
   }
 
   /**
-   * This method is no longer supported for the Islands themes
+   * @deprecated This method has no effect. Remove the call and use a separate label to describe the toggle.
    */
   @Deprecated(forRemoval = true)
-  public void setOnText(@NlsContexts.Button String onText) {
-    myOnText = onText;
+  public void setOnText(@NlsContexts.Button String ignoredOnText) {
   }
 
   /**
-   * This method is no longer supported for the Islands themes
+   * Returns the default localized off-state label for legacy UI delegates.
+   *
+   * @deprecated State labels are no longer configurable. Use {@link #isSelected()} to read the toggle state.
    */
   @ApiStatus.Internal
   @Deprecated(forRemoval = true)
   public @NlsContexts.Button String getOffText() {
-    return myOffText;
+    return IdeBundle.message("ui.button.off");
   }
 
   /**
-   * This method is no longer supported for the Islands themes
+   * @deprecated This method has no effect. Remove the call and use a separate label to describe the toggle.
    */
   @Deprecated(forRemoval = true)
-  public void setOffText(@NlsContexts.Button String offText) {
-    myOffText = offText;
+  public void setOffText(@NlsContexts.Button String ignoredOffText) {
   }
 
   @Override public String getUIClassID() {

@@ -32,7 +32,7 @@ data class SelectionRange(
     * The parent selection range containing this range. Therefore
     * `parent.range` must contain `this.range`.
     */
-   val parent: SelectionRange?,
+   val parent: SelectionRange? = null,
 )
 
 val SelectionRangeRequestType: RequestType<SelectionRangeParams, List<SelectionRange>?, Unit> =

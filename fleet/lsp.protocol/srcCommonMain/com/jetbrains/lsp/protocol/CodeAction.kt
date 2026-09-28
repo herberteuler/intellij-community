@@ -49,7 +49,7 @@ data class CodeActionRegistrationOptions(
      *
      * @since 3.16.0
      */
-    override val resolveProvider: Boolean?,
+    override val resolveProvider: Boolean? = null,
     override val workDoneProgress: Boolean? = null,
     override val documentSelector: DocumentSelector? = null,
 ) : CodeActionOptions, TextDocumentRegistrationOptions

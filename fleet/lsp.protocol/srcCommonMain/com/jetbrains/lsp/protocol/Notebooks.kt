@@ -216,7 +216,7 @@ data class NotebookDocumentSyncOptions(
      * the server. Will only be honored if mode === `notebook`.
      */
     val save: Boolean? = null,
-    override val id: String?,
+    override val id: String? = null,
 ) : StaticRegistrationOptions
 
 @Serializable
@@ -230,7 +230,7 @@ data class NotebookSelector(
     /**
      * The cells of the matching notebook to be synced.
      */
-    val cells: List<Cell>?
+    val cells: List<Cell>? = null
 )
 
 @Serializable

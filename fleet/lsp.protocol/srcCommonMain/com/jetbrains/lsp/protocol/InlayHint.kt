@@ -53,7 +53,7 @@ data class InlayHint(
      * The kind of this hint. Can be omitted in which case the client
      * should fall back to a reasonable default.
      */
-    val kind: InlayHintKind?,
+    val kind: InlayHintKind? = null,
 
     /**
      * Optional text edits that are performed when accepting this inlay hint.
@@ -65,7 +65,7 @@ data class InlayHint(
      * Depending on the client capability `inlayHint.resolveSupport` clients
      * might resolve this property late using the resolve request.
      */
-    val textEdits: List<TextEdit>?,
+    val textEdits: List<TextEdit>? = null,
 
     /**
      * The tooltip text when you hover over this item.
@@ -73,7 +73,7 @@ data class InlayHint(
      * Depending on the client capability `inlayHint.resolveSupport` clients
      * might resolve this property late using the resolve request.
      */
-    val tooltip: OrString<MarkupContent>?,
+    val tooltip: OrString<MarkupContent>? = null,
 
     /**
      * Render padding before the hint.
@@ -82,7 +82,7 @@ data class InlayHint(
      * background color of the hint itself. That means padding can be used
      * to visually align/separate an inlay hint.
      */
-    val paddingLeft: Boolean?,
+    val paddingLeft: Boolean? = null,
 
     /**
      * Render padding after the hint.
@@ -91,14 +91,14 @@ data class InlayHint(
      * background color of the hint itself. That means padding can be used
      * to visually align/separate an inlay hint.
      */
-    val paddingRight: Boolean?,
+    val paddingRight: Boolean? = null,
 
 
     /**
      * A data entry field that is preserved on an inlay hint between
      * a `textDocument/inlayHint` and a `inlayHint/resolve` request.
      */
-    val data: JsonElement?,
+    val data: JsonElement? = null,
 )
 
 /**
@@ -119,7 +119,7 @@ data class InlayHintLabelPart(
      * the client capability `inlayHint.resolveSupport` clients might resolve
      * this property late using the resolve request.
      */
-    val tooltip: OrString<MarkupContent>?,
+    val tooltip: OrString<MarkupContent>? = null,
 
     /**
      * An optional source code location that represents this
@@ -134,7 +134,7 @@ data class InlayHintLabelPart(
      * Depending on the client capability `inlayHint.resolveSupport` clients
      * might resolve this property late using the resolve request.
      */
-    val location: Location?,
+    val location: Location? = null,
 
     /**
      * An optional command for this label part.
@@ -142,7 +142,7 @@ data class InlayHintLabelPart(
      * Depending on the client capability `inlayHint.resolveSupport` clients
      * might resolve this property late using the resolve request.
      */
-    val command: Command?,
+    val command: Command? = null,
 )
 
 /**

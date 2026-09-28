@@ -13,7 +13,7 @@ data class ApplyWorkspaceEditParams(
      * presented in the user interface for example on an undo
      * stack to undo the workspace edit.
      */
-    val label: String?,
+    val label: String? = null,
 
     /**
      * The edits to apply.
@@ -33,7 +33,7 @@ data class ApplyWorkspaceEditResult(
      * This may be used by the server for diagnostic logging or to provide
      * a suitable error for a request that triggered the edit.
      */
-    val failureReason: String?,
+    val failureReason: String? = null,
 
     /**
      * Depending on the client's failure handling strategy `failedChange`
@@ -41,7 +41,7 @@ data class ApplyWorkspaceEditResult(
      * only available if the client signals a `failureHandling` strategy
      * in its client capabilities.
      */
-    val failedChanges: Int?,
+    val failedChanges: Int? = null,
 )
 
 object ApplyEditRequests {

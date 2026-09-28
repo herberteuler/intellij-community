@@ -370,7 +370,7 @@ interface DocumentSymbolOptions : WorkDoneProgressOptions {
 
 @Serializable
 data class DocumentSymbolRegistrationOptions(
-    override val label: String?,
+    override val label: String? = null,
     override val workDoneProgress: Boolean? = null,
     override val documentSelector: DocumentSelector? = null,
 ) : DocumentSymbolOptions, TextDocumentRegistrationOptions
@@ -427,7 +427,7 @@ data class RenameRegistrationOptions(
     /**
      * Renames should be checked and tested before being executed.
      */
-    override val prepareProvider: Boolean?,
+    override val prepareProvider: Boolean? = null,
 
     override val workDoneProgress: Boolean? = null,
     override val documentSelector: DocumentSelector? = null,
@@ -465,7 +465,7 @@ data class InlayHintRegistrationOptions(
      * The server provides support to resolve additional
      * information for an inlay hint item.
      */
-    override val resolveProvider: Boolean?,
+    override val resolveProvider: Boolean? = null,
 
     override val workDoneProgress: Boolean? = null,
     override val documentSelector: DocumentSelector? = null,
@@ -494,7 +494,7 @@ interface SemanticTokensOptions : WorkDoneProgressOptions {
       /**
        * The server supports deltas for full documents.
        */
-      val delta: Boolean?,
+      val delta: Boolean? = null,
     )
 }
 
@@ -509,12 +509,12 @@ data class SemanticTokensRegistrationOptions(
      * Server supports providing semantic tokens for a specific range
      * of a document.
      */
-    override val range: OrBoolean<Unit>?,
+    override val range: OrBoolean<Unit>? = null,
 
     /**
      * Server supports providing semantic tokens for a full document.
      */
-    override val full: OrBoolean<SemanticTokensOptions.Full>?,
+    override val full: OrBoolean<SemanticTokensOptions.Full>? = null,
 
     override val workDoneProgress: Boolean? = null,
     override val documentSelector: DocumentSelector? = null,

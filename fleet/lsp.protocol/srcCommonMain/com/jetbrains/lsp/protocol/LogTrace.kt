@@ -15,7 +15,7 @@ data class LogTraceParams(
    * Additional information that can be computed if the `trace` configuration
    * is set to `"verbose"`
    */
-  val verbose: String?,
+  val verbose: String? = null,
 )
 
 @Serializable

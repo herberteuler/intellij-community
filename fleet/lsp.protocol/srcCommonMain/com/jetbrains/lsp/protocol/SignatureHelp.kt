@@ -42,7 +42,7 @@ data class SignatureHelpRegistrationOptions(
    * The characters that trigger signature help
    * automatically.
    */
-  override val triggerCharacters: List<String>?,
+  override val triggerCharacters: List<String>? = null,
 
   /**
    * List of characters that re-trigger signature help.
@@ -53,7 +53,7 @@ data class SignatureHelpRegistrationOptions(
    *
    * @since 3.15.0
    */
-  override val retriggerCharacters: List<String>?,
+  override val retriggerCharacters: List<String>? = null,
   override val workDoneProgress: Boolean? = null,
   override val documentSelector: DocumentSelector? = null,
 ) : SignatureHelpOptions, TextDocumentRegistrationOptions
@@ -67,10 +67,10 @@ data class SignatureHelpParams(
    *
    * @since 3.15.0
    */
-  val context: SignatureHelpContext?,
+  val context: SignatureHelpContext? = null,
   override val textDocument: TextDocumentIdentifier,
   override val position: Position,
-  override val workDoneToken: ProgressToken?,
+  override val workDoneToken: ProgressToken? = null,
 ) : TextDocumentPositionParams, WorkDoneProgressParams
 
 /**
@@ -125,7 +125,7 @@ data class SignatureHelpContext(
    * This is undefined when triggerKind !==
    * SignatureHelpTriggerKind.TriggerCharacter
    */
-  val triggerCharacter: String?,
+  val triggerCharacter: String? = null,
 
   /**
    * `true` if signature help was already showing when it was triggered.
@@ -142,7 +142,7 @@ data class SignatureHelpContext(
    * The `activeSignatureHelp` has its `SignatureHelp.activeSignature` field
    * updated based on the user navigating through available signatures.
    */
-  val activeSignatureHelp: SignatureHelp?,
+  val activeSignatureHelp: SignatureHelp? = null,
 )
 
 /**
@@ -169,7 +169,7 @@ data class SignatureHelp(
    * In future version of the protocol this property might become
    * mandatory to better express this.
    */
-  val activeSignature: Int?,
+  val activeSignature: Int? = null,
 
   /**
    * The active parameter of the active signature. If omitted or the value
@@ -180,7 +180,7 @@ data class SignatureHelp(
    * mandatory to better express the active parameter if the
    * active signature does have any.
    */
-  val activeParameter: Int?,
+  val activeParameter: Int? = null,
 ) {
   init {
     require(activeSignature == null || activeSignature >= 0) {
@@ -209,12 +209,12 @@ data class SignatureInformation(
    * The human-readable doc-comment of this signature. Will be shown
    * in the UI but can be omitted.
    */
-  val documentation: StringOrMarkupContent?,
+  val documentation: StringOrMarkupContent? = null,
 
   /**
    * The parameters of this signature.
    */
-  val parameters: List<ParameterInformation>?,
+  val parameters: List<ParameterInformation>? = null,
 
   /**
    * The index of the active parameter.
@@ -223,7 +223,7 @@ data class SignatureInformation(
    *
    * @since 3.16.0
    */
-  val activeParameter: Int?,
+  val activeParameter: Int? = null,
 ) {
   init {
     require(activeParameter == null || activeParameter >= 0) {
@@ -257,7 +257,7 @@ data class ParameterInformation(
    * The human-readable doc-comment of this parameter. Will be shown
    * in the UI but can be omitted.
    */
-  val documentation: StringOrMarkupContent?,
+  val documentation: StringOrMarkupContent? = null,
 ) {
 
   @Serializable(with = Label.LabelSerializer::class)

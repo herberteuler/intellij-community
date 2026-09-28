@@ -240,20 +240,20 @@ interface CompletionOptions: WorkDoneProgressOptions { /**
 @Suppress("unused")
 @Serializable
 data class CompletionRegistrationOptionsImpl(
-    override val triggerCharacters: List<String>?,
-    override val allCommitCharacters: List<String>?,
-    override val resolveProvider: Boolean?,
-    override val completionItem: CompletionOptions.CompletionItemCapabilities?,
+    override val triggerCharacters: List<String>? = null,
+    override val allCommitCharacters: List<String>? = null,
+    override val resolveProvider: Boolean? = null,
+    override val completionItem: CompletionOptions.CompletionItemCapabilities? = null,
     override val workDoneProgress: Boolean? = null,
 ) : CompletionOptions
 
 @Serializable
 data class CompletionRegistrationOptions(
-    override val documentSelector: DocumentSelector?,
-    override val triggerCharacters: List<String>?,
-    override val allCommitCharacters: List<String>?,
-    override val resolveProvider: Boolean?,
-    override val completionItem: CompletionOptions.CompletionItemCapabilities?,
+    override val documentSelector: DocumentSelector? = null,
+    override val triggerCharacters: List<String>? = null,
+    override val allCommitCharacters: List<String>? = null,
+    override val resolveProvider: Boolean? = null,
+    override val completionItem: CompletionOptions.CompletionItemCapabilities? = null,
     override val workDoneProgress: Boolean? = null,
 ) : TextDocumentRegistrationOptions, CompletionOptions
 

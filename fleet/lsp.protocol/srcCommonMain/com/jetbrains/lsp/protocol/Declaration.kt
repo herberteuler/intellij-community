@@ -29,9 +29,9 @@ interface DeclarationOptions : WorkDoneProgressOptions
 
 @Serializable
 data class DeclarationRegistrationOptions(
-    override val workDoneProgress: Boolean?,
-    override val documentSelector: DocumentSelector?,
-    override val id: String?,
+    override val workDoneProgress: Boolean? = null,
+    override val documentSelector: DocumentSelector? = null,
+    override val id: String? = null,
 ) : DeclarationOptions,
     TextDocumentRegistrationOptions,
     StaticRegistrationOptions
@@ -40,8 +40,8 @@ data class DeclarationRegistrationOptions(
 data class DeclarationParams(
     override val textDocument: TextDocumentIdentifier,
     override val position: Position,
-    override val workDoneToken: ProgressToken?,
-    override val partialResultToken: ProgressToken?,
+    override val workDoneToken: ProgressToken? = null,
+    override val partialResultToken: ProgressToken? = null,
 ) : TextDocumentPositionParams,
     WorkDoneProgressParams,
     PartialResultParams

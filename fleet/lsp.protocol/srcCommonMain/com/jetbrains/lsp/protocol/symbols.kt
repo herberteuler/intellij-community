@@ -27,7 +27,7 @@ data class WorkspaceSymbolRegistrationOptions(
      *
      * @since 3.17.0
      */
-    override val resolveProvider: Boolean?,
+    override val resolveProvider: Boolean? = null,
     override val workDoneProgress: Boolean? = null,
 ) : WorkspaceSymbolOptions
 
@@ -91,7 +91,7 @@ data class WorkspaceSymbol(
      * Tags for this completion item.
      */
     @Serializable(with = SymbolTagListSerializer::class)
-    val tags: List<SymbolTag>?,
+    val tags: List<SymbolTag>? = null,
 
     /**
      * The name of the symbol containing this symbol. This information is for
@@ -99,7 +99,7 @@ data class WorkspaceSymbol(
      * if necessary). It can't be used to re-infer a hierarchy for the document
      * symbols.
      */
-    val containerName: String?,
+    val containerName: String? = null,
 
     /**
      * The location of this symbol. Whether a server is allowed to
@@ -114,7 +114,7 @@ data class WorkspaceSymbol(
      * A data entry field that is preserved on a workspace symbol between a
      * workspace symbol request and a workspace symbol resolve request.
      */
-    val data: JsonElement?,
+    val data: JsonElement? = null,
 ) {
     @Serializable(with = SymbolLocation.Serializer::class)
     sealed interface SymbolLocation {
@@ -155,7 +155,7 @@ data class  DocumentSymbol(
     /**
      * More detail for this symbol, e.g the signature of a function.
      */
-    val detail: String?,
+    val detail: String? = null,
 
     /**
      * The kind of this symbol.
@@ -168,14 +168,14 @@ data class  DocumentSymbol(
      * @since 3.16.0
      */
     @Serializable(with = SymbolTagListSerializer::class)
-    val tags: List<SymbolTag>?,
+    val tags: List<SymbolTag>? = null,
 
     /**
      * Indicates if this symbol is deprecated.
      *
      * @deprecated Use tags instead
      */
-    val deprecated: Boolean?,
+    val deprecated: Boolean? = null,
 
     /**
      * The range enclosing this symbol not including leading/trailing whitespace
@@ -194,7 +194,7 @@ data class  DocumentSymbol(
     /**
      * Children of this symbol, e.g. properties of a class.
      */
-    val children: List<DocumentSymbol>?
+    val children: List<DocumentSymbol>? = null
 )
 
 /**

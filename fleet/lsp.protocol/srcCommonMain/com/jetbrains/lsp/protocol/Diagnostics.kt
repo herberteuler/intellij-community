@@ -266,18 +266,18 @@ data class DiagnosticOptions(
      * An optional identifier under which the diagnostics are
      * managed by the client.
      */
-    val identifier: String?,
+    val identifier: String? = null,
     /**
      * Whether the language has inter file dependencies meaning that
      * editing code in one file can result in a different diagnostic
      * set in another file. Inter file dependencies are common for
      * most programming languages and typically uncommon for linters.
      */
-    val interFileDependencies: Boolean?,
+    val interFileDependencies: Boolean? = null,
     /**
      * The server provides support for workspace diagnostics as well.
      */
-    val workspaceDiagnostics: Boolean?,
+    val workspaceDiagnostics: Boolean? = null,
 
     override val workDoneProgress: Boolean? = null,
     override val id: String? = null,
@@ -329,9 +329,9 @@ enum class DocumentDiagnosticReportKind {
 @Serializable
 data class DocumentDiagnosticReport(
     val kind: DocumentDiagnosticReportKind,
-    val resultId: String?,
-    val items: List<Diagnostic>?,
-    val relatedDocuments: Map<DocumentUri, DocumentDiagnosticReport>?,
+    val resultId: String? = null,
+    val items: List<Diagnostic>? = null,
+    val relatedDocuments: Map<DocumentUri, DocumentDiagnosticReport>? = null,
 ) {
     companion object {
         val EMPTY_FULL = DocumentDiagnosticReport(

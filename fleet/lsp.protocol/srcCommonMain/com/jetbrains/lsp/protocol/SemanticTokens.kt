@@ -43,8 +43,8 @@ data class SemanticTokensRangeParams(
    * The range the semantic tokens are requested for.
    */
   val range: Range,
-  override val workDoneToken: ProgressToken?,
-  override val partialResultToken: ProgressToken?,
+  override val workDoneToken: ProgressToken? = null,
+  override val partialResultToken: ProgressToken? = null,
 ) : WorkDoneProgressParams, PartialResultParams
 
 
@@ -56,7 +56,7 @@ data class SemanticTokens(
      * A server can then instead of computing all semantic tokens again simply
      * send a delta.
      */
-    val resultId: String?,
+    val resultId: String? = null,
 
     /**
      * The actual tokens.
@@ -83,7 +83,7 @@ data class SemanticTokensDeltaParams(
 
 @Serializable
 data class SemanticTokensDelta(
-  val resultId: String?,
+  val resultId: String? = null,
 
   /**
    * The semantic token edits to transform a previous result into a new
@@ -107,7 +107,7 @@ data class SemanticTokensEdit(
   /**
    * The elements to insert. Unsigned.
    */
-  val data: List<Int>?,
+  val data: List<Int>? = null,
 )
 
 @Serializable(with = SemanticTokensDeltaResult.Serializer::class)

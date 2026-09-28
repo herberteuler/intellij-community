@@ -8,7 +8,7 @@ import kotlinx.serialization.builtins.serializer
 data class ShowMessageRequestParams(
     val type: MessageType,
     val message: String,
-    val actions: List<MessageActionItem>?,
+    val actions: List<MessageActionItem>? = null,
 )
 
 @Serializable

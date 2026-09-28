@@ -198,14 +198,14 @@ data class HoverClientCapabilities(
     /**
      * Whether hover supports dynamic registration.
      */
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 
     /**
      * Client supports the follow content formats if the content
      * property refers to a `literal of type MarkupContent`.
      * The order describes the preferred format of the client.
      */
-    val contentFormat: List<MarkupKind>?,
+    val contentFormat: List<MarkupKind>? = null,
 )
 
 @Serializable
@@ -213,13 +213,13 @@ data class SignatureHelpClientCapabilities(
     /**
      * Whether signature help supports dynamic registration.
      */
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 
     /**
      * The client supports the following `SignatureInformation`
      * specific properties.
      */
-    val signatureInformation: SignatureInformation?,
+    val signatureInformation: SignatureInformation? = null,
 
     /**
      * The client supports to send additional context information for a
@@ -229,7 +229,7 @@ data class SignatureHelpClientCapabilities(
      *
      * @since 3.15.0
      */
-    val contextSupport: Boolean?,
+    val contextSupport: Boolean? = null,
 ) {
     @Serializable
     data class SignatureInformation(
@@ -237,12 +237,12 @@ data class SignatureHelpClientCapabilities(
          * Client supports the follow content formats for the documentation
          * property. The order describes the preferred format of the client.
          */
-        val documentationFormat: List<MarkupKind>?,
+        val documentationFormat: List<MarkupKind>? = null,
 
         /**
          * Client capabilities specific to parameter information.
          */
-        val parameterInformation: ParameterInformation?,
+        val parameterInformation: ParameterInformation? = null,
 
         /**
          * The client supports the `activeParameter` property on
@@ -250,7 +250,7 @@ data class SignatureHelpClientCapabilities(
          *
          * @since 3.16.0
          */
-        val activeParameterSupport: Boolean?,
+        val activeParameterSupport: Boolean? = null,
     ) {
         @Serializable
         data class ParameterInformation(
@@ -260,7 +260,7 @@ data class SignatureHelpClientCapabilities(
              *
              * @since 3.14.0
              */
-            val labelOffsetSupport: Boolean?,
+            val labelOffsetSupport: Boolean? = null,
         )
     }
 }
@@ -279,12 +279,12 @@ data class ImplementationClientCapabilities(
 
 @Serializable
 data class ReferenceClientCapabilities(
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 )
 
 @Serializable
 data class DocumentHighlightClientCapabilities(
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 )
 
 @Serializable
@@ -330,7 +330,7 @@ data class CodeActionClientCapabilities(
     /**
      * Whether code action supports dynamic registration.
      */
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 
     /**
      * The client supports code action literals as a valid
@@ -338,21 +338,21 @@ data class CodeActionClientCapabilities(
      *
      * @since 3.8.0
      */
-    val codeActionLiteralSupport: CodeActionLiteralSupport?,
+    val codeActionLiteralSupport: CodeActionLiteralSupport? = null,
 
     /**
      * Whether code action supports the `isPreferred` property.
      *
      * @since 3.15.0
      */
-    val isPreferredSupport: Boolean?,
+    val isPreferredSupport: Boolean? = null,
 
     /**
      * Whether code action supports the `disabled` property.
      *
      * @since 3.16.0
      */
-    val disabledSupport: Boolean?,
+    val disabledSupport: Boolean? = null,
 
     /**
      * Whether code action supports the `data` property which is
@@ -361,7 +361,7 @@ data class CodeActionClientCapabilities(
      *
      * @since 3.16.0
      */
-    val dataSupport: Boolean?,
+    val dataSupport: Boolean? = null,
 
 
     /**
@@ -370,7 +370,7 @@ data class CodeActionClientCapabilities(
      *
      * @since 3.16.0
      */
-    val resolveSupport: Properties<String>?,
+    val resolveSupport: Properties<String>? = null,
 
     /**
      * Whether the client honors the change annotations in
@@ -381,7 +381,7 @@ data class CodeActionClientCapabilities(
      *
      * @since 3.16.0
      */
-    val honorsChangeAnnotations: Boolean?,
+    val honorsChangeAnnotations: Boolean? = null,
 ) {
     @Serializable
     data class CodeActionLiteralSupport(
@@ -391,7 +391,7 @@ data class CodeActionClientCapabilities(
 
 @Serializable
 data class CodeLensClientCapabilities(
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 )
 
 @Serializable
@@ -416,12 +416,12 @@ data class DocumentColorClientCapabilities(
 
 @Serializable
 data class DocumentFormattingClientCapabilities(
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 )
 
 @Serializable
 data class DocumentRangeFormattingClientCapabilities(
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 
     /**
      * Whether the client supports formatting multiple ranges at once.
@@ -433,7 +433,7 @@ data class DocumentRangeFormattingClientCapabilities(
 
 @Serializable
 data class DocumentOnTypeFormattingClientCapabilities(
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 )
 
 @Serializable(with = PrepareSupportDefaultBehaviorSerializer::class)

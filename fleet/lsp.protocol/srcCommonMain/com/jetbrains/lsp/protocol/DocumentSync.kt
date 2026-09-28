@@ -52,7 +52,7 @@ data class TextDocumentSyncOptions(
      * Open and close notifications are sent to the server. If omitted open
      * close notifications should not be sent.
      */
-    val openClose: Boolean?,
+    val openClose: Boolean? = null,
 
     /**
      * Change notifications are sent to the server. See
@@ -60,25 +60,25 @@ data class TextDocumentSyncOptions(
      * TextDocumentSyncKind.Incremental. If omitted it defaults to
      * TextDocumentSyncKind.None.
      */
-    val change: TextDocumentSyncKind?,
+    val change: TextDocumentSyncKind? = null,
 
     /**
      * If present will save notifications are sent to the server. If omitted
      * the notification should not be sent.
      */
-    val willSave: Boolean?,
+    val willSave: Boolean? = null,
 
     /**
      * If present will save wait until requests are sent to the server. If
      * omitted the request should not be sent.
      */
-    val willSaveWaitUntil: Boolean?,
+    val willSaveWaitUntil: Boolean? = null,
 
     /**
      * If present save notifications are sent to the server. If omitted the
      * notification should not be sent.
      */
-    val save: OrBoolean<SaveOptions>?,
+    val save: OrBoolean<SaveOptions>? = null,
 ) : TextDocumentSync
 
 class TextDocumentSyncKindSerializer : EnumAsIntSerializer<TextDocumentSyncKind>(
@@ -139,13 +139,13 @@ data class TextDocumentContentChangeEvent(
     /**
      * The range of the document that changed.
      */
-    val range: Range?,
+    val range: Range? = null,
     /**
      * The optional length of the range that got replaced.
      *
      * @deprecated use range instead.
      */
-    val rangeLength: Int?,
+    val rangeLength: Int? = null,
     /**
      * The new text for the provided range.
      * if range is absent, it's the new text of the document.

@@ -52,8 +52,8 @@ data class ConfigurationParams(
 
 @Serializable
 data class ConfigurationItem(
-    val scopeUri: URI?,
-    val section: String?,
+    val scopeUri: URI? = null,
+    val section: String? = null,
 )
 
 @Serializable
@@ -133,7 +133,7 @@ data class FileSystemWatcher(
      * to WatchKind.Create | WatchKind.Change | WatchKind.Delete
      * which is 7.
      */
-    val kind: WatchKind?,
+    val kind: WatchKind? = null,
 )
 
 /**
@@ -262,14 +262,14 @@ data class SymbolInformation(
      * @since 3.16.0
      */
     @Serializable(with = SymbolTagListSerializer::class)
-    val tags: List<SymbolTag>?,
+    val tags: List<SymbolTag>? = null,
 
     /**
      * Indicates if this symbol is deprecated.
      *
      * @deprecated Use tags instead
      */
-    val deprecated: Boolean?,
+    val deprecated: Boolean? = null,
 
     /**
      * The location of this symbol. The location's range is used by a tool
@@ -290,7 +290,7 @@ data class SymbolInformation(
      * if necessary). It can't be used to re-infer a hierarchy for the document
      * symbols.
      */
-    val containerName: String?,
+    val containerName: String? = null,
 )
 
 @Serializable(with = WorkspaceSymbolResult.Serializer::class)

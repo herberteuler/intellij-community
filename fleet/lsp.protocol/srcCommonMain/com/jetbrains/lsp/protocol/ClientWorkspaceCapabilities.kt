@@ -125,13 +125,13 @@ data class FoldingRangeWorkspaceClientCapabilities(
 
 @Serializable
 data class DidChangeConfigurationClientCapabilities(
-  val dynamicRegistration: Boolean?,
+  val dynamicRegistration: Boolean? = null,
 )
 
 @Serializable
 data class DidChangeWatchedFilesClientCapabilities(
-    val dynamicRegistration: Boolean?,
-    val relativePatternSupport: Boolean?,
+    val dynamicRegistration: Boolean? = null,
+    val relativePatternSupport: Boolean? = null,
 )
 
 @Serializable
@@ -139,7 +139,7 @@ data class WorkspaceSymbolClientCapabilities(
     /**
      * Symbol request supports dynamic registration.
      */
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 
     /**
      * Specific capabilities for the `SymbolKind` in the `workspace/symbol`
@@ -155,7 +155,7 @@ data class WorkspaceSymbolClientCapabilities(
      * the initial version of the protocol.
      */
     @Serializable(with = SymbolKindValueSetSerializer::class)
-    val symbolKind: ValueSet<SymbolKind>?,
+    val symbolKind: ValueSet<SymbolKind>? = null,
 
 
     /**
@@ -165,7 +165,7 @@ data class WorkspaceSymbolClientCapabilities(
      * @since 3.16.0
      */
     @Serializable(with = SymbolTagValueSetSerializer::class)
-    val tagSupport: ValueSet<SymbolTag>?,
+    val tagSupport: ValueSet<SymbolTag>? = null,
 
     /**
      * The client support partial workspace symbols. The client will send the
@@ -177,12 +177,12 @@ data class WorkspaceSymbolClientCapabilities(
      *
      * @since 3.17.0 - proposedState
      */
-    val resolveSupport: Properties<String>?,
+    val resolveSupport: Properties<String>? = null,
 )
 
 @Serializable
 data class ValueSet<T>(
-    val valueSet: List<T>?,
+    val valueSet: List<T>? = null,
 )
 
 @Serializable
@@ -190,7 +190,7 @@ data class Properties<T>(val properties: List<T>)
 
 @Serializable
 data class ExecuteCommandClientCapabilities(
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 )
 
 @Serializable
@@ -204,7 +204,7 @@ data class SemanticTokensWorkspaceClientCapabilities(
      * and is useful for situation where a server for example detect a project
      * wide change that requires such a calculation.
      */
-    val refreshSupport: Boolean?,
+    val refreshSupport: Boolean? = null,
 )
 
 
@@ -219,7 +219,7 @@ data class CodeLensWorkspaceClientCapabilities(
      * useful for situation where a server for example detect a project wide
      * change that requires such a calculation.
      */
-    val refreshSupport: Boolean?,
+    val refreshSupport: Boolean? = null,
 )
 
 @Serializable
@@ -233,7 +233,7 @@ data class InlineValueWorkspaceClientCapabilities(
      * is useful for situation where a server for example detect a project wide
      * change that requires such a calculation.
      */
-    val refreshSupport: Boolean?,
+    val refreshSupport: Boolean? = null,
 )
 
 @Serializable
@@ -241,7 +241,7 @@ data class TextDocumentContentClientCapabilities(
     /**
      * Text document content supports dynamic registration.
      */
-    val dynamicRegistration: Boolean?,
+    val dynamicRegistration: Boolean? = null,
 )
 
 @Serializable
@@ -255,5 +255,5 @@ data class InlayHintWorkspaceClientCapabilities(
      * is useful for situation where a server for example detects a project wide
      * change that requires such a calculation.
      */
-    val refreshSupport: Boolean?,
+    val refreshSupport: Boolean? = null,
 )

@@ -21,7 +21,7 @@ data class InitializeParams(
      * process is not alive then the server should exit (see exit notification)
      * its process.
      */
-    val processId: Int?,
+    val processId: Int? = null,
 
     /**
      * Information about the client
@@ -58,7 +58,7 @@ data class InitializeParams(
      *
      * @deprecated in favour of `workspaceFolders`
      */
-    val rootUri: DocumentUri?,
+    val rootUri: DocumentUri? = null,
 
     /**
      * User provided initialization options.
@@ -85,7 +85,7 @@ data class InitializeParams(
      */
     val workspaceFolders: List<WorkspaceFolder>? = null,
 
-    override val workDoneToken: ProgressToken?,
+    override val workDoneToken: ProgressToken? = null,
 
     ) : WorkDoneProgressParams
 

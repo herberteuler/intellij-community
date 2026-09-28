@@ -28,13 +28,13 @@ data class CodeLens(
     /**
      * The command this code lens represents.
      */
-    val command: Command?,
+    val command: Command? = null,
 
     /**
      * A data entry field that is preserved on a code lens item between
      * a code lens and a code lens resolve request.
      */
-    val data: JsonElement?,
+    val data: JsonElement? = null,
 )
 
 object CodeLenses {

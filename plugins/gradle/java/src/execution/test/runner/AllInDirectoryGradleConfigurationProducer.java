@@ -69,20 +69,13 @@ public class AllInDirectoryGradleConfigurationProducer extends AbstractGradleTes
   }
 
   @Override
-  protected @NotNull List<String> getTaskTargetNames(@NotNull ConfigurationContext context,
-                                                      @NotNull PsiElement element,
-                                                      @NotNull List<? extends PsiElement> chosenElements) {
-    Module module = Objects.requireNonNull(context.getModule());
-    String gradleProjectPath = StringUtil.notNullize(resolveGradleIdentityPath(module), module.getName());
-    return List.of("[" + gradleProjectPath + "]");
-  }
-
-  @Override
   protected @NotNull String suggestTaskFirstConfigurationName(@NotNull ConfigurationContext context,
                                                                @NotNull PsiElement element,
                                                                @NotNull List<? extends PsiElement> chosenElements,
                                                                @NotNull List<String> selectedTestTaskNames) {
-    return createTaskFirstConfigurationNameIn(selectedTestTaskNames, getTaskTargetNames(context, element, chosenElements));
+    Module module = Objects.requireNonNull(context.getModule());
+    String gradleProjectPath = StringUtil.notNullize(resolveGradleIdentityPath(module), module.getName());
+    return createTaskFirstConfigurationNameIn(selectedTestTaskNames, List.of("[" + gradleProjectPath + "]"));
   }
 
   @Override

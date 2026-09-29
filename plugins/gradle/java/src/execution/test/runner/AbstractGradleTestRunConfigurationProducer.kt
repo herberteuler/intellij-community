@@ -27,18 +27,12 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
 
   protected abstract fun suggestConfigurationName(context: ConfigurationContext, element: E, chosenElements: List<Ex>): String
 
-  protected open fun getTaskTargetNames(
-    context: ConfigurationContext,
-    element: E,
-    chosenElements: List<Ex>,
-  ): List<String> = listOf(suggestConfigurationName(context, element, chosenElements))
-
   protected open fun suggestTaskFirstConfigurationName(
     context: ConfigurationContext,
     element: E,
     chosenElements: List<Ex>,
     selectedTestTaskNames: List<String>,
-  ): String = createTaskFirstConfigurationNameFor(selectedTestTaskNames, getTaskTargetNames(context, element, chosenElements))
+  ): String = createTaskFirstConfigurationNameFor(selectedTestTaskNames, listOf(suggestConfigurationName(context, element, chosenElements)))
 
   protected abstract fun chooseSourceElements(context: ConfigurationContext, element: E, onElementsChosen: Consumer<List<Ex>>)
 
@@ -203,8 +197,7 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
         val existingConfiguration = runnerAndConfigurationSettings.configuration as? GradleRunConfiguration ?: return@firstOrNull false
         val existingTaskTokens = existingConfiguration.commandLine.tasks.tokens
 
-        (isConfigurationCompatibleForSelectedTasks(existingConfiguration)
-         && existingTaskTokens.size == selectedTaskTokens.sumOf { it.size }
+        (existingTaskTokens.size == selectedTaskTokens.sumOf { it.size }
          && isConsistedFrom(existingTaskTokens, selectedTaskTokens))
          && externalProjectPath == existingConfiguration.settings.externalProjectPath
       }

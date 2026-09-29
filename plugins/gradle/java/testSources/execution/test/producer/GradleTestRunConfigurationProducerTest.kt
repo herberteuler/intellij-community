@@ -378,24 +378,6 @@ class GradleTestRunConfigurationProducerTest : GradleTestRunConfigurationProduce
     }
   }
 
-  @Test
-  fun `test selected test task reuse respects producer compatibility`() {
-    currentExternalProjectSettings.isResolveModulePerSourceSet = false
-    val projectData = generateAndImportTemplateProject()
-    val testClass = projectData["project"]["AutomationTestCase"].element
-    val existingConfiguration = createAndAddRunConfiguration(""":automationTest --tests "AutomationTestCase"""")
-
-    runReadActionAndWait {
-      val context = getContextByLocation(testClass)
-      val producer = IncompatibleTestClassGradleConfigurationProducer()
-      producer.setTestTasksChooser { it == "automationTest" }
-      val configurationFromContext = requireNotNull(producer.createConfigurationFromContext(context))
-
-      producer.onFirstRun(configurationFromContext, context) {}
-
-      assertNotSame(existingConfiguration, configurationFromContext.configuration)
-    }
-  }
 
   @Test
   fun `test existing configuration is not renamed by a producer that selects test tasks itself`() {
@@ -679,11 +661,6 @@ class GradleTestRunConfigurationProducerTest : GradleTestRunConfigurationProduce
     }
   }
 
-  private class IncompatibleTestClassGradleConfigurationProducer : TestClassGradleConfigurationProducer() {
-    override fun isConfigurationCompatibleForSelectedTasks(
-      configuration: GradleRunConfiguration,
-    ): Boolean = false
-  }
 
   /**
    * Mimics the Kotlin multiplatform producers, which run their own test task chooser in [onFirstRun]

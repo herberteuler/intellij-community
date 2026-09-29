@@ -168,7 +168,6 @@ public final class PatternGradleConfigurationProducer extends GradleTestRunConfi
     for (RunnerAndConfigurationSettings settings : getConfigurationSettingsList(RunManager.getInstance(context.getProject()))) {
       if (settings.getConfiguration() instanceof GradleRunConfiguration existingConfiguration
           && existingConfiguration != selectedConfiguration
-          && isConfigurationCompatibleForSelectedTasks(existingConfiguration)
           && externalProjectPath.equals(existingConfiguration.getSettings().getExternalProjectPath())
           && selectedTaskTokens.equals(getNormalizedTaskTokens(existingConfiguration))
       ) {

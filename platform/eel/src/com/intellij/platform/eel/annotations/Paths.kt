@@ -32,8 +32,6 @@ annotation class MultiRoutingFileSystemPath
  * It should not be directly used in the [java.nio.file.Path] constructions methods [java.nio.file.Path.of] and [java.nio.file.Paths.get].
  *
  * Obsolete: use [com.intellij.platform.util.annotations.paths.OsPath] instead.
- *
- * @see NativeContext
  */
 @Retention(AnnotationRetention.SOURCE)
 @Target(

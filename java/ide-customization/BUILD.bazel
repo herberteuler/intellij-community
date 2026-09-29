@@ -3,6 +3,14 @@ load("@community//platform/build-scripts/bazel-rules:ij_plugin.bzl", "ij_plugin"
 load("@jps_dynamic_deps_community//:targets.bzl", "dev_dist_plugin")
 load("@rules_jvm//:jvm.bzl", "jvm_library")
 
+jps_test(
+    name = "ide-customization-tests_test",
+    timeout = "moderate",
+    tags = ["community-java-tests"],
+    runtime_deps = [":ide-customization-tests_test_lib"],
+)
+### skip generation section `test intellij.java.ide.customization.tests`
+
 ### auto-generated section `dev intellij.java.ide.customization` start
 dev_dist_plugin(
     content_modules = [
@@ -200,10 +208,3 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 ### auto-generated section `iml intellij.java.ide.customization.tests` end
-
-### auto-generated section `test intellij.java.ide.customization.tests` start
-jps_test(
-    name = "ide-customization-tests_test",
-    runtime_deps = [":ide-customization-tests_test_lib"],
-)
-### auto-generated section `test intellij.java.ide.customization.tests` end

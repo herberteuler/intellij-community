@@ -93,7 +93,7 @@ private fun importVariantsOf(
 ): List<AutoImportVariant> {
     return facility.createImportFixesForExpression(expression)
         .filterIsInstance<ImportLikeQuickFix>()
-        .filter { it.isAvailable(file.project, null, file) }
+        .filter { it.isAvailable(file.project, file) }
         .map { it.importVariants }
         .firstOrNull { it.isNotEmpty() }
         ?: emptyList()

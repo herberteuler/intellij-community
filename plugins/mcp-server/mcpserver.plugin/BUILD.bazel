@@ -79,8 +79,6 @@ jvm_library(
         "//plugins/mcp-server/mcpserver.toolsets",
         "//plugins/mcp-server/mcpserver.frontend",
         "//plugins/mcp-server/mcpserver.stdio",
-        "//plugins/mcp-server/mcpserver.terminal",
-        "//plugins/mcp-server/mcpserver.terminal.frontend",
         "//plugins/mcp-server/mcpserver.vcs",
     ],
 )
@@ -101,8 +99,6 @@ jvm_library(
         "//plugins/mcp-server/mcpserver.toolsets:mcpserver.toolsets_test_lib",
         "//plugins/mcp-server/mcpserver.frontend:mcpserver.frontend_test_lib",
         "//plugins/mcp-server/mcpserver.stdio:mcpserver.stdio_test_lib",
-        "//plugins/mcp-server/mcpserver.terminal:mcpserver.terminal_test_lib",
-        "//plugins/mcp-server/mcpserver.terminal.frontend:mcpserver.terminal.frontend_test_lib",
         "//plugins/mcp-server/mcpserver.vcs:mcpserver.vcs_test_lib",
     ],
 )

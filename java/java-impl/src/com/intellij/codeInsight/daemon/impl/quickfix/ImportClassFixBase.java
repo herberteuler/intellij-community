@@ -142,6 +142,10 @@ public abstract class ImportClassFixBase<T extends PsiElement, R extends PsiRefe
 
   @Override
   public boolean isAvailable(@NotNull Project project, Editor editor, @NotNull PsiFile psiFile) {
+    return isAvailable(project, psiFile);
+  }
+
+  public boolean isAvailable(@NotNull Project project, @NotNull PsiFile psiFile) {
     if (myClassesToImport.length == 0) return false;
     return isStillAvailable() && !getClassesToImport(true).isEmpty();
   }

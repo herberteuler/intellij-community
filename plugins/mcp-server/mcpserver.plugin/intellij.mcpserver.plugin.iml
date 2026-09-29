@@ -10,8 +10,6 @@
     <orderEntry type="module" module-name="intellij.mcpserver.toolsets" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.mcpserver.frontend" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.mcpserver.stdio" scope="RUNTIME" />
-    <orderEntry type="module" module-name="intellij.mcpserver.terminal" scope="RUNTIME" />
-    <orderEntry type="module" module-name="intellij.mcpserver.terminal.frontend" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.mcpserver.vcs" scope="RUNTIME" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

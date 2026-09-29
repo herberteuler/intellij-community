@@ -136,6 +136,10 @@ public abstract class StaticImportMemberFix<T extends PsiMember, R extends PsiEl
 
   @Override
   public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+    return isAvailable(project, psiFile);
+  }
+
+  public boolean isAvailable(@NotNull Project project, PsiFile psiFile) {
     return !isPsiModificationStampChanged(project) && !candidates.isEmpty();
   }
 

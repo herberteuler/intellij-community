@@ -41,13 +41,17 @@ abstract class ImportLikeQuickFix(
     override fun createImportAction(editor: Editor, file: KtFile): QuestionAction? =
         if (element != null) ImportQuestionAction(file.project, editor, file, importVariants) else null
 
-    public override fun isAvailable(project: Project, editor: Editor?, file: KtFile): Boolean {
+    fun isAvailable(project: Project, file: KtFile): Boolean {
         if (modificationCountOnCreate == PsiModificationTracker.getInstance(project).modificationCount) {
             // optimization: we know nothing was changed since the last isAvailable() call
             return true
         }
         val fqName = importVariants.firstOrNull()?.fqName
         return fqName == null || !isClassDefinitelyPositivelyImportedAlready(file, fqName)
+    }
+
+    public override fun isAvailable(project: Project, editor: Editor?, file: KtFile): Boolean {
+        return isAvailable(project, file)
     }
 
     /**

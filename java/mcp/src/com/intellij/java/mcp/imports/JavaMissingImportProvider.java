@@ -59,7 +59,7 @@ public final class JavaMissingImportProvider implements McpMissingImportProvider
   public @Nullable McpImportChange addMissingImports(@NotNull PsiFile file, boolean takeBestCandidate, boolean optimize) {
     if (!(file instanceof PsiJavaFile javaFile)) return null;
     Project project = javaFile.getProject();
-    CodeStyleSettings projectSettings = CodeStyle.getSettings(javaFile);
+    CodeStyleSettings projectSettings = CodeStyle.getCustomSettings(javaFile, JavaCodeStyleSettings.class).getContainer();
     Map<String, FoundName> foundNames = new LinkedHashMap<>();
     Set<String> remainingNames = new HashSet<>();
     ModCommand command = ModCommand.psiUpdate(javaFile, copy -> {
@@ -151,13 +151,13 @@ public final class JavaMissingImportProvider implements McpMissingImportProvider
     if (call == null) {
       // The fix narrows by how the code uses the type too, a filter that the editor does not run yet.
       ImportClassFix classFix = new ImportClassFix(reference, true);
-      if (classFix.isAvailable(project, null, file)) {
+      if (classFix.isAvailable(project, file)) {
         NameCandidates classes = nameCandidates(classFix.getClassesToImport(), JavaMissingImportProvider::toClassCandidate);
         if (!classes.targets().isEmpty()) return classes;
       }
     }
     StaticImportMemberFix<? extends PsiMember, ?> staticFix = staticFixOf(file, reference, call);
-    if (!staticFix.isAvailable(project, null, file)) return NameCandidates.NONE;
+    if (!staticFix.isAvailable(project, file)) return NameCandidates.NONE;
     return nameCandidates(staticFix.getHintCandidates(), JavaMissingImportProvider::toStaticCandidate);
   }
 
@@ -211,8 +211,8 @@ public final class JavaMissingImportProvider implements McpMissingImportProvider
 
   /** A call takes a static method, any other reference a static field. */
   private static @NotNull StaticImportMemberFix<? extends PsiMember, ?> staticFixOf(@NotNull PsiJavaFile file,
-                                                                                 @NotNull PsiJavaCodeReferenceElement reference,
-                                                                                 @Nullable PsiMethodCallExpression call) {
+                                                                                    @NotNull PsiJavaCodeReferenceElement reference,
+                                                                                    @Nullable PsiMethodCallExpression call) {
     return call != null ? new StaticImportMethodFix(file, call) : new StaticImportConstantFix(file, reference);
   }
 

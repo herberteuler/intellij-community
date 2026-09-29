@@ -89,6 +89,15 @@ public interface JsonSchemaService {
   @Nullable
   JsonSchemaFileProvider getSchemaProvider(final @NotNull JsonSchemaObject schemaObject);
 
+  /**
+   * Returns the provider that maps {@code file} to the schema of {@code schemaObject}.
+   * Returns null when no provider does this. For example, the "$schema" property can select the schema.
+   */
+  @ApiStatus.Experimental
+  default @Nullable JsonSchemaFileProvider getSchemaProviderForFile(@NotNull VirtualFile file, @NotNull JsonSchemaObject schemaObject) {
+    return null;
+  }
+
   @Nullable
   VirtualFile resolveSchemaFile(final @NotNull JsonSchemaObject schemaObject);
 

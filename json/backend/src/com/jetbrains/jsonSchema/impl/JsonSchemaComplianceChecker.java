@@ -3,6 +3,7 @@ package com.jetbrains.jsonSchema.impl;
 
 import com.intellij.codeInspection.LocalInspectionToolSession;
 import com.intellij.codeInspection.LocalQuickFix;
+import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.ProblemsHolder;
 import com.intellij.concurrency.ConcurrentCollectionFactory;
 import com.intellij.json.pointer.JsonPointerPosition;
@@ -15,10 +16,12 @@ import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.platform.diagnostic.telemetry.helpers.TraceKt;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.ConcurrencyUtil;
 import com.intellij.util.SmartList;
 import com.jetbrains.jsonSchema.extension.JsonLikePsiWalker;
+import com.jetbrains.jsonSchema.extension.JsonSchemaFileProvider;
 import com.jetbrains.jsonSchema.extension.adapters.JsonPropertyAdapter;
 import com.jetbrains.jsonSchema.extension.adapters.JsonValueAdapter;
 import com.jetbrains.jsonSchema.fus.JsonSchemaHighlightingSessionStatisticsCollector;
@@ -43,6 +46,7 @@ public class JsonSchemaComplianceChecker {
   private final LocalInspectionToolSession mySession;
   private final @NotNull JsonComplianceCheckerOptions myOptions;
   private final @Nullable @Nls String myMessagePrefix;
+  private final @NotNull ProblemHighlightType myHighlightType;
 
   private int myErrorCount;
 
@@ -66,6 +70,13 @@ public class JsonSchemaComplianceChecker {
     mySession = session;
     myOptions = options;
     myMessagePrefix = messagePrefix;
+    myHighlightType = getValidationHighlightType(holder.getFile(), rootSchema);
+  }
+
+  private static @NotNull ProblemHighlightType getValidationHighlightType(@NotNull PsiFile file, @NotNull JsonSchemaObject rootSchema) {
+    JsonSchemaService service = JsonSchemaService.Impl.get(file.getProject());
+    JsonSchemaFileProvider provider = service.getSchemaProviderForFile(file.getViewProvider().getVirtualFile(), rootSchema);
+    return provider == null ? ProblemHighlightType.GENERIC_ERROR_OR_WARNING : provider.getValidationHighlightType();
   }
 
   public void annotate(final @NotNull PsiElement element) {
@@ -188,12 +199,7 @@ public class JsonSchemaComplianceChecker {
     if (myMessagePrefix != null) value = myMessagePrefix + value;
     LocalQuickFix[] fix = validationError.createFixes(myWalker.getSyntaxAdapter(myHolder.getProject()));
     PsiElement element = range.isEmpty() ? psiElement.getContainingFile() : psiElement;
-    if (fix.length == 0) {
-      myHolder.registerProblem(element, range, value);
-    }
-    else {
-      myHolder.registerProblem(element, range, value, fix);
-    }
+    myHolder.registerProblem(element, value, myHighlightType, range, fix);
   }
 
   private static JsonValueAdapter findTopLevelElement(@NotNull JsonLikePsiWalker walker, @NotNull PsiElement element) {

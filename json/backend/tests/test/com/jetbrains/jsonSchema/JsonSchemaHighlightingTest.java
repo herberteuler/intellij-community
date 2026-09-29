@@ -2,6 +2,7 @@
 package com.jetbrains.jsonSchema;
 
 import com.intellij.codeInspection.InspectionProfileEntry;
+import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.json.JsonLanguage;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.util.io.FileUtil;
@@ -9,6 +10,7 @@ import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.PlatformTestUtil;
+import com.jetbrains.jsonSchema.ide.JsonSchemaService;
 import com.jetbrains.jsonSchema.impl.inspections.JsonSchemaComplianceInspection;
 import com.jetbrains.jsonSchema.impl.inspections.JsonSchemaDeprecationInspection;
 import org.intellij.lang.annotations.Language;
@@ -52,6 +54,28 @@ public class JsonSchemaHighlightingTest extends JsonSchemaHighlightingTestBase {
   public void testNumberMultipleWrong() {
     doTest("{ \"properties\": { \"prop\": {\"type\": \"number\", \"multipleOf\": 2}}}",
            "{ \"prop\": <warning descr=\"Is not multiple of 2\">3</warning>}");
+  }
+
+  public void testProviderReportsValidationErrors() {
+    configureInitially("{\"properties\": {\"prop\": {\"type\": \"number\", \"multipleOf\": 2}}}",
+                       "{\"prop\": <error descr=\"Is not multiple of 2\">3</error>}", "json");
+    var schemaFile = myFixture.findFileInTempDir("json_schema_test/schema.json");
+    assertNotNull(schemaFile);
+    JsonSchemaTestServiceImpl.setProvider(new JsonSchemaTestProvider(schemaFile, getAvailabilityPredicate(),
+                                                                    ProblemHighlightType.GENERIC_ERROR));
+    JsonSchemaService.Impl.get(getProject()).reset();
+    myFixture.checkHighlighting(true, false, false);
+  }
+
+  public void testHighlightTypeComesFromProviderThatMatchesFile() {
+    configureInitially("{\"properties\": {\"prop\": {\"type\": \"number\", \"multipleOf\": 2}}}",
+                       "{\"prop\": <warning descr=\"Is not multiple of 2\">3</warning>}", "json");
+    var schemaFile = myFixture.findFileInTempDir("json_schema_test/schema.json");
+    assertNotNull(schemaFile);
+    JsonSchemaTestServiceImpl.setProviders(new JsonSchemaTestProvider(schemaFile, _ -> false, ProblemHighlightType.GENERIC_ERROR),
+                                           new JsonSchemaTestProvider(schemaFile, getAvailabilityPredicate()));
+    JsonSchemaService.Impl.get(getProject()).reset();
+    myFixture.checkHighlighting(true, false, false);
   }
 
   public void testNumberMultipleCorrect() {

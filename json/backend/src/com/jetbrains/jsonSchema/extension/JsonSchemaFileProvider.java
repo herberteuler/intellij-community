@@ -2,9 +2,11 @@
 package com.jetbrains.jsonSchema.extension;
 
 
+import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.openapi.util.NlsContexts;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.jetbrains.jsonSchema.impl.JsonSchemaVersion;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -28,6 +30,12 @@ public interface JsonSchemaFileProvider {
 
   default JsonSchemaVersion getSchemaVersion() {
     return JsonSchemaVersion.SCHEMA_4;
+  }
+
+  /** Returns the highlight type for validation problems. The default uses the severity from the inspection profile. */
+  @ApiStatus.Experimental
+  default @NotNull ProblemHighlightType getValidationHighlightType() {
+    return ProblemHighlightType.GENERIC_ERROR_OR_WARNING;
   }
 
   /**

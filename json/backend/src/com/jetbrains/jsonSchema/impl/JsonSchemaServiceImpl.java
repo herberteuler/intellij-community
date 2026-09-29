@@ -150,6 +150,12 @@ public class JsonSchemaServiceImpl implements JsonSchemaService, ModificationTra
   }
 
   @Override
+  public @Nullable JsonSchemaFileProvider getSchemaProviderForFile(@NotNull VirtualFile file, @NotNull JsonSchemaObject schemaObject) {
+    VirtualFile schemaFile = resolveSchemaFile(schemaObject);
+    return schemaFile == null ? null : myState.getProvider(schemaFile, file);
+  }
+
+  @Override
   public void reset() {
     myFactories.reset();
     resetWithCurrentFactories();
@@ -674,7 +680,15 @@ public class JsonSchemaServiceImpl implements JsonSchemaService, ModificationTra
     }
 
     public @Nullable JsonSchemaFileProvider getProvider(@NotNull VirtualFile file) {
-      List<JsonSchemaFileProvider> providers = myData.getValue().get(file);
+      return selectProvider(myData.getValue().get(file));
+    }
+
+    public @Nullable JsonSchemaFileProvider getProvider(@NotNull VirtualFile schemaFile, @NotNull VirtualFile file) {
+      List<JsonSchemaFileProvider> providers = myData.getValue().get(schemaFile);
+      return providers == null ? null : selectProvider(ContainerUtil.filter(providers, p -> isProviderAvailable(file, p)));
+    }
+
+    private static @Nullable JsonSchemaFileProvider selectProvider(@Nullable List<JsonSchemaFileProvider> providers) {
       if (providers == null || providers.isEmpty()) {
         return null;
       }

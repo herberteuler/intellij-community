@@ -78,6 +78,8 @@ public class ClsMirrorBuildingTest extends LightIdeaTestCase {
   public void testSealed() { doTest(); }
   public void testCompanyDO() { doTest(); }
   public void testGenericRecord() { doTest(); }
+  public void testMoreInterfaces() { doTest(); }
+  public void testFewerInterfaces() { doTest(); }
   public void testCompanyDOInDumbMode() {
     testDumbMode("CompanyDO");
   }

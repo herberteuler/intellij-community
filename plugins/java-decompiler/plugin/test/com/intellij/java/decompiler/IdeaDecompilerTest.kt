@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.java.decompiler
 
 import com.intellij.JavaTestUtil
@@ -127,6 +127,19 @@ class IdeaDecompilerTest : LightJavaCodeInsightFixtureTestCase() {
                                            visitor)
       VfsUtilCore.visitChildrenRecursively(getTestFile("${IdeaTestUtil.getMockJdk18Path().path}/jre/lib/rt.jar!/java/lang"), visitor)
     }
+  }
+
+  fun testSignatureWithMoreInterfacesThanClassFile() = doTestInterfaceSignatureMismatch("MoreInterfaces", "Runnable")
+
+  fun testSignatureWithFewerInterfacesThanClassFile() = doTestInterfaceSignatureMismatch("FewerInterfaces", "Runnable", "Serializable")
+
+  private fun doTestInterfaceSignatureMismatch(name: String, vararg interfaces: String) {
+    val psiFile = psiManager.findFile(getTestFile("${JavaTestUtil.getJavaTestDataPath()}/psi/cls/mirror/pkg/$name.class")) as ClsFileImpl
+    val decompiled = BinaryFileTypeDecompilers.getInstance().allowDecompilerSlowOperation { psiFile.mirror.text }
+    assertTrue(decompiled, decompiled.contains("implements ${interfaces.joinToString(", ")} {"))
+    val psiClass = psiFile.classes.single()
+    assertEquals(interfaces.size, psiClass.implementsListTypes.size)
+    assertNotNull(psiClass.implementsList!!.referenceElements.last().textRange)
   }
 
   fun testNavigation_high() {

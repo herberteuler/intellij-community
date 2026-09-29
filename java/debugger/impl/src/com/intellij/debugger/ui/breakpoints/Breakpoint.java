@@ -399,7 +399,7 @@ public abstract class Breakpoint<P extends JavaBreakpointProperties> implements 
     if (getProperties().isTRACING_END() && Registry.is("debugger.call.tracing")) {
       CallTracer.get(debugProcess).stop(event.thread());
     }
-    if (isLogEnabled() || isLogExpressionEnabled() || isLogStack()) {
+    if (isLogEnabled() || isLogExpressionEnabled() || isLogStack() || isThreadDumpCaptureEnabled()) {
       getBreakpointManager().beforeLoggingBreakpoint(context.getSuspendContext());
       StringBuilder buf = new StringBuilder();
       if (myXBreakpoint.isLogMessage()) {
@@ -456,6 +456,10 @@ public abstract class Breakpoint<P extends JavaBreakpointProperties> implements 
           navigationStack = null;
         }
         printLoggingBreakpointMessage(this, debugProcess, msg, navigationStack);
+      }
+
+      if (isThreadDumpCaptureEnabled()) {
+        BreakpointThreadDumpCaptureHandler.getInstance(getProject()).captureAsyncAndNotify(this, context.getSuspendContext());
       }
     }
     if (isRemoveAfterHit()) {
@@ -770,6 +774,11 @@ public abstract class Breakpoint<P extends JavaBreakpointProperties> implements 
 
   protected boolean isLogStack() {
     return myXBreakpoint.isLogStack();
+  }
+
+  protected boolean isThreadDumpCaptureEnabled() {
+    return myXBreakpoint instanceof XBreakpointBase<?, ?, ?> breakpoint && breakpoint.getThreadDumpCapturePolicy() != null &&
+           BreakpointThreadDumpCapture.isAvailable();
   }
 
   protected boolean isLogExpressionEnabled() {

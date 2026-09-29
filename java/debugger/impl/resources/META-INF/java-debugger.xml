@@ -79,6 +79,8 @@
                     interface="com.intellij.debugger.engine.SteppingListener" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.debugger.dumpItemsProvider"
                     interface="com.intellij.debugger.impl.ThreadDumpItemsProviderFactory" dynamic="true"/>
+    <extensionPoint qualifiedName="com.intellij.debugger.breakpointThreadDumpCapture"
+                    interface="com.intellij.debugger.ui.breakpoints.BreakpointThreadDumpCapture" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.debugger.agentParametersModifier"
                     interface="com.intellij.debugger.engine.DebuggerAgentParametersModifier" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.debugger.agentProvider"

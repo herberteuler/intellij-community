@@ -24,6 +24,7 @@ import com.intellij.xdebugger.evaluation.XDebuggerEditorsProvider;
 import com.intellij.xdebugger.frame.XSuspendContext;
 import com.intellij.xdebugger.impl.BreakpointManagerState;
 import com.intellij.xdebugger.impl.breakpoints.BreakpointState;
+import com.intellij.xdebugger.impl.breakpoints.ThreadDumpCapturePolicy;
 import com.intellij.xdebugger.impl.breakpoints.XBreakpointBase;
 import com.intellij.xdebugger.impl.breakpoints.XLineBreakpointImpl;
 import org.jdom.Element;
@@ -85,6 +86,7 @@ public class XBreakpointManagerTest extends XBreakpointsTestCase {
     breakpoint.setSuspendPolicy(SuspendPolicy.NONE);
     breakpoint.setLogMessage(true);
     breakpoint.setTemporary(true);
+    ((XBreakpointBase<?, ?, ?>)breakpoint).setThreadDumpCapturePolicy(ThreadDumpCapturePolicy.OncePerSession.INSTANCE);
     addBreakpoint(myBreakpointManager, new MyBreakpointProperties("z2"));
 
     reload();
@@ -103,7 +105,9 @@ public class XBreakpointManagerTest extends XBreakpointsTestCase {
     assertEquals("log", lineBreakpoint.getLogExpressionObject().getExpression());
     assertTrue(lineBreakpoint.isLogMessage());
     assertTrue(lineBreakpoint.isTemporary());
+    assertSame(ThreadDumpCapturePolicy.OncePerSession.INSTANCE, ((XBreakpointBase<?, ?, ?>)lineBreakpoint).getThreadDumpCapturePolicy());
     assertEquals(SuspendPolicy.NONE, lineBreakpoint.getSuspendPolicy());
+    assertNull(((XBreakpointBase<?, ?, ?>)breakpoints.get(2)).getThreadDumpCapturePolicy());
 
     assertEquals("z2", assertInstanceOf(breakpoints.get(2).getProperties(), MyBreakpointProperties.class).myOption);
     assertEquals(SuspendPolicy.ALL, breakpoints.get(2).getSuspendPolicy());

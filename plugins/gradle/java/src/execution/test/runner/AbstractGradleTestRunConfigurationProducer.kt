@@ -9,7 +9,6 @@ import com.intellij.execution.actions.ConfigurationFromContext
 import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiElement
-import com.intellij.util.containers.ContainerUtil
 import org.jetbrains.plugins.gradle.execution.test.runner.TestTasksChooser.Companion.contextWithLocationName
 import org.jetbrains.plugins.gradle.service.execution.GradleRunConfiguration
 import org.jetbrains.plugins.gradle.util.TasksToRun
@@ -154,7 +153,11 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
           .map { createTasksAndArguments(it.key, it.value) }
 
         val existingConfiguration = when {
-          canReuseExistingConfiguration -> findExistingConfigurationSettings(context, chosenTasksAndArguments, runConfiguration)
+          canReuseExistingConfiguration -> findExistingConfigurationSettings(
+            getConfigurationSettingsList(RunManager.getInstance(project)),
+            runConfiguration,
+            chosenTasksAndArguments.map { it.tokens }
+          )
           else -> null
         }
         if (existingConfiguration != null) {
@@ -181,72 +184,6 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
         super.onFirstRun(configuration, context, startRunnable)
       }
     }
-  }
-
-  private fun findExistingConfigurationSettings(
-    context: ConfigurationContext,
-    tasksAndArguments: List<GradleCommandLineTasks>,
-    configuration: GradleRunConfiguration
-  ): RunnerAndConfigurationSettings? {
-    val project = context.project ?: return null
-    if (tasksAndArguments.isEmpty()) return null
-    val externalProjectPath = configuration.settings.externalProjectPath ?: return null
-    val selectedTaskTokens = tasksAndArguments.map { it.tokens }
-    return getConfigurationSettingsList(RunManager.getInstance(project))
-      .firstOrNull { runnerAndConfigurationSettings ->
-        val existingConfiguration = runnerAndConfigurationSettings.configuration as? GradleRunConfiguration ?: return@firstOrNull false
-        val existingTaskTokens = existingConfiguration.commandLine.tasks.tokens
-
-        (existingTaskTokens.size == selectedTaskTokens.sumOf { it.size }
-         && isConsistedFrom(existingTaskTokens, selectedTaskTokens))
-         && externalProjectPath == existingConfiguration.settings.externalProjectPath
-      }
-  }
-
-  /**
-   * Checks that [list] can be represented by sequence from all or part of [subLists].
-   *
-   * For example:
-   *
-   * `[1, 2, 3, 4] is not consisted from [1, 2]`
-   *
-   * `[1, 2, 3, 4] is consisted from [1, 2] and [3, 4]`
-   *
-   * `[1, 2, 3, 4] is consisted from [1, 2], [3, 4] and [1, 2, 3]`
-   *
-   * `[1, 2, 3, 4] is not consisted from [1, 2, 3] and [3, 4]`
-   */
-  private fun isConsistedFrom(list: List<String>, subLists: List<List<String>>): Boolean {
-    val reducer = ArrayList(list)
-    val sortedTiles = subLists.sortedByDescending { it.size }
-    for (tile in sortedTiles) {
-      val size = tile.size
-      val index = indexOfSubList(reducer, tile)
-      if (index >= 0) {
-        val subReducer = reducer.subList(index, index + size)
-        subReducer.clear()
-        subReducer.add(null)
-      }
-    }
-    return ContainerUtil.and(reducer) { it == null }
-  }
-
-  private fun indexOfSubList(list: List<String>, subList: List<String>): Int {
-    for (i in list.indices) {
-      if (i + subList.size <= list.size) {
-        var hasSubList = true
-        for (j in subList.indices) {
-          if (list[i + j] != subList[j]) {
-            hasSubList = false
-            break
-          }
-        }
-        if (hasSubList) {
-          return i
-        }
-      }
-    }
-    return -1
   }
 
   private fun createTasksAndArguments(tasksToRun: TasksToRun, testFilters: Collection<String>): GradleCommandLineTasks {

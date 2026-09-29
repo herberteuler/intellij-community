@@ -34,7 +34,6 @@ import org.jetbrains.plugins.gradle.service.execution.GradleRunConfiguration;
 import org.jetbrains.plugins.gradle.util.GradleBundle;
 import org.jetbrains.plugins.gradle.util.GradleConstants;
 import org.jetbrains.plugins.gradle.util.TasksToRun;
-import org.jetbrains.plugins.gradle.util.cmd.node.GradleCommandLine;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -44,6 +43,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.jetbrains.plugins.gradle.execution.test.runner.TestGradleConfigurationProducerUtilKt.applyTestConfiguration;
+import static org.jetbrains.plugins.gradle.execution.test.runner.TestGradleConfigurationProducerUtilKt.findExistingConfigurationSettings;
+import static org.jetbrains.plugins.gradle.execution.test.runner.TestGradleConfigurationProducerUtilKt.getNormalizedTaskTokens;
 import static org.jetbrains.plugins.gradle.execution.test.runner.TestGradleConfigurationProducerUtilKt.getSourceFile;
 import static org.jetbrains.plugins.gradle.util.GradleExecutionSettingsUtil.createTestFilterFrom;
 
@@ -136,7 +137,10 @@ public final class PatternGradleConfigurationProducer extends GradleTestRunConfi
         super.onFirstRun(configuration, context, startRunnable);
         return;
       }
-      RunnerAndConfigurationSettings existingConfiguration = findExistingConfigurationSettings(context, runConfiguration);
+      RunnerAndConfigurationSettings existingConfiguration = findExistingConfigurationSettings(
+        getConfigurationSettingsList(RunManager.getInstance(project)),
+        runConfiguration,
+        List.of(getNormalizedTaskTokens(runConfiguration)));
       if (existingConfiguration != null) {
         configuration.setConfigurationSettings(existingConfiguration);
       }
@@ -156,30 +160,6 @@ public final class PatternGradleConfigurationProducer extends GradleTestRunConfi
       }
       super.onFirstRun(configuration, context, startRunnable);
     });
-  }
-
-  private @Nullable RunnerAndConfigurationSettings findExistingConfigurationSettings(
-    @NotNull ConfigurationContext context,
-    @NotNull GradleRunConfiguration selectedConfiguration
-  ) {
-    String externalProjectPath = selectedConfiguration.getSettings().getExternalProjectPath();
-    List<String> selectedTaskTokens = getNormalizedTaskTokens(selectedConfiguration);
-    if (externalProjectPath == null || selectedTaskTokens.isEmpty()) return null;
-    for (RunnerAndConfigurationSettings settings : getConfigurationSettingsList(RunManager.getInstance(context.getProject()))) {
-      if (settings.getConfiguration() instanceof GradleRunConfiguration existingConfiguration
-          && existingConfiguration != selectedConfiguration
-          && externalProjectPath.equals(existingConfiguration.getSettings().getExternalProjectPath())
-          && selectedTaskTokens.equals(getNormalizedTaskTokens(existingConfiguration))
-      ) {
-        return settings;
-      }
-    }
-    return null;
-  }
-
-  private static @NotNull List<String> getNormalizedTaskTokens(@NotNull GradleRunConfiguration configuration) {
-    String commandLine = String.join(" ", configuration.getSettings().getTaskNames());
-    return GradleCommandLine.parse(commandLine).getTasks().getTokens();
   }
 
   private static @NotNull String suggestConfigurationName(List<String> tests) {

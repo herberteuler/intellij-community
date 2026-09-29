@@ -276,7 +276,7 @@ class PyTypingTypeProvider : PyTypeProviderWithCustomContext<Context?>() {
 
   // PEP 747: the explicit `TypeForm(...)` constructor. `_SpecialForm` has no `__call__`, so intercept the call here and
   // return a callable whose result is the `TypeForm` value denoting the argument's type expression.
-  override fun prepareCalleeTypeForCall(type: PyType?, callee: PyExpression, context: Context): Ref<PyCallableType?>? {
+  override fun prepareCalleeTypeForCall(type: PyType?, callee: PyExpression, context: Context): Ref<PyType?>? {
     if (type is PyClassType && (SPECIAL_FORM == type.classQName || SPECIAL_FORM_EXT == type.classQName)) {
       val call = PyCallExpressionNavigator.getPyCallExpressionByCallee(callee)
       if (call != null && isTypeForm(resolveToQualifiedNames(callee, context.typeContext), callee)) {

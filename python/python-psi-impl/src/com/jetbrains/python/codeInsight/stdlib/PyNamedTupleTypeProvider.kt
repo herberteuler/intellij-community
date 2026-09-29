@@ -82,7 +82,7 @@ class PyNamedTupleTypeProvider : PyTypeProviderBase() {
            ?: getNamedTupleReplaceType(referenceExpression, context)
   }
 
-  override fun prepareCalleeTypeForCall(type: PyType?, callee: PyExpression, context: TypeEvalContext): Ref<PyCallableType?>? {
+  override fun prepareCalleeTypeForCall(type: PyType?, callee: PyExpression, context: TypeEvalContext): Ref<PyType?>? {
     return if (type is PyNamedTupleType) Ref.create(type) else null
   }
 

@@ -70,7 +70,7 @@ class PyTypedDictTypeProvider : PyTypeProviderBase() {
     return type.notNullToRef()
   }
 
-  override fun prepareCalleeTypeForCall(type: PyType?, callee: PyExpression, context: TypeEvalContext): Ref<PyCallableType?>? {
+  override fun prepareCalleeTypeForCall(type: PyType?, callee: PyExpression, context: TypeEvalContext): Ref<PyType?>? {
     return if (type is PyTypedDictType) Ref.create(type) else null
   }
 

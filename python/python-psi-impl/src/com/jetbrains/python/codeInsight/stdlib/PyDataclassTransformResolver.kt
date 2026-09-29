@@ -59,23 +59,9 @@ object PyDataclassTransformResolver : PyDataclassResolver {
   ): PyDataclassParameters? {
     val dataclassTransformTargets = (pyClass.decoratorList?.decorators.orEmpty().asSequence()
                                        .flatMap { resolveDecoratorStubSafe(it, context) }
-                                       .flatMap {
-                                         // ResolveResult prioritisation in PyResolveUtil.resolveQualifiedNameInScope
-                                         // returns only the implementation if it's present.
-                                         if (it is PyFunction && !PyiUtil.isOverload(it, context)) {
-                                           PyiUtil.getOverloads(it, context).asSequence() + it
-                                         }
-                                         else {
-                                           sequenceOf(it)
-                                         }
-                                       }
                                      + sequence { yieldAll(pyClass.getAncestorClasses(context)) }
                                      + sequence { (pyClass.getMetaClassType(true, context) as? PyClassType)?.let { yield(it.pyClass) } })
-    val dataclassTransformDecorator: PyDecorator = dataclassTransformTargets
-      .filterIsInstance<PyDecoratable>()
-      .flatMap { it.decoratorList?.decorators.orEmpty().asSequence() }
-      .firstOrNull { it.qualifiedName?.lastComponent == PyDataclassNames.DataclassTransform.DATACLASS_TRANSFORM_NAME }
-                                                  ?: return null
+    val dataclassTransformDecorator = findDataclassTransformDecorator(dataclassTransformTargets, context) ?: return null
 
     val dataclassTransformStub: PyDataclassTransformDecoratorStub = StubAwareComputation.on(dataclassTransformDecorator)
       .withCustomStub { dtStub -> dtStub.getCustomStub(PyDataclassTransformDecoratorStub::class.java) }
@@ -349,6 +335,21 @@ internal fun isDataclassTransformOnMetaclass(
   val metaclass = (pyClass.getMetaClassType(true, context) as? PyClassType)?.pyClass ?: return false
   return metaclass.decoratorList?.decorators?.any { it == decorator } == true
 }
+
+internal fun isDataclassTransform(decorator: PyDecorator, context: TypeEvalContext): Boolean =
+  findDataclassTransformDecorator(resolveDecoratorStubSafe(decorator, context).asSequence(), context) != null
+
+private fun findDataclassTransformDecorator(targets: Sequence<PsiElement>, context: TypeEvalContext): PyDecorator? =
+  targets
+    .flatMap {
+      // ResolveResult prioritisation in PyResolveUtil.resolveQualifiedNameInScope
+      // returns only the implementation if it's present.
+      if (it is PyFunction && !PyiUtil.isOverload(it, context)) PyiUtil.getOverloads(it, context).asSequence() + it
+      else sequenceOf(it)
+    }
+    .filterIsInstance<PyDecoratable>()
+    .flatMap { it.decoratorList?.decorators.orEmpty().asSequence() }
+    .firstOrNull { it.qualifiedName?.lastComponent == PyDataclassNames.DataclassTransform.DATACLASS_TRANSFORM_NAME }
 
 @ApiStatus.Internal
 fun resolveDecoratorStubSafe(decorator: PyDecorator, context: TypeEvalContext): List<PsiElement> {

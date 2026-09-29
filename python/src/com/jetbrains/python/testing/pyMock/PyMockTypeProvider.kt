@@ -18,7 +18,6 @@ import com.jetbrains.python.psi.impl.PyBuiltinCache
 import com.jetbrains.python.psi.resolve.PyResolveContext
 import com.jetbrains.python.psi.types.PyCallableArgument
 import com.jetbrains.python.psi.types.PyCallableParameter
-import com.jetbrains.python.psi.types.PyCallableType
 import com.jetbrains.python.psi.types.PyCallableTypeImpl
 import com.jetbrains.python.psi.types.PyClassType
 import com.jetbrains.python.psi.types.PyClassTypeImpl
@@ -75,7 +74,7 @@ internal class PyMockTypeProvider : PyTypeProviderBase() {
     return getTypeForPatch(matchedPatch, func, context)
   }
 
-  override fun prepareCalleeTypeForCall(type: PyType?, callee: PyExpression, context: TypeEvalContext): Ref<PyCallableType?>? {
+  override fun prepareCalleeTypeForCall(type: PyType?, callee: PyExpression, context: TypeEvalContext): Ref<PyType?>? {
     // A call on a mock accepts any arguments.
     if (type is PyMockWithSpecType) {
       if (!type.isCallable()) return null

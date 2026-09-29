@@ -4,7 +4,6 @@ package com.jetbrains.python.psi.types;
 import com.intellij.openapi.util.Ref;
 import com.intellij.psi.PsiElement;
 import com.jetbrains.python.psi.AccessDirection;
-import com.jetbrains.python.psi.PyCallExpression;
 import com.jetbrains.python.psi.PyCallSiteExpression;
 import com.jetbrains.python.psi.PyCallSiteOwner;
 import com.jetbrains.python.psi.PyCallable;
@@ -86,19 +85,10 @@ public class PyTypeProviderBase implements PyTypeProvider {
     return Collections.emptyMap();
   }
 
-  @Deprecated
   @Override
-  public @Nullable Ref<@Nullable PyCallableType> prepareCalleeTypeForCall(@Nullable PyType type,
-                                                                          @NotNull PyCallExpression call,
-                                                                          @NotNull TypeEvalContext context) {
-    PyExpression callee = call.getCallee();
-    return callee == null ? null : prepareCalleeTypeForCall(type, callee, context);
-  }
-
-  @Override
-  public @Nullable Ref<@Nullable PyCallableType> prepareCalleeTypeForCall(@Nullable PyType type,
-                                                                          @NotNull PyExpression callee,
-                                                                          @NotNull TypeEvalContext context) {
+  public @Nullable Ref<@Nullable PyType> prepareCalleeTypeForCall(@Nullable PyType type,
+                                                                  @NotNull PyExpression callee,
+                                                                  @NotNull TypeEvalContext context) {
     return null;
   }
 

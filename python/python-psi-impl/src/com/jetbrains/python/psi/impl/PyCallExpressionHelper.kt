@@ -1054,7 +1054,8 @@ object PyCallExpressionHelper {
                               classType.toInstance(), null, null)
   }
 
-  private fun stripDefaultTypeArguments(classType: PyClassType, context: TypeEvalContext): PyClassType {
+  // TODO: PY-90204
+  internal fun stripDefaultTypeArguments(classType: PyClassType, context: TypeEvalContext): PyClassType {
     val genericDef = PyTypeChecker.findGenericDefinitionType(classType.pyClass, context) ?: return classType
     if (!classType.isParameterized) return genericDef.toClass()
 

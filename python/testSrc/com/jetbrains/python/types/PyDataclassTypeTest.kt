@@ -6,11 +6,8 @@ import com.jetbrains.python.allure.Components
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
 import com.jetbrains.python.fixtures.PyCodeInsightTestCase
-import com.jetbrains.python.fixtures.PyCodeInsightTestCase.TestInspections
 import com.jetbrains.python.inspections.PyArgumentListInspection
-import com.jetbrains.python.inspections.PyAttrsDataclassInspection
 import com.jetbrains.python.inspections.PyDataclassInspection
-import com.jetbrains.python.inspections.PyDataclassTransformInspection
 import com.jetbrains.python.inspections.PyStdlibDataclassInspection
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -23,13 +20,6 @@ import org.junit.jupiter.api.Test
 @Subsystems.Typing
 @Components.TypeInference
 @Layers.Functional
-@TestInspections(disableInspections = [
-  PyArgumentListInspection::class,
-  PyDataclassInspection::class,
-  PyStdlibDataclassInspection::class,
-  PyAttrsDataclassInspection::class,
-  PyDataclassTransformInspection::class,
-])
 class PyDataclassTypeTest : PyCodeInsightTestCase() {
 
   @Nested
@@ -64,9 +54,22 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
       expr = A(1).t
       #└ TYPE int
       """.trimIndent())
+
+    @Test
+    fun `constructor argument overrides type parameter default`() = test("""
+      from dataclasses import dataclass
+
+      @dataclass
+      class Box[T = str]:
+          value: T
+
+      expr = Box(1).value
+      # └ TYPE int
+      """.trimIndent())
   }
 
   @Nested
+  @TestInspections(disableInspections = [PyStdlibDataclassInspection::class])
   inner class PostInitParametersInitVar {
     @Test
     fun `dataclass post init parameter type`() = test("""
@@ -262,8 +265,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
            id: int
            name: str
       
+      expr = MyClass(1, 'aba')
+      #└ TYPE MyClass
       MyClass()
-      #└ TYPE (id: int, name: str) -> MyClass
+      #       └ WARNING Parameter 'id' unfilled
+      #       └ WARNING Parameter 'name' unfilled
       """.trimIndent())
 
     @Test
@@ -280,8 +286,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
       class SubSub(Sub):
            name: str
       
+      expr = SubSub(1, 'aba')
+      #└ TYPE SubSub
       SubSub()
-      # └ TYPE (id: int, name: str) -> SubSub
+      #      └ WARNING Parameter 'id' unfilled
+      #      └ WARNING Parameter 'name' unfilled
       """.trimIndent())
 
     @Test
@@ -301,8 +310,12 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
       class SubSub(Sub):
           name: str
       
+      expr = SubSub(-1, 1, name='aba')
+      #└ TYPE SubSub
       SubSub()
-      #└ TYPE (included: int, id: int, name: str) -> SubSub
+      #      └ WARNING Parameter 'id' unfilled
+      #      └ WARNING Parameter 'included' unfilled
+      #      └ WARNING Parameter 'name' unfilled
       """.trimIndent())
 
     @Test
@@ -331,8 +344,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
            id: int
            name: str
       
+      expr = MyClass(1, 'aba')
+      #└ TYPE MyClass
       MyClass()
-      #└ TYPE (id: int, name: str) -> MyClass
+      #       └ WARNING Parameter 'id' unfilled
+      #       └ WARNING Parameter 'name' unfilled
       """.trimIndent())
 
     @Test
@@ -351,8 +367,13 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
           name: str
       
       
-      MyClass()
-      #└ TYPE (*, id: int, name: str) -> MyClass
+      expr = MyClass(id=1, name='aba')
+      #└ TYPE MyClass
+      MyClass(1, 'aba')
+      #       │  │    └ WARNING Parameter 'id' unfilled
+      #       │  │    └ WARNING Parameter 'name' unfilled
+      #       │  ^^^^^ WARNING Unexpected argument
+      #       └ WARNING Unexpected argument
       """.trimIndent())
 
     @Test
@@ -371,8 +392,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
           id: str = my_field() # WARNING Expected type 'str', got 'None' instead
           addr: list[str]
       
-      Order()
-      # └ TYPE (id: str, *, addr: list[str]) -> Order
+      expr = Order('aba', addr=['x'])
+      # └ TYPE Order
+      Order('aba', ['x'])
+      #            │    └ WARNING Parameter 'addr' unfilled
+      #            ^^^^^ WARNING Unexpected argument
       """.trimIndent())
 
     @Test
@@ -391,8 +415,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
           id: str = my_field() # WARNING Expected type 'str', got 'None' instead
           addr: list[str]
       
-      Order()
-      #└ TYPE (id: str, *, addr: list[str]) -> Order
+      expr = Order('aba', addr=['x'])
+      #└ TYPE Order
+      Order('aba', ['x'])
+      #            │    └ WARNING Parameter 'addr' unfilled
+      #            ^^^^^ WARNING Unexpected argument
       """.trimIndent())
 
     @Test
@@ -411,8 +438,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
           id: str = my_field(kw_only=False) # WARNING Expected type 'str', got 'None' instead
           addr: list[str]
       
-      Order()
-      #└ TYPE (id: str, *, addr: list[str]) -> Order
+      expr = Order('aba', addr=['x'])
+      #└ TYPE Order
+      Order('aba', ['x'])
+      #            │    └ WARNING Parameter 'addr' unfilled
+      #            ^^^^^ WARNING Unexpected argument
       """.trimIndent())
 
     @Test
@@ -431,8 +461,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
           id: str = my_field(kw_only=False) # WARNING Expected type 'str', got 'None' instead
           addr: list[str]
       
-      Order()
-      #└ TYPE (id: str, *, addr: list[str]) -> Order
+      expr = Order('aba', addr=['x'])
+      #└ TYPE Order
+      Order('aba', ['x'])
+      #            │    └ WARNING Parameter 'addr' unfilled
+      #            ^^^^^ WARNING Unexpected argument
       """.trimIndent())
 
     @Test
@@ -474,8 +507,10 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
           id: int = field1(resolver=lambda: 0)
           name: str = field1(default="Voldemort")
       
-      CustomerModel1()
-      #└ TYPE (*, name: str) -> CustomerModel1
+      expr = CustomerModel1(name='aba')
+      #└ TYPE CustomerModel1
+      CustomerModel1(1)
+      #              └ WARNING Unexpected argument
       """.trimIndent())
 
     @Test
@@ -510,8 +545,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
            id: MyIdDescriptor
            name: MyNameDescriptor
       
+      expr = MyClass(1, 'aba')
+      #└ TYPE MyClass
       MyClass()
-      #└ TYPE (id: int, name: str) -> MyClass
+      #       └ WARNING Parameter 'id' unfilled
+      #       └ WARNING Parameter 'name' unfilled
       """.trimIndent())
 
     @Test
@@ -534,8 +572,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
            id: MyDescriptor[int]
            name: MyDescriptor[str]
       
-      MyClass(1, "")
-      #└ TYPE (id: int, name: str) -> MyClass
+      expr = MyClass(1, "")
+      #└ TYPE MyClass
+      MyClass()
+      #       └ WARNING Parameter 'id' unfilled
+      #       └ WARNING Parameter 'name' unfilled
       """.trimIndent())
 
     @Test
@@ -564,8 +605,14 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
           payload: Anything
           payload_length: MyDescriptor[int]
       
+      expr = MyClass(1, 'aba', object(), 2)
+      #└ TYPE MyClass
       MyClass()
-      #└ TYPE (id: int, name: str, payload: Any, payload_length: int) -> MyClass
+      #       └ WARNING Parameter 'id' unfilled
+      #       └ WARNING Parameter 'name' unfilled
+      #       └ WARNING Parameter 'payload' unfilled
+      #       └ WARNING Parameter 'payload_length' unfilled
+      MyClass(1, 'aba', object(), payload_length="bad") # WARNING Expected type 'int', got 'Literal["bad"]' instead
       """.trimIndent())
 
     @Test
@@ -573,8 +620,11 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
     fun `dataclass_transform constructor signature decorator with marked overloads not implementation`() = test("""
       from mod import Document
       
-      Document(name="foo")
-      #└ TYPE (*, name: str) -> Document
+      expr = Document(name="foo")
+      #└ TYPE Document
+      Document("foo")
+      #        │    └ WARNING Parameter 'name' unfilled
+      #        ^^^^^ WARNING Unexpected argument
       """.trimIndent(),
       "mod.py" to """
         import strawberry
@@ -639,6 +689,23 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
         ) -> T | Callable[[T], T]:
             pass
         """.trimIndent())
+
+    @Test
+    @TestFor(issues = ["PY-92578"])
+    fun `dataclass_transform decorator returning object preserves class type`() = test("""
+      from typing import dataclass_transform, Callable
+
+
+      @dataclass_transform(kw_only_default=True)
+      def deco(**kwargs) -> Callable[[object], object]:
+          raise NotImplementedError
+
+      @deco(frozen=True)
+      class MyClass: ...
+
+      MyClass
+      # └ TYPE type[MyClass]
+      """.trimIndent())
   }
 
   @Nested
@@ -646,6 +713,7 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
     @Test
     @TestFor(issues = ["PY-27398"])
     @TestCaseOptions(assertRecursionPrevention = false)
+    @TestInspections(disableInspections = [PyArgumentListInspection::class, PyStdlibDataclassInspection::class])
     fun `initializing dataclass checks generated init arguments`() = test("""
       import dataclasses
       import typing
@@ -814,6 +882,7 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
   inner class DataclassInstanceProtocolStructuralMatching {
     @Test
     @TestFor(issues = ["PY-76059"])
+    @TestInspections(disableInspections = [PyDataclassInspection::class])
     fun `dataclass instance matches DataclassInstance protocol`() = test("""
       from dataclasses import dataclass, asdict
       
@@ -953,6 +1022,7 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
 
     @Test
     @TestFor(issues = ["PY-45958"])
+    @TestInspections(disableInspections = [PyArgumentListInspection::class])
     fun `ordered dataclass dunder le call is type-checked`() = test("""
       from dataclasses import dataclass
       
@@ -1063,6 +1133,7 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
   @TestFor(issues = ["PY-75771", "PY-80624"])
   inner class DataclassTransformConverter {
     @Test
+    @TestInspections(disableInspections = [PyDataclassInspection::class])
     fun `converter field type`() = test("""
       from typing import Callable, dataclass_transform
 
@@ -1081,6 +1152,7 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
       """.trimIndent())
 
     @Test
+    @TestInspections(disableInspections = [PyArgumentListInspection::class])
     fun `converter with aliased field specifier and TypeVar field type`() = test("""
       from typing import Callable, TypeVar, dataclass_transform
 
@@ -1121,6 +1193,7 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
       """.trimIndent())
 
     @Test
+    @TestInspections(disableInspections = [PyArgumentListInspection::class, PyDataclassInspection::class])
     fun `read of converter field of generic dataclass substitutes type parameters`() = test("""
       from typing import Any, Callable, Generic, TypeVar, dataclass_transform
 
@@ -1183,6 +1256,7 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
       """.trimIndent())
 
     @Test
+    @TestInspections(disableInspections = [PyDataclassInspection::class])
     fun `constructor call checks converter input type`() = test("""
       from typing import Callable, dataclass_transform
 
@@ -1202,6 +1276,7 @@ class PyDataclassTypeTest : PyCodeInsightTestCase() {
       """.trimIndent())
 
     @Test
+    @TestInspections(disableInspections = [PyDataclassInspection::class])
     fun `assignment checks converter input type`() = test("""
       from typing import Any, Callable, dataclass_transform
 

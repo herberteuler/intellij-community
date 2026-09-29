@@ -39,8 +39,9 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.provider.getEelDescriptor
+import com.intellij.platform.externalSystem.testFramework.service.execution.ExternalSystemTestUnknownSdkResolver
+import com.intellij.platform.externalSystem.testFramework.service.execution.ExternalSystemTestUnknownSdkResolver.unknownSdkFixMode
 import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
-import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver.unknownSdkFixMode
 import com.intellij.platform.testFramework.eelJava.EelTestJdkProvider
 import com.intellij.platform.testFramework.eelJava.EelTestUtil
 import com.intellij.platform.testFramework.io.ExternalResourcesChecker.reportUnavailability
@@ -162,7 +163,7 @@ abstract class GradleImportingTestCase : JavaExternalSystemImportingTestCase() {
     System.setProperty(ExternalSystemExecutionSettings.REMOTE_PROCESS_IDLE_TTL_IN_MS_KEY, GRADLE_DAEMON_TTL_MS.toString())
     setUpGradleVmOptions()
 
-    maskExtensions<UnknownSdkResolver>(UnknownSdkResolver.EP_NAME, listOf(TestUnknownSdkResolver), myTestDisposable)
+    maskExtensions<UnknownSdkResolver>(UnknownSdkResolver.EP_NAME, listOf(ExternalSystemTestUnknownSdkResolver), myTestDisposable)
     setRegistryPropertyForTest("unknown.sdk.auto", "false")
     unknownSdkFixMode = TestUnknownSdkResolver.TestUnknownSdkFixMode.REAL_LOCAL_FIX
 

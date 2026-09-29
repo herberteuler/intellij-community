@@ -4,9 +4,8 @@ package org.jetbrains.plugins.gradle.util
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.JAVA_HOME
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_JAVA_HOME
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_PROJECT_JDK
+import com.intellij.platform.externalSystem.testFramework.service.execution.ExternalSystemTestUnknownSdkResolver
 import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
-import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_DOWNLOADABLE_FIX
-import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
 import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
 import org.jetbrains.plugins.gradle.util.GradleConstants.GRADLE_USER_HOME_ENV_KEY
 import org.junit.Test
@@ -49,9 +48,9 @@ class GradleJdkResolutionTest : GradleJdkResolutionTestCase() {
 
   @Test
   fun `test gradle jvm resolution (heuristic suggestion)`() {
-    TestUnknownSdkResolver.unknownSdkFixMode = TEST_LOCAL_FIX
+    ExternalSystemTestUnknownSdkResolver.unknownSdkFixMode = TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
     assertGradleJvmSuggestion(expected = latestSdk, expectsSdkRegistration = true)
-    TestUnknownSdkResolver.unknownSdkFixMode = TEST_DOWNLOADABLE_FIX
+    ExternalSystemTestUnknownSdkResolver.unknownSdkFixMode = TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_DOWNLOADABLE_FIX
     assertGradleJvmSuggestion(expected = { TestSdkGenerator.getCurrentSdk() }, expectsSdkRegistration = true)
   }
 

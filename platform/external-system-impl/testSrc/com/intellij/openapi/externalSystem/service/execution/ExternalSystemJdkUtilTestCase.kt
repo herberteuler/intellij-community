@@ -9,6 +9,7 @@ import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ui.configuration.SdkTestCase
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver
 import com.intellij.openapi.util.Disposer
+import com.intellij.platform.externalSystem.testFramework.service.execution.ExternalSystemTestUnknownSdkResolver
 import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
 import com.intellij.testFramework.ExtensionTestUtil
 import com.intellij.testFramework.replaceService
@@ -27,11 +28,11 @@ abstract class ExternalSystemJdkUtilTestCase : SdkTestCase() {
     application.replaceService(Environment::class.java, TestEnvironment(), testRootDisposable)
     application.replaceService(ExternalSystemJdkProvider::class.java, TestJdkProvider(), testRootDisposable)
 
-    ExtensionTestUtil.maskExtensions(UnknownSdkResolver.EP_NAME, listOf(TestUnknownSdkResolver), testRootDisposable)
+    ExtensionTestUtil.maskExtensions(UnknownSdkResolver.EP_NAME, listOf(ExternalSystemTestUnknownSdkResolver), testRootDisposable)
 
     environment.variables(ExternalSystemJdkUtil.JAVA_HOME to null)
 
-    TestUnknownSdkResolver.unknownSdkFixMode = TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
+    ExternalSystemTestUnknownSdkResolver.unknownSdkFixMode = TestUnknownSdkResolver.TestUnknownSdkFixMode.TEST_LOCAL_FIX
   }
 
   class TestJdkProvider : ExternalSystemJdkProvider, Disposable {

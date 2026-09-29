@@ -1,11 +1,11 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.externalSystem.testFramework.service.execution
 
-import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkProvider
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
+import com.intellij.openapi.projectRoots.SdkType
 import com.intellij.openapi.projectRoots.SdkTypeId
 import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkRequirements
 import com.intellij.openapi.roots.ui.configuration.UnknownSdk
@@ -18,10 +18,10 @@ import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
 import com.intellij.testFramework.roots.ui.configuration.TestSdkType
 import com.intellij.util.lang.JavaVersion
 
-object TestUnknownSdkResolver : UnknownSdkResolver {
+abstract class TestUnknownSdkResolver(
+  private val javaSdkType: SdkType
+) : UnknownSdkResolver {
   lateinit var unknownSdkFixMode: TestUnknownSdkFixMode
-
-  private val javaSdkType get() = ExternalSystemJdkProvider.getInstance().javaSdkType
 
   override fun supportsResolution(sdkTypeId: SdkTypeId): Boolean {
     return when (unknownSdkFixMode) {
@@ -62,7 +62,7 @@ object TestUnknownSdkResolver : UnknownSdkResolver {
     return TestUnknownSdkLocalFix(homePath, versionString, version, suggestedName, null)
   }
 
-  private class TestUnknownSdkLookup : UnknownSdkLookup {
+  private inner class TestUnknownSdkLookup : UnknownSdkLookup {
     override fun proposeLocalFix(sdk: UnknownSdk, indicator: ProgressIndicator): UnknownSdkLocalSdkFix? {
       val suggestedUnknownSdkLocalFixes = when (unknownSdkFixMode) {
         TestUnknownSdkFixMode.TEST_LOCAL_FIX -> suggestsTestUnknownSdkLocalFixes()
@@ -88,7 +88,7 @@ object TestUnknownSdkResolver : UnknownSdkResolver {
     private val versionString: String,
     val version: JavaVersion,
     private val suggestedName: String,
-    private val prototype: Sdk?
+    private val prototype: Sdk?,
   ) : UnknownSdkLocalSdkFix {
     override fun getExistingSdkHome() = homeDir
     override fun getVersionString() = versionString

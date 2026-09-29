@@ -5,8 +5,8 @@ import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUt
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_JAVA_HOME
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil.USE_PROJECT_JDK
 import com.intellij.platform.externalSystem.testFramework.service.execution.ExternalSystemTestUnknownSdkResolver
-import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
 import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
+import com.intellij.testFramework.roots.ui.configuration.TestUnknownSdkResolver
 import org.jetbrains.plugins.gradle.util.GradleConstants.GRADLE_USER_HOME_ENV_KEY
 import org.junit.Test
 import org.junit.runner.RunWith

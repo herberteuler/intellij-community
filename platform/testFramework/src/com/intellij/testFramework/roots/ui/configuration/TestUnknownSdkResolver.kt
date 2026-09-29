@@ -1,5 +1,5 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.platform.externalSystem.testFramework.service.execution
+package com.intellij.testFramework.roots.ui.configuration
 
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
@@ -14,8 +14,6 @@ import com.intellij.openapi.roots.ui.configuration.UnknownSdkLocalSdkFix
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver.UnknownSdkLookup
 import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
-import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
-import com.intellij.testFramework.roots.ui.configuration.TestSdkType
 import com.intellij.util.lang.JavaVersion
 
 abstract class TestUnknownSdkResolver(

@@ -10,11 +10,11 @@ import com.intellij.openapi.roots.ui.configuration.SdkTestCase
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver
 import com.intellij.openapi.util.Disposer
 import com.intellij.platform.externalSystem.testFramework.service.execution.ExternalSystemTestUnknownSdkResolver
-import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
 import com.intellij.testFramework.ExtensionTestUtil
 import com.intellij.testFramework.replaceService
 import com.intellij.testFramework.roots.ui.configuration.TestSdkGenerator
 import com.intellij.testFramework.roots.ui.configuration.TestSdkType
+import com.intellij.testFramework.roots.ui.configuration.TestUnknownSdkResolver
 
 abstract class ExternalSystemJdkUtilTestCase : SdkTestCase() {
 

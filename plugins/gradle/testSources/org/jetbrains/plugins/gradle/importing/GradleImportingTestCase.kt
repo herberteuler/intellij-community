@@ -41,7 +41,6 @@ import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.platform.externalSystem.testFramework.service.execution.ExternalSystemTestUnknownSdkResolver
 import com.intellij.platform.externalSystem.testFramework.service.execution.ExternalSystemTestUnknownSdkResolver.unknownSdkFixMode
-import com.intellij.platform.externalSystem.testFramework.service.execution.TestUnknownSdkResolver
 import com.intellij.platform.testFramework.eelJava.EelTestJdkProvider
 import com.intellij.platform.testFramework.eelJava.EelTestUtil
 import com.intellij.platform.testFramework.io.ExternalResourcesChecker.reportUnavailability
@@ -49,6 +48,7 @@ import com.intellij.testFramework.CompilerBuildTestUtil
 import com.intellij.testFramework.ExtensionTestUtil.maskExtensions
 import com.intellij.testFramework.RunAll.Companion.runAll
 import com.intellij.testFramework.common.ThreadLeakTracker
+import com.intellij.testFramework.roots.ui.configuration.TestUnknownSdkResolver
 import com.intellij.util.SmartList
 import com.intellij.util.ThrowableRunnable
 import com.intellij.util.io.copyRecursively

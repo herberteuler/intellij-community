@@ -2,6 +2,7 @@
 package com.intellij.platform.externalSystem.testFramework.service.execution
 
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkProvider
+import com.intellij.testFramework.roots.ui.configuration.TestUnknownSdkResolver
 
 object ExternalSystemTestUnknownSdkResolver : TestUnknownSdkResolver(
   javaSdkType = ExternalSystemJdkProvider.getInstance().javaSdkType

@@ -285,6 +285,9 @@
             "module": "intellij.kotlin.j2k.mcp"
         },
         {
+            "module": "intellij.kotlin.mcp"
+        },
+        {
             "module": "intellij.kotlin.internal"
         },
         {

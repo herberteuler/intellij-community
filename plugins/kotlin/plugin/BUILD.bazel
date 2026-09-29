@@ -300,6 +300,7 @@ dev_dist_complex_plugin(
         "//plugins/kotlin/injection/base:kotlin-base-injection_content_module_jar",
         "//plugins/kotlin/j2k/k2:kotlin-j2k_content_module_jar",
         "//plugins/kotlin/j2k/mcp:mcp_content_module_jar",
+        "//plugins/kotlin/mcp:mcp_content_module_jar",
         "//plugins/kotlin/internal:internal_content_module_jar",
         "//plugins/kotlin/kotlin.performanceExtendedPlugin:kotlin.performanceExtendedPlugin_content_module_jar",
         "//plugins/kotlin/base/analysis:analysis_content_module_jar",

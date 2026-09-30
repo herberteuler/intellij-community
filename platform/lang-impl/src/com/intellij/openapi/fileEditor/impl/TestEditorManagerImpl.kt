@@ -55,7 +55,7 @@ import java.awt.Component
 import java.util.concurrent.CompletableFuture
 import javax.swing.JComponent
 
-internal class TestEditorManagerImpl(private val project: Project) : FileEditorManagerEx(), Disposable {
+internal class TestEditorManagerImpl(override val project: Project) : FileEditorManagerEx(), Disposable {
   companion object {
     private val LOG = logger<TestEditorManagerImpl>()
     private val LIGHT_VIRTUAL_FILE = MyLightVirtualFile()
@@ -231,13 +231,14 @@ internal class TestEditorManagerImpl(private val project: Project) : FileEditorM
 
   override fun hasOpenedFile(): Boolean = false
 
-  override fun getCurrentFile(): VirtualFile? {
-    if (!isCurrentlyUnderLocalId) {
-      val clientManager = clientFileEditorManager ?: return null
-      return clientManager.getSelectedFile()
+  override val currentFile: VirtualFile?
+    get() {
+      if (!isCurrentlyUnderLocalId) {
+        val clientManager = clientFileEditorManager ?: return null
+        return clientManager.getSelectedFile()
+      }
+      return activeFile
     }
-    return activeFile
-  }
 
   private val clientFileEditorManager: ClientFileEditorManager?
     get() {
@@ -275,7 +276,8 @@ internal class TestEditorManagerImpl(private val project: Project) : FileEditorM
     }
   }
 
-  override fun getSelectedEditorFlow(): StateFlow<FileEditor?> = MutableStateFlow(null).asStateFlow()
+  override val selectedEditorFlow: StateFlow<FileEditor?>
+    get() = MutableStateFlow(null).asStateFlow()
 
   override var currentWindow: EditorWindow?
     get() = null
@@ -289,14 +291,15 @@ internal class TestEditorManagerImpl(private val project: Project) : FileEditorM
   override val windows: Array<EditorWindow>
     get() = emptyArray()
 
-  override fun getSelectedEditorWithRemotes(): Collection<FileEditor> {
-    val result = ArrayList<FileEditor>()
-    result.addAll(selectedEditors)
-    for (m in allClientFileEditorManagers) {
-      result.addAll(m.getSelectedEditors())
+  override val selectedEditorWithRemotes: Collection<FileEditor>
+    get() {
+      val result = ArrayList<FileEditor>()
+      result.addAll(selectedEditors)
+      for (m in allClientFileEditorManagers) {
+        result.addAll(m.getSelectedEditors())
+      }
+      return result
     }
-    return result
-  }
 
   override fun isFileOpen(file: VirtualFile): Boolean {
     if (!isCurrentlyUnderLocalId) {
@@ -337,9 +340,10 @@ internal class TestEditorManagerImpl(private val project: Project) : FileEditorM
 
   }
 
-  override fun getOpenFilesWithRemotes(): List<VirtualFile> {
-    return (openFiles.asSequence() + allClientFileEditorManagers.asSequence().flatMap { it.getAllFiles() }).toList()
-  }
+  override val openFilesWithRemotes: List<VirtualFile>
+    get() {
+      return (openFiles.asSequence() + allClientFileEditorManagers.asSequence().flatMap { it.getAllFiles() }).toList()
+    }
 
   override fun getSiblings(file: VirtualFile): List<VirtualFile> = throw UnsupportedOperationException()
 
@@ -385,63 +389,69 @@ internal class TestEditorManagerImpl(private val project: Project) : FileEditorM
     return true
   }
 
-  override fun getSelectedFiles(): Array<VirtualFile> {
-    if (!isCurrentlyUnderLocalId) {
-      val clientManager = clientFileEditorManager ?: return VirtualFile.EMPTY_ARRAY
-      return clientManager.getSelectedFiles().toTypedArray()
-    }
-    return arrayOf(activeFile ?: return VirtualFile.EMPTY_ARRAY)
-  }
-
-  override fun getSelectedEditors(): Array<FileEditor> {
-    if (!isCurrentlyUnderLocalId) {
-      return (clientFileEditorManager ?: return FileEditor.EMPTY_ARRAY).getSelectedEditors().toTypedArray()
-    }
-    return getEditors(activeFile ?: return FileEditor.EMPTY_ARRAY)
-  }
-
-  override fun getSelectedTextEditor(): Editor? {
-    if (!isCurrentlyUnderLocalId) {
-      return (clientFileEditorManager?.getSelectedEditor() as? TextEditor)?.editor
-    }
-    return IntentionPreviewUtils.getPreviewEditor() ?: getEditor(activeFile ?: return null)
-  }
-
-  @RequiresEdt(generateAssertion = false /* IJPL-115548 */)
-  override fun getSelectedTextEditorWithRemotes(): Array<Editor> {
-    val result = ArrayList<Editor>()
-    for (e in selectedEditorWithRemotes) {
-      if (e is TextEditor) {
-        result.add(e.editor)
+  override val selectedFiles: Array<VirtualFile>
+    get() {
+      if (!isCurrentlyUnderLocalId) {
+        val clientManager = clientFileEditorManager ?: return VirtualFile.EMPTY_ARRAY
+        return clientManager.getSelectedFiles().toTypedArray()
       }
+      return arrayOf(activeFile ?: return VirtualFile.EMPTY_ARRAY)
     }
-    return result.toTypedArray()
-  }
+
+  override val selectedEditors: Array<FileEditor>
+    get() {
+      if (!isCurrentlyUnderLocalId) {
+        return (clientFileEditorManager ?: return FileEditor.EMPTY_ARRAY).getSelectedEditors().toTypedArray()
+      }
+      return getEditors(activeFile ?: return FileEditor.EMPTY_ARRAY)
+    }
+
+  override val selectedTextEditor: Editor?
+    get() {
+      if (!isCurrentlyUnderLocalId) {
+        return (clientFileEditorManager?.getSelectedEditor() as? TextEditor)?.editor
+      }
+      return IntentionPreviewUtils.getPreviewEditor() ?: getEditor(activeFile ?: return null)
+    }
+
+  @get:RequiresEdt(generateAssertion = false /* IJPL-115548 */)
+  override val selectedTextEditorWithRemotes: Array<Editor>
+    get() {
+      val result = ArrayList<Editor>()
+      for (e in selectedEditorWithRemotes) {
+        if (e is TextEditor) {
+          result.add(e.editor)
+        }
+      }
+      return result.toTypedArray()
+    }
 
   override val component: JComponent?
     get() = null
 
-  override fun getOpenFiles(): Array<VirtualFile> {
-    if (!isCurrentlyUnderLocalId) {
-      return (clientFileEditorManager ?: return VirtualFile.EMPTY_ARRAY).getAllFiles().toTypedArray()
+  override val openFiles: Array<VirtualFile>
+    get() {
+      if (!isCurrentlyUnderLocalId) {
+        return (clientFileEditorManager ?: return VirtualFile.EMPTY_ARRAY).getAllFiles().toTypedArray()
+      }
+      return VfsUtilCore.toVirtualFileArray(virtualFileToEditor.keys)
     }
-    return VfsUtilCore.toVirtualFileArray(virtualFileToEditor.keys)
-  }
 
   fun getEditor(file: VirtualFile): Editor? = virtualFileToEditor.get(file)
 
-  override fun getAllEditors(): Array<FileEditor> {
-    val result = ArrayList<FileEditor>()
+  override val allEditors: Array<FileEditor>
+    get() {
+      val result = ArrayList<FileEditor>()
 
-    result += virtualFileToEditor.keys.mapNotNull {
-      testEditorSplitter.getEditorAndProvider(it)?.first
-    }
-    for (clientManager in allClientFileEditorManagers) {
-      result += clientManager.getAllEditors()
-    }
+      result += virtualFileToEditor.keys.mapNotNull {
+        testEditorSplitter.getEditorAndProvider(it)?.first
+      }
+      for (clientManager in allClientFileEditorManagers) {
+        result += clientManager.getAllEditors()
+      }
 
-    return result.toTypedArray()
-  }
+      return result.toTypedArray()
+    }
 
   private val allClientFileEditorManagers: List<ClientFileEditorManager>
     get() = project.getServices(ClientFileEditorManager::class.java, ClientKind.REMOTE)
@@ -493,8 +503,6 @@ internal class TestEditorManagerImpl(private val project: Project) : FileEditorM
   override fun openFileEditor(descriptor: FileEditorNavigatable, focusEditor: Boolean): List<FileEditor> {
     return doOpenFile(descriptor, options = FileEditorOpenOptions(requestFocus = focusEditor)).allEditors
   }
-
-  override fun getProject(): Project = project
 
   override val preferredFocusedComponent: JComponent?
     get() = null

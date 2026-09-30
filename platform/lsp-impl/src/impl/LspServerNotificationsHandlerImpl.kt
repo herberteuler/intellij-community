@@ -167,7 +167,7 @@ internal class LspServerNotificationsHandlerImpl(private val lspClient: LspClien
     }
 
     if (needsFoldingUpdate) {
-      for (fileEditor in FileEditorManager.getInstance(project).getAllEditors()) {
+      for (fileEditor in FileEditorManager.getInstance(project).allEditors) {
         if (fileEditor is TextEditor) {
           // Also calls `DaemonCodeAnalyzer.restart` internally
           CodeFoldingManager.getInstance(project).scheduleAsyncFoldingUpdate(fileEditor.editor)

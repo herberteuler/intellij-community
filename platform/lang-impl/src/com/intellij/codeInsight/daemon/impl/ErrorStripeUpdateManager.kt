@@ -46,7 +46,7 @@ class ErrorStripeUpdateManager(private val project: Project, private val corouti
   init {
     EP_NAME.addChangeListener(coroutineScope) {
       launchRepaintErrorStripePanel(
-        editors = FileEditorManager.getInstance(project).getAllEditors().mapNotNull { (it as? TextEditor)?.editor },
+        editors = FileEditorManager.getInstance(project).allEditors.mapNotNull { (it as? TextEditor)?.editor },
         getFileAsCached = true,
       )
     }
@@ -240,7 +240,7 @@ private class EssentialHighlightingModeListener : RegistryValueListener {
     for (project in ProjectManagerEx.getOpenProjects()) {
       HighlightingSettingsPerFile.getInstance(project).incModificationCount()
 
-      val allEditors = FileEditorManager.getInstance(project).getAllEditors()
+      val allEditors = FileEditorManager.getInstance(project).allEditors
       if (allEditors.isEmpty()) {
         return
       }

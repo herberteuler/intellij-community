@@ -206,7 +206,7 @@ private val LOG = logger<FileEditorManagerImpl>()
 @OptIn(ExperimentalCoroutinesApi::class)
 @State(name = "FileEditorManager", storages = [Storage(StoragePathMacros.PRODUCT_WORKSPACE_FILE)], getStateRequiresEdt = true)
 open class FileEditorManagerImpl(
-  private val project: Project,
+  override val project: Project,
   @JvmField protected val coroutineScope: CoroutineScope,
 ) : FileEditorManagerEx(), PersistentStateComponent<Element>, Disposable {
   private val dumbModeFinished = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_LATEST)
@@ -299,7 +299,7 @@ open class FileEditorManagerImpl(
 
   private val splitterFlow = MutableSharedFlow<EditorsSplitters>(replay = 1, onBufferOverflow = BufferOverflow.DROP_LATEST)
 
-  private val selectedEditorFlow: StateFlow<FileEditor?>
+  private val _selectedEditorFlow: StateFlow<FileEditor?>
 
   override val dockContainer: DockContainer?
     get() = dockable.value
@@ -307,6 +307,7 @@ open class FileEditorManagerImpl(
   private val creationStack = if (ApplicationManager.getApplication().isUnitTestMode) ExceptionUtil.currentStackTrace() else null
 
   init {
+    val project = project
     @Suppress("TestOnlyProblems")
     if (project is ProjectEx && project.isLight && FileEditorManagerKeys.ALLOW_IN_LIGHT_PROJECT.get(project) != true) {
       throw IllegalStateException("Using of FileEditorManagerImpl is forbidden for a light test. Creation stack: $creationStack")
@@ -377,7 +378,7 @@ open class FileEditorManagerImpl(
         .collect()
     }
 
-    selectedEditorFlow = selectionFlow
+    _selectedEditorFlow = selectionFlow
       .map { it?.fileEditorProvider?.fileEditor }
       .stateIn(coroutineScope, SharingStarted.Eagerly, null)
 
@@ -689,7 +690,7 @@ open class FileEditorManagerImpl(
   }
 
   override val preferredFocusedComponent: JComponent?
-    get() = selectedEditorFlow.value?.preferredFocusedComponent
+    get() = _selectedEditorFlow.value?.preferredFocusedComponent
 
   /**
    * @return color of the `file` which corresponds to the file's status
@@ -848,15 +849,16 @@ open class FileEditorManagerImpl(
 
   override fun hasOpenedFile(): Boolean = splitters.currentWindow?.selectedComposite != null
 
-  override fun getCurrentFile(): VirtualFile? {
-    if (!ClientId.isCurrentlyUnderLocalId) {
-      return clientFileEditorManager?.getSelectedFile()
+  override val currentFile: VirtualFile?
+    get() {
+      if (!ClientId.isCurrentlyUnderLocalId) {
+        return clientFileEditorManager?.getSelectedFile()
+      }
+      if (!initJob.isCompleted) {
+        return null
+      }
+      return getActiveSplitterSync().currentFile
     }
-    if (!initJob.isCompleted) {
-      return null
-    }
-    return getActiveSplitterSync().currentFile
-  }
 
   override val activeWindow: CompletableFuture<EditorWindow?>
     get() = getActiveSplittersAsync().asCompletableFuture().thenApply { it?.currentWindow }
@@ -1691,8 +1693,6 @@ open class FileEditorManagerImpl(
     return fileEditors to null
   }
 
-  override fun getProject(): Project = project
-
   override fun openTextEditor(descriptor: OpenFileDescriptor, focusEditor: Boolean): Editor? {
     val (fileEditors, selectedEditor) = openEditorImpl(descriptor = descriptor, focusEditor = focusEditor)
     if (fileEditors.isEmpty()) {
@@ -1724,33 +1724,36 @@ open class FileEditorManagerImpl(
     return target.editor
   }
 
-  override fun getSelectedEditorWithRemotes(): Collection<FileEditor> {
-    val editorList = getSelectedEditorList()
-    val editorManagerList = allClientFileEditorManagers
-    if (editorManagerList.isEmpty()) {
-      return editorList
-    }
-
-    val result = ArrayList<FileEditor>()
-    result.addAll(editorList)
-    for (m in editorManagerList) {
-      result.addAll(m.getSelectedEditors())
-    }
-    return result
-  }
-
-  @RequiresEdt(generateAssertion = false /* IJPL-115548 */)
-  override fun getSelectedTextEditorWithRemotes(): Array<Editor> {
-    val result = ArrayList<Editor>()
-    for (e in selectedEditorWithRemotes) {
-      if (e is TextEditor) {
-        result.add(e.editor)
+  override val selectedEditorWithRemotes: Collection<FileEditor>
+    get() {
+      val editorList = getSelectedEditorList()
+      val editorManagerList = allClientFileEditorManagers
+      if (editorManagerList.isEmpty()) {
+        return editorList
       }
-    }
-    return result.toTypedArray()
-  }
 
-  override fun getSelectedTextEditor(): Editor? = getSelectedTextEditor(isLockFree = false)
+      val result = ArrayList<FileEditor>()
+      result.addAll(editorList)
+      for (m in editorManagerList) {
+        result.addAll(m.getSelectedEditors())
+      }
+      return result
+    }
+
+  @get:RequiresEdt(generateAssertion = false /* IJPL-115548 */)
+  override val selectedTextEditorWithRemotes: Array<Editor>
+    get() {
+      val result = ArrayList<Editor>()
+      for (e in selectedEditorWithRemotes) {
+        if (e is TextEditor) {
+          result.add(e.editor)
+        }
+      }
+      return result.toTypedArray()
+    }
+
+  override val selectedTextEditor: Editor?
+    get() = getSelectedTextEditor(isLockFree = false)
 
   final override fun getSelectedTextEditor(isLockFree: Boolean): Editor? {
     if (!initJob.isCompleted) {
@@ -1780,7 +1783,8 @@ open class FileEditorManagerImpl(
     return openedComposites.any { it.file == file }
   }
 
-  override fun getOpenFiles(): Array<VirtualFile> = VfsUtilCore.toVirtualFileArray(openedFiles)
+  override val openFiles: Array<VirtualFile>
+    get() = VfsUtilCore.toVirtualFileArray(openedFiles)
 
   val openedFiles: List<VirtualFile>
     get() {
@@ -1803,13 +1807,14 @@ open class FileEditorManagerImpl(
       return files
     }
 
-  override fun getOpenFilesWithRemotes(): List<VirtualFile> {
-    val result = locallyOpenedFiles.toMutableList()
-    for (m in allClientFileEditorManagers) {
-      result.addAll(m.getAllFiles())
+  override val openFilesWithRemotes: List<VirtualFile>
+    get() {
+      val result = locallyOpenedFiles.toMutableList()
+      for (m in allClientFileEditorManagers) {
+        result.addAll(m.getAllFiles())
+      }
+      return result
     }
-    return result
-  }
 
   override fun hasOpenFiles(): Boolean {
     if (!ClientId.isCurrentlyUnderLocalId) {
@@ -1819,29 +1824,31 @@ open class FileEditorManagerImpl(
     return !openedCompositeEntries.isEmpty()
   }
 
-  override fun getSelectedFiles(): Array<VirtualFile> {
-    if (!initJob.isCompleted) {
-      return VirtualFile.EMPTY_ARRAY
-    }
-    if (!ClientId.isCurrentlyUnderLocalId) {
-      return (clientFileEditorManager ?: return VirtualFile.EMPTY_ARRAY).getSelectedFiles().toTypedArray()
-    }
-
-    val selectedFiles = LinkedHashSet<VirtualFile>()
-    val activeSplitters = splitters
-    selectedFiles.addAll(activeSplitters.selectedFiles)
-    for (each in getAllSplitters()) {
-      if (each !== activeSplitters) {
-        selectedFiles.addAll(each.selectedFiles)
+  override val selectedFiles: Array<VirtualFile>
+    get() {
+      if (!initJob.isCompleted) {
+        return VirtualFile.EMPTY_ARRAY
       }
-    }
-    return VfsUtilCore.toVirtualFileArray(selectedFiles)
-  }
+      if (!ClientId.isCurrentlyUnderLocalId) {
+        return (clientFileEditorManager ?: return VirtualFile.EMPTY_ARRAY).getSelectedFiles().toTypedArray()
+      }
 
-  override fun getSelectedEditors(): Array<FileEditor> {
-    val result = getSelectedEditorList()
-    return if (result.isEmpty()) FileEditor.EMPTY_ARRAY else result.toArray(FileEditor.EMPTY_ARRAY)
-  }
+      val selectedFiles = LinkedHashSet<VirtualFile>()
+      val activeSplitters = splitters
+      selectedFiles.addAll(activeSplitters.selectedFiles)
+      for (each in getAllSplitters()) {
+        if (each !== activeSplitters) {
+          selectedFiles.addAll(each.selectedFiles)
+        }
+      }
+      return VfsUtilCore.toVirtualFileArray(selectedFiles)
+    }
+
+  override val selectedEditors: Array<FileEditor>
+    get() {
+      val result = getSelectedEditorList()
+      return if (result.isEmpty()) FileEditor.EMPTY_ARRAY else result.toArray(FileEditor.EMPTY_ARRAY)
+    }
 
   private fun getSelectedEditorList(): Collection<FileEditor> {
     if (!initJob.isCompleted) {
@@ -1878,11 +1885,13 @@ open class FileEditorManagerImpl(
     return null
   }
 
-  override fun getSelectedEditor(): FileEditor? = getSelectedEditor { splitters }
+  override val selectedEditor: FileEditor?
+    get() = getSelectedEditor { splitters }
 
-  override fun getSelectedEditorFlow(): StateFlow<FileEditor?> {
-    return selectedEditorFlow
-  }
+  override val selectedEditorFlow: StateFlow<FileEditor?>
+    get() {
+      return _selectedEditorFlow
+    }
 
   @Internal
   fun getLastFocusedEditor(): FileEditor? = getSelectedEditor { getLastFocusedSplitters() ?: splitters }
@@ -1891,7 +1900,7 @@ open class FileEditorManagerImpl(
     return when {
       !ClientId.isCurrentlyUnderLocalId -> clientFileEditorManager?.getSelectedEditor()
       !initJob.isCompleted -> null
-      else -> splitters().currentWindow?.selectedComposite?.selectedEditor ?: super.getSelectedEditor()
+      else -> splitters().currentWindow?.selectedComposite?.selectedEditor ?: super.selectedEditor
     }
   }
 
@@ -1953,20 +1962,21 @@ open class FileEditorManagerImpl(
     }
   }
 
-  override fun getAllEditors(): Array<FileEditor> {
-    if (!initJob.isCompleted) {
-      return FileEditor.EMPTY_ARRAY
-    }
+  override val allEditors: Array<FileEditor>
+    get() {
+      if (!initJob.isCompleted) {
+        return FileEditor.EMPTY_ARRAY
+      }
 
-    val result = ArrayList<FileEditor>()
-    for (composite in openedComposites) {
-      result.addAll(composite.allEditors)
+      val result = ArrayList<FileEditor>()
+      for (composite in openedComposites) {
+        result.addAll(composite.allEditors)
+      }
+      for (clientManager in allClientFileEditorManagers) {
+        result.addAll(clientManager.getAllEditors())
+      }
+      return result.toTypedArray()
     }
-    for (clientManager in allClientFileEditorManagers) {
-      result.addAll(clientManager.getAllEditors())
-    }
-    return result.toTypedArray()
-  }
 
   final override suspend fun waitForTextEditors() {
     if (!initJob.isCompleted) {

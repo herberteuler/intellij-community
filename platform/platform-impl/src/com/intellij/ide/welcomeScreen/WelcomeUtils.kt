@@ -69,7 +69,7 @@ object WelcomeUtils {
   }
 
   private fun isNoUserDataOpened(manager: FileEditorManager): Boolean {
-    val editors = manager.getAllEditors()
+    val editors = manager.allEditors
     return editors.isEmpty() || editors.all { it.getFile() is HTMLVirtualFile }
   }
 

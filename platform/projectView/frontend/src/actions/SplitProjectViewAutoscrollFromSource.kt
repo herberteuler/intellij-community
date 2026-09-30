@@ -73,7 +73,7 @@ internal class SplitProjectViewAutoscrollFromSource(
         }
       }
       launch(CoroutineName("Selected editor")) {
-        FileEditorManagerEx.getInstanceEx(project).getSelectedEditorFlow().collectLatest {
+        FileEditorManagerEx.getInstanceEx(project).selectedEditorFlow.collectLatest {
           LOG.debug { "Scheduling Select Opened File because the selected editor has been changed" }
           autoscroll()
         }

@@ -78,7 +78,7 @@ fun reinitBreadcrumbsInAllEditors(project: Project, allClients: Boolean) {
 
   val fileEditorManager = FileEditorManager.getInstance(project)
   val above = isAbove()
-  val openFiles = if (allClients) fileEditorManager.getOpenFilesWithRemotes() else fileEditorManager.openFiles.toList()
+  val openFiles = if (allClients) fileEditorManager.openFilesWithRemotes else fileEditorManager.openFiles.toList()
   for (virtualFile in openFiles) {
     reinitBreadcrumbsComponent(fileEditorManager, virtualFile, above, allClients)
   }

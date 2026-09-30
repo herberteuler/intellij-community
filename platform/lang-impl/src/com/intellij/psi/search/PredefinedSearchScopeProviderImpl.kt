@@ -176,7 +176,7 @@ open class PredefinedSearchScopeProviderImpl : PredefinedSearchScopeProvider() {
         }
 
         val selectedTextEditor = withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-          FileEditorManager.getInstance(project).getSelectedTextEditor()
+          FileEditorManager.getInstance(project).selectedTextEditor
         }
 
         return readAction {
@@ -201,7 +201,7 @@ open class PredefinedSearchScopeProviderImpl : PredefinedSearchScopeProvider() {
         addCommonScopes(result, project, suggestSearchInLibs, dataContext, showEmptyScopes)
 
         val selectedTextEditor = if (ApplicationManager.getApplication().isDispatchThread())
-          FileEditorManager.getInstance(project).getSelectedTextEditor()
+          FileEditorManager.getInstance(project).selectedTextEditor
         else null
 
         val psiFile = selectedTextEditor?.let {
@@ -508,7 +508,7 @@ open class PredefinedSearchScopeProviderImpl : PredefinedSearchScopeProvider() {
         IdeDocumentHistory.getInstance(project).getChangedFiles()
       else
         JBIterable.from(EditorHistoryManager.getInstance(project).fileList)
-          .append(FileEditorManager.getInstance(project).getOpenFiles()).unique().toList()
+          .append(FileEditorManager.getInstance(project).openFiles).unique().toList()
 
       return if (files.isEmpty()) LocalSearchScope.EMPTY else GlobalSearchScope.filesScope(project, files, name)
     }

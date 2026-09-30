@@ -8,7 +8,8 @@ import com.intellij.openapi.editor.impl.experimental.EventGraphImpl
  * It is the only state the algorithm needs besides the document text.
  *
  * The graph is an immutable value. [append] and [mergeFrom] return a new graph and leave
- * this one untouched. Successive graphs share storage, so an append at the tip is cheap.
+ * this one untouched. Successive graphs share their storage, so an append is cheap, and an older
+ * graph appends as cheaply as the newest one.
  *
  * The storage is run-length encoded: one [Event] run of n characters costs one entry,
  * not n. An [append] that continues the newest run extends it, so typing costs one run per

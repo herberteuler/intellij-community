@@ -17,9 +17,8 @@ import com.intellij.tools.ide.metrics.benchmark.Benchmark
  * published time divided by it is the time of one pass. [pass] returns a checksum, and the checksum
  * goes to a volatile field, so the JIT cannot drop the work.
  *
- * [setup] runs once before every attempt, and the framework does not time it. A value that an
- * earlier pass extended no longer owns its store tip. So a scenario that needs a fresh value builds
- * it there, and runs one pass.
+ * [setup] runs once before every attempt, and the framework does not time it. A scenario builds
+ * its start value there, so that an attempt times only the work that follows.
  */
 internal fun benchmarkSubtest(name: String, passes: Int = 1, setup: () -> Unit = {}, pass: () -> Int) {
   val subtest = if (passes == 1) name else "$name, $passes passes"

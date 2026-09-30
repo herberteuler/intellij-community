@@ -10,7 +10,7 @@ package com.intellij.openapi.editor.impl.experimental
  * -1 marks "no unit" where a sentinel is needed.
  *
  * An LV is not a seq. A seq is the durable half of an event id and travels between graphs
- * unchanged, which is why [EventStore.lvOfSeq] has to translate one into the other.
+ * unchanged, which is why [AgentIndex.lvOfSeq] has to translate one into the other.
  */
 internal typealias LV = Int
 

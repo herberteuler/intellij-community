@@ -26,13 +26,6 @@ internal class VersionSummary(private val endSeqs: Map<Agent, Int>) {
     return endSeqs[agent] ?: 0
   }
 
-  /** This summary with the end seq of [agent] set to [endSeq]. This summary does not change. */
-  fun withEndSeq(agent: Agent, endSeq: Int): VersionSummary {
-    val copy = HashMap(endSeqs)
-    copy[agent] = endSeq
-    return VersionSummary(copy)
-  }
-
   override fun toString(): String {
     val listed = endSeqs.keys.sorted().joinToString { "$it:${endSeqs[it]}" }
     return "summary[$listed]"

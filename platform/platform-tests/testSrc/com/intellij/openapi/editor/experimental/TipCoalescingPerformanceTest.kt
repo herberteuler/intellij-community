@@ -60,10 +60,6 @@ class TipCoalescingPerformanceTest {
   /**
    * Two users type one session each, concurrently, over one base text, and then merge. The merge
    * replays only the concurrent region, and the region holds fewer runs when bursts coalesce.
-   *
-   * Every timed merge also copies the run prefix of the left history. A warm-up merge already took
-   * the store tip, and the merge must close the left tail into the store. That copy costs per run
-   * too, so it belongs in the gain, but it is not only the replay.
    */
   @Test
   fun `a merge of two concurrent typing sessions`() {

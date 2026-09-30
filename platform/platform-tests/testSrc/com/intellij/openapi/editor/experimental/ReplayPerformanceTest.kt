@@ -73,9 +73,7 @@ class ReplayPerformanceTest {
    *
    * The replay cost is fixed here: the concurrent region is two ops whatever the history
    * holds. So this row measures the id join, and a time that grows with the history says the
-   * join walks the whole history instead of the new part. Every timed merge also copies the
-   * run prefix, because a warm-up merge already took the store tip. That copy is linear in the
-   * history too.
+   * join walks the whole history instead of the new part.
    */
   @Test
   fun `a merge of one op over a growing history`() {
@@ -87,7 +85,7 @@ class ReplayPerformanceTest {
       val right = base.fork(agent("bbb")).applyOp(DocOp.ins(0, "R"))
       assertEquals(runs + 2, left.merge(right).text().length())
       println("  %-14s %10d".format("$runs runs", left.graph().runCount()))
-      benchmarkSubtest("merge of one op over $runs runs", ONE_OP_MERGE_RUN_PASSES / runs) {
+      benchmarkSubtest("merge of one op over $runs runs", ONE_OP_MERGE_PASSES) {
         left.merge(right).text().length()
       }
     }
@@ -95,8 +93,7 @@ class ReplayPerformanceTest {
 
   /**
    * A merge that brings NOTHING, over a history of growing size. This is the row that
-   * isolates the id join: the merge appends no run, so it never copies a store prefix, and
-   * every repeat measures the join alone.
+   * isolates the id join: the merge appends no run, so every repeat measures the join alone.
    *
    * A gossip protocol spends most of its merges here, because a replica usually has nothing
    * new to give. A time that grows with the history says the join walks the whole history to
@@ -176,13 +173,14 @@ class ReplayPerformanceTest {
 
     /**
      * The passes of one attempt, per scenario. Each count keeps an attempt at about 50 ms or
-     * more, because the framework reports whole milliseconds. A cost that grows with the paste
-     * or the history divides a budget by that size. So every row of a sweep takes a similar time.
+     * more, because the framework reports whole milliseconds. The paste merge divides a budget
+     * by the paste size, because its cost grows with it. So every row of that sweep takes a
+     * similar time.
      */
     private const val FRONT_PASSES_PER_RUN_UNIT = 4
     private const val APPEND_PASSES_PER_RUN_UNIT = 8
     private const val PASTE_MERGE_CHAR_PASSES = 2_000_000
-    private const val ONE_OP_MERGE_RUN_PASSES = 12_800_000
+    private const val ONE_OP_MERGE_PASSES = 100_000
     private const val EMPTY_MERGE_PASSES = 500_000
   }
 }

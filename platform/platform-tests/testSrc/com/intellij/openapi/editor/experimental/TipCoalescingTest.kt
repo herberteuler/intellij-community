@@ -180,7 +180,7 @@ class TipCoalescingTest {
 
   /**
    * A graph value keeps its newest run itself, so two siblings of one value extend that run
-   * each on their own. When a sibling closes the run into the shared store, the other one and
+   * each on their own. When a sibling closes the run into its trees, the other one and
    * the older value must not see it.
    */
   @Test
@@ -193,8 +193,7 @@ class TipCoalescingTest {
     assertEquals("abc", newer.replay().string())
     assertEquals("abC", sibling.replay().string())
 
-    // Each sibling closes its run. The first one closes it at the store tip, and the second
-    // one finds the tip taken and copies the prefix.
+    // Each sibling closes its run into its own trees, which share their older nodes.
     newer = newer.append(Event.createInsert(U, 3, 0, "N"), newer.version())
     sibling = sibling.append(Event.createInsert(U, 3, 0, "S"), sibling.version())
     assertEquals(2, newer.runCount())

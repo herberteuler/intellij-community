@@ -37,8 +37,7 @@ class DocBranchPerformanceTest {
    * ancestor over one lazily-split placeholder. Its remaining per-merge costs are two O(graph size)
    * arrays and the linear item scans over the region. The size ladder makes what remains visible.
    *
-   * One timed pass runs the whole scenario from a fresh base. So every merge starts from a value
-   * that owns its store tip, as it does in a real session. A pass takes a few milliseconds, so
+   * One timed pass runs the whole scenario from a fresh base. A pass takes a few milliseconds, so
    * one attempt runs [COLLABORATIVE_PASSES] of them.
    */
   @Test

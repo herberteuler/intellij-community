@@ -4,7 +4,7 @@ package com.intellij.openapi.editor.impl.experimental
 import com.intellij.openapi.editor.experimental.Event
 
 /**
- * What a merge of [other] into [dest] will append, worked out before any store is touched.
+ * What a merge of [other] into [dest] will append, worked out before anything is appended.
  *
  * The plan is what makes a merge ATOMIC. Building it reads both graphs and can reject, but
  * it changes nothing, so a rejected merge leaves no run behind. Applying it cannot reject.
@@ -14,9 +14,9 @@ import com.intellij.openapi.editor.experimental.Event
  * puts every parent in place before its child names it.
  *
  * [destStarts] is the part that needs explaining. A run of [other] may name a parent that the
- * plan itself is about to bring in, and no store holds it yet. So the plan reserves the lv of
- * every entry up front and answers such a parent from the reservation, arithmetically. That
- * also spares a store lookup for each parent inside the new region.
+ * plan itself is about to bring in, and [dest] does not hold it yet. So the plan reserves the lv
+ * of every entry up front and answers such a parent from the reservation, arithmetically. That
+ * also spares an index lookup for each parent inside the new region.
  */
 internal class MergePlan(
   private val dest: EventGraphImpl,

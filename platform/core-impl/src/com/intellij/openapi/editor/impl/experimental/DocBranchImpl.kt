@@ -31,10 +31,6 @@ import com.intellij.openapi.editor.impl.DocTextImpl
  *   `findByCurPos` restarts there whenever the target sits before the cached cursor. The
  *   list holds the walked region and not the document, so a merge stays cheap and a FULL
  *   replay is what this costs.
- * - A merge that starts from a value which is no longer the tip of its store copies the run
- *   prefix, which is linear in the history. See [EventStore]. An older value of the current
- *   typing burst shares the closed runs of the newest value. So when the older value closes
- *   its run first, it takes the tip, and the newest value pays the copy at its next close.
  */
 internal class DocBranchImpl private constructor(
   private val docText: DocText,

@@ -518,34 +518,33 @@ class EventGraphTest {
   }
 
   /**
-   * A sibling append copies the run prefix and REBUILDS the per-agent index, replaying every
-   * entry in lv order. The index now appends each entry to the end instead of sorting it in,
-   * so that replay is only correct while lv order and seq order agree per agent. A break
-   * would not throw: it would leave every binary search quietly wrong.
+   * Two siblings of one value append to the same per-agent index, and each must answer only for
+   * its own ids. The siblings share every node of the base, so an append that changed a shared
+   * node in place would let one sibling see the other's runs. A break would not throw: it would
+   * leave every search of the index quietly wrong.
    */
   @Test
-  fun `a sibling append rebuilds the id index`() {
+  fun `a sibling append keeps its own id index`() {
     val u = agent("u")
     val v = agent("v")
     var base = EventGraph.createGraph()
-    // Two agents interleave, so the rebuilt index has to keep each agent's entries in seq
-    // order while the runs themselves arrive interleaved in lv order.
+    // Two agents interleave, so each agent's runs sit in its own tree while the runs themselves
+    // arrive interleaved in lv order.
     repeat(10) { i ->
       base = base.append(Event.createInsert(u, i, 2 * i, "a"), base.version())
       base = base.append(Event.createInsert(v, i, 2 * i + 1, "B"), base.version())
     }
-    // The first append closes the newest run of base into the store, at its tip. The second
-    // finds the tip taken, so it copies the prefix, replays its 19 entries into a fresh
-    // index, and closes the run there.
+    // Both appends close the newest run of base into their own trees, and both give the id
+    // (u, 10) to a character of their own.
     val tip = base.append(Event.createInsert(u, 10, 20, "x"), base.version())
     var copied = base.append(Event.createInsert(u, 10, 20, "y"), base.version())
     assertEquals(21, tip.size())
     assertEquals(21, copied.size())
-    // A run of a third agent closes "y" into the copied store. So every question about u and v
-    // below reaches the rebuilt index, and the newest run answers none of them.
+    // A run of a third agent closes "y" into the trees. So every question about u and v below
+    // reaches the agent index, and the newest run answers none of them.
     copied = copied.append(Event.createInsert(agent("w"), 0, 21, "W"), copied.version())
 
-    // The rebuilt index answers every question an append and a merge ask of it.
+    // The index answers every question an append and a merge ask of it.
     assertEquals(23, copied.append(Event.createInsert(u, 11, 22, "z"), copied.version()).size())
     assertEquals(23, copied.append(Event.createInsert(v, 10, 22, "C"), copied.version()).size())
     for (seq in intArrayOf(0, 5, 10)) {

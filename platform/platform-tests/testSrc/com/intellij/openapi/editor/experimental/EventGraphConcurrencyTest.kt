@@ -15,17 +15,18 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Runs the event store's publication argument on several threads at once.
+ * Runs graph values on several threads at once.
  *
- * A graph is an immutable value, but successive values SHARE one mutable store: the run
- * array grows, the counters advance, and the per-agent index gains entries. The store's own
- * KDoc argues that a reader of a published value is safe anyway. Nothing had ever executed
- * that argument concurrently, and these tests do.
+ * A graph value is immutable, and successive values SHARE the nodes of their run trees and agent
+ * indexes: an append copies only the path it changes. So a value needs no lock, and a value that
+ * one thread reads must stay unchanged while another thread grows a newer value from it. These
+ * tests run that claim. They are the regression net for any structure that a later change makes
+ * mutable and shared.
  *
- * The newest run of a value is not in the store. It lives in the value, and an append that
- * extends it touches no shared state. The store receives the run only when an append that
- * does not continue it closes it. So a test that must reach the store either types in bursts
- * or inserts at the front, where no op continues the one before it.
+ * The newest run of a value is not in the trees. It lives in the value, and an append that
+ * extends it copies no node at all. The trees receive a run only when an append that does not
+ * continue it closes it. So a test that must reach the trees either types in bursts or inserts
+ * at the front, where no op continues the one before it.
  *
  * Every assertion here holds whatever the scheduling, so a failure is a real defect and not
  * a flake. The one thing the tests cannot control is how much the threads overlap, so each
@@ -33,19 +34,19 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * What these tests do NOT claim: that a document is thread safe. Two threads that apply an
  * op to ONE value under ONE agent both mint the same (agent, seq) and diverge. That breaks
- * the agent contract of [DocBranch], not the store, and no lock inside the store would fix
- * it. Each writer below therefore owns its own agent.
+ * the agent contract of [DocBranch], and no lock would fix it. Each writer below therefore owns
+ * its own agent.
  */
-class EventStoreConcurrencyTest {
+class EventGraphConcurrencyTest {
 
   /**
    * A writer appends while readers replay the values it publishes. A value is
    * self-describing: its text must equal a from-scratch replay of its own graph, so a reader
-   * needs no expectation from the writer. A torn store would break that, or fail a null
-   * check on a run slot.
+   * needs no expectation from the writer. A value that shared a node the writer changed would
+   * break that.
    *
    * The writer types in bursts. Inside a burst, a value differs from the one before only in
-   * its newest run. The first keystroke of each burst closes the run before it into the store.
+   * its newest run. The first keystroke of each burst closes the run before it into the trees.
    */
   @Test
   fun `a reader replays a published value while a writer appends`() {
@@ -63,7 +64,7 @@ class EventStoreConcurrencyTest {
         repeat(APPENDS) { op ->
           caret = if (op % BURST == 0) 0 else caret + 1
           branch = branch.applyOp(insertOp(caret, "x"))
-          // The queue publishes the value safely: a reader cannot see a half-built store.
+          // The queue hands the value over, and a value is complete once it is built.
           published.add(branch)
         }
         writing.set(false)
@@ -89,21 +90,21 @@ class EventStoreConcurrencyTest {
       // Every published value was polled by exactly one reader, so the counts must add up.
       // This is what keeps the test from passing without doing anything.
       assertEquals(APPENDS, readers.sumOf { it.await() })
-      // Each burst made one run: the writer coalesced, and the store grew.
+      // Each burst made one run: the writer coalesced, and the trees grew.
       assertEquals(APPENDS / BURST, written.graph().runCount())
     }
   }
 
   /**
-   * A reader holds an OLD value and replays it out of a graph that keeps growing over the
-   * same store. This is the harder read: the old version names lvs, and the graph that
-   * answers for them has a larger size and a run array that the writer may have replaced.
+   * A reader holds an OLD value and replays it out of the newer values that the writer grows
+   * from it. This is the harder read: the old version names lvs, and the graph that answers for
+   * them is a newer value, with a larger size and paths that the writer copied.
    *
    * The writer's first burst continues the run that the old value ends in. So the old version
-   * names a unit inside a run that keeps growing, and that run later closes into the store.
+   * names a unit inside a run that keeps growing, and that run later closes into the trees.
    */
   @Test
-  fun `a past version replays while the store grows`() {
+  fun `a past version replays while the graph grows`() {
     var start = DocBranch.createBranch("", agent("writer"))
     repeat(40) {
       start = start.applyOp(insertOp(start.length(), "o"))
@@ -118,7 +119,7 @@ class EventStoreConcurrencyTest {
       // A fixed pool creates its threads lazily, so without help the writer finishes its
       // whole run before a reader thread exists. The barrier gets everyone live, and the two
       // latches FENCE the append phase: the writer waits until every reader has read the
-      // small store, and waits again until every reader has read the grown one. So each
+      // small graph, and waits again until every reader has read the grown one. So each
       // reader is guaranteed to read both sides of the growth, and the reads in between race
       // with it.
       val ready = CyclicBarrier(READERS + 1)
@@ -182,10 +183,9 @@ class EventStoreConcurrencyTest {
   }
 
   /**
-   * Several writers that share one value all append at once. Exactly one wins the store
-   * tip; the others copy the run prefix, and [com.intellij.openapi.editor.impl.experimental.EventStore]
-   * does that copy WITHOUT the monitor while the winner is still mutating the array. That
-   * is the thinnest part of the safety argument, so this test aims straight at it.
+   * Several writers that share one value all append at once. Each writer grows its own value,
+   * and every value shares the nodes of the base. An append copies only the path it changes, so
+   * a writer that changed a shared node in place would corrupt the others. This test aims at that.
    *
    * Each writer owns an agent, so the agent contract holds and the histories are concurrent
    * rather than clashing. Every result must be self-consistent, and they must all converge.
@@ -194,13 +194,12 @@ class EventStoreConcurrencyTest {
   fun `writers that share one value keep valid histories and converge`() {
     withPool(WRITERS) { pool ->
       repeat(ROUNDS) { round ->
-        // The base size sweeps a range, so the run array crosses a capacity doubling inside
-        // the race window on many rounds. That replaces the array under a copy in flight,
-        // which is the worst case the store's argument has to survive.
+        // The base size sweeps a range, so on many rounds the writers fill the first leaf of the
+        // run tree inside the race window. That is the append that copies a node the base
+        // shares with every other writer.
         val baseOps = MIN_BASE_OPS + round % BASE_OPS_SWEEP
         val shared = baseOfRuns(baseOps)
-        // The barrier lines the writers up, so the first append of each one collides. The
-        // winner then keeps appending while the losers copy the prefix.
+        // The barrier lines the writers up, so their appends overlap.
         val barrier = CyclicBarrier(WRITERS)
         val results = List(WRITERS) { writer ->
           pool.submit<DocBranch> {
@@ -233,13 +232,12 @@ class EventStoreConcurrencyTest {
    * Several threads merge ONE value at the same time, each from a different concurrent edit
    * of it.
    *
-   * This is the test for the four SYNCHRONIZED query methods. The replay path never reaches
-   * them: it goes through the lock-free `runAt`. A merge reaches all four, so this is where
-   * `summarizeVersion`, `newRunStarts`, `lvOfSeq` and `nextSeq` meet a concurrent appender.
+   * This is the test for the queries that only a merge asks: `summarize`, `newRunStarts` and
+   * `lvOfUnit` of the agent index. The replay path never reaches them. Here every thread asks
+   * them of the same shared value, while the other threads grow values that share its nodes.
    *
    * A merge is legitimate here even on one value, because it mints no id of its own: it only
-   * imports the other side's. Each thread plans against the same immutable pair and then
-   * races for the store tip, so every thread but one also copies the run prefix.
+   * imports the other side's.
    */
   @Test
   fun `concurrent merges of one value all produce a consistent result`() {
@@ -247,15 +245,14 @@ class EventStoreConcurrencyTest {
       repeat(MERGE_ROUNDS) { round ->
         val baseOps = MIN_BASE_OPS + round % BASE_OPS_SWEEP
         val shared = baseOfRuns(baseOps)
-        // One concurrent edit per thread. Building these already moves the store tip away
-        // from `shared`, so every merge below has to copy the prefix.
+        // One concurrent edit per thread. Each source shares every node of `shared`.
         val sources = List(WRITERS) { i ->
           shared.fork(agent("s$i")).applyOp(insertOp(0, "$i"))
         }
         val barrier = CyclicBarrier(WRITERS)
-        // Every thread pulls EVERY source, each starting at its own index. So the threads
-        // hammer the store for several merges instead of one, and they reach the same union
-        // by different merge orders. Convergence and the races get tested together.
+        // Every thread pulls EVERY source, each starting at its own index. So every thread merges
+        // several times instead of once, and the threads reach the same union by different merge
+        // orders. Convergence and the races get tested together.
         val merged = List(WRITERS) { i ->
           pool.submit<DocBranch> {
             barrier.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -286,8 +283,8 @@ class EventStoreConcurrencyTest {
    * on one thread; this one adds the races.
    *
    * Each thread owns one replica and one agent, which is what the agent contract asks for.
-   * A thread reads a neighbour through an [AtomicReference], so the value is published safely
-   * while the neighbour keeps appending to a store they may share.
+   * A thread reads a neighbour through an [AtomicReference], while the neighbour keeps growing
+   * values that share nodes with the one it read.
    *
    * Two invariants, the same two the single-threaded fuzz uses: a replica's text always
    * equals a replay of its own graph, and a full sync brings every replica to one text.
@@ -340,8 +337,9 @@ class EventStoreConcurrencyTest {
 
   /**
    * Writers that share one value type in bursts, each under its own agent. A keystroke inside
-   * a burst extends the writer's own newest run and touches no shared state. The first keystroke
-   * of the next burst closes that run into the store, and there the writers race for the tip.
+   * a burst extends the writer's own newest run and copies no node. The first keystroke of the
+   * next burst closes that run into the writer's own trees, which share their older nodes with
+   * the other writers.
    *
    * Every past value of a writer must still replay to its text out of the writer's final
    * graph. That covers a version inside a run, both while the run grows and after it closes.
@@ -420,18 +418,18 @@ class EventStoreConcurrencyTest {
 
     /**
      * The keystrokes of one burst in the reader tests. A burst makes one run, and the next one
-     * closes it. So the writer still closes 300 runs into the store, and its run array crosses
-     * five capacity doublings while the readers read.
+     * closes it. So the writer closes 300 runs into its trees, and fills several leaves of the
+     * run tree while the readers read.
      */
     const val BURST = 2
 
     const val ROUNDS = 300
 
-    /** The base run count, and how far it sweeps, to cross a run-array capacity doubling. */
+    /** The base run count, and how far it sweeps, to cross the first full leaf of the run tree. */
     const val MIN_BASE_OPS = 24
     const val BASE_OPS_SWEEP = 24
 
-    /** Enough ops that the tip winner keeps appending while the losers copy the prefix. */
+    /** Enough ops that every writer closes several runs into its own trees. */
     const val OPS_PER_WRITER = 8
 
     const val MERGE_ROUNDS = 60

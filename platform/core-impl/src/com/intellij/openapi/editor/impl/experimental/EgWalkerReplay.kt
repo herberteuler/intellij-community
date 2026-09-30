@@ -21,10 +21,10 @@ package com.intellij.openapi.editor.impl.experimental
  * `effectPos` indexes the effect version. A bare `pos` names no document, so the code does
  * not use one.
  *
- * The walk is run-length encoded on both sides. One item covers a whole run, and the walk
- * consumes as much of a run as the version list holds. An item splits only where an op
- * needs a boundary inside it: a concurrent insert, a partial delete, or a partial retreat
- * or advance. Costs: the item list is scanned linearly, but from a cached cursor, so a
+ * The walk is run-length encoded on both sides. One item covers the units that one step
+ * applies, which is usually a whole run, and a step consumes as much of a run as the walk
+ * ranges hold. An item splits only where an op needs a boundary inside it: a concurrent
+ * insert, a partial delete, or a partial retreat or advance. Costs: the item list is scanned linearly, but from a cached cursor, so a
  * sequential run advances in place. The worst case stays quadratic in the NUMBER OF ITEMS
  * of the walked region, which is what the run-length encoding shrinks.
  */
@@ -59,9 +59,15 @@ internal object EgWalkerReplay {
    * the units at or below it are never replayed, and it splits lazily where the
    * region's ops land. A port of `mergeChangesIntoBranch` from the reference
    * implementation, with the paper's single-placeholder representation.
+   *
+   * Unlike the reference, every new unit must sit above every unit that only the branch holds.
+   * The walk visits the units of the branch first, and [DeleteTargets] takes its pieces in
+   * ascending lv order only. A merge that appended the other history to the graph of the branch
+   * always gives that order, and [checkNewAboveConflict] checks it.
    */
   fun mergeInto(graph: EventGraphImpl, branchVersion: VersionImpl, sink: Sink) {
     val conflict = graph.findConflicting(branchVersion.lvs, graph.versionImpl().lvs)
+    checkNewAboveConflict(conflict)
     // One span of placeholder units, at least as long as the document at the common
     // ancestor. The trailing extras sit after every reachable position, inert.
     val walker = ReplayWalker(graph, branchVersion.unitSpan())
@@ -71,5 +77,18 @@ internal object EgWalkerReplay {
     walker.walk(conflict.conflictRanges, sink = null)
     // The units only in the merged history are the new ones, so they report.
     walker.walk(conflict.newRanges, sink)
+  }
+
+  /**
+   * Fails unless every new unit sits above every conflict unit. Without this check, a new delete
+   * below a conflict delete would fail later in [DeleteTargets], with a message that names no cause.
+   */
+  private fun checkNewAboveConflict(conflict: EventGraphImpl.Conflict) {
+    val conflictRanges = conflict.conflictRanges
+    val newRanges = conflict.newRanges
+    require(conflictRanges.isEmpty() || newRanges.isEmpty() || newRanges.start(0) >= conflictRanges.end(conflictRanges.size() - 1)) {
+      "The new units $newRanges do not all sit above the units $conflictRanges of the branch. " +
+      "A merge into a branch must append the other history to the graph of that branch."
+    }
   }
 }

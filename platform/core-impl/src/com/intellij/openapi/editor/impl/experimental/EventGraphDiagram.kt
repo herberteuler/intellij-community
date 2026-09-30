@@ -87,7 +87,9 @@ internal object EventGraphDiagram {
       is DocOp.Insert -> "insert ${op.fragment().quotedForMessage()}"
       is DocOp.Delete -> "delete ${op.length()} ${if (op.length() == 1) "char" else "chars"}"
     }
-    return listOf(head, "offset ${op.offset()}", "lv ${lvs(run)}", "agent \"${event.agent()}\"")
+    // A name is free text, so it gets the quoting of a fragment: it can neither break the box nor
+    // widen it past the bound.
+    return listOf(head, "offset ${op.offset()}", "lv ${lvs(run)}", "agent ${event.agent().toString().quotedForMessage()}")
   }
 
   /** The lv range of [run]: one lv for a run of one unit, and `first..last` for a longer one. */
@@ -99,9 +101,11 @@ internal object EventGraphDiagram {
   /**
    * The [runs] placed in rows and columns, and the box art for them.
    *
-   * A run continues the column of its first parent when it is the first run to do so. Every
-   * other run takes a free column, which is what moves a second branch aside. A column stays
-   * reserved until the last run that descends from it, so two branches never share one.
+   * A run continues the column of its first parent when it is the first run to do so, and when
+   * no other child of that parent sits deeper. A deeper child needs the column for its line, so
+   * the run then takes a free column. Every other run takes a free column too, which is what
+   * moves a second branch aside. A column stays reserved until the deepest child of its runs, so
+   * two branches never share one.
    *
    * [runs] holds the run indexes to draw, ascending. Every array below indexes a SLOT in that
    * list and not a run of the graph, so a diagram of a trimmed history stays as small as what
@@ -209,7 +213,9 @@ internal object EventGraphDiagram {
         for (slot in rows[row]) {
           val first = parents[slot].firstOrNull() ?: NO_COLUMN
           val inherited = if (first == NO_COLUMN) NO_COLUMN else columns[first]
-          val column = if (inherited != NO_COLUMN && tips[inherited] == first) {
+          // A deeper child of the first parent draws its line down this column, so the run may
+          // take the column only when no such child exists.
+          val column = if (inherited != NO_COLUMN && tips[inherited] == first && deepestChild(first) == depths[slot]) {
             inherited
           } else {
             freeColumn(reserved, row, tips)
@@ -350,6 +356,9 @@ internal object EventGraphDiagram {
      * three: the lines that come down, the row that joins the columns, and the lines that go
      * on. The joining row is drawn from the four directions each position connects to, so
      * every corner and tee comes out right whatever the shape.
+     *
+     * A sideways line can pass a column that it does not join. The `│` of that column then stays
+     * whole and the sideways line breaks at it, so a crossing never looks like a `┼` join.
      */
     private fun appendConnector(text: StringBuilder, row: Int) {
       val below = row + 1
@@ -357,6 +366,8 @@ internal object EventGraphDiagram {
       val down = BooleanArray(widths.size)
       val left = BooleanArray(width)
       val right = BooleanArray(width)
+      // The columns that a sideways line starts or ends at. Every other column it passes is a crossing.
+      val joins = BooleanArray(widths.size)
       var joined = false
       for (slot in rows[below]) {
         for (parent in parents[slot]) {
@@ -368,6 +379,8 @@ internal object EventGraphDiagram {
           } else {
             down[to] = true
             joined = true
+            joins[from] = true
+            joins[to] = true
             for (x in minOf(middles[from], middles[to]) until maxOf(middles[from], middles[to])) {
               right[x] = true
               left[x + 1] = true
@@ -387,7 +400,7 @@ internal object EventGraphDiagram {
         return
       }
       text.append('\n').append(verticals(up, BooleanArray(widths.size) { true }))
-      text.append('\n').append(junction(up, down, left, right))
+      text.append('\n').append(junction(up, down, left, right, joins))
       text.append('\n').append(verticals(BooleanArray(widths.size) { true }, down))
     }
 
@@ -402,11 +415,18 @@ internal object EventGraphDiagram {
       return String(chars).trimEnd()
     }
 
-    /** The line that joins the columns, one character per connected direction. */
-    private fun junction(up: BooleanArray, down: BooleanArray, left: BooleanArray, right: BooleanArray): String {
+    /**
+     * The line that joins the columns, one character per connected direction. A column that a
+     * sideways line crosses but does not [joins] keeps its plain `│`.
+     */
+    private fun junction(up: BooleanArray, down: BooleanArray, left: BooleanArray, right: BooleanArray, joins: BooleanArray): String {
       val chars = CharArray(width) { ' ' }
       for (x in 0 until width) {
         val column = widths.indices.firstOrNull { middles[it] == x }
+        if (column != null && !joins[column] && up[column] && down[column]) {
+          chars[x] = '│'
+          continue
+        }
         val mask = (if (column != null && up[column]) 8 else 0) or
                    (if (column != null && down[column]) 4 else 0) or
                    (if (left[x]) 2 else 0) or

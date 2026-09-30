@@ -23,6 +23,14 @@ internal class StoredRun(
     return lvStart + event.length()
   }
 
+  /** The index inside this run of the unit [lv], which this run must hold. */
+  fun unitIndexOf(lv: LV): Int {
+    require(lv in lvStart until lvEnd()) {
+      "The lv $lv is outside the run $this"
+    }
+    return lv - lvStart
+  }
+
   /** The first seq after the last unit. */
   fun endSeq(): Int {
     return event.seq() + event.length()

@@ -233,7 +233,7 @@ class EventGraphConcurrencyTest {
    * of it.
    *
    * This is the test for the queries that only a merge asks: `summarize`, `newRunStarts` and
-   * `lvOfUnit` of the agent index. The replay path never reaches them. Here every thread asks
+   * `lvOfSeq` of the agent index. The replay path never reaches them. Here every thread asks
    * them of the same shared value, while the other threads grow values that share its nodes.
    *
    * A merge is legitimate here even on one value, because it mints no id of its own: it only

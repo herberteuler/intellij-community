@@ -41,7 +41,8 @@ interface EventGraph {
    * - [parents] names the last unit of the run and nothing else;
    * - it has the same kind of op, and the op starts where the next unit of the run would
    *   edit: at the end of an insert, or at the offset of a delete;
-   * - an insert run stays within [MAX_COALESCED_INSERT] characters.
+   * - an insert run stays within [MAX_COALESCED_INSERT] characters;
+   * - a delete run stays within the offset space, so its offset plus its length fits an `Int`.
    *
    * The units, their ids, and their parents are the same either way, so only [runCount] shows
    * the difference. A backspace does not continue a delete run, because its units walk
@@ -55,7 +56,8 @@ interface EventGraph {
    * holds only the leading units of a run, the rest of the run is appended.
    *
    * The cost is the size of the CHANGE. The two graphs compare one integer per agent, so a
-   * merge never reads a run that both of them already hold.
+   * merge never walks the history they share. It reads only a few shared units per agent for
+   * the id check, and one run for each parent of a new run.
    *
    * Throws [EventIdClashException] when the two graphs give one id to two operations.
    */

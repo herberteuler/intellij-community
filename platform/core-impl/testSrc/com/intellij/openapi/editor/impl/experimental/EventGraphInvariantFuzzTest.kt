@@ -8,6 +8,8 @@ import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
 import com.intellij.openapi.editor.experimental.Version
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Random
 
@@ -81,6 +83,16 @@ internal class EventGraphInvariantFuzzTest {
       checkGraph(backward) { "round $round, the backward sync" }
       assertEquals(forward.replay().string(), backward.replay().string()) { "round $round" }
     }
+  }
+
+  /** The check must be able to fail. [EventGraph.append] leaves the reduction of parents to its caller. */
+  @Test
+  fun `the invariant check rejects parents that are not reduced`() {
+    val graph = EventGraph.createGraph()
+      .append(Event.createInsert(Agent.createAgent("u"), 0, 0, "ab"), Version.root())
+      .append(Event.createInsert(Agent.createAgent("v"), 0, 1, "x"), Version.of(0, 1))
+    val failure = assertThrows(IllegalArgumentException::class.java) { EventGraphImpl.implOf(graph).checkInvariants() }
+    assertTrue(failure.message!!.contains("not reduced"), failure.message)
   }
 
   private fun checkGraph(graph: EventGraph, where: () -> String) {

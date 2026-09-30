@@ -78,7 +78,10 @@ internal class Item(
 
   fun startsBefore(unit: LV): Boolean = lv < unit
 
-  /** Takes the span back out of the prepare version: one delete, or the insert itself. */
+  /**
+   * Takes one op of the prepare version back. The retreat of an insert makes the span not inserted,
+   * and the retreat of a delete takes one delete off it, which can make it inserted again.
+   */
   fun retreat(isDelete: Boolean) {
     if (isDelete) {
       require(prepareState >= DELETED) {
@@ -96,7 +99,10 @@ internal class Item(
     }
   }
 
-  /** Puts the span back into the prepare version: one delete, or the insert itself. */
+  /**
+   * Applies one op to the prepare version again. The advance of an insert makes the span inserted,
+   * and the advance of a delete adds one delete to it.
+   */
   fun advance(isDelete: Boolean) {
     if (isDelete) {
       require(prepareState >= INSERTED) {

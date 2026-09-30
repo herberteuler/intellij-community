@@ -433,7 +433,7 @@ class DocBranchTest {
     val base = DocBranch.createBranch("ab", agent("a"))
     val first = base.applyOp(insertOp(0, "X"))
     val second = base.applyOp(insertOp(2, "Y"))
-    // Both values are usable; the shared storage copies on the divergence.
+    // Both values are usable, and each one appends to its own trees.
     // They must not merge with each other: one agent edited both, which the contract forbids.
     assertEquals("ab", base.string())
     assertEquals("Xab", first.string())
@@ -505,8 +505,8 @@ class DocBranchTest {
 
   @Test
   fun `a concurrent insert survives a delete run over the whole region`() {
-    // The delete run consumes six placeholder units one by one, so the merge splits
-    // the single placeholder span again and again.
+    // The delete run consumes six placeholder units, so the merge splits the single placeholder
+    // span, and the delete takes the six units as one piece.
     val base = DocBranch.createBranch("abcdefghij", agent("a"))
     val a = base.applyOp(deleteOp(2, 6)) // removes "cdefgh" -> "abij"
     val b = base.fork(agent("b"))

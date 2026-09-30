@@ -29,6 +29,7 @@ internal class EventImpl(
   override fun length(): Int = op.length()
 
   override fun offsetOfUnit(index: Int): Int {
+    checkUnitIndex(index)
     return when (op) {
       is DocOp.Insert -> op.offset() + index
       is DocOp.Delete -> op.offset()
@@ -36,6 +37,7 @@ internal class EventImpl(
   }
 
   override fun suffixFrom(units: Int): Event {
+    checkUnitIndex(units)
     if (units == 0) {
       return this
     }
@@ -50,6 +52,13 @@ internal class EventImpl(
         DocOp.ins(op.offset() + units, fragment.subSequence(units, fragment.length))
       }
       is DocOp.Delete -> DocOp.del(op.offset(), op.length() - units)
+    }
+  }
+
+  /** Fails unless [index] names a unit of this run. A suffix from the end would be empty. */
+  private fun checkUnitIndex(index: Int) {
+    require(index in 0 until length()) {
+      "The unit index $index is outside the run of length ${length()}"
     }
   }
 

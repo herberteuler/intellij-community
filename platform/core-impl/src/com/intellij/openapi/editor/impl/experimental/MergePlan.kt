@@ -117,7 +117,7 @@ internal class MergePlan(
     val entry = newStarts.binarySearch(run.lvStart)
     val destStart = if (entry >= 0) destStarts[entry] else NO_UNIT
     checkRemapped(destStart, otherLv)
-    return destStart + (otherLv - run.lvStart - knownUnits(event))
+    return destStart + (run.unitIndexOf(otherLv) - knownUnits(event))
   }
 
   private fun checkRemapped(lv: LV, otherLv: LV) {

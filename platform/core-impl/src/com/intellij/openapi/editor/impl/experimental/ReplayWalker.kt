@@ -9,7 +9,8 @@ import java.util.TreeMap
  * walk that drives it. See [EgWalkerReplay] for the algorithm and the port conventions.
  *
  * The walker is temporary and single use: the caller runs one replay and discards it. The
- * maps hold only the units the walk touches, so the state costs O(region), not O(graph).
+ * item list, the item map and the delete targets hold only the units the walk touches, so the
+ * state costs O(region), not O(graph).
  */
 internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount: Int) {
 
@@ -62,11 +63,8 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   // ------------------------------------------------------------------------------- the two walks
 
   /**
-   * Starts the prepare version at [ancestor], which the walk never moves below.
-   *
-   * This takes a [VersionImpl] and not a [Frontier], although the walk keeps a frontier.
-   * The caller has an [EventGraphImpl.Conflict] in hand, whose other two fields are ranges
-   * of units, and a real type is what stops one of those reaching here by mistake.
+   * Starts the prepare version at [ancestor], which the walk never moves below. It takes a
+   * [VersionImpl] and not a raw [Frontier], so only a checked version can reach it.
    */
   fun startAt(ancestor: VersionImpl) {
     curVersion = ancestor.lvs
@@ -93,8 +91,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /**
-   * The first lv at or after [from] that the walk takes, or -1 when none is left. A past version
-   * leaves out whole regions, so the walk jumps over them and does not step through them.
+   * The first lv at or after [from] that the walk takes. A value outside `[0, size)` means none is
+   * left. A past version leaves out whole regions, so the walk jumps over them and does not step
+   * through them.
    */
   private fun nextToWalk(subset: BitSet?, from: LV): LV {
     return subset?.nextSetBit(from) ?: from
@@ -184,8 +183,8 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * An insert unit changes itself, and an item holds the units of one insert run, so the batch
    * ends where the item ends. A delete unit changes the unit it deleted, so the batch also ends
    * where its piece of [DeleteTargets] ends: past it, the targets stop being consecutive. The item
-   * end implies that bound today, because [applyDelete] splits the item at the ends of each
-   * piece, and an item never grows. The bound keeps the batch right without that fact.
+   * end implies that bound today. [applyDelete] splits the item at the ends of each part that one
+   * item gives a piece, and an item never grows. The bound keeps the batch right without that fact.
    */
   private fun advanceBatchFrom(lv: LV, end: LV): LV {
     val isDelete = graph.isDeleteAt(lv)
@@ -301,10 +300,10 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   /**
    * Inserts [count] units of [run] from [lv] as one span at [offset], the offset the run recorded.
    *
-   * Only the first unit of a run needs the Fugue integration. A later unit lands right
+   * Only the first unit of the span needs the Fugue integration. A later unit lands right
    * after the one before it, because its left origin is that unit and no other item can
    * name it yet: the walk visits the units in one go, with no retreat or advance between
-   * them. So the span carries the first unit's origins.
+   * them. So the span carries the origins of its first unit.
    */
   private fun applyInsert(run: StoredRun, lv: LV, count: Int, offset: Int) {
     val cursor = findByCurPos(offset)

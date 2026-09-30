@@ -136,6 +136,41 @@ class DocMergeTest {
   }
 
   @Test
+  fun `a merge that changes no text can still have ops`() {
+    // The other side typed at both ends and took both back, so the text ends where it started.
+    // The two inserts do not meet, so no join cancels them.
+    val base = DocBranch.createBranch("hello", agent("base"))
+    val b = base.fork(agent("b"))
+      .applyOp(insertOp(0, "X")).applyOp(insertOp(6, "Y"))
+      .applyOp(deleteOp(0, 1)).applyOp(deleteOp(5, 1))
+    val forward = base.mergeWithOps(b)
+    assertEquals("hello", forward.branch().string())
+    assertEquals(listOf("ins(0, \"X\")", "ins(6, \"Y\")", "del(0, len=1)", "del(5, len=1)"), forward.ops().map { it.toString() })
+    val a = base.fork(agent("a")).applyOp(insertOp(5, "!"))
+    val concurrent = a.mergeWithOps(b)
+    assertEquals(a.string(), concurrent.branch().string())
+    assertEquals(4, concurrent.ops().size)
+    assertEquals(a.string(), a.text().afterOps(concurrent.ops()).string())
+  }
+
+  /**
+   * One agent minted (b, 1) twice, as "M" and as "N". The id check samples only the ends of the
+   * shared range, (b, 0) and (b, 2), so the merge misses the clash and fast-forwards to a text
+   * that its own graph does not replay to. The ops must then fail, and not hand an editor a text
+   * that differs from the branch.
+   */
+  @Test
+  fun `the ops of a fast-forward fail when a missed clash breaks the fold`() {
+    val base = DocBranch.createBranch("abc", agent("a"))
+    val x = base.fork(agent("b")).applyOp(insertOp(0, "X")).applyOp(insertOp(4, "M")).applyOp(insertOp(0, "Z"))
+    val y = base.fork(agent("b")).applyOp(insertOp(0, "X")).applyOp(insertOp(1, "N")).applyOp(insertOp(0, "Z"))
+    val merge = x.mergeWithOps(y.fork(agent("c")).applyOp(insertOp(0, "W")))
+    assertEquals("WZXNabc", merge.branch().string())
+    val failure = assertThrows(IllegalArgumentException::class.java) { merge.ops() }
+    assertTrue(failure.message!!.contains("another text than the merged text"), failure.message)
+  }
+
+  @Test
   fun `a merge returns the branch of mergeWithOps`() {
     val base = DocBranch.createBranch("abc", agent("a"))
     val a = base.applyOp(insertOp(0, "1"))

@@ -32,7 +32,8 @@ interface Event {
   fun length(): Int
 
   /**
-   * The offset that the unit [index] of this run edits, in the parent-version document.
+   * The offset that the unit [index] of this run edits, in the document at the parents of that
+   * unit. [index] must be in `[0, length)`.
    *
    * An insert walks forward, because every character it adds shifts the next one right.
    * A delete stays in place, because every removal shifts the next character into it.
@@ -41,8 +42,8 @@ interface Event {
 
   /**
    * The part of this run from the unit [units] onward, as an event of its own. A merge
-   * needs it when the other replica holds only the leading units of the run. A zero
-   * [units] returns this event.
+   * needs it when the other replica holds only the leading units of the run. [units] must be
+   * in `[0, length)`, and a zero [units] returns this event.
    */
   fun suffixFrom(units: Int): Event
 

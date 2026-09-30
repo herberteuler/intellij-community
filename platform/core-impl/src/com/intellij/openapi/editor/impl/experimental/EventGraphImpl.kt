@@ -68,7 +68,7 @@ internal class EventGraphImpl private constructor(
 
   override fun replay(version: Version): DocText {
     val versionImpl = VersionImpl.implOf(version)
-    checkVersionOfThisGraph(versionImpl)
+    checkVersionFits(versionImpl)
     val text = StringBuilder()
     EgWalkerReplay.replay(this, versionImpl, StringBuilderSink(text))
     return DocText.createText(text)
@@ -85,8 +85,8 @@ internal class EventGraphImpl private constructor(
 
   // --------------------------------------------------- what this graph knows, by event id
   //
-  // Each of these asks the tail first, then the agent index. Both belong to this value alone, so
-  // a graph answers only for itself, and no query needs a limit.
+  // Each of these combines the tail with the agent index. Both belong to this value alone, so a
+  // graph answers only for itself.
 
   /**
    * The next free seq of [agent] in this graph. The tail is the newest run, and the seqs of
@@ -132,8 +132,9 @@ internal class EventGraphImpl private constructor(
    * a local edit, so it extends the tail when it continues it.
    *
    * The cost is the size of the CHANGE, not the size of either history. A [VersionSummary]
-   * holds one integer per agent, so the two graphs compare their histories without reading
-   * a run, and only the runs that go past this graph are ever loaded.
+   * holds one integer per agent, so the two graphs compare their histories without a walk of
+   * the history they share. The id check reads a few shared units per agent, the plan reads one
+   * run for each parent of a new run, and only the runs that go past this graph are loaded.
    *
    * The merge is ATOMIC. It plans every new run first, and only then appends, so a rejected
    * merge fails before the first append, and by then no append can fail. The values are
@@ -141,8 +142,8 @@ internal class EventGraphImpl private constructor(
    */
   fun mergeFromImpl(other: EventGraphImpl): MergeResult {
     // The delta: what this graph knows, then only the runs of the other graph that go past
-    // it. Neither step reads a run the two graphs share, so a merge costs the CHANGE and not
-    // the session. The reference does this with summarizeVersion and intersectWithSummary.
+    // it. Neither step walks the history the two graphs share, so a merge costs the CHANGE and
+    // not the session. The reference does this with summarizeVersion and intersectWithSummary.
     val summary = summarize()
     checkSharedIds(other, summary)
     val plan = MergePlan(this, other, summary)
@@ -161,8 +162,8 @@ internal class EventGraphImpl private constructor(
    * only [runCount] can tell the two apart.
    */
   private fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
-    checkVersionOfThisGraph(parents)
-    checkLvSpace(event.length(), size)
+    checkVersionFits(parents)
+    checkLvSpace(event.length())
     checkNextSeq(event)
     val newSize = size + event.length()
     val newVersion = version.advancedBy(parents, newSize - 1)
@@ -565,9 +566,13 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  private fun checkVersionOfThisGraph(version: VersionImpl) {
+  /**
+   * Fails when [version] names an lv that this graph does not have. That is all an lv version can
+   * tell: a version of another graph with small enough lvs passes, and names other units here.
+   */
+  private fun checkVersionFits(version: VersionImpl) {
     require(version.unitSpan() <= size) {
-      "The version $version does not belong to a graph of size $size"
+      "The version $version does not fit a graph of size $size"
     }
   }
 
@@ -588,15 +593,10 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  /**
-   * Fails when a run of [length] units cannot fit after [atSize] units.
-   *
-   * [atSize] is a parameter and not [size], because a merge checks the whole plan before it
-   * appends anything, and the plan grows a virtual size.
-   */
-  private fun checkLvSpace(length: Int, atSize: Int) {
-    require(length <= Int.MAX_VALUE - atSize) {
-      "The graph unit space overflows: size $atSize + run length $length"
+  /** Fails when a run of [length] units cannot fit after the units of this graph. */
+  private fun checkLvSpace(length: Int) {
+    require(length <= Int.MAX_VALUE - size) {
+      "The graph unit space overflows: size $size + run length $length"
     }
   }
 

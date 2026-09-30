@@ -17,8 +17,8 @@ import java.util.Collections
  * The value is a triple: the [graph] that records the history, the [agent] that authors
  * new events, and the [docText] that holds the materialized text. [text] returns [docText]
  * as is, so the text and the line data behave exactly like [DocTextImpl]. A local
- * [applyOp] appends events at the graph's frontier and edits [docText] directly; the
- * Eg-walker replay runs only inside [merge].
+ * [applyOp] appends events at the graph's frontier and edits [docText] directly. The
+ * Eg-walker replay runs only inside [merge], and in the ops of a fast-forward.
  *
  * A merge with concurrent history replays only the region above the common ancestor
  * (the paper's partial replay): one lazily-split placeholder item stands in for the
@@ -82,15 +82,17 @@ internal class DocBranchImpl private constructor(
     val merged = result.graph
     if (result.isFastForward()) {
       // This branch's history is inside the other branch's history, so its text is ready. The ops
-      // would cost a replay of the change, so they wait until a caller asks for them.
-      val branch = DocBranchImpl(otherImpl.docText, agent, merged)
+      // would cost a replay of the change, so they wait until a caller asks for them. The lambda
+      // takes the text and not the other branch, so it does not keep the other graph alive.
+      val text = otherImpl.docText
+      val branch = DocBranchImpl(text, agent, merged)
       return DocMergeImpl.deferred(branch) {
-        opsOfFastForward(merged, otherImpl.docText)
+        opsOfFastForward(merged, text)
       }
     }
     // A partial replay: only the region above the common ancestor is walked, and only the new
     // units reach the sink, batched into ordinary ops over the text.
-    val sink = replayOnto(merged)
+    val sink = replayOnto(merged, docText)
     return DocMergeImpl.ready(DocBranchImpl(sink.result(), agent, merged), sink.ops())
   }
 
@@ -125,28 +127,39 @@ internal class DocBranchImpl private constructor(
   }
 
   /**
-   * The text of this branch, with everything that [merged] holds beyond this branch applied, in a
-   * sink that recorded the ops. [merged] must come from a merge into this branch, so the lvs of this
-   * branch name the same units there.
+   * [start], which holds the text of this branch, with everything that [merged] holds beyond this
+   * branch applied, in a sink that recorded the ops. [merged] must come from a merge into this
+   * branch, so the lvs of this branch name the same units there.
    */
-  private fun replayOnto(merged: EventGraphImpl): BatchingSink {
-    val sink = BatchingSink(docText)
+  private fun replayOnto(merged: EventGraphImpl, start: DocText): BatchingSink {
+    val sink = BatchingSink(start)
     EgWalkerReplay.mergeInto(merged, graph.versionImpl(), sink)
     return sink
   }
 
   /**
-   * The ops of a fast-forward to [merged], whose text is [expected]. The replay walks only the
-   * units above this branch, so it costs the change. A replay that ends at another length would
-   * hand an editor ops for a text the branch does not have, so that fails here.
+   * The ops of a fast-forward to [merged], whose text is [expected]. The replay walks the units that
+   * [merged] holds beyond this branch, so it costs the change plus one compare of the text.
+   *
+   * The replay starts from a text without line data, because nothing reads the line data of its
+   * result. With line data, each op would copy the line arrays of the whole document.
    */
   private fun opsOfFastForward(merged: EventGraphImpl, expected: DocText): List<DocOp> {
-    val sink = replayOnto(merged)
-    val replayed = sink.result()
-    require(replayed.length() == expected.length()) {
-      "The ops of a fast-forward build a text of length ${replayed.length()}, but the merged text has ${expected.length()}"
-    }
+    val sink = replayOnto(merged, DocText.createText(docText.chars()))
+    checkFoldsInto(sink.result(), expected)
     return sink.ops()
+  }
+
+  /**
+   * Fails unless the ops of a fast-forward build [expected]. Otherwise an editor that applies them
+   * would hold another text than the branch, and nothing would say so. It happens when two branches
+   * gave one event id to two operations inside a shared range, where the id check does not sample.
+   */
+  private fun checkFoldsInto(replayed: DocText, expected: DocText) {
+    require(replayed.chars().contentEquals(expected.chars())) {
+      "The ops of a fast-forward build another text than the merged text. Two branches gave one event id " +
+      "to two operations, and the id check of the merge did not sample it."
+    }
   }
 
   override fun toString(): String {

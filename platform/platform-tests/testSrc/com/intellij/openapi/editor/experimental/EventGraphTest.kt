@@ -536,28 +536,28 @@ class EventGraphTest {
     }
     // Both appends close the newest run of base into their own trees, and both give the id
     // (u, 10) to a character of their own.
-    val tip = base.append(Event.createInsert(u, 10, 20, "x"), base.version())
-    var copied = base.append(Event.createInsert(u, 10, 20, "y"), base.version())
-    assertEquals(21, tip.size())
-    assertEquals(21, copied.size())
+    val first = base.append(Event.createInsert(u, 10, 20, "x"), base.version())
+    var second = base.append(Event.createInsert(u, 10, 20, "y"), base.version())
+    assertEquals(21, first.size())
+    assertEquals(21, second.size())
     // A run of a third agent closes "y" into the trees. So every question about u and v below
     // reaches the agent index, and the newest run answers none of them.
-    copied = copied.append(Event.createInsert(agent("w"), 0, 21, "W"), copied.version())
+    second = second.append(Event.createInsert(agent("w"), 0, 21, "W"), second.version())
 
     // The index answers every question an append and a merge ask of it.
-    assertEquals(23, copied.append(Event.createInsert(u, 11, 22, "z"), copied.version()).size())
-    assertEquals(23, copied.append(Event.createInsert(v, 10, 22, "C"), copied.version()).size())
+    assertEquals(23, second.append(Event.createInsert(u, 11, 22, "z"), second.version()).size())
+    assertEquals(23, second.append(Event.createInsert(v, 10, 22, "C"), second.version()).size())
     for (seq in intArrayOf(0, 5, 10)) {
       assertThrows(
         IllegalArgumentException::class.java,
-        { copied.append(Event.createInsert(u, seq, 22, "z"), copied.version()) },
+        { second.append(Event.createInsert(u, seq, 22, "z"), second.version()) },
         "seq $seq",
       )
     }
     // The two siblings gave the id (u, 10) to different characters. That sits at the LAST
     // shared seq, which is the end the check samples.
-    assertThrows(IllegalArgumentException::class.java) { tip.mergeFrom(copied) }
-    assertThrows(IllegalArgumentException::class.java) { copied.mergeFrom(tip) }
+    assertThrows(IllegalArgumentException::class.java) { first.mergeFrom(second) }
+    assertThrows(IllegalArgumentException::class.java) { second.mergeFrom(first) }
   }
 
   @Test
@@ -722,6 +722,67 @@ class EventGraphTest {
     val clash = assertThrows(EventIdClashException::class.java) { one.mergeFrom(clashing) }
     assertEquals(w, clash.agent())
     assertThrows(EventIdClashException::class.java) { clashing.mergeFrom(one) }
+  }
+
+  @Test
+  fun `a version that names the greatest int lv is rejected`() {
+    // No graph holds that lv, and the span of such a version would overflow.
+    assertThrows(IllegalArgumentException::class.java) { Version.of(Int.MAX_VALUE) }
+    assertThrows(IllegalArgumentException::class.java) { Version.of(0, Int.MAX_VALUE) }
+    Version.of(Int.MAX_VALUE - 1)
+  }
+
+  @Test
+  fun `a unit index outside the event is rejected`() {
+    val delete = Event.createDelete(agent("u"), 5, 3, 2)
+    val insert = Event.createInsert(agent("u"), 0, 0, "ab")
+    for (index in intArrayOf(-1, 2, 3)) {
+      assertThrows(IllegalArgumentException::class.java, { delete.suffixFrom(index) }, "delete suffix $index")
+      assertThrows(IllegalArgumentException::class.java, { insert.suffixFrom(index) }, "insert suffix $index")
+      assertThrows(IllegalArgumentException::class.java, { delete.offsetOfUnit(index) }, "delete offset $index")
+      assertThrows(IllegalArgumentException::class.java, { insert.offsetOfUnit(index) }, "insert offset $index")
+    }
+    assertEquals("del(3, len=1) by u, seq 6", delete.suffixFrom(1).toString())
+    assertEquals(1, insert.offsetOfUnit(1))
+  }
+
+  @Test
+  fun `a merge remaps a parent in the middle of an unknown suffix to its own unit`() {
+    // The destination knows "ab" of the run "abcdef". The run of v names "c" as its parent, which
+    // sits inside the suffix the merge appends, and not at its end. The reference gives "abcdefZ".
+    val u = agent("u")
+    val v = agent("v")
+    var src = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "abcdef"), Version.root())
+    src = src.append(Event.createInsert(v, 0, 3, "Z"), Version.of(2))
+    assertEquals("abcdefZ", src.replay().string())
+    val dest = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), Version.root())
+    assertEquals("abcdefZ", dest.mergeFrom(src).replay().string())
+  }
+
+  @Test
+  fun `a shared id with another single parent is a clash`() {
+    // Both graphs gave (v, 0) the same kind, offset and character, but another one parent.
+    val u = agent("u")
+    val v = agent("v")
+    val base = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), Version.root())
+    val afterA = base.append(Event.createInsert(v, 0, 1, "x"), Version.of(0))
+    val afterB = base.append(Event.createInsert(v, 0, 1, "x"), Version.of(1))
+    val clash = assertThrows(EventIdClashException::class.java) { afterA.mergeFrom(afterB) }
+    assertEquals(v, clash.agent())
+    assertEquals(0, clash.seq())
+    assertTrue(clash.message!!.contains("the parents"), clash.message)
+  }
+
+  @Test
+  fun `a past version with two heads inside runs replays`() {
+    // Each head sits inside a run, so the replay takes a prefix of both runs. The reference gives
+    // "abXY": the two roots are concurrent, and u sorts before v.
+    val root = Version.root()
+    val graph = EventGraph.createGraph()
+      .append(Event.createInsert(agent("u"), 0, 0, "abcdef"), root)
+      .append(Event.createInsert(agent("v"), 0, 0, "XYZ"), root)
+    assertEquals("abXY", graph.replay(Version.of(1, 7)).string())
+    assertEquals("abcdefXYZ", graph.replay().string())
   }
 
   private companion object {

@@ -11,8 +11,8 @@ import com.intellij.openapi.editor.impl.experimental.DocBranchImpl
  * document at the branch's version is available through [text].
  *
  * A local [applyOp] is cheap: it appends events at the current version and edits the text
- * directly. The CRDT machinery runs only inside [merge], on the concurrent region, and is
- * discarded afterwards.
+ * directly. The CRDT machinery runs only inside [merge] and [DocMerge.ops], on the concurrent
+ * region, and is discarded afterwards.
  *
  * Contract:
  * - Branches that edit concurrently must edit under different [Agent]s. [fork] hands out
@@ -44,8 +44,9 @@ interface DocBranch {
    * Concurrent edits are resolved deterministically; no edit is dropped.
    * The result keeps this branch's [agent].
    *
-   * Throws [EventIdClashException] when the two branches broke the agent contract, and then
-   * changes nothing.
+   * Throws [EventIdClashException] when the merge finds that the two branches broke the agent
+   * contract. The check samples, so [EventIdClashException] says what it can miss. A merge that
+   * fails changes nothing.
    *
    * The result is the branch of [mergeWithOps] for the same two branches.
    */

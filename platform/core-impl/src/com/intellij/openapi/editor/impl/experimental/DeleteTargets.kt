@@ -5,9 +5,10 @@ package com.intellij.openapi.editor.impl.experimental
  * For every delete unit that a walk applied, the unit it deleted. The reference implementation
  * calls this `delTargets`, and keeps one map entry per delete unit.
  *
- * This keeps one entry per PIECE instead. A piece is the part of a delete run that consumed one
- * item, so its delete units deleted consecutive units of that item. A 20,000-character delete of
- * one item is then one entry and not 20,000.
+ * This keeps one entry per PIECE instead. A piece is a set of delete units with consecutive lvs
+ * that deleted consecutive units. [applyDelete][ReplayWalker] adds one part per item that a run
+ * consumes, and [add] joins a part to the piece before it when both spaces continue. A
+ * 20,000-character delete of one item is then one entry and not 20,000.
  *
  * A walk applies its units in ascending lv order, so the pieces arrive sorted, and a lookup is a
  * binary search over primitive arrays. [add] checks that order, because a lookup would silently

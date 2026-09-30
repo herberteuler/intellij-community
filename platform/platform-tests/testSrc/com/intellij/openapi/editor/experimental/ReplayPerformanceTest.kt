@@ -31,8 +31,9 @@ class ReplayPerformanceTest {
   /**
    * A full replay of a history that always inserts at the front.
    *
-   * The item scan stays cheap here: the position is 0, so the lookup never walks the item
-   * list. What remains is the report, which makes this the scenario that isolates it.
+   * The lookup stays cheap here: the position is 0, so it never walks the item list. Two costs
+   * remain. The report shifts the text, and each new item shifts the item list, because it lands
+   * at the index 0. So the row measures both, and an order-statistic tree would move it too.
    */
   @Test
   fun `a full replay of a history that inserts at the front`() {

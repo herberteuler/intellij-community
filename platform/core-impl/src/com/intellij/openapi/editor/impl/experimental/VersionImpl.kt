@@ -5,8 +5,8 @@ import com.intellij.openapi.editor.experimental.Version
 import java.util.Arrays
 
 /**
- * A version as a sorted array of internal event indexes. The reference implementation
- * calls the index of an event a local version (LV).
+ * A version as a sorted array of lvs. The reference implementation calls an lv a local
+ * version (LV).
  */
 internal class VersionImpl(
   val lvs: Frontier,
@@ -14,6 +14,7 @@ internal class VersionImpl(
 
   init {
     checkSorted(lvs)
+    checkSpan(lvs)
   }
 
   override fun isRoot(): Boolean {
@@ -22,8 +23,8 @@ internal class VersionImpl(
 
   /**
    * The size of the unit space this version can name: the greatest lv plus one, and 0 for
-   * the root. A graph holds this version when its size is at least this value, and the
-   * document at this version is never longer than it.
+   * the root. A graph can hold this version only when its size is at least this value, and the
+   * document at this version is never longer than it. [checkSpan] keeps the sum inside an `Int`.
    */
   fun unitSpan(): Int {
     return if (lvs.isEmpty()) 0 else lvs[lvs.size - 1] + 1
@@ -76,11 +77,21 @@ internal class VersionImpl(
   private fun checkSorted(lvs: Frontier) {
     for (i in 1 until lvs.size) {
       require(lvs[i - 1] < lvs[i]) {
-        "The version is not sorted or not distinct: ${lvs.contentToString()}"
+        "The version is not sorted or not distinct at the index $i: ${lvs.listedForMessage()}"
       }
     }
     require(lvs.isEmpty() || lvs[0] >= 0) {
-      "Negative lv: ${lvs.contentToString()}"
+      "Negative lv: ${lvs.listedForMessage()}"
+    }
+  }
+
+  /**
+   * Fails when the version names the lv [Int.MAX_VALUE]. A graph holds at most that many units,
+   * so no graph has that lv, and [unitSpan] would overflow on it.
+   */
+  private fun checkSpan(lvs: Frontier) {
+    require(lvs.isEmpty() || lvs[lvs.size - 1] < Int.MAX_VALUE) {
+      "The lv ${Int.MAX_VALUE} names no unit of any graph"
     }
   }
 

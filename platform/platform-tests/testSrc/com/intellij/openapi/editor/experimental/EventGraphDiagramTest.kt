@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test
  * carries nothing.
  *
  * The shapes below cover every part of the notation: a straight step, a fork, a merge, a
- * branch that ends, a branch that waits a row, a history with no common root, and the two
- * bounds that keep the diagram out of a log.
+ * branch that ends, a branch that waits a row, a history with no common root, a line that
+ * crosses a column, and the bounds that keep the diagram out of a log.
  */
 class EventGraphDiagramTest {
 
@@ -228,7 +228,7 @@ class EventGraphDiagramTest {
       graph = graph.append(Event.createInsert(u, seq, 0, "x"), graph.version())
     }
     assertEquals(45, graph.runCount())
-    val lines = graph .toString().lines()
+    val lines = graph.toString().lines()
     // The header, the first two boxes with the line between them, the count of what went,
     // then the newest 38 boxes with their 37 lines.
     assertEquals(1 + (2 * 6 + 1) + 1 + (38 * 6 + 37), lines.size)
@@ -241,5 +241,139 @@ class EventGraphDiagramTest {
     assertTrue(lines[15].contains('┴')) { "the join is missing: ${lines[15]}" }
     // The box holds the kind, the offset, the lv and the agent, one per line.
     assertTrue(lines[18].contains("lv 7")) { "the newest runs do not start at lv 7: ${lines[18]}" }
+  }
+
+  /**
+   * A run takes the column of its first parent only when no other child of that parent sits
+   * deeper, because that child needs the column for its line. Here "c" and "f" both follow "a",
+   * and "f" sits deeper, so "c" moves aside and the line of "f" comes from "a" and not from "c".
+   */
+  @Test
+  fun `a merge line leaves only the box of a parent`() {
+    val base = DocBranch.createBranch("base", agent("u0"))
+    val a = base.fork(agent("u1")).applyOp(DocOp.ins(0, "a"))
+    val d = base.fork(agent("u2")).applyOp(DocOp.ins(4, "b")).applyOp(DocOp.ins(4, "d"))
+    val f = a.fork(agent("u3")).merge(d).applyOp(DocOp.ins(0, "f"))
+    val graph = a.applyOp(DocOp.ins(0, "c")).merge(f).graph()
+    assertEquals(
+      """
+      EventGraph(units=9, runs=6, version=v[5, 8])
+      ┌───────────────┐
+      │ insert "base" │
+      │ offset 0      │
+      │ lv 0..3       │
+      │ agent "u0"    │
+      └───────┬───────┘
+              │
+              ├─────────────────┐
+              │                 │
+      ┌───────┴───────┐  ┌──────┴─────┐
+      │ insert "a"    │  │ insert "b" │
+      │ offset 0      │  │ offset 4   │
+      │ lv 4          │  │ lv 6       │
+      │ agent "u1"    │  │ agent "u2" │
+      └───────┬───────┘  └──────┬─────┘
+              │                 │
+              ├─────────────────│───────────────┐
+              │                 │               │
+              │          ┌──────┴─────┐  ┌──────┴─────┐
+              │          │ insert "d" │  │ insert "c" │
+              │          │ offset 4   │  │ offset 0   │
+              │          │ lv 7       │  │ lv 5       │
+              │          │ agent "u2" │  │ agent "u1" │
+              │          └──────┬─────┘  └────────────┘
+              │                 │
+              ├─────────────────┘
+              │
+      ┌───────┴───────┐
+      │ insert "f"    │
+      │ offset 0      │
+      │ lv 8          │
+      │ agent "u3"    │
+      └───────────────┘
+      """.trimIndent(),
+      graph.toString(),
+    )
+  }
+
+  /**
+   * "E" follows only "b". Its line to the right passes the column of "b", which it does not join,
+   * so the `│` of that column stays whole there and does not become a `┼`.
+   */
+  @Test
+  fun `a line that crosses a column looks different from a join`() {
+    assertEquals(
+      """
+      EventGraph(units=5, runs=5, version=v[3, 4])
+      ┌────────────┐  ┌────────────┐  ┌────────────┐
+      │ insert "a" │  │ insert "b" │  │ insert "c" │
+      │ offset 0   │  │ offset 0   │  │ offset 0   │
+      │ lv 0       │  │ lv 1       │  │ lv 2       │
+      │ agent "a"  │  │ agent "b"  │  │ agent "c"  │
+      └──────┬─────┘  └──────┬─────┘  └──────┬─────┘
+             │               │               │
+             ├───────────────│───────────────┘
+             │               │
+      ┌──────┴─────┐  ┌──────┴─────┐
+      │ insert "D" │  │ insert "E" │
+      │ offset 0   │  │ offset 0   │
+      │ lv 3       │  │ lv 4       │
+      │ agent "d"  │  │ agent "e"  │
+      └────────────┘  └────────────┘
+      """.trimIndent(),
+      threeRootsAndTwoMerges(Version.of(1)).toString(),
+    )
+    assertEquals(
+      """
+      EventGraph(units=5, runs=5, version=v[3, 4])
+      ┌────────────┐  ┌────────────┐  ┌────────────┐
+      │ insert "a" │  │ insert "b" │  │ insert "c" │
+      │ offset 0   │  │ offset 0   │  │ offset 0   │
+      │ lv 0       │  │ lv 1       │  │ lv 2       │
+      │ agent "a"  │  │ agent "b"  │  │ agent "c"  │
+      └──────┬─────┘  └──────┬─────┘  └──────┬─────┘
+             │               │               │
+             ├───────────────┼───────────────┘
+             │               │
+      ┌──────┴─────┐  ┌──────┴─────┐
+      │ insert "D" │  │ insert "E" │
+      │ offset 0   │  │ offset 0   │
+      │ lv 3       │  │ lv 4       │
+      │ agent "d"  │  │ agent "e"  │
+      └────────────┘  └────────────┘
+      """.trimIndent(),
+      threeRootsAndTwoMerges(Version.of(1, 2)).toString(),
+    )
+  }
+
+  @Test
+  fun `an agent name neither breaks a box nor widens it past the bound`() {
+    val broken = EventGraph.createGraph().append(Event.createInsert(agent("a\nb"), 0, 0, "x"), Version.root())
+    assertEquals(
+      """
+      EventGraph(units=1, runs=1, version=v[0])
+      ┌──────────────┐
+      │ insert "x"   │
+      │ offset 0     │
+      │ lv 0         │
+      │ agent "a\nb" │
+      └──────────────┘
+      """.trimIndent(),
+      broken.toString(),
+    )
+    val long = EventGraph.createGraph().append(Event.createInsert(agent("n".repeat(300)), 0, 0, "x"), Version.root())
+    val diagram = long.toString()
+    assertTrue(diagram.contains("(300 chars)")) { "the length is not reported: $diagram" }
+    assertTrue(diagram.lines().all { it.length < 80 }) { "a line is too wide: $diagram" }
+  }
+
+  /** Three concurrent roots, "D" after "a" and "c", and "E" after [eParents]. */
+  private fun threeRootsAndTwoMerges(eParents: Version): EventGraph {
+    var graph = EventGraph.createGraph()
+    for (name in listOf("a", "b", "c")) {
+      graph = graph.append(Event.createInsert(agent(name), 0, 0, name), Version.root())
+    }
+    graph = graph.append(Event.createInsert(agent("d"), 0, 0, "D"), Version.of(0, 2))
+    return graph.append(Event.createInsert(agent("e"), 0, 0, "E"), eParents)
   }
 }

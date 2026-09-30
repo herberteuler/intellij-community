@@ -14,6 +14,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.childOfType
 import com.jetbrains.python.PyNames
 import com.jetbrains.python.PyPsiBundle
+import com.jetbrains.python.PyTokenTypes
 import com.jetbrains.python.codeInsight.dataflow.scope.ScopeUtil.getScopeOwner
 import com.jetbrains.python.codeInsight.stdlib.PyDataclassTransformResolver
 import com.jetbrains.python.codeInsight.stdlib.PyStdlibTypeProvider
@@ -173,6 +174,8 @@ open class PyTypeCheckerInspection : PyInspection() {
     }
 
     override fun visitPyBinaryExpression(node: PyBinaryExpression) {
+      if (node.operator == PyTokenTypes.OR && isInsideTypeHint(node, myTypeEvalContext) &&
+          PyTypingTypeProvider.getType(node, myTypeEvalContext) != null) return
       checkCallSite(node)
     }
 

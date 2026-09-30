@@ -13,7 +13,8 @@ import org.jetbrains.plugins.terminal.hyperlinks.TerminalFileHyperlinkInfo
  *
  * Detects Linux-style absolute paths (starting with `/`), Windows-style absolute paths
  * (starting with drive letter like `C:\` or `C:/`), and home-relative paths (starting with `~/` or `~\`).
- * A path becomes a link only if [fileLookup] finds a file at it.
+ * A path becomes a link only if [fileLookup] finds a file at it. When the text after the
+ * path is a quote, a closing bracket, or sentence punctuation, the link ends before it.
  *
  * This class uses a state machine to parse paths character by character for maximum performance.
  *
@@ -61,24 +62,61 @@ internal class TerminalAbsolutePathLinkFinder(
     addPreviousCandidate()
   }
 
-  private fun findValidResult(pathEndIndex: Int, lineNumber: Int, columnNumber: Int): Filter.ResultItem? {
-    val path = findFile(pathEndIndex) ?: return null
+  /**
+   * Creates a link for the file at `line[pathStartIndex, pathEndIndex)`, or returns
+   * `null`.
+   *
+   * The link ends at [i], which the ':' branch moves past a parsed [position]. When
+   * trailing punctuation was removed from the path, the link ends before the
+   * punctuation, and a [position] after it belongs to the text, e.g. `"/path":3`.
+   */
+  private fun findValidResult(
+    pathEndIndex: Int,
+    position: Position? = null,
+    trimPunctuation: Boolean = true
+  ): Filter.ResultItem? {
+    val found = findFile(pathEndIndex, trimPunctuation) ?: return null
+    val trimmed = found.endIndex < pathEndIndex
+    val highlightEndIndex = if (trimmed) found.endIndex else i
+    val effectivePosition = position.takeUnless { trimmed }
+    val lineNumber = effectivePosition?.let { it.oneBasedLine - 1 } ?: 0
+    val columnNumber = effectivePosition?.let { it.oneBasedColumn - 1 } ?: 0
     return createInvisibleLink(
       indexOffset + pathStartIndex,
-      indexOffset + i,
-      TerminalFileHyperlinkInfo(project, path, lineNumber, columnNumber),
+      indexOffset + highlightEndIndex,
+      TerminalFileHyperlinkInfo(project, found.path, lineNumber, columnNumber),
     )
   }
 
   /**
    * Resolves `line[pathStartIndex, pathEndIndex)` as a file path.
    * Returns `null` if it is not a plausible path or there is no such file.
+   *
+   * With [trimPunctuation], a missing path is looked up again without its last character
+   * while [isTrailingPunctuation] accepts that character, at most
+   * [MAX_TRAILING_PUNCTUATION] times. The longest existing candidate wins, so
+   * `/tmp/Copy (1)` keeps its bracket. A separator is never removed, so `/tmp/dir/"`
+   * resolves to `/tmp/dir/`.
    */
-  private fun findFile(pathEndIndex: Int): EelPath? {
+  private fun findFile(pathEndIndex: Int, trimPunctuation: Boolean): FoundFile? {
     if (pathEndIndex - lastPathSegmentStart > FILENAME_MAX) return null
-    if (pathEndIndex - pathStartIndex < PATH_MIN) return null
+    var endIndex = pathEndIndex
+    var removed = 0
+    while (true) {
+      val path = resolvePath(endIndex)
+      if (path != null) return FoundFile(path, endIndex)
+      if (!trimPunctuation || removed == MAX_TRAILING_PUNCTUATION) return null
+      if (endIndex <= lastPathSegmentStart || !isTrailingPunctuation(line[endIndex - 1])) return null
+      endIndex--
+      removed++
+    }
+  }
 
-    val path = line.substring(pathStartIndex, pathEndIndex)
+  /** Returns the file at `line[pathStartIndex, endIndex)`, or `null` if it is not a plausible path or does not exist. */
+  private fun resolvePath(endIndex: Int): EelPath? {
+    if (endIndex - pathStartIndex < PATH_MIN) return null
+
+    val path = line.substring(pathStartIndex, endIndex)
     if (path.all { it == '/' || it == '\\' }) {
       // Ignore single slashes, as these are probably referring to something
       // other than the file system root (e.g. progress indicators like "[10 / 1,000]").
@@ -101,16 +139,15 @@ internal class TerminalAbsolutePathLinkFinder(
     if (prefixEnd - pathStartIndex <= 1) {
       return true // only a root or '~' before the last separator, e.g. "/foo", "~/foo", "C:\foo"
     }
-    return findFile(prefixEnd) != null
+    return findFile(prefixEnd, trimPunctuation = false) != null
   }
 
   private fun findValidResultWithNumbers(pathEndIndex: Int): Filter.ResultItem? {
     val position = parsePosition(line, i)
-    if (position == null) {
-      return findValidResult(pathEndIndex, 0, 0)
+    if (position != null) {
+      i = position.linkEndExclusiveIndex
     }
-    i = position.linkEndExclusiveIndex
-    return findValidResult(pathEndIndex, position.oneBasedLine - 1, position.oneBasedColumn - 1)
+    return findValidResult(pathEndIndex, position)
   }
 
   fun find() {
@@ -143,7 +180,7 @@ internal class TerminalAbsolutePathLinkFinder(
               // A path without whitespace is looked up once, at the whitespace, ':' or end of line following it.
               // Only a path with whitespace is validated at each separator, see `directoryPrefixMayExist()`.
               if (hasSeenWhitespaceInPath && i - pathStartIndex > 1) {
-                val currentCandidate = findValidResult(i, 0, 0)
+                val currentCandidate = findValidResult(i, trimPunctuation = false)
                 if (currentCandidate == null) {
                   // Continuing as a path can no longer result in a valid file, but this could be the start of a new path.
                   // (A Windows path cannot start here: ':' in PATH state is handled by the ':' branch below.)
@@ -187,7 +224,7 @@ internal class TerminalAbsolutePathLinkFinder(
             line[i].isWhitespace() -> {
               val isFirstWhitespaceInPath = !hasSeenWhitespaceInPath
               hasSeenWhitespaceInPath = true
-              val possibleCandidate = findValidResult(i, 0, 0)
+              val possibleCandidate = findValidResult(i)
               if (possibleCandidate != null) {
                 candidateItem = possibleCandidate
               }
@@ -205,7 +242,7 @@ internal class TerminalAbsolutePathLinkFinder(
     // Normally, the line ends with a line break, but let's support other cases too.
     // Check if the previous character is whitespace to avoid work duplication.
     if (state == ParsingState.PATH && !line[i - 1].isWhitespace()) {
-      findValidResult(i, 0, 0)?.let { candidateItem = it }
+      findValidResult(i)?.let { candidateItem = it }
     }
     candidateItem?.let {
       foundLinkSink(it)
@@ -223,4 +260,16 @@ internal class TerminalAbsolutePathLinkFinder(
     }
     return eelPath.takeIf { fileLookup.lookupLinkTarget(it) != null }
   }
+
+  /** A file found for a path candidate, and the index in [line] where the path ends. */
+  private class FoundFile(val path: EelPath, val endIndex: Int)
 }
+
+/**
+ * Returns `true` for a character that can follow a path in prose: a character that
+ * ends a path, see [isNonPathChar], or a `.` that ends a sentence.
+ */
+private fun isTrailingPunctuation(char: Char): Boolean = char == '.' || isNonPathChar(char)
+
+/** The most trailing punctuation characters removed from the end of one path candidate. */
+private const val MAX_TRAILING_PUNCTUATION: Int = 3

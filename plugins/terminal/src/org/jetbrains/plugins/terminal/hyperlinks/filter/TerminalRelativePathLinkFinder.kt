@@ -237,7 +237,12 @@ private fun String.takeNumberFromIndex(startIndex: Int): String? {
   return null
 }
 
-private fun isNonPathChar(char: Char): Boolean {
+/**
+ * Returns `true` for whitespace and for a character that ends a path in prose, such as
+ * a bracket or a quote. A `.` is not one: it ends a sentence after a path, and the
+ * callers handle it.
+ */
+internal fun isNonPathChar(char: Char): Boolean {
   return char.isWhitespace() || NON_PATH_CHARS.contains(char)
 }
 

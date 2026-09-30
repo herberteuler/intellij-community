@@ -66,8 +66,9 @@ abstract class AbstractGradleTestRunConfigurationProducer<E : PsiElement, Ex : P
     val configurationFromContext = super.findOrCreateConfigurationFromContext(context) ?: return null
     if (!shouldDeferTestTaskSelection(context)) return configurationFromContext
     val element = getElement(context) ?: return configurationFromContext
-    // Only a newly created configuration is renamed here. The task-first name can be suggested
-    // once the test tasks are chosen in onFirstRun.
+    // super created a new configuration: the deferred lookup hid the stored twin that onFirstRun usually reuses.
+    // setUniqueNameIfNeeded saw the twin, so the gutter menu would show "Run 'MyTest (1)'".
+    // Restore the plain name here. onFirstRun sets the final name once the test tasks are chosen.
     (configurationFromContext.configuration as GradleRunConfiguration).name =
       suggestConfigurationName(context, element, emptyList())
     return configurationFromContext

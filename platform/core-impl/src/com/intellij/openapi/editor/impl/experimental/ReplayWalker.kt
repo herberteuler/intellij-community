@@ -16,7 +16,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   private val items = ArrayList<Item>()
 
   /** For a delete unit, the unit id it deleted. */
-  private val delTargets = HashMap<LV, LV>()
+  private val delTargets = DeleteTargets()
 
   /**
    * Every item by its first unit id. A span covers a range, so a lookup takes the floor
@@ -252,7 +252,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   /** The unit that [lv] changes: the item it deleted, or itself when it is an insert. */
   private fun targetUnitOf(isDelete: Boolean, lv: LV): LV {
-    return if (isDelete) delTargets[lv]!! else lv
+    return if (isDelete) delTargets.targetOf(lv) else lv
   }
 
   /**
@@ -313,9 +313,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
         sink?.delete(cursor.effectPos, taken)
       }
       item.deleteHere()
-      for (k in 0 until taken) {
-        delTargets[lv + done + k] = item.lv + k
-      }
+      delTargets.add(lv + done, item.lv, taken)
       // The item now has no width in either version, so only the index moves.
       cursor.advanceOver(item)
       done += taken
@@ -524,7 +522,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    */
   override fun toString(): String {
     val cached = Cursor(cachedItemIndex, cachedPreparePos, cachedEffectPos)
-    return "ReplayWalker(items=${items.size}, delTargets=${delTargets.size}, " +
+    return "ReplayWalker(items=${items.size}, delTargets=${delTargets.size()}, " +
            "prepare=v${curVersion.listedForMessage()}, cached=$cached, reporting=${sink != null})"
   }
 }

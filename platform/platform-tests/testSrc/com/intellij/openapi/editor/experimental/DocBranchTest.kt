@@ -281,6 +281,21 @@ class DocBranchTest {
     assertEquals("LmidR", right.merge(left).string())
   }
 
+  /**
+   * One delete run removes "a", "X" and "b", and "X" is a run of its own between the other two.
+   * So the delete units continue while the units they deleted do not. The merge retreats the run,
+   * and it must undelete exactly those three characters.
+   */
+  @Test
+  fun `a delete run across interleaved runs retreats its own characters`() {
+    val base = DocBranch.createBranch("abc", agent("base"))
+    val edited = base.fork(agent("a")).applyOp(insertOp(1, "X")).applyOp(deleteOp(0, 3))
+    val concurrent = base.fork(agent("b")).applyOp(insertOp(3, "Y"))
+    assertEquals("c", edited.string())
+    assertEquals("cY", edited.merge(concurrent).string())
+    assertEquals("cY", concurrent.merge(edited).string())
+  }
+
   @Test
   fun `concurrent overlapping deletes erase the union of the ranges`() {
     val base = DocBranch.createBranch("abcdef", agent("a"))

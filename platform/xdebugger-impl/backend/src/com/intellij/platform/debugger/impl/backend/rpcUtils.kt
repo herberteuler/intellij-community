@@ -6,10 +6,10 @@ import com.intellij.ide.rpc.patchVersion
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.project.Project
 import com.intellij.platform.debugger.impl.shared.awaitCommited
-import com.intellij.platform.rpc.backend.impl.DocumentSync
+import com.intellij.platform.rpc.backend.awaitDocumentSync
 
 internal suspend fun Document.awaitIsInSyncAndCommitted(project: Project, version: DocumentPatchVersion?): Boolean {
-  DocumentSync.awaitDocumentSync()
+  awaitDocumentSync()
   if (!versionMatches(project, version)) return false
   awaitCommited(project)
   return true

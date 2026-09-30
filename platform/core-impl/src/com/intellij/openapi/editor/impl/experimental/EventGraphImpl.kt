@@ -239,24 +239,6 @@ internal class EventGraphImpl private constructor(
   }
 
   /**
-   * The lv after the last unit of the run that covers [lv]. Every unit of a run after the
-   * first has the one implicit parent `lv - 1`, so a walk can consume a whole run at once.
-   */
-  fun runEndOf(lv: LV): LV {
-    return runAt(lv).lvEnd()
-  }
-
-  /** The offset that the unit [lv] edits, in the document at its own parent version. */
-  fun offsetAt(lv: LV): Int {
-    return runAt(lv).offsetAt(lv)
-  }
-
-  /** The characters that the [count] units from [lv] insert, which must be one insert run. */
-  fun fragmentAt(lv: LV, count: Int): CharSequence {
-    return runAt(lv).fragmentFrom(lv, count)
-  }
-
-  /**
    * The tie-break order for concurrent insertions: by agent, then by seq.
    * The reference implementation calls this `lvCmp`.
    */

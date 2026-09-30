@@ -87,10 +87,11 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
         lv++
         continue
       }
-      val count = runBatch(lv) { next: LV ->
+      val run = graph.runAt(lv)
+      val count = runBatch(run, lv) { next: LV ->
         subset == null || subset.get(next)
       }
-      step(lv, count)
+      step(run, lv, count)
       lv += count
     }
   }
@@ -101,21 +102,21 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     var i = 0
     while (i < lvs.size) {
       val lv = lvs[i]
-      val count = runBatch(lv) { next: LV ->
+      val run = graph.runAt(lv)
+      val count = runBatch(run, lv) { next: LV ->
         i + (next - lv) < lvs.size && lvs[i + (next - lv)] == next
       }
-      step(lv, count)
+      step(run, lv, count)
       i += count
     }
   }
 
   /**
-   * How many units from [lv] the walk can take in one step: the units of one run that
-   * [holds] also has. The scan stops at the run end, because a later run needs its own
-   * version move.
+   * How many units from [lv] the walk can take in one step: the units of [run] that [holds]
+   * also has. The scan stops at the run end, because a later run needs its own version move.
    */
-  private inline fun runBatch(lv: LV, holds: (LV) -> Boolean): Int {
-    val limit = graph.runEndOf(lv) - lv
+  private inline fun runBatch(run: StoredRun, lv: LV, holds: (LV) -> Boolean): Int {
+    val limit = run.lvEnd() - lv
     var count = 1
     while (count < limit && holds(lv + count)) {
       count++
@@ -124,16 +125,19 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /**
-   * Consumes [count] units of one run from [lv]: moves the prepare version to the first
-   * unit's parents, then applies the whole span. Every unit of a run after the first has
-   * the one parent `lv - 1`, so the later units need no version move.
+   * Consumes [count] units of [run] from [lv]: moves the prepare version to the first unit's
+   * parents, then applies the whole span. Every unit of a run after the first has the one
+   * parent `lv - 1`, so the later units need no version move.
    *
    * The version move is also what lets an apply take an OFFSET. An offset indexes the
    * document at the event's parents, and the prepare version is that document once the move
    * is done. So the two spaces coincide exactly here, and nowhere else.
+   *
+   * The caller looked [run] up once, and every question of the step goes to it. A graph lookup
+   * per question would search the runs again for the same lv.
    */
-  private fun step(lv: LV, count: Int) {
-    val parents = graph.parentsOf(lv)
+  private fun step(run: StoredRun, lv: LV, count: Int) {
+    val parents = run.parentsOf(lv)
     // The sequential case: the prepare version already is the parents, so the diff is
     // empty. This skips a queue-and-map diff walk per run.
     if (!curVersion.contentEquals(parents)) {
@@ -145,10 +149,10 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       moveRange(diff.aOnly, retreating = true)
       moveRange(diff.bOnly, retreating = false)
     }
-    if (graph.isDeleteAt(lv)) {
-      applyDelete(lv, count, graph.offsetAt(lv))
+    if (run.isDelete) {
+      applyDelete(lv, count, run.offsetAt(lv))
     } else {
-      applyInsert(lv, count, graph.offsetAt(lv))
+      applyInsert(run, lv, count, run.offsetAt(lv))
     }
     setCurVersion(lv + count - 1)
   }
@@ -333,14 +337,14 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /**
-   * Inserts [count] units from [lv] as one span at [offset], the offset the run recorded.
+   * Inserts [count] units of [run] from [lv] as one span at [offset], the offset the run recorded.
    *
    * Only the first unit of a run needs the Fugue integration. A later unit lands right
    * after the one before it, because its left origin is that unit and no other item can
    * name it yet: the walk visits the units in one go, with no retreat or advance between
    * them. So the span carries the first unit's origins.
    */
-  private fun applyInsert(lv: LV, count: Int, offset: Int) {
+  private fun applyInsert(run: StoredRun, lv: LV, count: Int, offset: Int) {
     val cursor = findByCurPos(offset)
     require(cursor.itemIndex == 0 || items[cursor.itemIndex - 1].inPrepare) {
       "The item before the insert point is not inserted in the prepare version"
@@ -358,7 +362,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     addItem(cursor.itemIndex, newItem)
     // The span sits inside one run, so one slice of its fragment covers it. A silent phase
     // skips the slice, which is the only work the report costs.
-    sink?.insert(cursor.effectPos, graph.fragmentAt(lv, count))
+    sink?.insert(cursor.effectPos, run.fragmentFrom(lv, count))
     cursor.advanceOver(newItem)
     cacheCursor(cursor)
   }

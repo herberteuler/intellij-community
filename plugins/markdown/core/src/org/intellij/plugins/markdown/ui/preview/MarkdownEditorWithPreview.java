@@ -222,6 +222,12 @@ public final class MarkdownEditorWithPreview extends TextEditorWithPreview imple
       }
 
       final Editor editor = event.getEditor();
+      if (event.getOldRectangle() != null && event.getOldRectangle().y == event.getNewRectangle().y) {
+        return;
+      }
+      if (((MarkdownPreviewFileEditor)myPreview).followEditor(editor)) {
+        return;
+      }
       int y = editor.getScrollingModel().getVerticalScrollOffset();
       int currentLine = editor instanceof EditorImpl ? editor.xyToLogicalPosition(new Point(0, y)).getLine() : y / editor.getLineHeight();
       if (currentLine == previousLine) {

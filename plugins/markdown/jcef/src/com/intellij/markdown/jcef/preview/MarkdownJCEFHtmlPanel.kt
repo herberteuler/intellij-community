@@ -346,6 +346,13 @@ class MarkdownJCEFHtmlPanel(private val project: Project?, private val virtualFi
     runJavaScript("window.scrollController?.scrollTo($offset, $smooth)")
   }
 
+  override val canScrollToSourceOffset: Boolean
+    get() = true
+
+  override fun scrollToSourceOffset(offset: Double) {
+    runJavaScript("window.scrollController?.scrollToSourceOffset($offset)")
+  }
+
   override fun scrollBy(horizontalUnits: Int, verticalUnits: Int) {
     val horizontal = JBCefApp.normalizeScaledSize(horizontalUnits)
     val vertical = JBCefApp.normalizeScaledSize(verticalUnits)

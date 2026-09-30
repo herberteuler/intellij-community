@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import java.util.BitSet
 import java.util.TreeMap
 
 /**
@@ -64,12 +65,11 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * Starts the prepare version at [ancestor], which the walk never moves below.
    *
    * This takes a [VersionImpl] and not a [Frontier], although the walk keeps a frontier.
-   * The caller has an [EventGraphImpl.Conflict] in hand, whose other two fields are lists
+   * The caller has an [EventGraphImpl.Conflict] in hand, whose other two fields are ranges
    * of units, and a real type is what stops one of those reaching here by mistake.
    */
   fun startAt(ancestor: VersionImpl) {
-    // A copy, because the walk writes the single-head array in place.
-    curVersion = ancestor.toLvs()
+    curVersion = ancestor.lvs
   }
 
   /** Walks the whole graph, or the part of it that a past [version] selects. */
@@ -81,47 +81,38 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     }
     this.sink = sink
     val size = graph.size()
-    var lv = 0
-    while (lv < size) {
-      if (subset != null && !subset.get(lv)) {
-        lv++
-        continue
-      }
+    var lv = nextToWalk(subset, 0)
+    while (lv in 0 until size) {
       val run = graph.runAt(lv)
-      val count = runBatch(run, lv) { next: LV ->
-        subset == null || subset.get(next)
-      }
-      step(run, lv, count)
-      lv += count
-    }
-  }
-
-  /** Walks an ascending lv list, one whole run per step where the list allows it. */
-  fun walk(lvs: LvList, sink: EgWalkerReplay.Sink?) {
-    this.sink = sink
-    var i = 0
-    while (i < lvs.size) {
-      val lv = lvs[i]
-      val run = graph.runAt(lv)
-      val count = runBatch(run, lv) { next: LV ->
-        i + (next - lv) < lvs.size && lvs[i + (next - lv)] == next
-      }
-      step(run, lv, count)
-      i += count
+      // A unit of a run descends from every unit before it, so a past version holds a prefix of
+      // each run it touches. The step ends at the run end, or where that prefix ends.
+      val end = if (subset == null) run.lvEnd() else minOf(run.lvEnd(), subset.nextClearBit(lv))
+      step(run, lv, end - lv)
+      lv = nextToWalk(subset, end)
     }
   }
 
   /**
-   * How many units from [lv] the walk can take in one step: the units of [run] that [holds]
-   * also has. The scan stops at the run end, because a later run needs its own version move.
+   * The first lv at or after [from] that the walk takes, or -1 when none is left. A past version
+   * leaves out whole regions, so the walk jumps over them and does not step through them.
    */
-  private inline fun runBatch(run: StoredRun, lv: LV, holds: (LV) -> Boolean): Int {
-    val limit = run.lvEnd() - lv
-    var count = 1
-    while (count < limit && holds(lv + count)) {
-      count++
+  private fun nextToWalk(subset: BitSet?, from: LV): LV {
+    return subset?.nextSetBit(from) ?: from
+  }
+
+  /** Walks [ranges], one whole run per step where a range allows it. */
+  fun walk(ranges: LvRanges, sink: EgWalkerReplay.Sink?) {
+    this.sink = sink
+    for (index in 0 until ranges.size()) {
+      var lv = ranges.start(index)
+      val end = ranges.end(index)
+      while (lv < end) {
+        val run = graph.runAt(lv)
+        val count = minOf(end, run.lvEnd()) - lv
+        step(run, lv, count)
+        lv += count
+      }
     }
-    return count
   }
 
   /**
@@ -146,8 +137,8 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
         // The prepare widths change at arbitrary places: the cached cursor is stale.
         cacheCursor(0, 0, 0)
       }
-      moveRange(diff.aOnly, retreating = true)
-      moveRange(diff.bOnly, retreating = false)
+      moveRanges(diff.aOnly, retreating = true)
+      moveRanges(diff.bOnly, retreating = false)
     }
     if (run.isDelete) {
       applyDelete(lv, count, run.offsetAt(lv))
@@ -160,94 +151,67 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   // ------------------------------------------------------------------------- retreat and advance
 
   /**
-   * Moves the prepare version over [lvs], in batches that share one item.
+   * Moves the prepare version over [ranges], in batches that share one item.
    *
-   * A retreat walks backwards, so an item is undeleted before it is uninserted. A batch
-   * covers the units that land on one contiguous range of one item, so a whole run usually
+   * A retreat walks backwards, so an item is undeleted before it is uninserted. A batch covers
+   * the units of a range that change one contiguous part of one item, so a whole run usually
    * moves in one step and the item keeps its span. Only a batch that covers part of an item
    * splits it.
    */
-  private fun moveRange(lvs: LvList, retreating: Boolean) {
+  private fun moveRanges(ranges: LvRanges, retreating: Boolean) {
     if (retreating) {
-      var end = lvs.size
-      while (end > 0) {
-        val start = batchStart(lvs, end)
-        move(lvs[start], end - start, true)
-        end = start
+      for (index in ranges.size() - 1 downTo 0) {
+        val start = ranges.start(index)
+        var end = ranges.end(index)
+        while (end > start) {
+          end = retreatBatchBefore(start, end)
+        }
       }
     } else {
-      var start = 0
-      while (start < lvs.size) {
-        val count = batchLength(lvs, start, lvs.size - start)
-        move(lvs[start], count, false)
-        start += count
+      for (index in 0 until ranges.size()) {
+        var start = ranges.start(index)
+        val end = ranges.end(index)
+        while (start < end) {
+          start = advanceBatchFrom(start, end)
+        }
       }
     }
-  }
-
-  /** The number of entries from [from], at most [limit], that form one batch. */
-  private fun batchLength(lvs: LvList, from: Int, limit: Int): Int {
-    val anchor = Batch(lvs, from)
-    var count = 1
-    while (count < limit && anchor.covers(from + count)) {
-      count++
-    }
-    return count
-  }
-
-  /** The first index of the batch that ends just before [end]. */
-  private fun batchStart(lvs: LvList, end: Int): Int {
-    val last = end - 1
-    val anchor = Batch(lvs, last)
-    var start = last
-    while (start > 0 && anchor.covers(start - 1)) {
-      start--
-    }
-    return start
   }
 
   /**
-   * One batch, anchored on the entry at [anchorIndex]. [covers] answers whether another
-   * entry belongs to the same batch. Both scan directions ask the same question, so the
-   * rule lives in one place.
+   * Advances the batch that starts at [lv] and ends at or before [end], and returns the lv after it.
+   *
+   * An insert unit changes itself, and an item holds the units of one insert run, so the batch
+   * ends where the item ends. A delete unit changes the unit it deleted, so the batch also ends
+   * where its piece of [DeleteTargets] ends: past it, the targets stop being consecutive. The item
+   * end implies that bound today, because [applyDelete] splits the item at the ends of each
+   * piece, and an item never grows. The bound keeps the batch right without that fact.
    */
-  private inner class Batch(
-    private val lvs: LvList,
-    private val anchorIndex: Int,
-  ) {
-    private val isDelete: Boolean = graph.isDeleteAt(lvs[anchorIndex])
-    private val target: LV = targetUnitOf(isDelete, lvs[anchorIndex])
-    private val item: Item = itemBy(target)
-
-    /**
-     * Whether the entry at [entryIndex] is the same kind, the next lv, and the next unit of
-     * the item. [entryIndex] indexes [lvs] and never the item list.
-     */
-    fun covers(entryIndex: Int): Boolean {
-      val offset = entryIndex - anchorIndex
-      val lv = lvs[anchorIndex] + offset
-      if (lvs[entryIndex] != lv || graph.isDeleteAt(lv) != isDelete) {
-        return false
-      }
-      val unit = target + offset
-      return targetUnitOf(isDelete, lv) == unit && item.contains(unit)
+  private fun advanceBatchFrom(lv: LV, end: LV): LV {
+    val isDelete = graph.isDeleteAt(lv)
+    val target = targetUnitOf(isDelete, lv)
+    var batchEnd = minOf(end, lv + (itemBy(target).lastUnit + 1 - target))
+    if (isDelete) {
+      batchEnd = minOf(batchEnd, delTargets.pieceEndOf(lv))
     }
-
-    override fun toString(): String {
-      val kind = if (isDelete) "delete" else "insert"
-      return "Batch($kind, anchorLv=${lvs[anchorIndex]}, target=$target, $item)"
-    }
+    isolate(target, batchEnd - lv).advance(isDelete)
+    return batchEnd
   }
 
-  /** Retreats or advances the [count] units that [lv] starts, all inside one item. */
-  private fun move(lv: LV, count: Int, retreating: Boolean) {
-    val isDelete = graph.isDeleteAt(lv)
-    val item = isolate(targetUnitOf(isDelete, lv), count)
-    if (retreating) {
-      item.retreat(isDelete)
-    } else {
-      item.advance(isDelete)
+  /**
+   * Retreats the batch that ends just before [end] and starts at or after [start], and returns its
+   * first lv. The mirror of [advanceBatchFrom].
+   */
+  private fun retreatBatchBefore(start: LV, end: LV): LV {
+    val last = end - 1
+    val isDelete = graph.isDeleteAt(last)
+    val lastTarget = targetUnitOf(isDelete, last)
+    var batchStart = maxOf(start, last - (lastTarget - itemBy(lastTarget).firstUnit))
+    if (isDelete) {
+      batchStart = maxOf(batchStart, delTargets.pieceStartOf(last))
     }
+    isolate(lastTarget - (last - batchStart), end - batchStart).retreat(isDelete)
+    return batchStart
   }
 
   /** The unit that [lv] changes: the item it deleted, or itself when it is an insert. */
@@ -466,12 +430,11 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   /** Finds the item that covers [needleLv]: an exact item, or the containing span. */
   private fun findItemIdx(needleLv: LV): Int {
-    for (i in items.indices) {
-      if (items[i].contains(needleLv)) {
-        return i
-      }
+    val index = items.indexOfFirst { it.contains(needleLv) }
+    require(index >= 0) {
+      "The item $needleLv is not in the item list"
     }
-    throw IllegalStateException("The item $needleLv is not in the item list")
+    return index
   }
 
   // ------------------------------------------------------------------------- the item bookkeeping
@@ -507,13 +470,13 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     cachedEffectPos = effectPos
   }
 
+  /**
+   * Moves the prepare version to the one head [lv]. This always allocates. An in-place write would
+   * save one small array per step, but the walk compares [curVersion] with the parents arrays of
+   * the graph, and one wrong assignment would then corrupt a run that other graph values share.
+   */
   private fun setCurVersion(lv: LV) {
-    // Reuse the single-head array: nothing retains the old version.
-    if (curVersion.size == 1) {
-      curVersion[0] = lv
-    } else {
-      curVersion = intArrayOf(lv)
-    }
+    curVersion = intArrayOf(lv)
   }
 
   /**

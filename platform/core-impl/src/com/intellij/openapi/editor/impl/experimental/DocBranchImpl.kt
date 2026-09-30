@@ -35,12 +35,12 @@ import com.intellij.openapi.editor.impl.DocTextImpl
 internal class DocBranchImpl private constructor(
   private val docText: DocText,
   private val agent: Agent,
-  private val nextSeq: Int,
   private val graph: EventGraphImpl,
 ) : DocBranch {
 
   init {
-    checkTextMatchesGraph()
+    // A foreign agent would pass until the first edit, and fail there.
+    AgentImpl.implOf(agent)
   }
 
   override fun text(): DocText {
@@ -63,12 +63,7 @@ internal class DocBranchImpl private constructor(
   }
 
   override fun fork(agent: Agent): DocBranch {
-    return DocBranchImpl(
-      docText,
-      agent,
-      graph.nextSeqFor(agent),
-      graph,
-    )
+    return DocBranchImpl(docText, agent, graph)
   }
 
   override fun merge(other: DocBranch): DocBranch {
@@ -88,7 +83,7 @@ internal class DocBranchImpl private constructor(
       EgWalkerReplay.mergeInto(merged, graph.versionImpl(), sink)
       sink.result()
     }
-    return DocBranchImpl(newDocText, agent, nextSeq, merged)
+    return DocBranchImpl(newDocText, agent, merged)
   }
 
   private fun applyInsert(op: DocOp.Insert): DocBranch {
@@ -98,8 +93,7 @@ internal class DocBranchImpl private constructor(
     }
     // The inner text validates the offset before the graph changes.
     val newDocText = docText.applyOp(op)
-    val newGraph = graph.appendAtTip(Event.create(agent, nextSeq, op))
-    return DocBranchImpl(newDocText, agent, nextSeq + fragment.length, newGraph)
+    return DocBranchImpl(newDocText, agent, appendLocal(op))
   }
 
   private fun applyDelete(op: DocOp.Delete): DocBranch {
@@ -107,15 +101,19 @@ internal class DocBranchImpl private constructor(
     if (length == 0) {
       return this
     }
-    val newInner = docText.applyOp(op)
-    val newGraph = graph.appendAtTip(Event.create(agent, nextSeq, op))
-    return DocBranchImpl(newInner, agent, nextSeq + length, newGraph)
+    val newDocText = docText.applyOp(op)
+    return DocBranchImpl(newDocText, agent, appendLocal(op))
   }
 
-  private fun checkTextMatchesGraph() {
-    require(nextSeq >= 0) {
-      "Negative nextSeq: $nextSeq"
-    }
+  /**
+   * The graph with [op] appended at its frontier, under the next free seq of [agent].
+   *
+   * The graph is the only record of that seq. A merge can bring in units of [agent] that this
+   * value never saw, for example from a descendant of it, and a seq kept beside the graph would
+   * then name a unit that already exists.
+   */
+  private fun appendLocal(op: DocOp): EventGraphImpl {
+    return graph.appendAtTip(Event.create(agent, graph.nextSeqFor(agent), op))
   }
 
   override fun toString(): String {
@@ -129,7 +127,7 @@ internal class DocBranchImpl private constructor(
         val insert = Event.create(agent, 0, DocOp.ins(0, chars))
         graph = graph.appendAtTip(insert)
       }
-      return DocBranchImpl(DocText.createText(chars), agent, chars.length, graph)
+      return DocBranchImpl(DocText.createText(chars), agent, graph)
     }
 
     private fun implOf(branch: DocBranch): DocBranchImpl {

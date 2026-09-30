@@ -43,6 +43,9 @@ interface DocBranch {
    * A branch that contains the histories of both this branch and [other].
    * Concurrent edits are resolved deterministically; no edit is dropped.
    * The result keeps this branch's [agent].
+   *
+   * Throws [EventIdClashException] when the two branches broke the agent contract, and then
+   * changes nothing.
    */
   fun merge(other: DocBranch): DocBranch
 

@@ -5,7 +5,9 @@ import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
+import com.intellij.openapi.editor.experimental.EventIdClashException
 import com.intellij.openapi.editor.experimental.Version
+import org.jetbrains.annotations.TestOnly
 import java.util.BitSet
 import java.util.Collections
 import java.util.PriorityQueue
@@ -41,6 +43,7 @@ internal class EventGraphImpl private constructor(
 
   init {
     checkTail()
+    checkVersionEnd()
   }
 
   override fun size(): Int {
@@ -56,7 +59,7 @@ internal class EventGraphImpl private constructor(
   }
 
   override fun append(event: Event, parents: Version): EventGraph {
-    return appendImpl(event, VersionImpl.implOf(parents))
+    return appendImpl(EventImpl.implOf(event), VersionImpl.implOf(parents))
   }
 
   override fun mergeFrom(other: EventGraph): EventGraph {
@@ -269,9 +272,13 @@ internal class EventGraphImpl private constructor(
   }
 
   /**
-   * The lvs only in the history of [a] and only in the history of [b].
-   * Both results are ascending. A per-unit port of `diff` from the reference
-   * implementation's causal-graph library.
+   * The lvs only in the history of [a] and only in the history of [b], as ascending ranges.
+   * A port of `diff` from the reference implementation's causal-graph library.
+   *
+   * The walk takes the greatest queued lv, and then consumes the run that holds it down to the run
+   * start in one step. A queued lv inside that run is an ancestor of the first one, so the step
+   * takes it too, and a change of the flag there cuts the run in two. So the walk costs one step
+   * per run it crosses, not one per unit.
    */
   fun diff(a: Frontier, b: Frontier): Diff {
     val flags = HashMap<Int, Int>()
@@ -299,39 +306,66 @@ internal class EventGraphImpl private constructor(
       enqueue(lv, FLAG_B)
     }
 
-    val aOnly = ArrayList<Int>()
-    val bOnly = ArrayList<Int>()
-    while (queue.size > numShared) {
-      val lv = queue.poll()
-      val flag = flags[lv]!!
+    val aOnly = LvRanges.DescendingBuilder()
+    val bOnly = LvRanges.DescendingBuilder()
+
+    fun mark(start: LV, last: LV, flag: Int) {
       when (flag) {
-        FLAG_SHARED -> numShared--
-        FLAG_A -> aOnly.add(lv)
-        else -> bOnly.add(lv)
-      }
-      for (parent in parentsOf(lv)) {
-        enqueue(parent, flag)
+        FLAG_A -> aOnly.add(start, last + 1)
+        FLAG_B -> bOnly.add(start, last + 1)
       }
     }
 
-    // The queue pops in descending order; the results must ascend.
-    aOnly.reverse()
-    bOnly.reverse()
-    return Diff(aOnly.toIntArray(), bOnly.toIntArray())
+    while (queue.size > numShared) {
+      var lv = queue.poll()
+      var flag = flagOf(flags, lv)
+      if (flag == FLAG_SHARED) {
+        numShared--
+      }
+      val run = runAt(lv)
+      while (queue.isNotEmpty() && queue.peek() >= run.lvStart) {
+        val inner = queue.poll()
+        val innerFlag = flagOf(flags, inner)
+        if (innerFlag == FLAG_SHARED) {
+          numShared--
+        }
+        if (innerFlag != flag) {
+          // Above the inner lv only the old flag reaches the units. From it down both sides do.
+          mark(inner + 1, lv, flag)
+          lv = inner
+          flag = FLAG_SHARED
+        }
+      }
+      mark(run.lvStart, lv, flag)
+      for (parent in run.runParents()) {
+        enqueue(parent, flag)
+      }
+    }
+    return Diff(aOnly.build(), bOnly.build())
   }
 
   /**
-   * Finds the common ancestor of the versions [a] and [b], and splits the region above
-   * it into [Conflict.conflictLvs] (units in the history of [a], or of both) and
-   * [Conflict.newLvs] (units only in the history of [b]). Both results ascend.
+   * Finds the common ancestor of the versions [a] and [b], and splits the region above it into
+   * [Conflict.conflictRanges] (units in the history of [a], or of both) and [Conflict.newRanges]
+   * (units only in the history of [b]).
    *
-   * A per-unit port of `findConflicting` from the reference implementation's
-   * causal-graph library: a max-first walk over version points; paths merge when they
-   * name the same version, and the walk stops when one point survives -- the ancestor.
+   * A port of `findConflicting` from the reference implementation's causal-graph library: a
+   * max-first walk over version points. Paths merge when they name the same version, and the walk
+   * stops when one point survives, which is the ancestor. Like [diff], a step consumes the run of
+   * its head down to the run start, and it cuts the run where another queued point lands in it.
    */
   fun findConflicting(a: Frontier, b: Frontier): Conflict {
-    val conflictLvs = ArrayList<Int>()
-    val newLvs = ArrayList<Int>()
+    val conflictRanges = LvRanges.DescendingBuilder()
+    val newRanges = LvRanges.DescendingBuilder()
+
+    fun visit(start: LV, end: LV, flag: Int) {
+      if (flag == FLAG_B) {
+        newRanges.add(start, end)
+      } else {
+        conflictRanges.add(start, end)
+      }
+    }
+
     val queue = PriorityQueue(11, POINT_MAX_FIRST)
     queue.add(Point(descending(a), FLAG_A))
     queue.add(Point(descending(b), FLAG_B))
@@ -352,42 +386,151 @@ internal class EventGraphImpl private constructor(
         if (queue.isEmpty()) {
           return@run ascending(point.v)
         }
-        // Shatter a merger point; the head unit is processed below.
+        // Shatter a merger point; the head is processed below.
         for (i in 1 until point.v.size) {
           queue.add(Point(intArrayOf(point.v[i]), flag))
         }
-        val head = point.v[0]
-        // Consume the points whose head is the same unit.
-        while (queue.isNotEmpty() && queue.peek().v.isNotEmpty() && queue.peek().v[0] == head) {
-          val same = queue.poll()
-          if (same.flag != flag) {
+        val run = runAt(point.v[0])
+        // The units [run.lvStart, end) of the run are not visited yet.
+        var end = point.v[0] + 1
+        while (true) {
+          if (queue.isEmpty()) {
+            // The last unit not visited is the sole survivor: the ancestor.
+            return@run intArrayOf(end - 1)
+          }
+          val next = queue.peek()
+          if (next.v.isEmpty() || next.v[0] < run.lvStart) {
+            // No other point lands in this run: visit the rest, and go on at its parents.
+            visit(run.lvStart, end, flag)
+            queue.add(Point(descending(run.runParents()), flag))
+            break
+          }
+          // Another point lands inside this run, so it is an ancestor of the units above it.
+          queue.poll()
+          val landing = next.v[0]
+          if (landing + 1 < end) {
+            // The units above the landing point belong to the flag so far, and it does not.
+            visit(landing + 1, end, flag)
+            end = landing + 1
+          }
+          if (next.flag != flag) {
             flag = FLAG_SHARED
           }
-          for (i in 1 until same.v.size) {
-            queue.add(Point(intArrayOf(same.v[i]), same.flag))
+          // Shatter a merger point that lands here. Its head is this run, and its other heads queue.
+          for (i in 1 until next.v.size) {
+            queue.add(Point(intArrayOf(next.v[i]), next.flag))
           }
         }
-        if (queue.isEmpty()) {
-          // The head is the sole survivor: the ancestor, and the walk stops below it.
-          return@run intArrayOf(head)
-        }
-        if (flag == FLAG_B) {
-          newLvs.add(head)
-        } else {
-          conflictLvs.add(head)
-        }
-        queue.add(Point(descending(parentsOf(head)), flag))
       }
       @Suppress("UNREACHABLE_CODE")
       IntArray(0)
     }
-    // The walk emits in descending order; the results must ascend.
-    conflictLvs.reverse()
-    newLvs.reverse()
-    return Conflict(VersionImpl(commonAncestor), conflictLvs.toIntArray(), newLvs.toIntArray())
+    return Conflict(VersionImpl(commonAncestor), conflictRanges.build(), newRanges.build())
+  }
+
+  /** The flag of [lv], which the walk queued with one. */
+  private fun flagOf(flags: Map<Int, Int>, lv: LV): Int {
+    val flag = flags[lv]
+    require(flag != null) {
+      "The lv $lv is in the walk queue, but it has no flag"
+    }
+    return flag
   }
 
   // ------------------------------------------------------------------------------------ checks
+
+  /**
+   * Fails when any value invariant of the graph does not hold. The constructor checks only the
+   * ones that cost O(1), and this checks all of them, in O(size) and more. A test calls it after
+   * each step of a random history. The invariants:
+   * - the runs cover the lvs `[0, size)` in order, with no gap, and the tail is the last run;
+   * - each run is keyed by its [StoredRun.lvStart], and the agent index holds exactly the closed runs;
+   * - the seqs of each agent start at 0, ascend with the lvs, and leave no gap;
+   * - every parent of a run sits below the run, and the parents of a run are transitively reduced;
+   * - the version is exactly the set of units that have no child.
+   */
+  @TestOnly
+  fun checkInvariants() {
+    val runList = ArrayList<StoredRun>(runCount())
+    for (index in 0 until runs.size()) {
+      runList.add(runs.get(index))
+    }
+    val tail = tail
+    if (tail != null) {
+      runList.add(tail)
+    }
+    val closedStarts = agents.newRunStarts(VersionSummary(emptyMap()))
+    require(closedStarts.contentEquals(IntArray(runs.size()) { runs.get(it).lvStart })) {
+      "The agent index does not hold exactly the closed runs"
+    }
+    val nextSeqs = HashMap<Agent, Int>()
+    val childless = BitSet(size)
+    var lvEnd = 0
+    for ((index, run) in runList.withIndex()) {
+      EventImpl.implOf(run.event)
+      require(run.lvStart == lvEnd) {
+        "The run $run does not start where the run before it ends, at $lvEnd"
+      }
+      require(index == runs.size() || runs.floor(run.lvStart) === run) {
+        "The closed run $run is not keyed by its first lv"
+      }
+      val agent = run.event.agent()
+      val expectedSeq = nextSeqs[agent] ?: 0
+      require(run.event.seq() == expectedSeq) {
+        "The run $run does not continue the seqs of $agent: expected $expectedSeq"
+      }
+      nextSeqs[agent] = run.endSeq()
+      require(lvOfUnit(agent, run.event.seq()) == run.lvStart) {
+        "The id index does not find the run $run"
+      }
+      checkRunParents(run)
+      childless.set(run.lvEnd() - 1)
+      for (parent in run.runParents()) {
+        childless.clear(parent)
+      }
+      lvEnd = run.lvEnd()
+    }
+    require(lvEnd == size) {
+      "The runs end at $lvEnd, but the graph size is $size"
+    }
+    for ((agent, nextSeq) in nextSeqs) {
+      require(nextSeqFor(agent) == nextSeq) {
+        "The next seq of $agent is ${nextSeqFor(agent)}, but the runs end at $nextSeq"
+      }
+    }
+    val heads = IntArray(childless.cardinality())
+    var next = 0
+    var lv = childless.nextSetBit(0)
+    while (lv >= 0) {
+      heads[next] = lv
+      next++
+      lv = childless.nextSetBit(lv + 1)
+    }
+    require(version.lvs.contentEquals(heads)) {
+      "The version $version is not the set of childless units v${heads.listedForMessage()}"
+    }
+  }
+
+  /** Fails when a parent of [run] is not below it, or when one parent is an ancestor of another. */
+  private fun checkRunParents(run: StoredRun) {
+    val parents = run.runParents()
+    for (parent in parents) {
+      require(parent in 0 until run.lvStart) {
+        "The parent $parent of the run $run is not below it"
+      }
+    }
+    if (parents.size < 2) {
+      return
+    }
+    for (parent in parents) {
+      val ancestors = eventsOf(VersionImpl(intArrayOf(parent)))
+      for (otherParent in parents) {
+        require(otherParent == parent || !ancestors.get(otherParent)) {
+          "The parents of the run $run are not reduced: $otherParent is an ancestor of $parent"
+        }
+      }
+    }
+  }
 
   /**
    * Fails when the tail does not fit the graph. Only the empty graph has no tail. A tail is the
@@ -408,6 +551,17 @@ internal class EventGraphImpl private constructor(
     val closedEnd = runs.last()?.lvEnd() ?: 0
     require(closedEnd == tail.lvStart) {
       "The closed runs end at $closedEnd, but the tail $tail starts elsewhere"
+    }
+  }
+
+  /**
+   * Fails when the frontier does not end at the newest unit. Every append makes its last unit a
+   * head, and no later lv exists, so the greatest head is always `size - 1`. The empty graph has
+   * the root version.
+   */
+  private fun checkVersionEnd() {
+    require(version.unitSpan() == size) {
+      "The version $version does not end at the newest unit of a graph of size $size"
     }
   }
 
@@ -469,8 +623,9 @@ internal class EventGraphImpl private constructor(
    * a merge stops giving the same text in both directions.
    *
    * Both graphs hold the seqs `[0, endSeq)` of an agent, so the shared range of an agent is
-   * `[0, min(endSeq, endSeq))`. The check SAMPLES its two ends, so it costs two lookups per
-   * shared agent and nothing per run. It does not see a difference that sits strictly inside
+   * `[0, min(endSeq, endSeq))`. The check SAMPLES its two ends, and compares the kind, the
+   * position, the character, and the parents there. So it costs a few lookups per shared agent
+   * and nothing per run. It does not see a difference that sits strictly inside
    * the shared range. A full compare would make every merge cost the whole shared history,
    * and a merge must cost the size of the change.
    */
@@ -497,18 +652,54 @@ internal class EventGraphImpl private constructor(
     }
     val run = runAt(lv)
     val otherRun = other.runAt(otherLv)
-    require(run.isDelete == otherRun.isDelete) {
-      idClash(agent, seq, "the operation kind")
-    }
-    require(run.offsetAt(lv) == otherRun.offsetAt(otherLv)) {
-      idClash(agent, seq, "the position")
-    }
+    checkNoClash(run.isDelete == otherRun.isDelete, agent, seq, "the operation kind")
+    checkNoClash(run.offsetAt(lv) == otherRun.offsetAt(otherLv), agent, seq, "the position")
     // The kind check passed, so a run that is not a delete is an insert in both graphs.
     if (!run.isDelete) {
-      require(run.charAt(lv) == otherRun.charAt(otherLv)) {
-        idClash(agent, seq, "the inserted character")
-      }
+      checkNoClash(run.charAt(lv) == otherRun.charAt(otherLv), agent, seq, "the inserted character")
     }
+    checkNoClash(hasSameParentIds(lv, other, otherLv), agent, seq, "the parents")
+  }
+
+  /** Fails with a typed exception, so a caller can tell a broken agent contract from a bug. */
+  private fun checkNoClash(same: Boolean, agent: Agent, seq: Int, difference: String) {
+    if (!same) {
+      throw EventIdClashException(agent, seq, idClash(agent, seq, difference))
+    }
+  }
+
+  /**
+   * Whether the unit [lv] here and the unit [otherLv] of [other] have the same parents. The two
+   * graphs of a merge give one unit different lvs, so only the ids compare. A unit usually has one
+   * parent, and that case needs no set.
+   */
+  private fun hasSameParentIds(lv: LV, other: EventGraphImpl, otherLv: LV): Boolean {
+    val parents = parentsOf(lv)
+    val otherParents = other.parentsOf(otherLv)
+    if (parents.size != otherParents.size) {
+      return false
+    }
+    if (parents.size == 1) {
+      return hasSameId(parents[0], other, otherParents[0])
+    }
+    return parentIdsOf(parents) == other.parentIdsOf(otherParents)
+  }
+
+  /** Whether the unit [lv] here and the unit [otherLv] of [other] have one id. */
+  private fun hasSameId(lv: LV, other: EventGraphImpl, otherLv: LV): Boolean {
+    val run = runAt(lv)
+    val otherRun = other.runAt(otherLv)
+    return run.event.agent() == otherRun.event.agent() && run.seqAt(lv) == otherRun.seqAt(otherLv)
+  }
+
+  /** The ids of [parents], as a set, because the two graphs order their lvs differently. */
+  private fun parentIdsOf(parents: Frontier): Set<Pair<Agent, Int>> {
+    val ids = HashSet<Pair<Agent, Int>>(parents.size * 2)
+    for (parent in parents) {
+      val run = runAt(parent)
+      ids.add(run.event.agent() to run.seqAt(parent))
+    }
+    return ids
   }
 
   /** The graph as a text diagram. See [EventGraphDiagram] for the notation and its limits. */
@@ -553,28 +744,27 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  internal class Diff(val aOnly: LvList, val bOnly: LvList) {
+  internal class Diff(val aOnly: LvRanges, val bOnly: LvRanges) {
     /** Whether the two versions name the same event set, so no item changes state. */
     fun isEmpty(): Boolean {
       return aOnly.isEmpty() && bOnly.isEmpty()
     }
 
     override fun toString(): String {
-      return "Diff(aOnly=${aOnly.listedForMessage()}, bOnly=${bOnly.listedForMessage()})"
+      return "Diff(aOnly=$aOnly, bOnly=$bOnly)"
     }
   }
 
   /**
    * The region above the common ancestor, split by which side holds it.
    *
-   * [commonAncestor] is a version, while [conflictLvs] and [newLvs] are lists of every
-   * unit to walk. A real type marks the difference here, because the two are used side by
-   * side and a swap would replay the wrong thing.
+   * [commonAncestor] is a version, while [conflictRanges] and [newRanges] name every unit to
+   * walk. A real type marks the difference here, because the two are used side by side and a
+   * swap would replay the wrong thing.
    */
-  internal class Conflict(val commonAncestor: VersionImpl, val conflictLvs: LvList, val newLvs: LvList) {
+  internal class Conflict(val commonAncestor: VersionImpl, val conflictRanges: LvRanges, val newRanges: LvRanges) {
     override fun toString(): String {
-      return "Conflict(ancestor=$commonAncestor, conflict=${conflictLvs.listedForMessage()}, " +
-             "new=${newLvs.listedForMessage()})"
+      return "Conflict(ancestor=$commonAncestor, conflict=$conflictRanges, new=$newRanges)"
     }
   }
 

@@ -3,6 +3,7 @@ package com.intellij.openapi.editor.experimental
 
 import com.intellij.openapi.editor.impl.experimental.LV
 import com.intellij.openapi.editor.impl.experimental.VersionImpl
+import org.jetbrains.annotations.TestOnly
 
 /**
  * A version of an [EventGraph]: the paper's `Version(G)`, the set of events with no children.
@@ -12,7 +13,8 @@ import com.intellij.openapi.editor.impl.experimental.VersionImpl
  * and a replay of that set is the document at this version.
  *
  * A version is opaque and belongs to the graph that produced it. Two versions are [equals]
- * when they name the same event set of the same graph.
+ * when they hold the same heads. The heads of a graph's versions are transitively reduced, so
+ * two versions of one graph have the same heads exactly when they name the same event set.
  */
 interface Version {
   /** `true` for the version of the empty graph, before any event. */
@@ -20,6 +22,12 @@ interface Version {
 
   companion object {
     fun root(): Version = VersionImpl.ROOT
+
+    /**
+     * A version that names its heads by lv. An lv is local to one graph value, so only a test
+     * that builds the graph itself knows which unit an lv names.
+     */
+    @TestOnly
     fun of(lv: LV, vararg lvs: LV): Version = VersionImpl(intArrayOf(lv, *lvs))
   }
 }

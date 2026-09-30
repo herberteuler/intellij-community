@@ -61,11 +61,6 @@ internal class VersionImpl(
     return Arrays.binarySearch(lvs, lv) >= 0
   }
 
-  /** The heads as a fresh array, which the caller is free to change in place. */
-  fun toLvs(): Frontier {
-    return lvs.copyOf()
-  }
-
   override fun equals(other: Any?): Boolean {
     return other is VersionImpl && lvs.contentEquals(other.lvs)
   }

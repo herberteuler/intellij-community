@@ -12,6 +12,8 @@ internal class EventImpl(
 ) : Event {
 
   init {
+    // The id order of the graph compares agents, and only AgentImpl knows how.
+    AgentImpl.implOf(agent)
     checkKnownOp(op)
     val offset = op.offset()
     val length = op.length()
@@ -53,6 +55,19 @@ internal class EventImpl(
 
   override fun toString(): String {
     return "$op by $agent, seq $seq"
+  }
+
+  companion object {
+    /**
+     * [event] as the one implementation the graph trusts. The graph keeps an event forever, and the
+     * checks of the constructor are what make its length and its id range safe to store.
+     */
+    fun implOf(event: Event): EventImpl {
+      require(event is EventImpl) {
+        "Foreign Event implementation: ${event.javaClass.name}"
+      }
+      return event
+    }
   }
 }
 

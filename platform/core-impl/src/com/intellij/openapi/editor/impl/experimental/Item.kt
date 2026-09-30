@@ -12,6 +12,24 @@ package com.intellij.openapi.editor.impl.experimental
  * The two states are the paper's `sp` and `se`. They are private: every transition is a
  * method here, so the rules that guard them cannot be bypassed from the walk.
  *
+ * The prepare state is not-inserted, inserted, or deleted k times. The effect state is inserted
+ * or deleted. Five pairs can occur, as (prepare, effect):
+ * - A = (inserted, inserted), the state of a new item;
+ * - B = (not-inserted, inserted);
+ * - C = (not-inserted, deleted);
+ * - D = (inserted, deleted);
+ * - Ek = (deleted k times, deleted), for k of 1 or more.
+ *
+ * The transitions:
+ * - [deleteHere] takes A or D to E1;
+ * - [retreat] of an insert takes A to B and D to C, and [advance] of an insert reverses that;
+ * - [retreat] of a delete takes E1 to D and Ek to E(k-1), and [advance] of a delete reverses that;
+ * - [splitAfter] gives both pieces the state of the span.
+ *
+ * The effect state only goes from inserted to deleted, because the effect version never takes
+ * an event back. A deleted prepare state therefore always comes with a deleted effect state.
+ * The constructor checks that, and every transition checks the state it starts from.
+ *
  * [originLeft] and [rightParent] order concurrent insertions, and they belong to the FIRST
  * unit of the span. Inside an insert run every later unit has the unit before it as the
  * left origin and no right parent, so [splitAfter] rebuilds them without storing them.
@@ -26,6 +44,11 @@ internal class Item(
 ) {
   var length: Int = length
     private set
+
+  init {
+    checkLength(length)
+    checkStates(prepareState, effectState)
+  }
 
   /** The unit id of the first character. A right parent always names this one. */
   val firstUnit: LV get() = lv
@@ -122,6 +145,26 @@ internal class Item(
     )
     length = offset
     return right
+  }
+
+  /** An empty span would own no unit, and the walk could never reach it by a unit id. */
+  private fun checkLength(length: Int) {
+    require(length >= 1) {
+      "The span length is not positive: $length"
+    }
+  }
+
+  /** Fails unless the pair is one of the five states in the class KDoc. */
+  private fun checkStates(prepareState: Int, effectState: Int) {
+    require(effectState == INSERTED || effectState == DELETED) {
+      "The effect state $effectState is not a state"
+    }
+    require(prepareState >= NOT_YET_INSERTED) {
+      "The prepare state $prepareState is not a state"
+    }
+    require(prepareState < DELETED || effectState == DELETED) {
+      "The prepare version deleted the span, but the effect version has it"
+    }
   }
 
   override fun toString(): String {

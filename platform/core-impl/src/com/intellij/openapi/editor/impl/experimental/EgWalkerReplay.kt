@@ -67,8 +67,8 @@ internal object EgWalkerReplay {
     walker.startAt(conflict.commonAncestor)
     // The branch's own units above the ancestor rebuild the concurrency context. The
     // document already has them, so this phase reports nothing.
-    walker.walk(conflict.conflictLvs, sink = null)
+    walker.walk(conflict.conflictRanges, sink = null)
     // The units only in the merged history are the new ones, so they report.
-    walker.walk(conflict.newLvs, sink)
+    walker.walk(conflict.newRanges, sink)
   }
 }

@@ -135,6 +135,7 @@ internal class MergePlan(
 
   /** The size of the plan and not its content: the content is a whole region of a history. */
   override fun toString(): String {
-    return "MergePlan(runs=${events.size}, units=${lvEnd - dest.size()}, from=$other)"
+    return "MergePlan(runs=${events.size}, units=${lvEnd - dest.size()}, " +
+           "from a graph of ${other.size()} units in ${other.runCount()} runs)"
   }
 }

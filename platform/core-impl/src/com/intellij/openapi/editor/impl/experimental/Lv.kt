@@ -20,18 +20,10 @@ internal const val NO_UNIT: LV = -1
 /**
  * A version, which the paper calls the frontier: the LVs that have no child. The array is
  * sorted ascending, holds no duplicate, and is transitively reduced, so no entry is an
- * ancestor of another. [VersionImpl] is the same thing with the invariant enforced.
+ * ancestor of another. [VersionImpl] is the same thing as a real type. It enforces the order
+ * and the uniqueness, but not the reduction: that needs the graph, and
+ * [com.intellij.openapi.editor.experimental.EventGraph.append] states it as a precondition.
  *
- * A frontier names a document state. Contrast [LvList], which names units to process.
+ * A frontier names a document state. Contrast [LvRanges], which names every unit of a region.
  */
 internal typealias Frontier = IntArray
-
-/**
- * The LVs that a walk must visit, sorted ascending, one entry per unit.
- *
- * This is NOT a [Frontier]: it names every unit in a region, not only the heads. The two
- * are never interchangeable, although Kotlin resolves both aliases to `IntArray` and so
- * cannot enforce that. Where a mix-up would be dangerous, the code takes a [VersionImpl]
- * instead, which is a real type.
- */
-internal typealias LvList = IntArray

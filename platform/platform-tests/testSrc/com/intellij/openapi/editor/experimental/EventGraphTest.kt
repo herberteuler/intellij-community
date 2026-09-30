@@ -289,8 +289,8 @@ class EventGraphTest {
     )
     for (clash in clashes) {
       val theirs = EventGraph.createGraph().append(clash, root)
-      assertThrows(IllegalArgumentException::class.java, { mine.mergeFrom(theirs) }, "$clash")
-      assertThrows(IllegalArgumentException::class.java, { theirs.mergeFrom(mine) }, "$clash")
+      assertThrows(EventIdClashException::class.java, { mine.mergeFrom(theirs) }, "$clash")
+      assertThrows(EventIdClashException::class.java, { theirs.mergeFrom(mine) }, "$clash")
     }
     // A different run cut over the same operations stays legal. A run of another agent comes
     // between the two units, so "b" cannot extend "a".
@@ -599,6 +599,129 @@ class EventGraphTest {
     assertTrue(agent("b") > agent("a"))
     assertEquals(0, agent("a").compareTo(agent("a")))
     assertEquals(agent("a"), agent("a"))
+  }
+
+  @Test
+  fun `an insert past the document says so`() {
+    // Like the delete above: the raw API takes the offset as it is, and the replay names the fault.
+    val graph = EventGraph.createGraph()
+      .append(Event.createInsert(agent("u"), 0, 0, "ab"), Version.root())
+      .append(Event.createInsert(agent("v"), 0, 9, "x"), Version.of(1))
+    val failure = assertThrows(IllegalArgumentException::class.java) { graph.replay() }
+    assertTrue(
+      failure.message!!.contains("not long enough"),
+      "Unexpected message: ${failure.message}",
+    )
+  }
+
+  @Test
+  fun `a foreign event is rejected`() {
+    // The graph keeps an event forever, so it takes only the implementation that checks itself.
+    // This one reports a length that no real event can have. Every other check of the append
+    // passes it, and the graph would then shrink to two units and lose the run.
+    val graph = EventGraph.createGraph().append(Event.createInsert(agent("u"), 0, 0, "abc"), Version.root())
+    val real = Event.createDelete(agent("v"), 0, 0, 1)
+    val foreign = object : Event by real {
+      override fun length(): Int = -1
+    }
+    val failure = assertThrows(IllegalArgumentException::class.java) { graph.append(foreign, graph.version()) }
+    assertTrue(failure.message!!.contains("Foreign Event"), "Unexpected message: ${failure.message}")
+  }
+
+  @Test
+  fun `a foreign agent is rejected where it enters`() {
+    // The id order compares agents, and a foreign agent would fail only at the first compare.
+    val foreign = object : Agent {
+      override fun compareTo(other: Agent): Int = 0
+    }
+    assertThrows(IllegalArgumentException::class.java) { Event.createInsert(foreign, 0, 0, "x") }
+    assertThrows(IllegalArgumentException::class.java) { DocBranch.createBranch("", foreign) }
+  }
+
+  @Test
+  fun `a foreign op is rejected`() {
+    // Only DocOp.ins and DocOp.del detach the content from a sequence the caller can change.
+    val foreign = object : DocOp.Insert {
+      override fun offset(): Int = 0
+      override fun length(): Int = 1
+      override fun fragment(): CharSequence = "x"
+    }
+    assertThrows(IllegalArgumentException::class.java) { Event.create(agent("u"), 0, foreign) }
+  }
+
+  @Test
+  fun `an insert keeps its fragment when the caller changes the builder`() {
+    val builder = StringBuilder("ab")
+    val op = DocOp.ins(0, builder)
+    builder.setLength(0)
+    builder.append("zz")
+    assertEquals("ab", op.fragment().toString())
+    val graph = EventGraph.createGraph().append(Event.create(agent("u"), 0, op), Version.root())
+    assertEquals("ab", graph.replay().string())
+  }
+
+  @Test
+  fun `an append past the unit space is rejected`() {
+    // A delete holds no content, so one run can take almost the whole unit space for free.
+    val huge = EventGraph.createGraph().append(Event.createDelete(agent("u"), 0, 0, Int.MAX_VALUE - 1), Version.root())
+    assertEquals(Int.MAX_VALUE - 1, huge.size())
+    assertThrows(IllegalArgumentException::class.java) {
+      huge.append(Event.createDelete(agent("v"), 0, 0, 2), huge.version())
+    }
+    // The last unit still fits.
+    assertEquals(Int.MAX_VALUE, huge.append(Event.createDelete(agent("v"), 0, 0, 1), huge.version()).size())
+  }
+
+  @Test
+  fun `a merge past the unit space is rejected`() {
+    // Each graph fits on its own, but their union needs one unit more than the space has.
+    val half = Int.MAX_VALUE / 2 + 1
+    val a = EventGraph.createGraph().append(Event.createDelete(agent("u"), 0, 0, half), Version.root())
+    val b = EventGraph.createGraph().append(Event.createDelete(agent("v"), 0, 0, half), Version.root())
+    assertThrows(IllegalArgumentException::class.java) { a.mergeFrom(b) }
+    assertThrows(IllegalArgumentException::class.java) { b.mergeFrom(a) }
+    assertEquals(half, a.size())
+  }
+
+  @Test
+  fun `a shared id with other parents is rejected`() {
+    // One agent minted (v, 0) twice: once after "ab", and once at the root. The kind, the
+    // position and the character match, so only the parents tell the two operations apart.
+    val u = agent("u")
+    val v = agent("v")
+    val base = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), Version.root())
+    val afterBase = base.append(Event.createInsert(v, 0, 0, "x"), base.version())
+    val atRoot = EventGraph.createGraph().append(Event.createInsert(v, 0, 0, "x"), Version.root())
+    val clash = assertThrows(EventIdClashException::class.java) { afterBase.mergeFrom(atRoot) }
+    assertEquals(v, clash.agent())
+    assertEquals(0, clash.seq())
+    assertThrows(EventIdClashException::class.java) { atRoot.mergeFrom(afterBase) }
+  }
+
+  @Test
+  fun `a shared id with several parents compares them as a set of ids`() {
+    val u = agent("u")
+    val v = agent("v")
+    val w = agent("w")
+    val root = Version.root()
+    // Two graphs append the root inserts of u and v in the opposite orders, so the parents of
+    // (w, 0) have other lvs in each graph but the same ids.
+    val uFirst = EventGraph.createGraph()
+      .append(Event.createInsert(u, 0, 0, "a"), root)
+      .append(Event.createInsert(v, 0, 0, "b"), root)
+    val vFirst = EventGraph.createGraph()
+      .append(Event.createInsert(v, 0, 0, "b"), root)
+      .append(Event.createInsert(u, 0, 0, "a"), root)
+    val one = uFirst.append(Event.createInsert(w, 0, 2, "c"), uFirst.version())
+    val other = vFirst.append(Event.createInsert(w, 0, 2, "c"), vFirst.version())
+    assertEquals("abc", one.mergeFrom(other).replay().string())
+    assertEquals("abc", other.mergeFrom(one).replay().string())
+    // Here (w, 0) names two parents too, but (v, 1) and not (v, 0).
+    val later = vFirst.append(Event.createInsert(v, 1, 1, "d"), Version.of(0))
+    val clashing = later.append(Event.createInsert(w, 0, 2, "c"), Version.of(1, 2))
+    val clash = assertThrows(EventIdClashException::class.java) { one.mergeFrom(clashing) }
+    assertEquals(w, clash.agent())
+    assertThrows(EventIdClashException::class.java) { clashing.mergeFrom(one) }
   }
 
   private companion object {

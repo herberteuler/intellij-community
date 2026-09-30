@@ -24,6 +24,7 @@ internal class DeleteTargets {
    * [targetStart]. A piece that continues the one before it in both spaces extends that one.
    */
   fun add(deleteStart: LV, targetStart: LV, length: Int) {
+    checkLength(length)
     checkAscending(deleteStart)
     val last = count - 1
     if (last >= 0 && deleteStarts[last] + lengths[last] == deleteStart && targetStarts[last] + lengths[last] == targetStart) {
@@ -44,6 +45,26 @@ internal class DeleteTargets {
 
   /** The unit that the delete unit [lv] deleted. The walk must have applied [lv]. */
   fun targetOf(lv: LV): LV {
+    val index = pieceIndexOf(lv)
+    return targetStarts[index] + (lv - deleteStarts[index])
+  }
+
+  /**
+   * The first delete unit of the piece that holds [lv]. The units of a piece delete consecutive
+   * units, so a walk can move them as one batch.
+   */
+  fun pieceStartOf(lv: LV): LV {
+    return deleteStarts[pieceIndexOf(lv)]
+  }
+
+  /** The delete unit after the last one of the piece that holds [lv]. */
+  fun pieceEndOf(lv: LV): LV {
+    val index = pieceIndexOf(lv)
+    return deleteStarts[index] + lengths[index]
+  }
+
+  /** The index of the piece that holds [lv], which the walk must have applied. */
+  private fun pieceIndexOf(lv: LV): Int {
     var lo = 0
     var hi = count - 1
     while (lo < hi) {
@@ -55,12 +76,19 @@ internal class DeleteTargets {
       }
     }
     checkApplied(lo, lv)
-    return targetStarts[lo] + (lv - deleteStarts[lo])
+    return lo
   }
 
   /** The number of pieces. */
   fun size(): Int {
     return count
+  }
+
+  /** An empty piece would cover no unit, and it would still take part in the merge of the next. */
+  private fun checkLength(length: Int) {
+    require(length >= 1) {
+      "The piece length is not positive: $length"
+    }
   }
 
   private fun checkAscending(deleteStart: LV) {

@@ -56,6 +56,8 @@ interface EventGraph {
    *
    * The cost is the size of the CHANGE. The two graphs compare one integer per agent, so a
    * merge never reads a run that both of them already hold.
+   *
+   * Throws [EventIdClashException] when the two graphs give one id to two operations.
    */
   fun mergeFrom(other: EventGraph): EventGraph
 

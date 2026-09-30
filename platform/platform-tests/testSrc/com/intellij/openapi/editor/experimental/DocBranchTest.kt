@@ -84,7 +84,8 @@ class DocBranchTest {
     val b = base.fork(agent("b")).applyOp(insertOp(3, "def")).applyOp(deleteOp(0, 1))
     val merged = base.merge(b)
     assertEquals("bcdef", merged.string())
-    assertEquals(b.string(), merged.string())
+    // A fast-forward takes the text of the descendant as it is, so no replay ran.
+    assertSame(b.text(), merged.text())
   }
 
   @Test
@@ -579,8 +580,8 @@ class DocBranchTest {
     val sameSpot = base.applyOp(insertOp(0, "X"))
     for (clash in listOf(insertOp(0, "Y"), insertOp(2, "Y"), insertOp(0, "YY"), deleteOp(0, 1))) {
       val other = base.applyOp(clash)
-      assertThrows(IllegalArgumentException::class.java, { sameSpot.merge(other) }, "$clash")
-      assertThrows(IllegalArgumentException::class.java, { other.merge(sameSpot) }, "$clash")
+      assertThrows(EventIdClashException::class.java, { sameSpot.merge(other) }, "$clash")
+      assertThrows(EventIdClashException::class.java, { other.merge(sameSpot) }, "$clash")
     }
     // The same id with the same operation is a normal re-merge, not a clash.
     val twin = base.applyOp(insertOp(0, "X"))
@@ -614,6 +615,61 @@ class DocBranchTest {
     val later = merged.applyOp(insertOp(0, "Z")).applyOp(deleteOp(1, 2))
     assertEquals(merged.string(), later.graph().replay(mergedVersion).string())
     assertEquals(later.string(), later.graph().replay().string())
+  }
+
+  @Test
+  fun `a merge that brings back the agent's own edit keeps its seqs going`() {
+    // The descendant holds an edit of this agent that the base value never saw. So the next seq
+    // must come from the merged history, or the next edit would reuse the id of that edit.
+    val base = DocBranch.createBranch("abc", agent("a"))
+    val descendant = base.applyOp(insertOp(3, "x"))
+    val edited = base.merge(descendant).applyOp(insertOp(0, "y"))
+    assertEquals("yabcx", edited.string())
+    assertEquals(edited.string(), edited.graph().replay().string())
+    val other = base.fork(agent("b")).applyOp(insertOp(1, "Z"))
+    assertEquals("yaZbcx", edited.merge(other).string())
+    assertEquals("yaZbcx", other.merge(edited).string())
+  }
+
+  @Test
+  fun `a merge keeps the agent of the receiver`() {
+    val base = DocBranch.createBranch("abc", agent("a"))
+    val a = base.applyOp(insertOp(0, "1"))
+    val b = base.fork(agent("b")).applyOp(insertOp(3, "2"))
+    assertEquals(agent("a"), a.merge(b).agent())
+    assertEquals(agent("b"), b.merge(a).agent())
+    // A fast-forward takes the text of the other branch, but not its agent.
+    assertEquals(agent("a"), base.merge(b).agent())
+  }
+
+  @Test
+  fun `an insert after a delete at one place stays before a concurrent insert there`() {
+    // The delete leaves an item of zero width at the place of "X". A walk from the cached cursor
+    // arrives after that item, and it must back up to where a walk from the head stops. The
+    // reference implementation gives "aXY" in both merge orders too.
+    val base = DocBranch.createBranch("ab", agent("base"))
+    val a = base.fork(agent("a")).applyOp(deleteOp(1, 1)).applyOp(insertOp(1, "X"))
+    val b = base.fork(agent("b")).applyOp(insertOp(1, "Y"))
+    val ab = a.merge(b)
+    assertEquals("aXY", ab.string())
+    assertEquals("aXY", b.merge(a).string())
+    assertEquals("aXY", ab.graph().replay().string())
+  }
+
+  @Test
+  fun `concurrent inserts order as Fugue and not as FugueMax`() {
+    // The smallest history that a random search found where the two variants differ. FugueMax
+    // gives "bcead". The reference implementation gives "becad", and this port must too.
+    val empty = DocBranch.createBranch("", agent("base"))
+    val c = empty.fork(agent("c")).applyOp(insertOp(0, "a"))
+    val b1 = empty.fork(agent("b")).applyOp(insertOp(0, "b"))
+    val b2 = b1.applyOp(insertOp(1, "c"))
+    val a = c.fork(agent("a")).merge(b1).applyOp(insertOp(2, "d")).applyOp(insertOp(1, "e"))
+    assertEquals("bead", a.string())
+    val ab = a.merge(b2)
+    assertEquals("becad", ab.string())
+    assertEquals("becad", b2.merge(a).string())
+    assertEquals("becad", ab.graph().replay().string())
   }
 }
 

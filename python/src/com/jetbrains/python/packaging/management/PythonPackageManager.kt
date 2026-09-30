@@ -146,6 +146,9 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
   @Volatile
   private var installedPackagesMetadata: Map<PyPackageName, PythonPackageMetadata> = emptyMap()
 
+  @Volatile
+  private var installedPackagesMetadataLoad: Deferred<Map<PyPackageName, PythonPackageMetadata>> = CompletableDeferred(emptyMap())
+
   @get:ApiStatus.Internal
   open val treeProvider: DependencyTreeProvider? = null
 
@@ -233,6 +236,11 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
     // must complete atomically even if the caller is cancelled.
     withContext(NonCancellable) {
       this@PythonPackageManager.installedPackages = packages
+      // Replaced before `packagesChanged`, so a listener that reads the metadata awaits the new package list.
+      installedPackagesMetadataLoad = managerScope.async(NON_INTERACTIVE_ROOT_TRACE_CONTEXT) {
+        // A load that a newer reload replaced must not overwrite the newer snapshot.
+        loadMetadata(packages).also { if (installedPackages === packages) installedPackagesMetadata = it }
+      }
 
       val interpreter = sdk.pythonInterpreterAsync()
       ApplicationManager.getApplication().messageBus.apply {
@@ -242,9 +250,6 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
 
       managerScope.launch(NON_INTERACTIVE_ROOT_TRACE_CONTEXT) {
         reloadOutdatedPackages()
-      }
-      managerScope.launch(NON_INTERACTIVE_ROOT_TRACE_CONTEXT) {
-        reloadInstalledPackagesMetadata()
       }
 
       if (!isInit) {
@@ -302,13 +307,26 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
   /**
    * Returns Core Metadata (PEP 643) read from `<dist-info>/METADATA` for every package
    * installed in the active interpreter, keyed by PEP 503-normalized name. Lifecycle mirrors
-   * `outdatedPackages`: the snapshot is rebuilt by [reloadInstalledPackagesMetadata] each time
-   * `loadPackagesImpl` observes a package-list change, in a single helper invocation.
+   * `outdatedPackages`: `loadPackagesImpl` rebuilds the snapshot in the background each time it
+   * observes a package-list change, in a single helper invocation.
+   *
+   * Does not wait for that rebuild, so right after a change the result can be empty or belong to
+   * the previous package list. Use [awaitInstalledPackagesMetadata] when it must match [listInstalledPackages].
    */
   @ApiStatus.Internal
   suspend fun listInstalledPackagesMetadata(): Map<PyPackageName, PythonPackageMetadata> {
     waitForInit()
     return listInstalledPackagesMetadataSnapshot()
+  }
+
+  /**
+   * Same as [listInstalledPackagesMetadata], but waits for the metadata load of the current
+   * package list, so the result belongs to the same package list as [listInstalledPackages].
+   */
+  @ApiStatus.Internal
+  suspend fun awaitInstalledPackagesMetadata(): Map<PyPackageName, PythonPackageMetadata> {
+    waitForInit()
+    return installedPackagesMetadataLoad.await()
   }
 
   @ApiStatus.Internal
@@ -334,17 +352,13 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
   }
 
   /**
-   * Mirror of [reloadOutdatedPackages]: rebuilds [installedPackagesMetadata] from the helper's
-   * single-shot dump of every installed distribution's METADATA file. Skipped silently when
-   * there are no installed packages so a fresh / mock SDK doesn't pay the helper-startup cost.
+   * Reads the helper's single-shot dump of every installed distribution's METADATA file. Skipped
+   * silently when there are no installed packages so a fresh / mock SDK doesn't pay the helper-startup cost.
    */
-  private suspend fun reloadInstalledPackagesMetadata() {
-    if (listInstalledPackagesSnapshot().isEmpty()) {
-      installedPackagesMetadata = emptyMap()
-      return
-    }
+  private suspend fun loadMetadata(packages: List<PythonPackage>): Map<PyPackageName, PythonPackageMetadata> {
+    if (packages.isEmpty()) return emptyMap()
 
-    installedPackagesMetadata = sdk.loadInstalledPackagesMetadata().onFailure {
+    return sdk.loadInstalledPackagesMetadata().onFailure {
       thisLogger().warn("Failed to load installed package metadata $it")
     }.getOrNull() ?: emptyMap()
   }

@@ -6,7 +6,6 @@ import com.jetbrains.python.packaging.PyPackageName
 import com.jetbrains.python.getOrNull
 import com.jetbrains.python.packaging.common.PythonPackage
 import com.jetbrains.python.packaging.common.PythonPackageMetadata
-import com.jetbrains.python.packaging.common.loadInstalledPackagesMetadata
 import com.jetbrains.python.packaging.packageRequirements.DependencyTreeProvider
 import com.jetbrains.python.packaging.packageRequirements.PackageTreeNode
 import java.util.IdentityHashMap
@@ -25,22 +24,13 @@ import org.jetbrains.annotations.VisibleForTesting
 @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
 suspend fun PythonPackageManager.installedDependencyGraph(): List<PackageTreeNode> {
   val installed = listInstalledPackages()
-  val provider = treeProvider ?: return metadataDependencyGraph(installed, installedMetadata(installed))
+  val provider = treeProvider ?: return metadataDependencyGraph(installed, awaitInstalledPackagesMetadata())
   // `<manager> show --tree` prints version *constraints* for transitive nodes (e.g. `urllib3 >=1.21.1,<1.24`)
   // rather than the resolved installed version, so re-key every node to the concrete installed version.
   val installedVersions = installed.associate { PyPackageName.normalizePackageName(it.name) to it.version }
   val copies = IdentityHashMap<PackageTreeNode, PackageTreeNode>()
   return provider.getDependencyTrees().getOrNull().orEmpty().map { it.withResolvedVersions(installedVersions, copies) }
 }
-
-// The manager fills its metadata cache off the package reload without waiting for it, and announces nothing when
-// it lands, so the build that `packagesChanged` triggers still finds the cache empty and reads the distributions
-// itself. Later builds reuse the cache the manager filled in the meantime.
-private suspend fun PythonPackageManager.installedMetadata(
-  installed: List<PythonPackage>,
-): Map<PyPackageName, PythonPackageMetadata> =
-  if (installed.isEmpty()) emptyMap()
-  else listInstalledPackagesMetadataSnapshot().ifEmpty { sdk.loadInstalledPackagesMetadata().getOrNull().orEmpty() }
 
 @VisibleForTesting
 @ApiStatus.Internal

@@ -92,14 +92,13 @@ internal class GitLabMergeRequestDetailsViewModelImpl(
   override val branchesVm = GitLabMergeRequestBranchesViewModel(
     cs,
     mergeRequest,
-    projectData.projectCoordinates.serverPath,
     projectData.gitRemote,
     preferredProjectAndAccount
   )
   override val statusVm = GitLabMergeRequestStatusViewModelImpl(
     project,
     cs,
-    projectData.gitRemote.repository,
+    projectData.gitRemote,
     projectData.projectCoordinates.serverPath,
     mergeRequest
   )

@@ -57,7 +57,6 @@ import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
-import org.jetbrains.plugins.gitlab.api.GitLabProjectCoordinates
 import org.jetbrains.plugins.gitlab.api.dto.GitLabUserDTO
 import org.jetbrains.plugins.gitlab.data.GitLabImageLoader
 import org.jetbrains.plugins.gitlab.mergerequest.GitLabMergeRequestsPreferences
@@ -76,8 +75,7 @@ private val LOG = logger<GitLabMergeRequestEditorReviewViewModel>()
 class GitLabMergeRequestEditorReviewViewModel internal constructor(
   parentCs: CoroutineScope,
   private val project: Project,
-  gitRemote: GitRemoteUrlCoordinates,
-  private val actualProjectCoordinates: GitLabProjectCoordinates,
+  private val gitRemote: GitRemoteUrlCoordinates,
   currentUser: GitLabUserDTO,
   private val mergeRequest: GitLabMergeRequest,
   private val discussionsVms: GitLabMergeRequestDiscussionsViewModels,
@@ -205,7 +203,7 @@ class GitLabMergeRequestEditorReviewViewModel internal constructor(
   override fun updateBranch() {
     cs.launch {
       val details = mergeRequest.refreshDataNow()
-      GitLabMergeRequestBranchUtil.fetchAndCheckoutBranch(gitRepository, actualProjectCoordinates.serverPath, details)
+      GitLabMergeRequestBranchUtil.fetchAndCheckoutBranch(gitRemote, details)
     }
   }
 

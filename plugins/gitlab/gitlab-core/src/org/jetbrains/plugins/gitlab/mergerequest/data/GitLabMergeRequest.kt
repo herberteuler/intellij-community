@@ -271,7 +271,7 @@ internal class LoadedGitLabMergeRequest(
   }
 
   private fun isCurrentDataInSyncWithRepository(details: GitLabMergeRequestFullDetails, repository: GitRepository): Boolean? {
-    val remoteMrBranchHash = details.getSourceRemoteDescriptor(serverPath)?.let {
+    val remoteMrBranchHash = details.getSourceRemoteDescriptor(gitRemote)?.let {
       GitRemoteBranchesUtil.findRemote(repository, it)
     }?.let {
       val branch = GitStandardRemoteBranch(it, details.sourceBranch)

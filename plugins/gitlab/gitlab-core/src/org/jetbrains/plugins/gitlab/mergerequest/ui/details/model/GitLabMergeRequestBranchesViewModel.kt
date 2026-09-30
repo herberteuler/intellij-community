@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.jetbrains.plugins.gitlab.api.GitLabProjectCoordinates
-import org.jetbrains.plugins.gitlab.api.GitLabServerPath
 import org.jetbrains.plugins.gitlab.authentication.accounts.GitLabAccount
 import org.jetbrains.plugins.gitlab.mergerequest.data.GitLabMergeRequest
 import org.jetbrains.plugins.gitlab.mergerequest.data.GitLabMergeRequestFullDetails
@@ -33,7 +32,6 @@ import org.jetbrains.plugins.gitlab.util.GitLabStatistics
 internal class GitLabMergeRequestBranchesViewModel(
   parentCs: CoroutineScope,
   private val mergeRequest: GitLabMergeRequest,
-  private val serverPath: GitLabServerPath,
   private val gitRemote: GitRemoteUrlCoordinates,
   private val preferredProjectAndAccount: Pair<GitLabProjectCoordinates, GitLabAccount>,
 ) : CodeReviewBranchesViewModel {
@@ -54,7 +52,7 @@ internal class GitLabMergeRequestBranchesViewModel(
 
   override val isCheckedOut: StateFlow<Boolean> = gitRemote.repository.changesSignalFlow().withInitial(Unit)
     .combine(mergeRequest.details) { _, details ->
-      val sourceRemote = details.getSourceRemoteDescriptor(serverPath)
+      val sourceRemote = details.getSourceRemoteDescriptor(gitRemote)
       if (sourceRemote != null) {
         GitRemoteBranchesUtil.testRemoteBranchCheckedOut(gitRemote.repository, sourceRemote, details.sourceBranch)
       }
@@ -70,7 +68,7 @@ internal class GitLabMergeRequestBranchesViewModel(
   override fun fetchAndCheckoutRemoteBranch() {
     cs.launch {
       val details = mergeRequest.details.first()
-      GitLabMergeRequestBranchUtil.fetchAndCheckoutBranch(gitRemote.repository, serverPath, details)
+      GitLabMergeRequestBranchUtil.fetchAndCheckoutBranch(gitRemote, details)
       GitLabStatistics.logMrActionExecuted(gitRemote.repository.project, GitLabStatistics.MergeRequestAction.BRANCH_CHECKOUT)
     }
   }
@@ -82,8 +80,7 @@ internal class GitLabMergeRequestBranchesViewModel(
   override fun checkoutInNewWorktree() {
     cs.launch {
       val details = mergeRequest.details.first()
-      GitLabMergeRequestBranchUtil.fetchAndCheckoutBranchInNewWorktree(gitRemote.repository,
-                                                                       serverPath,
+      GitLabMergeRequestBranchUtil.fetchAndCheckoutBranchInNewWorktree(gitRemote,
                                                                        details,
                                                                        preferredProjectAndAccount)
       GitLabStatistics.logMrActionExecuted(gitRemote.repository.project, GitLabStatistics.MergeRequestAction.BRANCH_CHECKOUT)
@@ -94,7 +91,7 @@ internal class GitLabMergeRequestBranchesViewModel(
   override fun fetchAndShowInLog() {
     cs.launch {
       val details = mergeRequest.details.first()
-      GitLabMergeRequestBranchUtil.fetchAndShowRemoteBranchInLog(gitRemote.repository, serverPath, details)
+      GitLabMergeRequestBranchUtil.fetchAndShowRemoteBranchInLog(gitRemote, details)
       GitLabStatistics.logMrActionExecuted(gitRemote.repository.project, GitLabStatistics.MergeRequestAction.SHOW_BRANCH_IN_LOG)
     }
   }

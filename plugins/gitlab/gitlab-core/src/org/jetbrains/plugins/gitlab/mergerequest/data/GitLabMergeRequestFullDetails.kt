@@ -5,9 +5,10 @@ import com.intellij.collaboration.ui.codereview.details.data.ReviewRequestState
 import com.intellij.openapi.util.NlsSafe
 import git4idea.GitRemoteBranch
 import git4idea.push.GitSpecialRefRemoteBranch
+import git4idea.remote.GitRemoteUrlCoordinates
+import git4idea.remote.hosting.GitHostingUrlUtil.getUriFromRemoteUrl
 import git4idea.remote.hosting.HostedGitRepositoryRemote
 import git4idea.repo.GitRemote
-import org.jetbrains.plugins.gitlab.api.GitLabServerPath
 import org.jetbrains.plugins.gitlab.api.dto.GitLabDiffRefs
 import org.jetbrains.plugins.gitlab.api.dto.GitLabLabelGQLDTO
 import org.jetbrains.plugins.gitlab.api.dto.GitLabMergeRequestPermissionsDTO
@@ -17,6 +18,7 @@ import org.jetbrains.plugins.gitlab.api.dto.GitLabReviewerDTO
 import org.jetbrains.plugins.gitlab.api.dto.GitLabUserDTO
 import org.jetbrains.plugins.gitlab.mergerequest.api.dto.GitLabMergeRequestDTO
 import org.jetbrains.plugins.gitlab.util.GitLabProjectPath
+import java.net.URI
 import java.util.Date
 
 data class GitLabMergeRequestFullDetails(
@@ -122,20 +124,27 @@ val GitLabMergeRequestFullDetails.reviewState: ReviewRequestState
       else -> ReviewRequestState.OPENED // to avoid null state
     }
 
-fun GitLabMergeRequestFullDetails.ProjectDetails.getRemoteDescriptor(server: GitLabServerPath): HostedGitRepositoryRemote =
-  HostedGitRepositoryRemote(
+// Used as a default value for HostedGitRepositoryRemote serverUri when it's not possible to find an existing remote.
+// Path is removed, to match to every URL with the same host.
+private fun GitRemoteUrlCoordinates.toServerUri(): URI = getUriFromRemoteUrl(url)?.resolve("/")
+                                                         ?: throw IllegalArgumentException("Invalid remote URL: $url")
+
+fun GitLabMergeRequestFullDetails.ProjectDetails.getRemoteDescriptor(defaultCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote {
+  val serverUri = defaultCoordinates.toServerUri()
+  return HostedGitRepositoryRemote(
     path.owner,
-    server.toURI(),
+    serverUri,
     path.fullPath(),
     httpUrlToRepo,
     sshUrlToRepo
   )
+}
 
-fun GitLabMergeRequestFullDetails.getSourceRemoteDescriptor(server: GitLabServerPath): HostedGitRepositoryRemote? =
-  sourceProject?.getRemoteDescriptor(server)
+fun GitLabMergeRequestFullDetails.getSourceRemoteDescriptor(defaultCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote? =
+  sourceProject?.getRemoteDescriptor(defaultCoordinates)
 
-fun GitLabMergeRequestFullDetails.getTargetRemoteDescriptor(server: GitLabServerPath): HostedGitRepositoryRemote =
-  targetProject.getRemoteDescriptor(server)
+fun GitLabMergeRequestFullDetails.getTargetRemoteDescriptor(defaultCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote =
+  targetProject.getRemoteDescriptor(defaultCoordinates)
 
 /**
  * Gets a special remote ref for the head of the merge request.

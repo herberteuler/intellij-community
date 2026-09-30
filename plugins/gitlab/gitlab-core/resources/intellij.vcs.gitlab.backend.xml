@@ -134,6 +134,8 @@
     <projectSettings service="org.jetbrains.plugins.gitlab.mergerequest.ui.details.model.GitLabPersistentMergeRequestChangesViewedState"/>
     <projectSettings service="org.jetbrains.plugins.gitlab.authentication.accounts.GitLabProjectDefaultAccountHolder"/>
     <applicationSettings service="org.jetbrains.plugins.gitlab.GitLabSettings"/>
+
+    <advancedSetting default="gitlab.com" id="gitlab.aliases" groupKey="advanced.setting.gitlab"/>
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij.statistics">

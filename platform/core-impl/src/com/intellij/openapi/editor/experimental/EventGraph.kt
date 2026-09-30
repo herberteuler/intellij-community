@@ -16,7 +16,7 @@ import com.intellij.openapi.editor.impl.experimental.EventGraphImpl
  * burst and not one per keystroke.
  */
 interface EventGraph {
-  /** The number of single-character operations in the graph, summed over all runs. */
+  /** The number of units in the graph, summed over all runs. See [Event] for a unit. */
   fun size(): Int
 
   /** The number of stored [Event] runs. `runCount() <= size()`; the gap is the encoding win. */
@@ -30,17 +30,17 @@ interface EventGraph {
    *
    * [parents] must be a version of this graph, and must be transitively reduced.
    *
-   * The seq of the run must be the next free seq of its agent in this graph. So the seqs of
-   * one agent ascend and leave no gap, which keeps the rule that one (agent, seq) pair names
-   * one unit forever, and lets [mergeFrom] compare two histories by agent instead of by run.
-   * Each agent owns its own seq space, so two agents interleave freely.
+   * The seq of the run must be the next free seq of its agent in this graph. So the seqs of one
+   * agent ascend and leave no gap. That keeps the rule that one (agent, seq) pair names one unit
+   * forever. It also lets [mergeFrom] compare two histories by agent instead of by run. Each agent
+   * owns its own seq space, so two agents interleave freely.
    *
    * When [event] continues the newest run, the append extends that run and adds none. The
    * event continues the run when all of these hold:
    * - it has the same agent, and its seq is the next one after the run;
    * - [parents] names the last unit of the run and nothing else;
-   * - it has the same kind of op, and the op starts where the next unit of the run would
-   *   edit: at the end of an insert, or at the offset of a delete;
+   * - the op has the same kind, and it starts where the run would edit next. That is the end of an
+   *   insert, or the offset of a delete;
    * - an insert run stays within [MAX_COALESCED_INSERT] characters;
    * - a delete run stays within the offset space, so its offset plus its length fits an `Int`.
    *
@@ -51,9 +51,9 @@ interface EventGraph {
   fun append(event: Event, parents: Version): EventGraph
 
   /**
-   * Returns the union of this graph and [other], joined by event ids.
-   * Units of [other] that this graph already contains are kept once; when this graph
-   * holds only the leading units of a run, the rest of the run is appended.
+   * Returns the union of this graph and [other], joined by event ids. Units of [other] that this
+   * graph already contains are kept once. When this graph holds only the leading units of a run,
+   * the merge appends the rest of the run.
    *
    * The cost is the size of the CHANGE. The two graphs compare one integer per agent, so a
    * merge never walks the history they share. It reads only a few shared units per agent for

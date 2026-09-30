@@ -6,14 +6,14 @@ import com.intellij.openapi.editor.experimental.DocMerge
 import com.intellij.openapi.editor.experimental.DocOp
 
 /**
- * See [DocMerge]. The ops are either ready, because the merge replayed and recorded them, or
- * deferred, because the merge needed no replay and the ops would cost one.
+ * See [DocMerge]. The ops are ready when the merge replayed and recorded them. They are deferred
+ * when the merge needed no replay, because the ops would cost one.
  *
  * Thread safety: the branch and a ready list are final. A deferred list sits behind a lazy value in
  * the publication mode. Two threads that ask at once can both build it, but every caller gets the
- * one list that won, and no lock is held while the replay runs. The build reads only immutable
- * values, so a second build gives an equal list. After the build the lazy value drops the
- * computation, and with it the values that only the computation needed.
+ * one list that won. No lock is held while the replay runs. The build reads only immutable values,
+ * so a second build gives an equal list. After the build the lazy value drops the computation, and
+ * with it the values that only the computation needed.
  */
 internal class DocMergeImpl private constructor(
   private val branch: DocBranch,
@@ -30,8 +30,8 @@ internal class DocMergeImpl private constructor(
 
   /** The branch and the number of ops. It never builds deferred ops. */
   override fun toString(): String {
-    val ops = if (ops.isInitialized()) "${ops.value.size} ops" else "ops deferred"
-    return "DocMerge($branch, $ops)"
+    val opsText = if (ops.isInitialized()) "${ops.value.size} ops" else "ops deferred"
+    return "DocMerge($branch, $opsText)"
   }
 
   companion object {

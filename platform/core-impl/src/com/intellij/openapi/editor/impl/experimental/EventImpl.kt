@@ -36,7 +36,7 @@ internal class EventImpl(
     }
   }
 
-  override fun suffixFrom(units: Int): Event {
+  override fun suffixFrom(units: Int): EventImpl {
     checkUnitIndex(units)
     if (units == 0) {
       return this

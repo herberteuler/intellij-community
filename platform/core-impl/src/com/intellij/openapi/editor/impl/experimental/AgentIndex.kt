@@ -52,22 +52,22 @@ internal class AgentIndex private constructor(
     return if (run != null && run.holdsUnit(agent, seq)) run.lvOfSeq(seq) else -1
   }
 
-  /** What the closed runs know, plus [newest], which is the tail of the graph, as one end seq per agent. */
-  fun summarize(newest: StoredRun?): VersionSummary {
+  /** What the closed runs know, plus the [tail] of the graph, as one end seq per agent. */
+  fun summarize(tail: StoredRun?): VersionSummary {
     val endSeqs = HashMap<Agent, Int>(agents.size + 1)
     for (slot in agents.indices) {
       endSeqs[agents[slot]] = endSeqOf(trees[slot])
     }
-    if (newest != null) {
-      endSeqs[newest.event.agent()] = newest.endSeq()
+    if (tail != null) {
+      endSeqs[tail.event.agent()] = tail.endSeq()
     }
     return VersionSummary(endSeqs)
   }
 
   /**
    * The [StoredRun.lvStart] of every closed run that holds a unit [summary] does not cover,
-   * ascending. The runs of an agent cover its seqs without a gap, so the first such run is the one
-   * that holds the first seq the summary lacks, and every later run of the agent follows it.
+   * ascending. The runs of an agent cover its seqs without a gap. So the first such run holds the
+   * first seq that the summary lacks, and every later run of the agent follows it.
    */
   fun newRunStarts(summary: VersionSummary): IntArray {
     var count = 0
@@ -116,7 +116,8 @@ internal class AgentIndex private constructor(
   private fun checkSeqContinues(tree: RunTree, run: StoredRun) {
     val expected = endSeqOf(tree)
     require(run.event.seq() == expected) {
-      "The seq ${run.event.seq()} of ${run.event.agent()} does not continue the stored seqs: expected $expected"
+      "The seq ${run.event.seq()} of ${run.event.agent()} does not continue the seqs of the closed runs: " +
+      "expected $expected"
     }
   }
 

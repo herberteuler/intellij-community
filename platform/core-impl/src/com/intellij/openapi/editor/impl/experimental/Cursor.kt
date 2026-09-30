@@ -10,7 +10,11 @@ package com.intellij.openapi.editor.impl.experimental
  * [itemIndex] names its list on purpose, because an index into the walk ranges means something
  * else.
  */
-internal class Cursor(itemIndex: Int, preparePos: Int, effectPos: Int) {
+internal class Cursor(
+  itemIndex: Int,
+  preparePos: Int,
+  effectPos: Int,
+) {
   var itemIndex: Int = itemIndex
     private set
   var preparePos: Int = preparePos

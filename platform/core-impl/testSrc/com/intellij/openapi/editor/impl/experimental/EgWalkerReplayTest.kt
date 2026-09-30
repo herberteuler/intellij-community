@@ -26,7 +26,7 @@ internal class EgWalkerReplayTest {
     val failure = assertThrows(IllegalArgumentException::class.java) {
       EgWalkerReplay.mergeInto(merged, VersionImpl(intArrayOf(7)), BatchingSink(b.text()))
     }
-    assertTrue(failure.message!!.contains("do not all sit above"), failure.message)
+    assertTrue(failure.message.orEmpty().contains("do not all sit above"), failure.message)
     // The direction that a merge uses works on the same graph.
     val sink = BatchingSink(a.text())
     EgWalkerReplay.mergeInto(merged, EventGraphImpl.implOf(a.graph()).versionImpl(), sink)

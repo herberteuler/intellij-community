@@ -17,11 +17,11 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   /** Every item in document order. The list only grows: a split inserts, nothing removes. */
   private val items = ArrayList<Item>()
 
-  /** For a delete unit, the unit id it deleted. */
+  /** For each delete unit, the lv of the unit it deleted. */
   private val delTargets = DeleteTargets()
 
   /**
-   * Every item by its first unit id. A span covers a range, so a lookup takes the floor
+   * Every item by the lv of its first unit. A span covers a range, so a lookup takes the floor
    * entry and then checks that the item really covers the unit. Ranges never overlap, so
    * the floor entry is the only candidate.
    */
@@ -51,7 +51,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       addItem(
         0,
         Item(
-          lv = -1 - placeholderCount,
+          firstUnit = -1 - placeholderCount,
           length = placeholderCount,
           originLeft = NO_UNIT,
           rightParent = NO_UNIT,
@@ -134,12 +134,12 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       val diff = graph.diff(curVersion, parents)
       if (!diff.isEmpty()) {
         // The prepare widths change at arbitrary places: the cached cursor is stale.
-        cacheCursor(0, 0, 0)
+        resetCursorCache()
       }
-      moveRanges(diff.aOnly, retreating = true)
-      moveRanges(diff.bOnly, retreating = false)
+      retreatRanges(diff.aOnly)
+      advanceRanges(diff.bOnly)
     }
-    if (run.isDelete) {
+    if (run.isDelete()) {
       applyDelete(lv, count, run.offsetAt(lv))
     } else {
       applyInsert(run, lv, count, run.offsetAt(lv))
@@ -150,29 +150,29 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   // ------------------------------------------------------------------------- retreat and advance
 
   /**
-   * Moves the prepare version over [ranges], in batches that share one item.
+   * Takes [ranges] back out of the prepare version, in batches that share one item.
    *
-   * A retreat walks backwards, so an item is undeleted before it is uninserted. A batch covers
-   * the units of a range that change one contiguous part of one item, so a whole run usually
-   * moves in one step and the item keeps its span. Only a batch that covers part of an item
-   * splits it.
+   * A retreat walks backwards, so an item is undeleted before it is uninserted. A batch covers the
+   * units of a range that change one contiguous part of one item. So a whole run usually moves in
+   * one step, and the item keeps its span. Only a batch that covers part of an item splits it.
    */
-  private fun moveRanges(ranges: LvRanges, retreating: Boolean) {
-    if (retreating) {
-      for (index in ranges.size() - 1 downTo 0) {
-        val start = ranges.start(index)
-        var end = ranges.end(index)
-        while (end > start) {
-          end = retreatBatchBefore(start, end)
-        }
+  private fun retreatRanges(ranges: LvRanges) {
+    for (index in ranges.size() - 1 downTo 0) {
+      val start = ranges.start(index)
+      var end = ranges.end(index)
+      while (end > start) {
+        end = retreatBatchBefore(start, end)
       }
-    } else {
-      for (index in 0 until ranges.size()) {
-        var start = ranges.start(index)
-        val end = ranges.end(index)
-        while (start < end) {
-          start = advanceBatchFrom(start, end)
-        }
+    }
+  }
+
+  /** Puts [ranges] back into the prepare version, forwards, in the batches of [retreatRanges]. */
+  private fun advanceRanges(ranges: LvRanges) {
+    for (index in 0 until ranges.size()) {
+      var start = ranges.start(index)
+      val end = ranges.end(index)
+      while (start < end) {
+        start = advanceBatchFrom(start, end)
       }
     }
   }
@@ -180,9 +180,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   /**
    * Advances the batch that starts at [lv] and ends at or before [end], and returns the lv after it.
    *
-   * An insert unit changes itself, and an item holds the units of one insert run, so the batch
-   * ends where the item ends. A delete unit changes the unit it deleted, so the batch also ends
-   * where its piece of [DeleteTargets] ends: past it, the targets stop being consecutive. The item
+   * An insert unit changes itself, and an item holds the units of one insert run, so the batch ends
+   * where the item ends. A delete unit changes the unit it deleted, so the batch also ends where
+   * its piece of [DeleteTargets] ends. Past that end, the targets stop being consecutive. The item
    * end implies that bound today. [applyDelete] splits the item at the ends of each part that one
    * item gives a piece, and an item never grows. The bound keeps the batch right without that fact.
    */
@@ -235,7 +235,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     }
     var index = findItemIdx(target)
     if (item.startsBefore(target)) {
-      splitItem(index, target - item.lv)
+      splitItem(index, target - item.firstUnit)
       index++
       item = items[index]
     }
@@ -276,7 +276,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
         sink?.delete(cursor.effectPos, taken)
       }
       item.deleteHere()
-      delTargets.add(lv + done, item.lv, taken)
+      delTargets.add(lv + done, item.firstUnit, taken)
       // The item now has no width in either version, so only the index moves.
       cursor.advanceOver(item)
       done += taken
@@ -300,12 +300,17 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   /**
    * Inserts [count] units of [run] from [lv] as one span at [offset], the offset the run recorded.
    *
-   * Only the first unit of the span needs the Fugue integration. A later unit lands right
-   * after the one before it, because its left origin is that unit and no other item can
-   * name it yet: the walk visits the units in one go, with no retreat or advance between
-   * them. So the span carries the origins of its first unit.
+   * Only the first unit of the span needs the Fugue integration. A later unit lands right after the
+   * one before it, because its left origin is that unit. No other item can name it yet, because the
+   * walk visits the units in one go, with no retreat or advance between them. So the span carries
+   * the origins of its first unit.
    */
-  private fun applyInsert(run: StoredRun, lv: LV, count: Int, offset: Int) {
+  private fun applyInsert(
+    run: StoredRun,
+    lv: LV,
+    count: Int,
+    offset: Int,
+  ) {
     val cursor = findByCurPos(offset)
     require(cursor.itemIndex == 0 || items[cursor.itemIndex - 1].inPrepare) {
       "The item before the insert point is not inserted in the prepare version"
@@ -314,7 +319,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     val originLeft = if (cursor.itemIndex == 0) NO_UNIT else items[cursor.itemIndex - 1].lastUnit
     val rightParent = rightParentAt(cursor.itemIndex, originLeft)
     val newItem = Item(
-      lv = lv,
+      firstUnit = lv,
       length = count,
       originLeft = originLeft,
       rightParent = rightParent,
@@ -378,7 +383,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       }
       if (otherLeftIdx == leftIdx) {
         val otherRightIdx = indexOfBound(other.rightParent)
-        if (otherRightIdx == rightIdx && graph.compareEvents(newItem.lv, other.lv) < 0) {
+        if (otherRightIdx == rightIdx && graph.lvCmp(newItem.firstUnit, other.firstUnit) < 0) {
           break
         }
         scanning = otherRightIdx < rightIdx
@@ -408,7 +413,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     }
     while (cursor.preparePos < targetPreparePos) {
       require(cursor.itemIndex < items.size) {
-        "The document is not long enough for the requested position"
+        "The document is not long enough for the prepare position $targetPreparePos"
       }
       val item = items[cursor.itemIndex]
       if (cursor.preparePos + item.prepareWidth > targetPreparePos) {
@@ -431,16 +436,16 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   private fun findItemIdx(needleLv: LV): Int {
     val index = items.indexOfFirst { it.contains(needleLv) }
     require(index >= 0) {
-      "The item $needleLv is not in the item list"
+      "No item covers the lv $needleLv"
     }
     return index
   }
 
   // ------------------------------------------------------------------------- the item bookkeeping
 
-  /** Splits the span at [itemIndex] after [offset] units and files the new right piece. */
-  private fun splitItem(itemIndex: Int, offset: Int) {
-    addItem(itemIndex + 1, items[itemIndex].splitAfter(offset))
+  /** Splits the span at [itemIndex] after [units] units and files the new right piece. */
+  private fun splitItem(itemIndex: Int, units: Int) {
+    addItem(itemIndex + 1, items[itemIndex].splitAfter(units))
   }
 
   /**
@@ -448,7 +453,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    */
   private fun addItem(itemIndex: Int, item: Item) {
     items.add(itemIndex, item)
-    itemsByUnit[item.lv] = item
+    itemsByUnit[item.firstUnit] = item
   }
 
   private fun itemBy(unit: LV): Item {
@@ -469,10 +474,15 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     cachedEffectPos = effectPos
   }
 
+  /** Sends the next lookup to the start of the item list. The start is valid for any widths. */
+  private fun resetCursorCache() {
+    cacheCursor(0, 0, 0)
+  }
+
   /**
    * Moves the prepare version to the one head [lv]. This always allocates. An in-place write would
-   * save one small array per step, but the walk compares [curVersion] with the parents arrays of
-   * the graph, and one wrong assignment would then corrupt a run that other graph values share.
+   * save one small array per step. But the walk compares [curVersion] with the parents arrays of
+   * the graph. One wrong assignment would then corrupt a run that other graph values share.
    */
   private fun setCurVersion(lv: LV) {
     curVersion = intArrayOf(lv)

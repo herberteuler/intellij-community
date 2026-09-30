@@ -19,7 +19,9 @@ internal class DeleteTargetsTest {
     assertEquals(PIECES, targets.size())
     for ((deleteStart, targetStart, length) in pieces) {
       for (unit in 0 until length) {
-        assertEquals(targetStart + unit, targets.targetOf(deleteStart + unit)) { "the delete unit ${deleteStart + unit}" }
+        assertEquals(targetStart + unit, targets.targetOf(deleteStart + unit)) {
+          "the delete unit ${deleteStart + unit}"
+        }
       }
       // The units between two pieces were never applied.
       assertThrows(IllegalArgumentException::class.java) { targets.targetOf(deleteStart + length) }

@@ -2,15 +2,15 @@
 package com.intellij.openapi.editor.impl.experimental
 
 /**
- * A set of lvs as ranges `[start, end)`. The ranges ascend, and no two of them overlap or touch.
- * A walk that must visit every unit of a region gets the region this way, so a paste of a million
- * characters costs one entry and not a million.
+ * A set of lvs as ranges `[start, end)`. The ranges ascend, and no two of them overlap or touch. A
+ * walk that must visit every unit of a region gets the region this way. A paste of a million
+ * characters then costs one entry and not a million.
  *
  * This is NOT a [Frontier]: it names every unit of a region, and not only the heads.
  *
- * [EventGraphImpl.diff] and [EventGraphImpl.findConflicting] build it. Both walks take the
- * greatest lv first, so a [DescendingBuilder] collects the ranges from the top down, and joins a
- * range that ends where the range before it starts.
+ * [diff] and [findConflicting] build it. Both walks take the greatest lv first, so a
+ * [DescendingBuilder] collects the ranges from the top down. It joins a range that ends where the
+ * range before it starts.
  */
 internal class LvRanges private constructor(
   private val starts: IntArray,

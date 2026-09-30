@@ -50,7 +50,7 @@ class DocMergeTest {
     val merge = base.mergeWithOps(descendant)
     // The text needs no replay: it is the text of the descendant.
     assertSame(descendant.text(), merge.branch().text())
-    assertEquals(listOf("ins(3, \"def\")", "del(0, len=1)"), merge.ops().map { it.toString() })
+    assertEquals(listOf(DocOp.ins(3, "def"), DocOp.del(0, 1)), merge.ops())
     assertEquals("bcdef", base.text().afterOps(merge.ops()).string())
   }
 
@@ -58,7 +58,7 @@ class DocMergeTest {
   fun `a fast-forward of an empty branch inserts the whole text`() {
     val empty = DocBranch.createBranch("", agent("a"))
     val typed = empty.fork(agent("b")).applyOp(insertOp(0, "xy")).applyOp(insertOp(2, "z"))
-    assertEquals(listOf("ins(0, \"xyz\")"), empty.mergeWithOps(typed).ops().map { it.toString() })
+    assertEquals(listOf(DocOp.ins(0, "xyz")), empty.mergeWithOps(typed).ops())
     assertEquals(emptyList<DocOp>(), typed.mergeWithOps(empty).ops())
   }
 
@@ -68,8 +68,8 @@ class DocMergeTest {
     val a = base.applyOp(insertOp(0, "1"))
     val b = base.fork(agent("b")).applyOp(insertOp(3, "2"))
     // Each side gets the edit of the other, at its place in the text of the receiver.
-    assertEquals(listOf("ins(4, \"2\")"), a.mergeWithOps(b).ops().map { it.toString() })
-    assertEquals(listOf("ins(0, \"1\")"), b.mergeWithOps(a).ops().map { it.toString() })
+    assertEquals(listOf(DocOp.ins(4, "2")), a.mergeWithOps(b).ops())
+    assertEquals(listOf(DocOp.ins(0, "1")), b.mergeWithOps(a).ops())
   }
 
   @Test
@@ -109,8 +109,8 @@ class DocMergeTest {
     for (offset in 3 downTo 1) {
       b = b.applyOp(deleteOp(offset, 1))
     }
-    assertEquals(listOf("del(1, len=3)"), a.mergeWithOps(b).ops().map { it.toString() })
-    assertEquals(listOf("del(1, len=3)"), base.mergeWithOps(b).ops().map { it.toString() })
+    assertEquals(listOf(DocOp.del(1, 3)), a.mergeWithOps(b).ops())
+    assertEquals(listOf(DocOp.del(1, 3)), base.mergeWithOps(b).ops())
   }
 
   @Test
@@ -145,7 +145,7 @@ class DocMergeTest {
       .applyOp(deleteOp(0, 1)).applyOp(deleteOp(5, 1))
     val forward = base.mergeWithOps(b)
     assertEquals("hello", forward.branch().string())
-    assertEquals(listOf("ins(0, \"X\")", "ins(6, \"Y\")", "del(0, len=1)", "del(5, len=1)"), forward.ops().map { it.toString() })
+    assertEquals(listOf(DocOp.ins(0, "X"), DocOp.ins(6, "Y"), DocOp.del(0, 1), DocOp.del(5, 1)), forward.ops())
     val a = base.fork(agent("a")).applyOp(insertOp(5, "!"))
     val concurrent = a.mergeWithOps(b)
     assertEquals(a.string(), concurrent.branch().string())
@@ -167,7 +167,7 @@ class DocMergeTest {
     val merge = x.mergeWithOps(y.fork(agent("c")).applyOp(insertOp(0, "W")))
     assertEquals("WZXNabc", merge.branch().string())
     val failure = assertThrows(IllegalArgumentException::class.java) { merge.ops() }
-    assertTrue(failure.message!!.contains("another text than the merged text"), failure.message)
+    assertTrue(failure.message.orEmpty().contains("another text than the merged text"), failure.message)
   }
 
   @Test

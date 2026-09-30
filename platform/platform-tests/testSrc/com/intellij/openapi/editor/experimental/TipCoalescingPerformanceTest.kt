@@ -47,7 +47,11 @@ class TipCoalescingPerformanceTest {
     printRow("coalesced", coalesced, afterCoalesced - before)
     printRow("control", control, afterControl - afterCoalesced)
 
-    for ((label, sharedAgent, graph) in listOf(Triple("coalesced", true, coalesced), Triple("control", false, control))) {
+    val rows = listOf(
+      Triple("coalesced", true, coalesced),
+      Triple("control", false, control),
+    )
+    for ((label, sharedAgent, graph) in rows) {
       benchmarkSubtest("append, $label", SESSION_PASSES) {
         session.graph(sharedAgent).runCount()
       }
@@ -100,10 +104,12 @@ class TipCoalescingPerformanceTest {
   }
 
   private fun keystrokeRow(label: String, burst: Int, pasteLength: Int) {
+    // Built once, so a timed pass does not pay for the string of the paste.
+    val paste = "p".repeat(pasteLength)
     fun build(sharedAgent: Boolean): EventGraph {
       val typist = Typist(sharedAgent)
       if (pasteLength > 0) {
-        typist.insert(0, "p".repeat(pasteLength))
+        typist.insert(0, paste)
       }
       // The first keystroke types at the end of the paste. Every later burst starts with a jump
       // to the front, which ends the run before it.
@@ -124,9 +130,8 @@ class TipCoalescingPerformanceTest {
   }
 
   private fun printRow(label: String, graph: EventGraph, heap: Long) {
-    println(
-      "  %-10s %9d %10.1f %7d KB".format(label, graph.runCount(), graph.size().toDouble() / graph.runCount(), heap / 1024)
-    )
+    val unitsPerRun = graph.size().toDouble() / graph.runCount()
+    println("  %-10s %9d %10.1f %7d KB".format(label, graph.runCount(), unitsPerRun, heap / 1024))
   }
 
   /**
@@ -144,12 +149,14 @@ class TipCoalescingPerformanceTest {
 
     fun insert(offset: Int, fragment: CharSequence) {
       val author = nextAuthor()
-      graph = graph.append(Event.createInsert(AUTHORS[author], takeSeqs(author, fragment.length), offset, fragment), graph.version())
+      val event = Event.createInsert(AUTHORS[author], takeSeqs(author, fragment.length), offset, fragment)
+      graph = graph.append(event, graph.version())
     }
 
     fun delete(offset: Int, length: Int) {
       val author = nextAuthor()
-      graph = graph.append(Event.createDelete(AUTHORS[author], takeSeqs(author, length), offset, length), graph.version())
+      val event = Event.createDelete(AUTHORS[author], takeSeqs(author, length), offset, length)
+      graph = graph.append(event, graph.version())
     }
 
     private fun nextAuthor(): Int {
@@ -233,7 +240,11 @@ class TipCoalescingPerformanceTest {
        * A session of [ops] ops. The weights follow the real traces that the coalescing design
        * measured: mostly typing bursts, then backspaces, jumps, Delete-key bursts, and pastes.
        */
-      fun generate(random: Random, ops: Int, startText: String = randomText(random, START_LENGTH)): Session {
+      fun generate(
+      random: Random,
+      ops: Int,
+      startText: String = randomText(random, START_LENGTH),
+    ): Session {
         val typed = StringBuilder()
         val kinds = IntArray(ops)
         val offsets = IntArray(ops)

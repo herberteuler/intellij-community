@@ -2,6 +2,7 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.util.text.ImmutableCharSequence
 
 internal class InsertDocOpImpl(
@@ -16,6 +17,16 @@ internal class InsertDocOpImpl(
   override fun length(): Int = fragment.length
   override fun fragment(): CharSequence = fragment
 
+  override fun equals(other: Any?): Boolean {
+    return other is InsertDocOpImpl &&
+           offset == other.offset &&
+           fragment.contentEquals(other.fragment)
+  }
+
+  override fun hashCode(): Int {
+    return 31 * offset + StringUtil.stringHashCode(fragment)
+  }
+
   override fun toString(): String {
     return "ins($offset, ${fragment.quotedForMessage()})"
   }
@@ -27,6 +38,16 @@ internal class DeleteDocOpImpl(
 ) : DocOp.Delete {
   override fun offset(): Int = offset
   override fun length(): Int = length
+
+  override fun equals(other: Any?): Boolean {
+    return other is DeleteDocOpImpl &&
+           offset == other.offset &&
+           length == other.length
+  }
+
+  override fun hashCode(): Int {
+    return 31 * offset + length
+  }
 
   override fun toString(): String {
     return "del($offset, len=$length)"

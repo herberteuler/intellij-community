@@ -11,8 +11,7 @@ import java.util.BitSet
 import java.util.Random
 
 /**
- * Tests what [EventGraphImpl.diff] and [EventGraphImpl.findConflicting] return, against the set
- * algebra of [EventGraphImpl.eventsOf]. A text test cannot see a common ancestor that is valid but
+ * Tests what [diff] and [findConflicting] return, against the set algebra of [eventsOf]. A text test cannot see a common ancestor that is valid but
  * too low: the text stays right, and only the walk grows. This test pins the greatest ancestor.
  *
  * The random graphs fork from inside runs, merge past versions, and have several roots.
@@ -42,7 +41,12 @@ internal class EventGraphWalkTest {
     }
   }
 
-  private fun checkWalks(graph: EventGraphImpl, a: VersionImpl, b: VersionImpl, where: () -> String) {
+  private fun checkWalks(
+    graph: EventGraphImpl,
+    a: VersionImpl,
+    b: VersionImpl,
+    where: () -> String,
+  ) {
     val eventsA = graph.eventsOf(a)
     val eventsB = graph.eventsOf(b)
     val diff = graph.diff(a.lvs, b.lvs)
@@ -76,19 +80,31 @@ internal class EventGraphWalkTest {
   }
 
   /** The tip, a fork from inside a run, a merge of two past versions, or one past version. */
-  private fun randomParents(random: Random, graph: EventGraphImpl, versions: List<VersionImpl>): VersionImpl {
+  private fun randomParents(
+    random: Random,
+    graph: EventGraphImpl,
+    versions: List<VersionImpl>,
+  ): VersionImpl {
     if (graph.size() == 0) {
       return VersionImpl.ROOT
     }
     return when (random.nextInt(4)) {
       0 -> graph.versionImpl()
       1 -> VersionImpl(intArrayOf(random.nextInt(graph.size())))
-      2 -> reduced(graph, (versions[random.nextInt(versions.size)].lvs + versions[random.nextInt(versions.size)].lvs).toList())
+      2 -> {
+        val one = versions[random.nextInt(versions.size)]
+        val other = versions[random.nextInt(versions.size)]
+        reduced(graph, (one.lvs + other.lvs).toList())
+      }
       else -> versions[random.nextInt(versions.size)]
     }
   }
 
-  private fun randomVersion(random: Random, graph: EventGraphImpl, versions: List<VersionImpl>): VersionImpl {
+  private fun randomVersion(
+    random: Random,
+    graph: EventGraphImpl,
+    versions: List<VersionImpl>,
+  ): VersionImpl {
     if (graph.size() == 0 || random.nextInt(3) != 0) {
       return versions[random.nextInt(versions.size)]
     }

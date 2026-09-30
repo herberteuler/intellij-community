@@ -106,8 +106,9 @@ class ReplayPerformanceTest {
     println("  %-14s %10s".format("history", "runs"))
     for (runs in HISTORY_RUNS) {
       val branch = historyOfRuns(runs)
-      // The fork adds no op, so it holds exactly the history of the branch.
-      val same = branch.fork(agent("aaa"))
+      // The same history in another graph value. A fork would share the graph itself, and then a
+      // fast path for one instance would leave the row nothing to measure.
+      val same = DocBranch.createBranch("", agent("aaa")).merge(branch)
       assertEquals(branch.text().length(), branch.merge(same).text().length())
       println("  %-14s %10d".format("$runs runs", branch.graph().runCount()))
       benchmarkSubtest("merge of nothing over $runs runs", EMPTY_MERGE_PASSES) {

@@ -5,9 +5,9 @@ package com.intellij.openapi.editor.impl.experimental
  * A span of document characters that share one state: the replay's unit of work.
  * [ReplayWalker] holds them in document order.
  *
- * The span covers the unit ids `[lv, lv + length)`, which always ascend. A real id is a
- * graph lv, so it is at or above 0. A placeholder span ends at -2, so every placeholder id
- * stays below 0, and [NO_UNIT] stays free for the document edges.
+ * The span covers the lvs `[firstUnit, firstUnit + length)`, which always ascend. A real lv is at
+ * or above 0. A placeholder span ends at -2, so every placeholder lv stays below 0, and [NO_UNIT]
+ * stays free for the document edges.
  *
  * The two states are the paper's `sp` and `se`. They are private: every transition is a
  * method here, so the rules that guard them cannot be bypassed from the walk.
@@ -30,12 +30,13 @@ package com.intellij.openapi.editor.impl.experimental
  * an event back. A deleted prepare state therefore always comes with a deleted effect state.
  * The constructor checks that, and every transition checks the state it starts from.
  *
- * [originLeft] and [rightParent] order concurrent insertions, and they belong to the FIRST
- * unit of the span. Inside an insert run every later unit has the unit before it as the
- * left origin and no right parent, so [splitAfter] rebuilds them without storing them.
+ * [originLeft] and [rightParent] order concurrent insertions, and they belong to the FIRST unit of
+ * the span. Inside an insert run, every later unit has the unit before it as the left origin and no
+ * right parent. So [splitAfter] rebuilds them without storing them.
  */
 internal class Item(
-  val lv: LV,
+  /** The lv of the first unit. A right parent always names this one. */
+  val firstUnit: LV,
   length: Int,
   val originLeft: LV,
   val rightParent: LV,
@@ -50,11 +51,8 @@ internal class Item(
     checkStates(prepareState, effectState)
   }
 
-  /** The unit id of the first character. A right parent always names this one. */
-  val firstUnit: LV get() = lv
-
-  /** The unit id of the last character. A left origin always names this one. */
-  val lastUnit: LV get() = lv + length - 1
+  /** The lv of the last unit. A left origin always names this one. */
+  val lastUnit: LV get() = firstUnit + length - 1
 
   /** Whether the prepare version has these characters. */
   val inPrepare: Boolean get() = prepareState == INSERTED
@@ -70,17 +68,17 @@ internal class Item(
   val effectWidth: Int get() = if (inEffect) length else 0
 
   /** Whether the span stands in for the document at the common ancestor. */
-  private val isPlaceholder: Boolean get() = lv < 0
+  private val isPlaceholder: Boolean get() = firstUnit < 0
 
-  fun contains(unit: LV): Boolean = unit >= lv && unit < lv + length
+  fun contains(unit: LV): Boolean = unit >= firstUnit && unit < firstUnit + length
 
-  fun coversExactly(unit: LV, units: Int): Boolean = lv == unit && length == units
+  fun coversExactly(unit: LV, units: Int): Boolean = firstUnit == unit && length == units
 
-  fun startsBefore(unit: LV): Boolean = lv < unit
+  fun startsBefore(unit: LV): Boolean = firstUnit < unit
 
   /**
-   * Takes one op of the prepare version back. The retreat of an insert makes the span not inserted,
-   * and the retreat of a delete takes one delete off it, which can make it inserted again.
+   * Takes one op of the prepare version back. The retreat of an insert makes the span not inserted.
+   * The retreat of a delete takes one delete off it, which can make it inserted again.
    */
   fun retreat(isDelete: Boolean) {
     if (isDelete) {
@@ -130,30 +128,30 @@ internal class Item(
   }
 
   /**
-   * Splits after [offset] units. This item keeps the left part; the right part is
+   * Splits after [units] units. This item keeps the left part; the right part is
    * returned, and the caller files it in the list and the unit index.
    *
-   * A placeholder piece keeps `originLeft = NO_UNIT`, because the reference gives that
-   * origin to every placeholder unit. A real piece anchors on the unit before it and has
-   * no right parent: inside an insert run, every unit but the first has those two origins.
+   * A placeholder piece keeps `originLeft = NO_UNIT`, because the reference gives that origin to
+   * every placeholder unit. A real piece anchors on the unit before it and has no right parent.
+   * Inside an insert run, every unit but the first has those two origins.
    */
-  fun splitAfter(offset: Int): Item {
-    require(offset in 1 until length) {
-      "The split offset $offset is out of the span of length $length"
+  fun splitAfter(units: Int): Item {
+    require(units in 1 until length) {
+      "The split after $units units is outside the span of length $length"
     }
     val right = Item(
-      lv = lv + offset,
-      length = length - offset,
-      originLeft = if (isPlaceholder) NO_UNIT else lv + offset - 1,
+      firstUnit = firstUnit + units,
+      length = length - units,
+      originLeft = if (isPlaceholder) NO_UNIT else firstUnit + units - 1,
       rightParent = NO_UNIT,
       prepareState = prepareState,
       effectState = effectState,
     )
-    length = offset
+    length = units
     return right
   }
 
-  /** An empty span would own no unit, and the walk could never reach it by a unit id. */
+  /** An empty span would own no unit, and the walk could never reach it by an lv. */
   private fun checkLength(length: Int) {
     require(length >= 1) {
       "The span length is not positive: $length"
@@ -175,7 +173,7 @@ internal class Item(
 
   override fun toString(): String {
     val kind = if (isPlaceholder) "placeholder" else "item"
-    val span = if (lv == lastUnit) "$lv" else "$lv..$lastUnit"
+    val span = if (firstUnit == lastUnit) "$firstUnit" else "$firstUnit..$lastUnit"
     // The two states agree most of the time, and a disagreement is what a reader looks for.
     val states = if (prepareState == effectState) {
       stateName(prepareState)

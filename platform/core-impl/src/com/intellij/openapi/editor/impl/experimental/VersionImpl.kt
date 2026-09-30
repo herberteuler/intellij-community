@@ -22,9 +22,9 @@ internal class VersionImpl(
   }
 
   /**
-   * The size of the unit space this version can name: the greatest lv plus one, and 0 for
-   * the root. A graph can hold this version only when its size is at least this value, and the
-   * document at this version is never longer than it. [checkSpan] keeps the sum inside an `Int`.
+   * The size of the unit space this version can name: the greatest lv plus one, and 0 for the root.
+   * A graph can hold this version only when its size is at least this value. The document at this
+   * version is never longer than it. [checkSpan] keeps the sum inside an `Int`.
    */
   fun unitSpan(): Int {
     return if (lvs.isEmpty()) 0 else lvs[lvs.size - 1] + 1

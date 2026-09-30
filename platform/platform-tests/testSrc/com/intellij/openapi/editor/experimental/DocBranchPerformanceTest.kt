@@ -6,7 +6,6 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
@@ -43,10 +42,15 @@ class DocBranchPerformanceTest {
   @Test
   fun `a realistic collaborative history over EditorImpl`() {
     val fullText = Files.readString(hugeTextPath())
-    for (size in SIZES) {
+    for ((index, size) in SIZES.withIndex()) {
       val text = if (size == 0 || size >= fullText.length) fullText else fullText.substring(0, size)
       val final = runScenario(text)
-      assertTrue(final.text().length() > 0)
+      // The scenario is deterministic, so its counts are exact. A change to the merge or the replay
+      // must leave them as they are, and the text must equal a full replay of the history.
+      assertEquals(FINAL_LENGTHS[index], final.text().length()) { "the final length over ${text.length} chars" }
+      assertEquals(HISTORY_UNITS[index], final.graph().size()) { "the units over ${text.length} chars" }
+      assertEquals(HISTORY_RUNS[index], final.graph().runCount()) { "the runs over ${text.length} chars" }
+      assertEquals(final.graph().replay().string(), final.string()) { "the replay over ${text.length} chars" }
       println("=== the collaborative scenario over ${text.length} chars ===")
       println("  final: ${final.text().length()} chars")
       reportHistory(final)
@@ -100,7 +104,8 @@ class DocBranchPerformanceTest {
     benchmarkSubtest("the first $FLAT_COST_BATCHES batches", setup = { start = freshBranch(text) }) {
       applied(start, recorded, 0, firstEnd).length()
     }
-    benchmarkSubtest("the last $FLAT_COST_BATCHES batches", setup = { start = applied(freshBranch(text), recorded, 0, lastStart) }) {
+    val lastSetup = { start = applied(freshBranch(text), recorded, 0, lastStart) }
+    benchmarkSubtest("the last $FLAT_COST_BATCHES batches", setup = lastSetup) {
       applied(start, recorded, lastStart, recorded.size).length()
     }
   }
@@ -129,7 +134,12 @@ class DocBranchPerformanceTest {
   }
 
   /** [branch] with the ops `[from, until)` of [ops] applied. */
-  private fun applied(branch: DocBranch, ops: List<DocOp>, from: Int, until: Int): DocBranch {
+  private fun applied(
+    branch: DocBranch,
+    ops: List<DocOp>,
+    from: Int,
+    until: Int,
+  ): DocBranch {
     var result = branch
     for (i in from until until) {
       result = result.applyOp(ops[i])
@@ -240,12 +250,20 @@ class DocBranchPerformanceTest {
   }
 
   private fun hugeTextPath(): Path {
-    return Path.of(PathManager.getCommunityHomePath(), "platform/platform-tests/testData/editor/docBranch/EditorImpl.java.txt")
+    return Path.of(PathManager.getCommunityHomePath(), TEST_DATA, "EditorImpl.java.txt")
   }
 
   companion object {
+    /** The test data of the feature, under the community root. */
+    private const val TEST_DATA = "platform/platform-tests/testData/editor/docBranch"
+
     /** The document sizes to run; 0 means the whole file. */
     private val SIZES = intArrayOf(25_000, 100_000, 0)
+
+    /** The exact results of the collaborative scenario, one per entry of [SIZES]. */
+    private val FINAL_LENGTHS = intArrayOf(30_801, 105_801, 244_567)
+    private val HISTORY_UNITS = intArrayOf(32_733, 107_733, 246_499)
+    private val HISTORY_RUNS = intArrayOf(99, 99, 99)
 
     /** The number of users that edit at once, session by session. */
     private val CONCURRENCY_LEVELS = intArrayOf(1, 2, 3, 4, 5)
@@ -253,7 +271,7 @@ class DocBranchPerformanceTest {
     private const val ACTIONS_PER_USER = 6
 
     /** The passes of one collaborative attempt. The framework reports whole milliseconds. */
-    private const val COLLABORATIVE_PASSES = 50
+    private const val COLLABORATIVE_PASSES = 200
     private const val SINGLE_USER_BATCHES = 1000
     private const val SINGLE_USER_ACTIONS_PER_BATCH = 200
 

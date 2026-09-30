@@ -9,12 +9,14 @@ import com.intellij.openapi.editor.impl.experimental.InsertDocOpImpl
  *
  * An op is a command, not a record. Its [offset] indexes the document that the op applies
  * to, so an op is only meaningful against that one document state.
+ *
+ * Two ops are equal when they make the same change at the same offset.
  */
 sealed interface DocOp {
   /** The position in the document that this op changes. */
   fun offset(): Int
 
-  /** The number of single-character operations this op performs. */
+  /** The number of characters that this op inserts or deletes. */
   fun length(): Int
 
   interface Insert : DocOp {
@@ -30,8 +32,8 @@ sealed interface DocOp {
      * caller may keep changing a mutable sequence afterwards. The copy is free when the
      * sequence is already immutable, which a `String` is.
      *
-     * The op holds no opinion about the bounds: the document rejects an offset it cannot
-     * use, and an empty fragment is a legal op that changes nothing.
+     * The op does not check the bounds. The document rejects an offset it cannot use, and an empty
+     * fragment is a legal op that changes nothing.
      */
     fun ins(offset: Int, fragment: CharSequence): Insert = InsertDocOpImpl(offset, fragment)
 

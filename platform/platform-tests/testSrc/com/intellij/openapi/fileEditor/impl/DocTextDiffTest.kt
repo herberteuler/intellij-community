@@ -281,6 +281,23 @@ class DocTextDiffTest {
   }
 
   @Test
+  fun `an edit before a shared low surrogate keeps every pair whole`() {
+    // The two characters share the low surrogate and differ in the high one. So the trimmed suffix
+    // ends inside the pair, and the fallback moves the end of the region off it.
+    val filler = "x".repeat(20_000)
+    val base = DocText.createText("$filler\uD83D\uDE00$filler")
+    val target = DocText.createText("$filler\uD801\uDE00$filler")
+    var text = base
+    val recovered = DocTextDiff.diff(base, target)
+    for (op in recovered) {
+      text = text.applyOp(op)
+      assertNoLoneSurrogate(text)
+    }
+    assertSameText(target, text)
+    assertTrue(touchedChars(recovered) <= 4) { formatOps(base.string(), recovered) }
+  }
+
+  @Test
   fun `a random op sequence round trips`() {
     val random = Random(20260828)
     repeat(ROUNDS) { round ->
@@ -330,7 +347,12 @@ class DocTextDiffTest {
    *
    * [script] is a text block. The helper trims its indent. Use `""` for an empty script.
    */
-  private fun assertDiff(base: String, ops: List<DocOp>, version1: String, script: String) {
+  private fun assertDiff(
+    base: String,
+    ops: List<DocOp>,
+    version1: String,
+    script: String,
+  ) {
     val baseText = DocText.createText(base)
     val expected = applyOps(baseText, ops)
     assertEquals(version1, expected.string()) { "the ops do not build the stated version 1" }
@@ -413,7 +435,8 @@ class DocTextDiffTest {
   }
 
   private fun hugeTextPath(): Path {
-    return Path.of(PathManager.getCommunityHomePath(), "platform/platform-tests/testData/editor/docBranch/EditorImpl.java.txt")
+    val testData = Path.of(PathManager.getCommunityHomePath(), "platform/platform-tests/testData")
+    return testData.resolve("editor/docBranch/EditorImpl.java.txt")
   }
 
   companion object {

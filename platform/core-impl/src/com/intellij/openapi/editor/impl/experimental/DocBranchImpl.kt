@@ -6,7 +6,6 @@ import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.DocBranch
 import com.intellij.openapi.editor.experimental.DocMerge
-import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
 import com.intellij.openapi.editor.impl.DocTextImpl
 import java.util.Collections
@@ -20,19 +19,19 @@ import java.util.Collections
  * [applyOp] appends events at the graph's frontier and edits [docText] directly. The
  * Eg-walker replay runs only inside [merge], and in the ops of a fast-forward.
  *
- * A merge with concurrent history replays only the region above the common ancestor
- * (the paper's partial replay): one lazily-split placeholder item stands in for the
- * older document, and the new units apply to [docText] as ordinary [DocOp]s. Those ops are
+ * A merge with concurrent history replays only the region above the common ancestor, which is the
+ * partial replay of the paper. One placeholder item stands in for the older document, and it splits
+ * only where an op needs it. The new units apply to [docText] as ordinary [DocOp]s. Those ops are
  * the op stream of [mergeWithOps]. The merge cost depends on the size of the change and of the
  * concurrent region, not on the size of either history.
  *
  * Prototype limits, deliberate:
  * - A keystroke extends the newest run when it continues it (see [EventGraph.append]), but a
  *   backspace never does. Each backspace therefore still costs a run of its own.
- * - The replay scans its item list linearly. `findItemIdx` always starts at the head, and
- *   `findByCurPos` restarts there whenever the target sits before the cached cursor. The
- *   list holds the walked region and not the document, so a merge stays cheap and a FULL
- *   replay is what this costs.
+ * - The replay scans its item list linearly. `findItemIdx` always begins at the list start, and
+ *   `findByCurPos` goes back there when the target sits before the cached cursor. The list
+ *   holds the walked region and not the document. So a merge stays cheap, and a FULL replay
+ *   pays for the scans.
  */
 internal class DocBranchImpl private constructor(
   private val docText: DocText,
@@ -90,8 +89,8 @@ internal class DocBranchImpl private constructor(
         opsOfFastForward(merged, text)
       }
     }
-    // A partial replay: only the region above the common ancestor is walked, and only the new
-    // units reach the sink, batched into ordinary ops over the text.
+    // A partial replay: the walk covers only the region above the common ancestor. Only the new
+    // units reach the sink, which joins them into ordinary ops over the text.
     val sink = replayOnto(merged, docText)
     return DocMergeImpl.ready(DocBranchImpl(sink.result(), agent, merged), sink.ops())
   }
@@ -118,12 +117,12 @@ internal class DocBranchImpl private constructor(
   /**
    * The graph with [op] appended at its frontier, under the next free seq of [agent].
    *
-   * The graph is the only record of that seq. A merge can bring in units of [agent] that this
-   * value never saw, for example from a descendant of it, and a seq kept beside the graph would
-   * then name a unit that already exists.
+   * The graph is the only record of that seq. A merge can bring in units of [agent] that this value
+   * never saw, for example from a descendant of it. A seq kept beside the graph would then name a
+   * unit that already exists.
    */
   private fun appendLocal(op: DocOp): EventGraphImpl {
-    return graph.appendAtTip(Event.create(agent, graph.nextSeqFor(agent), op))
+    return graph.appendAtVersion(EventImpl(agent, graph.nextSeqFor(agent), op))
   }
 
   /**
@@ -170,8 +169,7 @@ internal class DocBranchImpl private constructor(
     fun create(chars: CharSequence, agent: Agent): DocBranchImpl {
       var graph = EventGraphImpl.empty()
       if (chars.isNotEmpty()) {
-        val insert = Event.create(agent, 0, DocOp.ins(0, chars))
-        graph = graph.appendAtTip(insert)
+        graph = graph.appendAtVersion(EventImpl(agent, 0, DocOp.ins(0, chars)))
       }
       return DocBranchImpl(DocText.createText(chars), agent, graph)
     }

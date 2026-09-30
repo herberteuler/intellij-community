@@ -63,7 +63,7 @@ internal class ItemTest {
 
   @Test
   fun `a split of a real span anchors the right piece on the unit before it`() {
-    val left = Item(lv = 10, length = LENGTH, originLeft = 4, rightParent = 7)
+    val left = Item(firstUnit = 10, length = LENGTH, originLeft = 4, rightParent = 7)
     val right = left.splitAfter(2)
     assertEquals(10, left.firstUnit)
     assertEquals(11, left.lastUnit)
@@ -77,7 +77,7 @@ internal class ItemTest {
 
   @Test
   fun `a split of a placeholder keeps the document start as the left origin`() {
-    val left = Item(lv = -1 - LENGTH, length = LENGTH, originLeft = NO_UNIT, rightParent = NO_UNIT)
+    val left = Item(firstUnit = -1 - LENGTH, length = LENGTH, originLeft = NO_UNIT, rightParent = NO_UNIT)
     val right = left.splitAfter(1)
     assertEquals(NO_UNIT, right.originLeft)
     assertEquals(NO_UNIT, right.rightParent)
@@ -94,8 +94,9 @@ internal class ItemTest {
 
   @Test
   fun `an empty span is rejected`() {
-    assertThrows(IllegalArgumentException::class.java) { Item(lv = 0, length = 0, originLeft = NO_UNIT, rightParent = NO_UNIT) }
-    assertThrows(IllegalArgumentException::class.java) { Item(lv = 0, length = -1, originLeft = NO_UNIT, rightParent = NO_UNIT) }
+    for (length in intArrayOf(0, -1)) {
+      assertThrows(IllegalArgumentException::class.java, { item(length = length) }) { "length $length" }
+    }
   }
 
   /** The raw states are the encoding of the private constants: -1, 0, and a count of deletes. */
@@ -108,15 +109,20 @@ internal class ItemTest {
       1 to 0, // the prepare version deleted it, but the effect version has it
     )
     for ((prepare, effect) in outside) {
-      assertThrows(IllegalArgumentException::class.java, {
-        Item(lv = 0, length = LENGTH, originLeft = NO_UNIT, rightParent = NO_UNIT, prepareState = prepare, effectState = effect)
-      }) { "prepare $prepare, effect $effect" }
+      assertThrows(IllegalArgumentException::class.java, { item(prepareState = prepare, effectState = effect) }) {
+        "prepare $prepare, effect $effect"
+      }
     }
-    Item(lv = 0, length = LENGTH, originLeft = NO_UNIT, rightParent = NO_UNIT, prepareState = 3, effectState = 1)
+    item(prepareState = 3, effectState = 1)
   }
 
   /** The states of the KDoc table, with the deleted state at three values of k, which is [deletes]. */
-  private enum class State(val inPrepare: Boolean, val inEffect: Boolean, val applied: Boolean, val deletes: Int) {
+  private enum class State(
+    val inPrepare: Boolean,
+    val inEffect: Boolean,
+    val applied: Boolean,
+    val deletes: Int,
+  ) {
     A(inPrepare = true, inEffect = true, applied = true, deletes = 0),
     B(inPrepare = false, inEffect = true, applied = false, deletes = 0),
     C(inPrepare = false, inEffect = false, applied = false, deletes = 0),
@@ -134,7 +140,11 @@ internal class ItemTest {
     ADVANCE_DELETE({ it.advance(isDelete = true) }),
   }
 
-  private data class Step(val from: State, val transition: Transition, val to: State)
+  private data class Step(
+    val from: State,
+    val transition: Transition,
+    val to: State,
+  )
 
   /** Builds an item in [state] through listed transitions only, starting from a new item. */
   private fun itemIn(state: State): Item {
@@ -165,7 +175,9 @@ internal class ItemTest {
 
   private fun stateOf(item: Item): State {
     val flags = State.entries.filter {
-      it.inPrepare == item.inPrepare && it.inEffect == item.inEffect && it.applied == item.appliedInPrepare
+      it.inPrepare == item.inPrepare &&
+      it.inEffect == item.inEffect &&
+      it.applied == item.appliedInPrepare
     }
     val deletes = deletesOf(item)
     val state = flags.singleOrNull { it.deletes == deletes }
@@ -195,8 +207,19 @@ internal class ItemTest {
     return deletes
   }
 
-  private fun item(): Item {
-    return Item(lv = 0, length = LENGTH, originLeft = NO_UNIT, rightParent = NO_UNIT)
+  /**
+   * An item at the lv 0 with no origins. The raw states are the encoding of the private constants of
+   * [Item], so 0 means inserted in both versions.
+   */
+  private fun item(length: Int = LENGTH, prepareState: Int = 0, effectState: Int = 0): Item {
+    return Item(
+      firstUnit = 0,
+      length = length,
+      originLeft = NO_UNIT,
+      rightParent = NO_UNIT,
+      prepareState = prepareState,
+      effectState = effectState,
+    )
   }
 
   private companion object {

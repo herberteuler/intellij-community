@@ -10,10 +10,9 @@ package com.intellij.openapi.editor.impl.experimental
  * also has keeps the reference's name, so the two stay easy to compare. A helper that only
  * this port needs gets a descriptive name.
  *
- * The walk keeps the document at two versions at once: the *prepare* version, where the
- * next event was authored, and the *effect* version, with every walked event applied. The
- * walk moves the prepare version to each event's parents, applies the event, and reports
- * the effect to a [Sink].
+ * The walk keeps the document at two versions at once. The *prepare* version is where the next
+ * event was authored. The *effect* version has every walked event applied. The walk moves the
+ * prepare version to each event's parents, applies the event, and reports the effect to a [Sink].
  *
  * Three documents therefore carry a position, and the names keep them apart. An `offset`
  * belongs to an op or an event, and it indexes the document at the PARENT version, which is
@@ -21,12 +20,12 @@ package com.intellij.openapi.editor.impl.experimental
  * `effectPos` indexes the effect version. A bare `pos` names no document, so the code does
  * not use one.
  *
- * The walk is run-length encoded on both sides. One item covers the units that one step
- * applies, which is usually a whole run, and a step consumes as much of a run as the walk
- * ranges hold. An item splits only where an op needs a boundary inside it: a concurrent
- * insert, a partial delete, or a partial retreat or advance. Costs: the item list is scanned linearly, but from a cached cursor, so a
- * sequential run advances in place. The worst case stays quadratic in the NUMBER OF ITEMS
- * of the walked region, which is what the run-length encoding shrinks.
+ * The walk is run-length encoded on both sides. One item covers the units that one step applies,
+ * which is usually a whole run. A step consumes as much of a run as the walk ranges hold. An item
+ * splits only where an op needs a boundary inside it: a concurrent insert, a partial delete, or a
+ * partial retreat or advance. Costs: the item list is scanned linearly, but from a cached cursor,
+ * so a sequential run advances in place. The worst case stays quadratic in the NUMBER OF ITEMS of
+ * the walked region, which is what the run-length encoding shrinks.
  */
 internal object EgWalkerReplay {
 
@@ -35,7 +34,7 @@ internal object EgWalkerReplay {
    * run-length encoded on both sides and a span never crosses a run. A report always covers at
    * least one character, at a position of the effect version.
    */
-  internal interface Sink {
+  interface Sink {
     /** Inserts [fragment] at [effectPos]. */
     fun insert(effectPos: Int, fragment: CharSequence)
 
@@ -55,10 +54,10 @@ internal object EgWalkerReplay {
    * already at [branchVersion], and reports only the new effects to [sink]. This is
    * the paper's partial replay: only the region above the common ancestor is walked.
    *
-   * One placeholder item stands in for the whole document at the common ancestor, so
-   * the units at or below it are never replayed, and it splits lazily where the
-   * region's ops land. A port of `mergeChangesIntoBranch` from the reference
-   * implementation, with the paper's single-placeholder representation.
+   * One placeholder item stands in for the whole document at the common ancestor, so the walk never
+   * replays the units at or below it. The placeholder splits only where an op of the region lands.
+   * A port of `mergeChangesIntoBranch` from the reference implementation, with the paper's
+   * single-placeholder representation.
    *
    * Unlike the reference, every new unit must sit above every unit that only the branch holds.
    * The walk visits the units of the branch first, and [DeleteTargets] takes its pieces in
@@ -83,10 +82,14 @@ internal object EgWalkerReplay {
    * Fails unless every new unit sits above every conflict unit. Without this check, a new delete
    * below a conflict delete would fail later in [DeleteTargets], with a message that names no cause.
    */
-  private fun checkNewAboveConflict(conflict: EventGraphImpl.Conflict) {
+  private fun checkNewAboveConflict(conflict: ConflictRegion) {
     val conflictRanges = conflict.conflictRanges
     val newRanges = conflict.newRanges
-    require(conflictRanges.isEmpty() || newRanges.isEmpty() || newRanges.start(0) >= conflictRanges.end(conflictRanges.size() - 1)) {
+    if (conflictRanges.isEmpty() || newRanges.isEmpty()) {
+      return
+    }
+    val conflictEnd = conflictRanges.end(conflictRanges.size() - 1)
+    require(newRanges.start(0) >= conflictEnd) {
       "The new units $newRanges do not all sit above the units $conflictRanges of the branch. " +
       "A merge into a branch must append the other history to the graph of that branch."
     }

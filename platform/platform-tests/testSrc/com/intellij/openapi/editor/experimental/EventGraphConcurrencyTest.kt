@@ -78,7 +78,8 @@ class EventGraphConcurrencyTest {
         pool.submit<Int> {
           ready.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
           var verified = 0
-          while ((writing.get() || published.isNotEmpty()) && !Thread.currentThread().isInterrupted) {
+          fun moreToRead() = writing.get() || published.isNotEmpty()
+          while (moreToRead() && !Thread.currentThread().isInterrupted) {
             val branch = published.poll()
             if (branch == null) {
               Thread.yield()
@@ -382,7 +383,8 @@ class EventGraphConcurrencyTest {
 
         // Each burst made one run on top of the base, so every writer coalesced.
         for ((writer, branch) in results.withIndex()) {
-          assertEquals(baseOps + BURST_OPS_PER_WRITER / WRITER_BURST, branch.graph().runCount()) { "round $round, writer $writer" }
+          val expectedRuns = baseOps + BURST_OPS_PER_WRITER / WRITER_BURST
+          assertEquals(expectedRuns, branch.graph().runCount()) { "round $round, writer $writer" }
         }
         val forward = results.reduce { left, right -> left.merge(right) }
         val backward = results.reversed().reduce { left, right -> left.merge(right) }

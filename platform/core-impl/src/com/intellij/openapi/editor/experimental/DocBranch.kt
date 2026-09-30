@@ -4,8 +4,9 @@ package com.intellij.openapi.editor.experimental
 import com.intellij.openapi.editor.impl.experimental.DocBranchImpl
 
 /**
- * An immutable document that records its edit history in an Eg-walker [EventGraph], so two
- * divergent copies of one document can [merge] without losing either side (arXiv 2409.14252).
+ * An immutable document that records its edit history in an Eg-walker [EventGraph]
+ * (arXiv 2409.14252). Two divergent copies of one document can then [merge] without losing either
+ * side.
  *
  * The branch is a value: [applyOp], [fork], and [merge] return a new branch. The materialized
  * document at the branch's version is available through [text].

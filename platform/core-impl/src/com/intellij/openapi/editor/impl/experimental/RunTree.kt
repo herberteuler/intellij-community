@@ -53,6 +53,7 @@ internal class RunTree private constructor(
       newRoot = Inner(intArrayOf(root.keys[0], leaf.keys[0]), arrayOf(root, pathTo(leaf, height)))
       newHeight = height + 1
     } else {
+      // A root of height 0 is a leaf only while it is full, and a full tree took the branch above.
       newRoot = pushed(root as Inner, height, leaf, leafCount)
       newHeight = height
     }
@@ -123,13 +124,20 @@ internal class RunTree private constructor(
    * [node] with [leaf] added as its rightmost leaf. [leavesBefore] counts the leaves under [node],
    * and [level] is its height. A full rightmost child gets a new sibling; any other gets the leaf.
    */
-  private fun pushed(node: Inner, level: Int, leaf: Leaf, leavesBefore: Int): Inner {
+  private fun pushed(
+    node: Inner,
+    level: Int,
+    leaf: Leaf,
+    leavesBefore: Int,
+  ): Inner {
     val childCapacity = capacity(level - 1)
     if (leavesBefore % childCapacity == 0) {
       return Inner(node.keys + leaf.keys[0], node.children + pathTo(leaf, level - 1))
     }
     val last = node.children.size - 1
     val children = node.children.copyOf()
+    // The branch above takes the case where the child at the level 1 is a full leaf, so this child
+    // is an inner node.
     children[last] = pushed(node.children[last] as Inner, level - 1, leaf, leavesBefore % childCapacity)
     return Inner(node.keys, children)
   }

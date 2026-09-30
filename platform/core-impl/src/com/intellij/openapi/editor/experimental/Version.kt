@@ -12,9 +12,9 @@ import org.jetbrains.annotations.TestOnly
  * A version identifies a document state: `Events(V)` is the set of all events at or before it,
  * and a replay of that set is the document at this version.
  *
- * A version is opaque and belongs to the graph that produced it. Two versions are [equals]
- * when they hold the same heads. The heads of a graph's versions are transitively reduced, so
- * two versions of one graph have the same heads exactly when they name the same event set.
+ * A version is opaque and belongs to the graph that produced it. Two versions are [equals] when
+ * they hold the same heads. The heads of the versions of a graph are transitively reduced. So two
+ * versions of one graph have the same heads exactly when they name the same event set.
  */
 interface Version {
   /** `true` for the version of the empty graph, before any event. */

@@ -20,7 +20,12 @@ import com.intellij.tools.ide.metrics.benchmark.Benchmark
  * [setup] runs once before every attempt, and the framework does not time it. A scenario builds
  * its start value there, so that an attempt times only the work that follows.
  */
-internal fun benchmarkSubtest(name: String, passes: Int = 1, setup: () -> Unit = {}, pass: () -> Int) {
+internal fun benchmarkSubtest(
+  name: String,
+  passes: Int = 1,
+  setup: () -> Unit = {},
+  pass: () -> Int,
+) {
   val subtest = if (passes == 1) name else "$name, $passes passes"
   Benchmark.newBenchmark(subtest) {
     var checksum = 0

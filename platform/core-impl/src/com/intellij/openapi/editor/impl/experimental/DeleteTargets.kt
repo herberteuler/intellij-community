@@ -27,9 +27,8 @@ internal class DeleteTargets {
   fun add(deleteStart: LV, targetStart: LV, length: Int) {
     checkLength(length)
     checkAscending(deleteStart)
-    val last = count - 1
-    if (last >= 0 && deleteStarts[last] + lengths[last] == deleteStart && targetStarts[last] + lengths[last] == targetStart) {
-      lengths[last] += length
+    if (continuesLastPiece(deleteStart, targetStart)) {
+      lengths[count - 1] += length
       return
     }
     if (count == deleteStarts.size) {
@@ -92,14 +91,23 @@ internal class DeleteTargets {
     }
   }
 
+  /** Whether a piece from [deleteStart] to [targetStart] continues the last piece in both spaces. */
+  private fun continuesLastPiece(deleteStart: LV, targetStart: LV): Boolean {
+    val last = count - 1
+    return last >= 0 &&
+           deleteStarts[last] + lengths[last] == deleteStart &&
+           targetStarts[last] + lengths[last] == targetStart
+  }
+
   private fun checkAscending(deleteStart: LV) {
     require(count == 0 || deleteStart >= deleteStarts[count - 1] + lengths[count - 1]) {
-      "The delete unit $deleteStart arrived after the delete units up to ${deleteStarts[count - 1] + lengths[count - 1] - 1}"
+      val lastApplied = deleteStarts[count - 1] + lengths[count - 1] - 1
+      "The delete unit $deleteStart arrived after the delete units up to $lastApplied"
     }
   }
 
   private fun checkApplied(index: Int, lv: LV) {
-    require(count > 0 && lv >= deleteStarts[index] && lv < deleteStarts[index] + lengths[index]) {
+    require(count > 0 && lv in deleteStarts[index] until deleteStarts[index] + lengths[index]) {
       "The delete unit $lv was never applied in this walk"
     }
   }

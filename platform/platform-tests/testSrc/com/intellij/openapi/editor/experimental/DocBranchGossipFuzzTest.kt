@@ -83,7 +83,9 @@ class DocBranchGossipFuzzTest {
         val expected = replicas[0].string()
         for (i in replicas.indices) {
           assertEquals(expected, replicas[i].string()) { "round $round, replica $i after the sync" }
-          assertEquals(replicas[i].graph().replay().string(), replicas[i].string()) { "round $round, replica $i replay" }
+          assertEquals(replicas[i].graph().replay().string(), replicas[i].string()) {
+            "round $round, replica $i replay"
+          }
           // Every past version of this replica still replays to the text it held there,
           // out of the much larger merged graph.
           val graph = replicas[i].graph()

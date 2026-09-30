@@ -5,7 +5,6 @@ import com.intellij.openapi.util.TextRange
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Random
 
@@ -209,7 +208,12 @@ class DocBranchTest {
     assertEquals(forward.string(), backward.string())
     assertEquals(forward.graph().replay().string(), forward.string())
     // The paste and the range delete each arrive as one op, and not one per character.
-    assertEquals(listOf("ins(10, \"pasted block\\n\")", "del(4, len=6)", "ins(4, \"L1\\n\")"), merge.ops().map { it.toString() })
+    val ops = listOf(
+      DocOp.ins(10, "pasted block\n"),
+      DocOp.del(4, 6),
+      DocOp.ins(4, "L1\n"),
+    )
+    assertEquals(ops, merge.ops())
     assertSameText(DocText.createText(forward.string()), forward.text())
   }
 
@@ -456,11 +460,10 @@ class DocBranchTest {
     val other = merged.fork(agent("c")).applyOp(insertOp(0, "3"))
     val forward = resumed.merge(other)
     val backward = other.merge(resumed)
+    // Both inserts land at 0, and "b" sorts before "c".
+    assertEquals("23ab1", forward.string())
     assertEquals(forward.string(), backward.string())
     assertEquals(forward.graph().replay().string(), forward.string())
-    for (marker in listOf("1", "2", "3")) {
-      assertTrue(forward.string().contains(marker)) { "The marker $marker is lost in '${forward.string()}'" }
-    }
   }
 
   @Test

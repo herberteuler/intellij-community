@@ -3,6 +3,7 @@ package com.intellij.openapi.editor.experimental
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -190,7 +191,7 @@ class EventGraphTest {
     val clash = assertThrows(IllegalArgumentException::class.java) {
       graph.append(Event.createInsert(agent("u"), 0, 0, "y".repeat(5000)), Version.root())
     }
-    assertTrue(clash.message!!.length < 200) { "The message is not short: ${clash.message}" }
+    assertTrue(clash.message.orEmpty().length < 200) { "The message is not short: ${clash.message}" }
   }
 
   /**
@@ -592,7 +593,7 @@ class EventGraphTest {
       .append(Event.createDelete(agent("v"), 0, 0, 5), Version.of(1))
     val failure = assertThrows(IllegalArgumentException::class.java) { graph.replay() }
     assertTrue(
-      failure.message!!.contains("reached the end of the item list"),
+      failure.message.orEmpty().contains("reached the end of the item list"),
       "Unexpected message: ${failure.message}",
     )
   }
@@ -613,7 +614,7 @@ class EventGraphTest {
       .append(Event.createInsert(agent("v"), 0, 9, "x"), Version.of(1))
     val failure = assertThrows(IllegalArgumentException::class.java) { graph.replay() }
     assertTrue(
-      failure.message!!.contains("not long enough"),
+      failure.message.orEmpty().contains("not long enough"),
       "Unexpected message: ${failure.message}",
     )
   }
@@ -629,7 +630,7 @@ class EventGraphTest {
       override fun length(): Int = -1
     }
     val failure = assertThrows(IllegalArgumentException::class.java) { graph.append(foreign, graph.version()) }
-    assertTrue(failure.message!!.contains("Foreign Event"), "Unexpected message: ${failure.message}")
+    assertTrue(failure.message.orEmpty().contains("Foreign Event"), "Unexpected message: ${failure.message}")
   }
 
   @Test
@@ -662,6 +663,20 @@ class EventGraphTest {
     assertEquals("ab", op.fragment().toString())
     val graph = EventGraph.createGraph().append(Event.create(agent("u"), 0, op), Version.root())
     assertEquals("ab", graph.replay().string())
+  }
+
+  @Test
+  fun `ops are equal when they make the same change at the same offset`() {
+    // The fragment compares by content, whatever sequence the caller passed.
+    assertEquals(DocOp.ins(2, "ab"), DocOp.ins(2, StringBuilder("ab")))
+    assertEquals(DocOp.ins(2, "ab").hashCode(), DocOp.ins(2, StringBuilder("ab")).hashCode())
+    assertEquals(DocOp.del(1, 3), DocOp.del(1, 3))
+    assertEquals(DocOp.del(1, 3).hashCode(), DocOp.del(1, 3).hashCode())
+    assertNotEquals(DocOp.ins(2, "ab"), DocOp.ins(3, "ab"))
+    assertNotEquals(DocOp.ins(2, "ab"), DocOp.ins(2, "ac"))
+    assertNotEquals(DocOp.del(1, 3), DocOp.del(1, 2))
+    val delete: DocOp = DocOp.del(0, 1)
+    assertNotEquals(delete, DocOp.ins(0, "a"))
   }
 
   @Test
@@ -774,7 +789,7 @@ class EventGraphTest {
     val clash = assertThrows(EventIdClashException::class.java) { afterA.mergeFrom(afterB) }
     assertEquals(v, clash.agent())
     assertEquals(0, clash.seq())
-    assertTrue(clash.message!!.contains("the parents"), clash.message)
+    assertTrue(clash.message.orEmpty().contains("the parents"), clash.message)
   }
 
   @Test

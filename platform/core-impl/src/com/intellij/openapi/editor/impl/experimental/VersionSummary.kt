@@ -7,9 +7,9 @@ import com.intellij.openapi.editor.experimental.Agent
  * What one graph value knows, by agent. The reference implementation calls this a
  * `VersionSummary`, and builds it with `summarizeVersion`.
  *
- * One integer per agent is enough. The per-agent seqs of a graph ascend and leave no gap,
- * which [com.intellij.openapi.editor.experimental.EventGraph.append] enforces, so a graph
- * holds exactly the seqs `[0, endSeq(agent))` of every agent it knows.
+ * One integer per agent is enough. The per-agent seqs of a graph ascend and leave no gap, which
+ * [com.intellij.openapi.editor.experimental.EventGraph.append] enforces. So a graph holds exactly
+ * the seqs `[0, endSeq(agent))` of every agent it knows.
  *
  * That is what makes a delta merge possible. A summary costs one entry per AGENT, so two
  * replicas work out what they do not share without either one walking its own history.

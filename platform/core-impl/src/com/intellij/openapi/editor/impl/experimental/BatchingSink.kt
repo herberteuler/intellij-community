@@ -20,7 +20,7 @@ import java.util.Collections
  *
  * Any other report flushes the pending op first. Each join costs O(1), because it never moves the
  * characters of the pending fragment. The walk reports one span per run, so the joins pay off
- * across runs: two runs that land side by side arrive as two reports and leave as one op.
+ * across runs. Two runs that land side by side arrive as two reports and leave as one op.
  *
  * The sink is single use, and one merge owns it. [result] and [ops] finish it, and a report after
  * that fails.
@@ -49,7 +49,7 @@ internal class BatchingSink(
   override fun delete(effectPos: Int, count: Int) {
     checkOpen()
     checkDelete(effectPos, count)
-    if (kind == INSERT && effectPos >= startEffectPos && effectPos + count == pendingInsertEnd()) {
+    if (kind == INSERT && endsPendingInsert(effectPos, count)) {
       pendingFragment.setLength(effectPos - startEffectPos)
       if (pendingFragment.isEmpty()) {
         kind = NONE
@@ -117,6 +117,11 @@ internal class BatchingSink(
     return startEffectPos + pendingFragment.length
   }
 
+  /** Whether the delete of [count] at [effectPos] starts inside the pending insert and ends at its end. */
+  private fun endsPendingInsert(effectPos: Int, count: Int): Boolean {
+    return effectPos >= startEffectPos && effectPos + count == pendingInsertEnd()
+  }
+
   /** The length of the text with every report so far applied, the pending op included. */
   private fun currentLength(): Int {
     return when (kind) {
@@ -134,8 +139,8 @@ internal class BatchingSink(
 
   /**
    * Fails unless the insert brings text at a position of the current text. The text is what the
-   * merge builds, so a report outside it means a faulty event, and this names it before a flush
-   * fails without a name.
+   * merge builds, so a report outside it means a faulty event. This check names the fault, before a
+   * flush fails with no name.
    */
   private fun checkInsert(effectPos: Int, fragment: CharSequence) {
     require(fragment.isNotEmpty()) {

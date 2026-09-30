@@ -36,7 +36,9 @@ internal class EventGraphInvariantFuzzTest {
           if (random.nextInt(3) == 0) {
             val merge = replicas[i].mergeWithOps(replicas[random.nextInt(replicas.size)])
             val folded = merge.ops().fold(replicas[i].text()) { text, op -> text.applyOp(op) }
-            assertEquals(merge.branch().text().string(), folded.string()) { "round $round, step $step, the ops of replica $i" }
+            assertEquals(merge.branch().text().string(), folded.string()) {
+              "round $round, step $step, the ops of replica $i"
+            }
             replicas[i] = merge.branch()
           } else {
             val op = randomOp(random, replicas[i].text().length(), carets[i])
@@ -44,7 +46,9 @@ internal class EventGraphInvariantFuzzTest {
             carets[i] = if (op is DocOp.Insert) op.offset() + op.length() else op.offset()
           }
           checkGraph(replicas[i].graph()) { "round $round, step $step, replica $i" }
-          assertEquals(replicas[i].graph().replay().string(), replicas[i].text().string()) { "round $round, step $step, replica $i" }
+          assertEquals(replicas[i].graph().replay().string(), replicas[i].text().string()) {
+            "round $round, step $step, replica $i"
+          }
         }
       }
     }
@@ -94,7 +98,7 @@ internal class EventGraphInvariantFuzzTest {
       .append(Event.createInsert(Agent.createAgent("u"), 0, 0, "ab"), Version.root())
       .append(Event.createInsert(Agent.createAgent("v"), 0, 1, "x"), Version.of(0, 1))
     val failure = assertThrows(IllegalArgumentException::class.java) { EventGraphImpl.implOf(graph).checkInvariants() }
-    assertTrue(failure.message!!.contains("not reduced"), failure.message)
+    assertTrue(failure.message.orEmpty().contains("not reduced"), failure.message)
   }
 
   /** Runs one round with a [Random] of its own seed, so a failing round replays alone. */
@@ -126,7 +130,13 @@ internal class EventGraphInvariantFuzzTest {
   }
 
   /** An event that fits [text], the document at its parents. It edits at [caret] when it can. */
-  private fun randomEvent(random: Random, agent: Agent, seq: Int, text: String, caret: Int): Event {
+  private fun randomEvent(
+    random: Random,
+    agent: Agent,
+    seq: Int,
+    text: String,
+    caret: Int,
+  ): Event {
     val at = caret.coerceIn(0, text.length)
     if (text.isNotEmpty() && random.nextInt(3) == 0) {
       val offset = at.coerceAtMost(text.length - 1)

@@ -9,8 +9,8 @@ import com.intellij.openapi.editor.experimental.Event
  * The plan is what makes a merge ATOMIC. Building it reads both graphs and can reject, but
  * it changes nothing, so a rejected merge leaves no run behind. Applying it cannot reject.
  *
- * The plan holds one entry per run of [other] that carries a unit [dest] lacks, in ASCENDING
- * lv order. That order is required: a parent always sits at a smaller lv, so appending in it
+ * The plan holds one entry per run of [other] that carries a unit [dest] lacks, in ASCENDING lv
+ * order. That order is required. A parent always sits at a smaller lv, so an append in that order
  * puts every parent in place before its child names it.
  *
  * [destStarts] is the part that needs explaining. A run of [other] may name a parent that the
@@ -28,7 +28,7 @@ internal class MergePlan(
   private val newStarts: IntArray = other.newRunStarts(summary)
 
   /** The three below run in step with [newStarts], so one index names one planned entry. */
-  private val events = ArrayList<Event>(newStarts.size)
+  private val events = ArrayList<EventImpl>(newStarts.size)
   private val parents = ArrayList<VersionImpl>(newStarts.size)
   private val destStarts = IntArray(newStarts.size) { NO_UNIT }
 
@@ -55,7 +55,7 @@ internal class MergePlan(
   }
 
   /** The run to append at [index], already cut down to the part [dest] lacks. */
-  fun eventAt(index: Int): Event {
+  fun eventAt(index: Int): EventImpl {
     return events[index]
   }
 
@@ -83,7 +83,7 @@ internal class MergePlan(
     } else {
       // The destination holds the leading units, so the last of them is the only parent.
       val lv = dest.lvOfUnit(event.agent(), event.seq() + known - 1)
-      checkRemapped(lv, newStarts[index])
+      checkRemapped(lv, newStarts[index] + known - 1)
       intArrayOf(lv)
     }
     val suffix = event.suffixFrom(known)
@@ -100,8 +100,8 @@ internal class MergePlan(
   }
 
   /**
-   * The lv that the unit [otherLv] of [other] has in the merged graph: the one [dest] already
-   * gave it, or the one this plan reserves for it.
+   * The lv that the unit [otherLv] of [other] has in the merged graph. It is the lv that [dest]
+   * already gave it, or the one that this plan reserves.
    */
   private fun remap(otherLv: LV): LV {
     val run = other.runAt(otherLv)
@@ -112,8 +112,8 @@ internal class MergePlan(
       checkRemapped(lv, otherLv)
       return lv
     }
-    // A planned run keeps the place its lvStart has in newStarts, and its reservation is
-    // filled in by now: a parent precedes its child, so its entry was planned earlier.
+    // A planned run keeps the place of its lvStart in newStarts. Its reservation is filled in by
+    // now, because a parent precedes its child and so was planned earlier.
     val entry = newStarts.binarySearch(run.lvStart)
     val destStart = if (entry >= 0) destStarts[entry] else NO_UNIT
     checkRemapped(destStart, otherLv)

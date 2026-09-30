@@ -112,7 +112,13 @@ internal class BatchingSinkTest {
     sink.insert(3, "w")
     sink.check(
       "z1yw236789",
-      "ins(2, \"x\")", "ins(2, \"y\")", "del(0, len=1)", "del(5, len=2)", "ins(0, \"z\")", "del(3, len=1)", "ins(3, \"w\")",
+      "ins(2, \"x\")",
+      "ins(2, \"y\")",
+      "del(0, len=1)",
+      "del(5, len=2)",
+      "ins(0, \"z\")",
+      "del(3, len=1)",
+      "ins(3, \"w\")",
     )
   }
 
@@ -222,7 +228,10 @@ internal class BatchingSinkTest {
   }
 
   /** A text that records every op it applies, and passes the rest to [inner]. */
-  private class RecordingText(private val inner: DocText, private val ops: MutableList<String>) : DocText by inner {
+  private class RecordingText(
+    private val inner: DocText,
+    private val ops: MutableList<String>,
+  ) : DocText by inner {
     override fun applyOp(op: DocOp): DocText {
       ops.add(op.toString())
       return RecordingText(inner.applyOp(op), ops)

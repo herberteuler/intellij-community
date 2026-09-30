@@ -11,10 +11,13 @@ import com.intellij.openapi.editor.experimental.EventGraph
  * `[lvStart, lvEnd())`, one per unit of the event.
  *
  * The run owns the arithmetic between an lv and the unit it names. A caller asks the run
- * about an lv and never subtracts [lvStart] itself.
+ * about an lv and never subtracts [lvStart] itself, and every query checks that the run holds
+ * the lv it gets.
+ *
+ * The event is an [EventImpl], so a stored run can only hold an event that checked itself.
  */
 internal class StoredRun(
-  val event: Event,
+  val event: EventImpl,
   val lvStart: LV,
   private val parents: Frontier,
 ) {
@@ -38,11 +41,14 @@ internal class StoredRun(
 
   /** Whether this run holds the unit ([agent], [seq]). */
   fun holdsUnit(agent: Agent, seq: Int): Boolean {
-    return agent == event.agent() && seq >= event.seq() && seq < endSeq()
+    return agent == event.agent() && seq in event.seq() until endSeq()
   }
 
   /** The lv of the unit [seq], which this run must hold. */
   fun lvOfSeq(seq: Int): LV {
+    require(seq >= event.seq() && seq < endSeq()) {
+      "The seq $seq is outside the run $this"
+    }
     return lvStart + (seq - event.seq())
   }
 
@@ -51,14 +57,17 @@ internal class StoredRun(
     return lvStart <= lv
   }
 
-  val isDelete: Boolean get() = event.op() is DocOp.Delete
+  /** Whether the event of this run deletes. */
+  fun isDelete(): Boolean {
+    return event.op() is DocOp.Delete
+  }
 
   /**
    * The parents of the unit [lv]. The first unit keeps the parents the append recorded;
    * every later unit has the one implicit parent `lv - 1`.
    */
   fun parentsOf(lv: LV): Frontier {
-    return if (lv == lvStart) {
+    return if (unitIndexOf(lv) == 0) {
       parents
     } else {
       intArrayOf(lv - 1)
@@ -72,17 +81,17 @@ internal class StoredRun(
 
   /** The offset that the unit [lv] edits, in its own parent version. */
   fun offsetAt(lv: LV): Int {
-    return event.offsetOfUnit(lv - lvStart)
+    return event.offsetOfUnit(unitIndexOf(lv))
   }
 
   /** The seq that names the unit [lv]. */
   fun seqAt(lv: LV): Int {
-    return event.seq() + (lv - lvStart)
+    return event.seq() + unitIndexOf(lv)
   }
 
   /** The character that the unit [lv] inserts. The run must be an insert. */
   fun charAt(lv: LV): Char {
-    return insertOp(lv).fragment()[lv - lvStart]
+    return insertOp(lv).fragment()[unitIndexOf(lv)]
   }
 
   /**
@@ -90,7 +99,10 @@ internal class StoredRun(
    * it must cover the whole span.
    */
   fun fragmentFrom(lv: LV, count: Int): CharSequence {
-    val from = lv - lvStart
+    val from = unitIndexOf(lv)
+    require(count in 1..event.length() - from) {
+      "The span of $count units from $lv is outside the run $this"
+    }
     return insertOp(lv).fragment().subSequence(from, from + count)
   }
 
@@ -108,8 +120,9 @@ internal class StoredRun(
    * An insert run grows only up to [EventGraph.MAX_COALESCED_INSERT] characters, because each
    * extension copies the fragment.
    */
-  fun tryAppend(next: Event, parents: VersionImpl): StoredRun? {
-    if (!isOnlyParent(parents) || next.agent() != event.agent() || next.seq() != endSeq()) {
+  fun tryAppend(next: EventImpl, parents: VersionImpl): StoredRun? {
+    val continuesId = next.agent() == event.agent() && next.seq() == endSeq()
+    if (!isOnlyParent(parents) || !continuesId) {
       return null
     }
     val nextOp = next.op()
@@ -127,7 +140,7 @@ internal class StoredRun(
         DocOp.del(op.offset(), op.length() + nextOp.length())
       }
     }
-    return StoredRun(Event.create(event.agent(), event.seq(), joined), lvStart, this.parents)
+    return StoredRun(EventImpl(event.agent(), event.seq(), joined), lvStart, this.parents)
   }
 
   /** Whether [parents] names the last unit of this run and nothing else. */

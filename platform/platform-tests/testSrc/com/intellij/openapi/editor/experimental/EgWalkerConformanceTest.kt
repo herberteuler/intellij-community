@@ -133,7 +133,11 @@ class EgWalkerConformanceTest {
    * The branch at a unit exists only after the op that holds it, so an op is cut at every unit that
    * a later transaction names as a parent.
    */
-  private fun textThroughBranches(history: History, stepGraph: EventGraph?, where: () -> String): String {
+  private fun textThroughBranches(
+    history: History,
+    stepGraph: EventGraph?,
+    where: () -> String,
+  ): String {
     checkAgentContract(history, where)
     val heads = headsOf(history)
     val needed = BitSet()
@@ -150,7 +154,9 @@ class EgWalkerConformanceTest {
     for (txn in history.txns) {
       var branch = branchAt(txn.parents, root.fork(txn.agent), branchAt)
       if (stepGraph != null) {
-        assertEquals(stepGraph.replay(versionOf(txn.parents)).string(), branch.string()) { "${where()}: the branch before $txn" }
+        assertEquals(stepGraph.replay(versionOf(txn.parents)).string(), branch.string()) {
+          "${where()}: the branch before $txn"
+        }
       }
       var lv = txn.start
       for (op in txn.ops) {
@@ -178,7 +184,11 @@ class EgWalkerConformanceTest {
   }
 
   /** The branch at [lvs]: [start] when they are the root, and the merge of their branches otherwise. */
-  private fun branchAt(lvs: IntArray, start: DocBranch, branchAt: Map<Int, DocBranch>): DocBranch {
+  private fun branchAt(
+    lvs: IntArray,
+    start: DocBranch,
+    branchAt: Map<Int, DocBranch>,
+  ): DocBranch {
     if (lvs.isEmpty()) {
       return start
     }
@@ -254,7 +264,14 @@ class EgWalkerConformanceTest {
         Op(op[0].asInt, op[1].asInt, op[2].asString)
       }
       val parents = txn.arrayAt("parents").map { it.asInt }.sorted().toIntArray()
-      Txn(agent(txn.get("agent").asString), txn.get("seqStart").asInt, span[0].asInt, span[1].asInt, parents, ops)
+      Txn(
+        agent = agent(txn.get("agent").asString),
+        seqStart = txn.get("seqStart").asInt,
+        start = span[0].asInt,
+        end = span[1].asInt,
+        parents = parents,
+        ops = ops,
+      )
     }
     return History(txns, json.get("endContent").asString)
   }
@@ -269,22 +286,33 @@ class EgWalkerConformanceTest {
   }
 
   private fun testDataFile(): Path {
-    return Path.of(PathManager.getCommunityHomePath(), "platform/platform-tests/testData/editor/docBranch/conformanceHistories.json")
+    return Path.of(PathManager.getCommunityHomePath(), TEST_DATA, "conformanceHistories.json")
   }
 
   private fun referenceFile(name: String): Path {
-    return Path.of(PathManager.getCommunityHomePath()).parent.resolve("Resources/eg-walker/eg-walker-reference/testdata/$name")
+    return Path.of(PathManager.getCommunityHomePath()).parent.resolve(REFERENCE_DATA).resolve(name)
   }
 
   /** One op of a transaction: a delete of [deleted] units at [offset], or an insert of [inserted] there. */
-  private class Op(val offset: Int, val deleted: Int, val inserted: String) {
+  private class Op(
+    val offset: Int,
+    val deleted: Int,
+    val inserted: String,
+  ) {
     fun length(): Int {
       return if (deleted > 0) deleted else inserted.length
     }
   }
 
   /** One transaction: the units `[start, end)` of [agent], from [seqStart], after [parents]. */
-  private class Txn(val agent: Agent, val seqStart: Int, val start: Int, val end: Int, val parents: IntArray, val ops: List<Op>) {
+  private class Txn(
+    val agent: Agent,
+    val seqStart: Int,
+    val start: Int,
+    val end: Int,
+    val parents: IntArray,
+    val ops: List<Op>,
+  ) {
     override fun toString(): String {
       return "txn[$start..${end - 1}] of $agent after ${parents.contentToString()}"
     }
@@ -303,6 +331,12 @@ class EgWalkerConformanceTest {
   private companion object {
     /** The sizes of the data sets, so a truncated file fails and does not pass on less data. */
     const val REPOSITORY_HISTORIES = 150
+
+    /** The test data of the feature, under the community root. */
+    const val TEST_DATA = "platform/platform-tests/testData/editor/docBranch"
+
+    /** The test data of the reference checkout, under the repository root. */
+    const val REFERENCE_DATA = "Resources/eg-walker/eg-walker-reference/testdata"
     const val REFERENCE_HISTORIES = 1000
   }
 }

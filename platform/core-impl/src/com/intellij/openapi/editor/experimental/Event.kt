@@ -4,18 +4,20 @@ package com.intellij.openapi.editor.experimental
 import com.intellij.openapi.editor.impl.experimental.EventImpl
 
 /**
- * One node of the Eg-walker event graph: a run of single-character operations with one id range.
+ * One node of the Eg-walker event graph: a run of units with one id range.
  *
- * An event is an identity plus the change that the identity names. The identity is
- * ([agent], [seq]) to ([agent], `seq + length - 1`), and the change is [op].
+ * A UNIT is one single-character operation: one character that an insert adds, or one that a
+ * delete removes. Every unit has its own event id, ([agent], seq). An event is an identity plus the
+ * change that the identity names. The identity is ([agent], [seq]) to ([agent], `seq + length - 1`),
+ * and the change is [op].
  *
- * An event is NOT a [DocOp], so [DocText.applyOp] will not take one. The offset of [op]
- * indexes the document as it was in the PARENT VERSION, and applying an old event to a
- * document at another version is meaningless.
+ * An event is NOT a [DocOp], so [DocText.applyOp] will not take one. The offset of [op] indexes the
+ * document as it was in the PARENT VERSION. An old event applied to a document at another version
+ * means nothing.
  *
- * The paper (arXiv 2409.14252) models one event per character. This implementation
- * run-length encodes them: one event covers [length] characters. The parents of the first
- * unit live in [EventGraph]; every later unit's parent is the unit before it.
+ * The paper (arXiv 2409.14252) models one event per unit. This implementation run-length encodes
+ * them: one event covers [length] units. The parents of the first unit live in [EventGraph], and
+ * the parent of every later unit is the unit before it.
  *
  * An event is immutable: a merge never rewrites it.
  */
@@ -28,7 +30,7 @@ interface Event {
   /** The change this event records, against the document of its parent version. */
   fun op(): DocOp
 
-  /** The number of single-character operations in this run. At least 1. */
+  /** The number of units in this run. At least 1. */
   fun length(): Int
 
   /**
@@ -59,11 +61,21 @@ interface Event {
       return EventImpl(agent, seq, op)
     }
 
-    fun createInsert(agent: Agent, seq: Int, offset: Int, fragment: CharSequence): Event {
+    fun createInsert(
+      agent: Agent,
+      seq: Int,
+      offset: Int,
+      fragment: CharSequence,
+    ): Event {
       return create(agent, seq, DocOp.ins(offset, fragment))
     }
 
-    fun createDelete(agent: Agent, seq: Int, offset: Int, length: Int): Event {
+    fun createDelete(
+      agent: Agent,
+      seq: Int,
+      offset: Int,
+      length: Int,
+    ): Event {
       return create(agent, seq, DocOp.del(offset, length))
     }
   }

@@ -18,7 +18,7 @@ interface DocMerge {
    * The ops from the text of the receiver to the text of [branch], in apply order.
    *
    * Apply them one after another. The offset of each op indexes the text after all the ops before
-   * it, so the text of the receiver with every op applied in turn equals the text of [branch]. A
+   * it. So the text of the receiver, with every op applied in turn, equals the text of [branch]. A
    * text between two ops need not be the text of any version.
    *
    * Each op comes from [DocOp.ins] or [DocOp.del], and no op is empty. A merge whose new units change

@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.Event
+import com.intellij.openapi.editor.experimental.DocOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -101,7 +101,7 @@ internal class RunTreeTest {
       val agent = if (i % 3 == 0) V else U
       val length = 1 + i % 4
       val seq = nextSeqs[agent] ?: 0
-      val run = StoredRun(Event.createInsert(agent, seq, 0, "x".repeat(length)), lv, IntArray(0))
+      val run = StoredRun(EventImpl(agent, seq, DocOp.ins(0, "x".repeat(length))), lv, IntArray(0))
       index = index.appended(run)
       runs.add(run)
       nextSeqs[agent] = seq + length
@@ -134,8 +134,8 @@ internal class RunTreeTest {
 
   @Test
   fun `the agent summary takes the tail`() {
-    val closed = StoredRun(Event.createInsert(U, 0, 0, "ab"), 0, IntArray(0))
-    val tail = StoredRun(Event.createInsert(U, 2, 2, "cd"), 2, intArrayOf(1))
+    val closed = StoredRun(EventImpl(U, 0, DocOp.ins(0, "ab")), 0, IntArray(0))
+    val tail = StoredRun(EventImpl(U, 2, DocOp.ins(2, "cd")), 2, intArrayOf(1))
     val index = AgentIndex.EMPTY.appended(closed)
     assertEquals(4, index.summarize(tail).endSeq(U))
     assertEquals(2, index.summarize(null).endSeq(U))
@@ -143,22 +143,22 @@ internal class RunTreeTest {
 
   @Test
   fun `a seq that does not continue its agent is rejected`() {
-    val index = AgentIndex.EMPTY.appended(StoredRun(Event.createInsert(U, 0, 0, "ab"), 0, IntArray(0)))
+    val index = AgentIndex.EMPTY.appended(StoredRun(EventImpl(U, 0, DocOp.ins(0, "ab")), 0, IntArray(0)))
     for (seq in intArrayOf(0, 1, 3)) {
       assertThrows(IllegalArgumentException::class.java, {
-        index.appended(StoredRun(Event.createInsert(U, seq, 0, "c"), 2, intArrayOf(1)))
+        index.appended(StoredRun(EventImpl(U, seq, DocOp.ins(0, "c")), 2, intArrayOf(1)))
       }, "seq $seq")
     }
     assertThrows(IllegalArgumentException::class.java) {
-      AgentIndex.EMPTY.appended(StoredRun(Event.createInsert(V, 1, 0, "c"), 0, IntArray(0)))
+      AgentIndex.EMPTY.appended(StoredRun(EventImpl(V, 1, DocOp.ins(0, "c")), 0, IntArray(0)))
     }
   }
 
   @Test
   fun `siblings of one agent index answer each for itself`() {
-    val base = AgentIndex.EMPTY.appended(StoredRun(Event.createInsert(U, 0, 0, "ab"), 0, IntArray(0)))
-    val left = base.appended(StoredRun(Event.createInsert(U, 2, 0, "L"), 2, intArrayOf(1)))
-    val right = base.appended(StoredRun(Event.createInsert(V, 0, 0, "R"), 2, intArrayOf(1)))
+    val base = AgentIndex.EMPTY.appended(StoredRun(EventImpl(U, 0, DocOp.ins(0, "ab")), 0, IntArray(0)))
+    val left = base.appended(StoredRun(EventImpl(U, 2, DocOp.ins(0, "L")), 2, intArrayOf(1)))
+    val right = base.appended(StoredRun(EventImpl(V, 0, DocOp.ins(0, "R")), 2, intArrayOf(1)))
     assertEquals(2, base.nextSeq(U))
     assertEquals(3, left.nextSeq(U))
     assertEquals(0, left.nextSeq(V))
@@ -181,7 +181,9 @@ internal class RunTreeTest {
       assertSame(run, tree.floor(run.lvStart)) { "floor(${run.lvStart}) at size ${expected.size}" }
       assertSame(run, tree.floor(run.lvEnd() - 1)) { "floor(${run.lvEnd() - 1}) at size ${expected.size}" }
       assertEquals(index, tree.floorIndex(run.lvStart)) { "floorIndex(${run.lvStart}) at size ${expected.size}" }
-      assertEquals(index, tree.floorIndex(run.lvEnd() - 1)) { "floorIndex(${run.lvEnd() - 1}) at size ${expected.size}" }
+      assertEquals(index, tree.floorIndex(run.lvEnd() - 1)) {
+        "floorIndex(${run.lvEnd() - 1}) at size ${expected.size}"
+      }
     }
     // Every key below the first run finds nothing, and every key past the last finds the last run.
     val first = expected[0].lvStart
@@ -194,7 +196,7 @@ internal class RunTreeTest {
   }
 
   private fun runAt(lvStart: LV, length: Int, seq: Int): StoredRun {
-    return StoredRun(Event.createInsert(U, seq, 0, "x".repeat(length)), lvStart, IntArray(0))
+    return StoredRun(EventImpl(U, seq, DocOp.ins(0, "x".repeat(length))), lvStart, IntArray(0))
   }
 
   private companion object {

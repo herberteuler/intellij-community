@@ -9,22 +9,24 @@ private const val MAX_QUOTED_CHARS = 40
 /** How many characters of the tail a shortened fragment keeps. */
 private const val QUOTED_TAIL_CHARS = 12
 
+/** What a shortened fragment puts in place of its middle. */
+private const val ELLIPSIS = "..."
+
 /**
  * The fragment as a quoted string that is safe to put in a message.
  *
  * An insert fragment can be a whole pasted file, and `toString` reaches exception messages
  * and the log. So a long fragment gives up its middle to an ellipsis and reports its own
- * length instead. A line break becomes an escape, which keeps the message on one line.
+ * length instead. A line break becomes an escape, which keeps the message on one line. Only the
+ * head and the tail are copied, so a message about a paste does not cost the paste.
  */
 internal fun CharSequence.quotedForMessage(): String {
-  val text = toString()
-  val shortened = StringUtil.shortenTextWithEllipsis(text, MAX_QUOTED_CHARS, QUOTED_TAIL_CHARS)
-  val quoted = "\"${StringUtil.escapeStringCharacters(shortened)}\""
-  return if (text.length <= MAX_QUOTED_CHARS) {
-    quoted
-  } else {
-    "$quoted (${text.length} chars)"
+  if (length <= MAX_QUOTED_CHARS) {
+    return "\"${StringUtil.escapeStringCharacters(toString())}\""
   }
+  val head = subSequence(0, MAX_QUOTED_CHARS - QUOTED_TAIL_CHARS - ELLIPSIS.length)
+  val tail = subSequence(length - QUOTED_TAIL_CHARS, length)
+  return "\"${StringUtil.escapeStringCharacters("$head$ELLIPSIS$tail")}\" ($length chars)"
 }
 
 /** The longest lv list that a message prints in full. */

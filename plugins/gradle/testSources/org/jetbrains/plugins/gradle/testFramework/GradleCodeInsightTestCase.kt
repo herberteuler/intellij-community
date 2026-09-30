@@ -4,8 +4,9 @@ package org.jetbrains.plugins.gradle.testFramework
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationAction
 import com.intellij.groovy.testFramework.ExpressionTest
+import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.application.runReadActionBlocking
-import com.intellij.platform.externalSystem.testFramework.utils.runWriteActionAndWait
+import com.intellij.openapi.application.runWriteAction
 import com.intellij.platform.testFramework.assertion.collectionAssertion.CollectionAssertions
 import com.intellij.psi.PsiElement
 import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture
@@ -99,8 +100,10 @@ abstract class GradleCodeInsightTestCase : GradleCodeInsightBaseTestCase(), Expr
 
   fun updateProjectFile(content: String) {
     writeTextAndCommit("build.gradle", content)
-    runWriteActionAndWait {
-      codeInsightFixture.configureFromExistingVirtualFile(getFile("build.gradle"))
+    invokeAndWaitIfNeeded {
+      runWriteAction {
+        codeInsightFixture.configureFromExistingVirtualFile(getFile("build.gradle"))
+      }
     }
   }
 

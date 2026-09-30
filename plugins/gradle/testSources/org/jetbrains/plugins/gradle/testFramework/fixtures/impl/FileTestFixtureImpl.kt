@@ -25,7 +25,6 @@ import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.openapi.vfs.readText
 import com.intellij.openapi.vfs.refreshAndFindVirtualFile
 import com.intellij.openapi.vfs.writeText
-import com.intellij.platform.externalSystem.testFramework.utils.runWriteActionAndGet
 import com.intellij.testFramework.common.runAll
 import com.intellij.testFramework.utils.editor.reloadFromDisk
 import com.intellij.testFramework.utils.vfs.deleteChildrenRecursively
@@ -110,19 +109,19 @@ internal class FileTestFixtureImpl(
     val systemDirectory = systemPath.findOrCreateDirectory().refreshAndGetVirtualDirectory()
     val fixtureRoot = "FileTestFixture/$relativePath"
     VfsRootAccess.allowRootAccess(testRootDisposable, systemDirectory.path + "/$fixtureRoot")
-    return runWriteActionAndGet {
+    return runWriteActionAndWait {
       systemDirectory.findOrCreateDirectory(fixtureRoot)
     }
   }
 
   private fun createFixtureStateFile(): VirtualFile {
-    return runWriteActionAndGet {
+    return runWriteActionAndWait {
       root.findOrCreateFile("_FileTestFixture.xml")
     }
   }
 
   private fun createProjectRoot(): VirtualFile {
-    return runWriteActionAndGet {
+    return runWriteActionAndWait {
       root.findOrCreateDirectory(relativeProjectPath)
     }
   }

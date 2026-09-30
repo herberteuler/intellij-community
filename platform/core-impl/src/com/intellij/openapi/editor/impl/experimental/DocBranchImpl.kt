@@ -5,9 +5,11 @@ import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.DocBranch
+import com.intellij.openapi.editor.experimental.DocMerge
 import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
 import com.intellij.openapi.editor.impl.DocTextImpl
+import java.util.Collections
 
 /**
  * See [DocBranch].
@@ -20,9 +22,9 @@ import com.intellij.openapi.editor.impl.DocTextImpl
  *
  * A merge with concurrent history replays only the region above the common ancestor
  * (the paper's partial replay): one lazily-split placeholder item stands in for the
- * older document, and the new units apply to [docText] as ordinary [DocOp]s. The merge
- * cost depends on the size of the change and of the concurrent region, not on the size of
- * either history.
+ * older document, and the new units apply to [docText] as ordinary [DocOp]s. Those ops are
+ * the op stream of [mergeWithOps]. The merge cost depends on the size of the change and of the
+ * concurrent region, not on the size of either history.
  *
  * Prototype limits, deliberate:
  * - A keystroke extends the newest run when it continues it (see [EventGraph.append]), but a
@@ -67,23 +69,29 @@ internal class DocBranchImpl private constructor(
   }
 
   override fun merge(other: DocBranch): DocBranch {
+    return mergeWithOps(other).branch()
+  }
+
+  override fun mergeWithOps(other: DocBranch): DocMerge {
     val otherImpl = implOf(other)
     val result = graph.mergeFromImpl(otherImpl.graph)
     if (result.addsNothing()) {
-      return this
+      // The same kind of list as the other outcomes, so a caller sees one behaviour.
+      return DocMergeImpl.ready(this, Collections.emptyList())
     }
     val merged = result.graph
-    val newDocText = if (result.isFastForward()) {
-      // This branch's history is inside the other branch's history, so its text is ready.
-      otherImpl.docText
-    } else {
-      // A partial replay: only the region above the common ancestor is walked, and
-      // only the new units reach the sink, batched into ordinary ops over the text.
-      val sink = BatchingSink(docText)
-      EgWalkerReplay.mergeInto(merged, graph.versionImpl(), sink)
-      sink.result()
+    if (result.isFastForward()) {
+      // This branch's history is inside the other branch's history, so its text is ready. The ops
+      // would cost a replay of the change, so they wait until a caller asks for them.
+      val branch = DocBranchImpl(otherImpl.docText, agent, merged)
+      return DocMergeImpl.deferred(branch) {
+        opsOfFastForward(merged, otherImpl.docText)
+      }
     }
-    return DocBranchImpl(newDocText, agent, merged)
+    // A partial replay: only the region above the common ancestor is walked, and only the new
+    // units reach the sink, batched into ordinary ops over the text.
+    val sink = replayOnto(merged)
+    return DocMergeImpl.ready(DocBranchImpl(sink.result(), agent, merged), sink.ops())
   }
 
   private fun applyInsert(op: DocOp.Insert): DocBranch {
@@ -114,6 +122,31 @@ internal class DocBranchImpl private constructor(
    */
   private fun appendLocal(op: DocOp): EventGraphImpl {
     return graph.appendAtTip(Event.create(agent, graph.nextSeqFor(agent), op))
+  }
+
+  /**
+   * The text of this branch, with everything that [merged] holds beyond this branch applied, in a
+   * sink that recorded the ops. [merged] must come from a merge into this branch, so the lvs of this
+   * branch name the same units there.
+   */
+  private fun replayOnto(merged: EventGraphImpl): BatchingSink {
+    val sink = BatchingSink(docText)
+    EgWalkerReplay.mergeInto(merged, graph.versionImpl(), sink)
+    return sink
+  }
+
+  /**
+   * The ops of a fast-forward to [merged], whose text is [expected]. The replay walks only the
+   * units above this branch, so it costs the change. A replay that ends at another length would
+   * hand an editor ops for a text the branch does not have, so that fails here.
+   */
+  private fun opsOfFastForward(merged: EventGraphImpl, expected: DocText): List<DocOp> {
+    val sink = replayOnto(merged)
+    val replayed = sink.result()
+    require(replayed.length() == expected.length()) {
+      "The ops of a fast-forward build a text of length ${replayed.length()}, but the merged text has ${expected.length()}"
+    }
+    return sink.ops()
   }
 
   override fun toString(): String {

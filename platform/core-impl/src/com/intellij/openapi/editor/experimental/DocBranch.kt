@@ -46,8 +46,17 @@ interface DocBranch {
    *
    * Throws [EventIdClashException] when the two branches broke the agent contract, and then
    * changes nothing.
+   *
+   * The result is the branch of [mergeWithOps] for the same two branches.
    */
   fun merge(other: DocBranch): DocBranch
+
+  /**
+   * The same merge as [merge], plus the ops that turn the [text] of this branch into the merged
+   * text. An editor needs them to apply a merge to its document. See [DocMerge] for their order
+   * and their cost.
+   */
+  fun mergeWithOps(other: DocBranch): DocMerge
 
   companion object {
     fun createBranch(chars: CharSequence, agent: Agent): DocBranch = DocBranchImpl.create(chars, agent)

@@ -683,6 +683,9 @@ internal fun insertOp(offset: Int, fragment: CharSequence): DocOp.Insert = DocOp
 
 internal fun deleteOp(offset: Int, length: Int): DocOp.Delete = DocOp.del(offset, length)
 
+/** This text with [ops] applied one after another, as [DocMerge.ops] says an editor applies them. */
+internal fun DocText.afterOps(ops: List<DocOp>): DocText = ops.fold(this) { text, op -> text.applyOp(op) }
+
 internal fun assertSameText(expected: DocText, actual: DocText) {
   assertEquals(expected.string(), actual.string())
   assertEquals(expected.chars().toString(), actual.chars().toString())

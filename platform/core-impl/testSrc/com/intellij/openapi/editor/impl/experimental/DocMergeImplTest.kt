@@ -1,0 +1,85 @@
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.openapi.editor.impl.experimental
+
+import com.intellij.openapi.editor.experimental.Agent
+import com.intellij.openapi.editor.experimental.DocBranch
+import com.intellij.openapi.editor.experimental.DocOp
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+/** Tests [DocMergeImpl]: ready ops, deferred ops, and deferred ops that many threads read at once. */
+internal class DocMergeImplTest {
+
+  @Test
+  fun `ready ops come back as given`() {
+    val ops = listOf(DocOp.ins(0, "x"))
+    val merge = DocMergeImpl.ready(BRANCH, ops)
+    assertSame(BRANCH, merge.branch())
+    assertSame(ops, merge.ops())
+    assertEquals("DocMerge($BRANCH, 1 ops)", merge.toString())
+  }
+
+  @Test
+  fun `deferred ops wait for the first call and are built once`() {
+    val builds = AtomicInteger()
+    val ops = listOf(DocOp.del(0, 1))
+    val merge = DocMergeImpl.deferred(BRANCH) {
+      builds.incrementAndGet()
+      ops
+    }
+    assertSame(BRANCH, merge.branch())
+    // Neither the branch nor a message may build the ops.
+    assertEquals("DocMerge($BRANCH, ops deferred)", merge.toString())
+    assertEquals(0, builds.get())
+    assertSame(ops, merge.ops())
+    assertSame(ops, merge.ops())
+    assertEquals(1, builds.get())
+    assertEquals("DocMerge($BRANCH, 1 ops)", merge.toString())
+  }
+
+  /**
+   * The publication mode lets two threads build at once, but every caller must get the list that
+   * won. Each build returns a list of its own, so a caller that got a losing list shows up.
+   */
+  @Test
+  fun `threads that read deferred ops at once all get one list`() {
+    val pool = Executors.newFixedThreadPool(THREADS)
+    try {
+      repeat(ROUNDS) {
+        val builds = AtomicInteger()
+        val merge = DocMergeImpl.deferred(BRANCH) {
+          builds.incrementAndGet()
+          listOf(DocOp.ins(0, "x"))
+        }
+        val start = CountDownLatch(1)
+        val results = (0 until THREADS).map {
+          pool.submit<List<DocOp>> {
+            start.await()
+            merge.ops()
+          }
+        }
+        start.countDown()
+        val lists = results.map { it.get(10, TimeUnit.SECONDS) }
+        for (list in lists) {
+          assertSame(lists[0], list)
+        }
+        assertSame(lists[0], merge.ops())
+        assertTrue(builds.get() >= 1)
+      }
+    } finally {
+      pool.shutdownNow()
+    }
+  }
+
+  private companion object {
+    val BRANCH: DocBranch = DocBranch.createBranch("abc", Agent.createAgent("a"))
+    const val THREADS = 8
+    const val ROUNDS = 200
+  }
+}

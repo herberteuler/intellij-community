@@ -1,17 +1,29 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.experimental.DocMerge
 import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.DocText
+import java.util.Collections
 
 /**
- * Coalesces the merge effects into fragment and range ops before they reach the text.
- * Successive inserts that meet end to end equal one fragment insert at the first position;
- * successive deletes at one position equal one delete of their total length. This is also
- * the op stream an editor integration would fire as events.
+ * Turns the reports of a merge into ops, applies them to the text, and records them. The recorded
+ * ops are the op stream of [DocMerge.ops].
  *
- * The walk already reports one span per run, so this class earns its keep across runs: two
- * runs that land side by side arrive as two calls and still leave as one op.
+ * The sink holds at most one pending op. A report joins the pending op when the two equal one op:
+ * - an insert at the end of a pending insert extends its fragment;
+ * - a delete that starts inside a pending insert and ends at its end shortens the fragment. The
+ *   new side deleted text that it inserted itself, so no op brings that text at all;
+ * - a delete at the position of a pending delete extends it, as the Delete key does;
+ * - a delete that ends at the position of a pending delete extends it backwards, as a backspace
+ *   does.
+ *
+ * Any other report flushes the pending op first. Each join costs O(1), because it never moves the
+ * characters of the pending fragment. The walk reports one span per run, so the joins pay off
+ * across runs: two runs that land side by side arrive as two reports and leave as one op.
+ *
+ * The sink is single use, and one merge owns it. [result] and [ops] finish it, and a report after
+ * that fails.
  */
 internal class BatchingSink(
   private var updated: DocText,
@@ -20,9 +32,13 @@ internal class BatchingSink(
   private var startEffectPos: Int = 0
   private val pendingFragment = StringBuilder()
   private var deleteCount: Int = 0
+  private val applied = ArrayList<DocOp>()
+  private var finished = false
 
   override fun insert(effectPos: Int, fragment: CharSequence) {
-    if (kind != INSERT || effectPos != startEffectPos + pendingFragment.length) {
+    checkOpen()
+    checkInsert(effectPos, fragment)
+    if (kind != INSERT || effectPos != pendingInsertEnd()) {
       flush()
       kind = INSERT
       startEffectPos = effectPos
@@ -31,43 +47,118 @@ internal class BatchingSink(
   }
 
   override fun delete(effectPos: Int, count: Int) {
-    if (kind != DELETE || effectPos != startEffectPos) {
+    checkOpen()
+    checkDelete(effectPos, count)
+    if (kind == INSERT && effectPos >= startEffectPos && effectPos + count == pendingInsertEnd()) {
+      pendingFragment.setLength(effectPos - startEffectPos)
+      if (pendingFragment.isEmpty()) {
+        kind = NONE
+      }
+    } else if (kind == DELETE && effectPos == startEffectPos) {
+      deleteCount += count
+    } else if (kind == DELETE && effectPos + count == startEffectPos) {
+      startEffectPos = effectPos
+      deleteCount += count
+    } else {
       flush()
       kind = DELETE
       startEffectPos = effectPos
+      deleteCount = count
     }
-    deleteCount += count
   }
 
+  /** The text with every report applied. This finishes the sink. */
   fun result(): DocText {
-    flush()
+    finish()
     return updated
   }
 
-  /** The text length so far, plus the op that still waits for its neighbour. */
+  /** The ops that [result] applied to the text, in order. This finishes the sink. */
+  fun ops(): List<DocOp> {
+    finish()
+    return Collections.unmodifiableList(applied)
+  }
+
+  /** The text length so far, the op that still waits for its neighbour, and the ops so far. */
   override fun toString(): String {
     val pending = when (kind) {
       INSERT -> "insert at $startEffectPos of ${pendingFragment.quotedForMessage()}"
       DELETE -> "delete of $deleteCount at $startEffectPos"
       else -> "nothing"
     }
-    return "BatchingSink(length=${updated.length()}, pending=$pending)"
+    val state = if (finished) "finished" else "open"
+    return "BatchingSink(length=${updated.length()}, pending=$pending, ops=${applied.size}, $state)"
+  }
+
+  private fun finish() {
+    if (!finished) {
+      flush()
+      finished = true
+    }
   }
 
   private fun flush() {
     // The effect version IS the text this sink builds, so its position is the op's offset.
-    when (kind) {
-      INSERT -> updated = updated.applyOp(DocOp.ins(startEffectPos, pendingFragment.toString()))
-      DELETE -> updated = updated.applyOp(DocOp.del(startEffectPos, deleteCount))
+    val op = when (kind) {
+      INSERT -> DocOp.ins(startEffectPos, pendingFragment.toString())
+      DELETE -> DocOp.del(startEffectPos, deleteCount)
+      else -> null
+    }
+    if (op != null) {
+      updated = updated.applyOp(op)
+      applied.add(op)
     }
     kind = NONE
     pendingFragment.setLength(0)
     deleteCount = 0
   }
 
-  companion object {
-    private const val NONE = 0
-    private const val INSERT = 1
-    private const val DELETE = 2
+  private fun pendingInsertEnd(): Int {
+    return startEffectPos + pendingFragment.length
+  }
+
+  /** The length of the text with every report so far applied, the pending op included. */
+  private fun currentLength(): Int {
+    return when (kind) {
+      INSERT -> updated.length() + pendingFragment.length
+      DELETE -> updated.length() - deleteCount
+      else -> updated.length()
+    }
+  }
+
+  private fun checkOpen() {
+    require(!finished) {
+      "A report arrived after the sink finished"
+    }
+  }
+
+  /**
+   * Fails unless the insert brings text at a position of the current text. The text is what the
+   * merge builds, so a report outside it means a faulty event, and this names it before a flush
+   * fails without a name.
+   */
+  private fun checkInsert(effectPos: Int, fragment: CharSequence) {
+    require(fragment.isNotEmpty()) {
+      "An empty insert at $effectPos"
+    }
+    require(effectPos in 0..currentLength()) {
+      "The insert at $effectPos is outside the text of length ${currentLength()}"
+    }
+  }
+
+  /** Fails unless the delete removes at least one character, all inside the current text. */
+  private fun checkDelete(effectPos: Int, count: Int) {
+    require(count >= 1) {
+      "The delete count is not positive: $count"
+    }
+    require(effectPos >= 0 && count <= currentLength() - effectPos) {
+      "The delete of $count at $effectPos is outside the text of length ${currentLength()}"
+    }
+  }
+
+  private companion object {
+    const val NONE = 0
+    const val INSERT = 1
+    const val DELETE = 2
   }
 }

@@ -32,7 +32,8 @@ internal object EgWalkerReplay {
 
   /**
    * Where the walk reports its effects. Both methods take a whole span, because the walk is
-   * run-length encoded on both sides and a span never crosses a run.
+   * run-length encoded on both sides and a span never crosses a run. A report always covers at
+   * least one character, at a position of the effect version.
    */
   internal interface Sink {
     /** Inserts [fragment] at [effectPos]. */

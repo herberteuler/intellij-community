@@ -2,6 +2,7 @@
 package com.intellij.openapi.editor.experimental
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Random
 
@@ -15,8 +16,9 @@ import java.util.Random
  * newest run. So a pull often lands in the middle of a run, and two replicas often cut the
  * runs of one agent in different places.
  *
- * Two invariants hold after every merge:
+ * These invariants hold after every merge:
  * - the branch text equals a from-scratch replay of the merged graph;
+ * - the ops of the merge fold the text of the receiver into the merged text;
  * - a full sync brings every replica to one text.
  */
 class DocBranchGossipFuzzTest {
@@ -49,10 +51,12 @@ class DocBranchGossipFuzzTest {
         if (random.nextInt(3) == 0) {
           val j = random.nextInt(replicas.size)
           if (i != j) {
-            val merged = replicas[i].merge(replicas[j])
+            val merge = replicas[i].mergeWithOps(replicas[j])
+            val merged = merge.branch()
             assertEquals(merged.graph().replay().string(), merged.string()) {
               "round $round, step $step, merge $i <- $j"
             }
+            checkOps(replicas[i], merge) { "round $round, step $step, the ops of merge $i <- $j" }
             replicas[i] = merged
           }
         } else {
@@ -68,7 +72,9 @@ class DocBranchGossipFuzzTest {
         for (i in replicas.indices) {
           for (j in replicas.indices) {
             if (i != j) {
-              replicas[i] = replicas[i].merge(replicas[j])
+              val merge = replicas[i].mergeWithOps(replicas[j])
+              checkOps(replicas[i], merge) { "round $round, the ops of sync $i <- $j" }
+              replicas[i] = merge.branch()
             }
           }
         }
@@ -110,7 +116,23 @@ class DocBranchGossipFuzzTest {
     if (roll < 5 && at < length) {
       return deleteOp(at, 1)
     }
+    if (roll < 6 && at > 0) {
+      // A backspace.
+      return deleteOp(at - 1, 1)
+    }
     return randomJump(random, length)
+  }
+
+  /**
+   * Fails unless the ops of [merge] fold the text of [receiver] into the merged text, and none of
+   * them is empty. A fold through an op outside its text throws on its own.
+   */
+  private fun checkOps(receiver: DocBranch, merge: DocMerge, where: () -> String) {
+    val ops = merge.ops()
+    for (op in ops) {
+      assertTrue(op.length() > 0, where)
+    }
+    assertEquals(merge.branch().string(), receiver.text().afterOps(ops).string(), where)
   }
 
   /** An edit anywhere in the text: a keystroke or a paste, a small delete or a wipe. */

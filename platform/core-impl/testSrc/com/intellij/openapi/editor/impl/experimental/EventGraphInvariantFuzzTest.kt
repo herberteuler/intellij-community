@@ -15,9 +15,10 @@ import java.util.Random
  * A fuzz that checks every graph invariant after every step, through [EventGraphImpl.checkInvariants].
  * The fuzz tests of the platform tests compare texts only, and they cannot reach that check.
  *
- * It has two shapes. In the first, replicas of one [DocBranch] edit and pull in a random order. In
- * the second, raw graphs append at random past versions. So a run can start inside another run,
- * name several parents, or be concurrent with an earlier run of its own agent.
+ * It has two shapes. In the first, replicas of one [DocBranch] edit and pull in a random order,
+ * and the ops of each pull must fold the old text into the new one. In the second, raw graphs
+ * append at random past versions. So a run can start inside another run, name several parents,
+ * or be concurrent with an earlier run of its own agent.
  */
 internal class EventGraphInvariantFuzzTest {
 
@@ -31,7 +32,10 @@ internal class EventGraphInvariantFuzzTest {
       repeat(STEPS) { step ->
         val i = random.nextInt(replicas.size)
         if (random.nextInt(3) == 0) {
-          replicas[i] = replicas[i].merge(replicas[random.nextInt(replicas.size)])
+          val merge = replicas[i].mergeWithOps(replicas[random.nextInt(replicas.size)])
+          val folded = merge.ops().fold(replicas[i].text()) { text, op -> text.applyOp(op) }
+          assertEquals(merge.branch().text().string(), folded.string()) { "round $round, step $step, the ops of replica $i" }
+          replicas[i] = merge.branch()
         } else {
           val op = randomOp(random, replicas[i].text().length(), carets[i])
           replicas[i] = replicas[i].applyOp(op)

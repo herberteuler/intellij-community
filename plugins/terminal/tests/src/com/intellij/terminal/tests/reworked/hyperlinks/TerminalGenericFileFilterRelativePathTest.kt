@@ -129,6 +129,15 @@ internal class TerminalGenericFileFilterRelativePathTest {
   }
 
   @Test
+  fun `a named pipe gets no link`() {
+    fileLookup.addFile("/project/fifo", TerminalFileKind.OTHER)
+    assertNoLinks("fifo")
+    assertNoLinks("./fifo")
+    assertNoLinks("fifo/README.md")
+    assertSingleLink(applyFilter("fifo README.md"), readmeMd, 5, 14)
+  }
+
+  @Test
   fun `ignore paths that exceed FILENAME_MAX per segment`() {
     val longSegment = "a".repeat(FILENAME_MAX + 1)
     assertNoLinks("src/$longSegment.kt")

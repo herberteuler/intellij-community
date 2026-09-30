@@ -23,6 +23,7 @@ import org.apache.commons.lang3.RandomStringUtils
 import org.assertj.core.api.Assertions
 import org.jetbrains.plugins.terminal.hyperlinks.TerminalFileHyperlinkInfo
 import org.jetbrains.plugins.terminal.hyperlinks.filter.FILENAME_MAX
+import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFileKind
 import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalGenericFileFilter
 import org.junit.Test
 import org.mockito.Mockito.mock
@@ -292,6 +293,13 @@ internal class TerminalGenericFileFilterAbsolutePathTest {
     .checkFileLinks(
         "/path/to/existing/file"
       )
+
+  @Test
+  fun `a named pipe or a device gets no link`() = getFilterResultAndCheckHighlightPositions("""
+    | /tmp/ht-fifo /dev/null /tmp/ht-q/a.txt
+                             ^^^^^^^^^^^^^^^
+  """.trimIndent(), listOf("/tmp/ht-q/a.txt"), otherKindPaths = listOf("/tmp/ht-fifo", "/dev/null"))
+    .checkFileLinks("/tmp/ht-q/a.txt")
 
   @Test
   fun `ignore slashes from progress indicators`() = getFilterResultAndCheckHighlightPositions("""
@@ -581,7 +589,9 @@ internal class TerminalGenericFileFilterAbsolutePathTest {
   /**
    * Applies the filter to every line of [content] that starts with `| `. Unless
    * [checkHighlights] is `false`, the highlighted ranges are checked against the `^`
-   * marks of the following line. Only [validPaths] and their parent directories exist.
+   * marks of the following line. Only [validPaths], [otherKindPaths], and their parent
+   * directories exist. [otherKindPaths] are named pipes, devices, or other special
+   * files.
    */
   private fun getFilterResultAndCheckHighlightPositions(
     content: String,
@@ -590,11 +600,15 @@ internal class TerminalGenericFileFilterAbsolutePathTest {
     windows: Boolean = false,
     homeDirectory: String? = null,
     lineBreak: String = "\n",
+    otherKindPaths: Collection<String> = emptyList(),
   ): FilterRun {
     val descriptor = if (windows) TestEelDescriptor.WINDOWS else TestEelDescriptor.POSIX
     val lookup = FakeTerminalFileLookup(descriptor)
     for (path in validPaths) {
       lookup.addFile(path)
+    }
+    for (path in otherKindPaths) {
+      lookup.addFile(path, TerminalFileKind.OTHER)
     }
     val context = homeDirectory?.let { TerminalHyperlinkFilterContextImpl(descriptor, lookup.path(it)) }
     val filter = TerminalGenericFileFilter(project, descriptor, context, lookup)

@@ -221,6 +221,6 @@ internal class TerminalAbsolutePathLinkFinder(
     catch (_: EelPathException) {
       return null // not an absolute path in the environment of the terminal, e.g. a Windows path on Linux
     }
-    return eelPath.takeIf { fileLookup.lookup(it) != null }
+    return eelPath.takeIf { fileLookup.lookupLinkTarget(it) != null }
   }
 }

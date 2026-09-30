@@ -43,12 +43,28 @@ internal class TerminalNioFileLookupTest {
   }
 
   @Test
-  fun `symbolic link is followed`() {
+  fun `symbolic link to a directory is followed`() {
     Assume.assumeFalse("symbolic links need privileges on Windows", SystemInfo.isWindows)
     val target = tempDir.newFolder("target")
     val link = File(tempDir.root, "link")
     Files.createSymbolicLink(link.toPath(), target.toPath())
     assertThat(lookup.lookup(localPath(link))).isEqualTo(TerminalFileKind.DIRECTORY)
+  }
+
+  @Test
+  fun `symbolic link to a regular file is followed`() {
+    Assume.assumeFalse("symbolic links need privileges on Windows", SystemInfo.isWindows)
+    val target = tempDir.newFile("target.txt")
+    val link = File(tempDir.root, "link.txt")
+    Files.createSymbolicLink(link.toPath(), target.toPath())
+    assertThat(lookup.lookup(localPath(link))).isEqualTo(TerminalFileKind.FILE)
+  }
+
+  @Test
+  fun `device is not a regular file`() {
+    Assume.assumeFalse("/dev/null is a Unix device", SystemInfo.isWindows)
+    val path = EelPath.parse("/dev/null", LocalEelDescriptor)
+    assertThat(lookup.lookup(path)).isEqualTo(TerminalFileKind.OTHER)
   }
 
   @Test

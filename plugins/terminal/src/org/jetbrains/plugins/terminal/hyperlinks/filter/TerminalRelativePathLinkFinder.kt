@@ -159,7 +159,7 @@ internal class TerminalRelativePathLinkFinder(
     catch (_: EelPathException) {
       return null // not a valid file name in the environment of the terminal
     }
-    val kind = fileLookup.lookup(child) ?: return null
+    val kind = fileLookup.lookupLinkTarget(child) ?: return null
     return Child(child, kind)
   }
 

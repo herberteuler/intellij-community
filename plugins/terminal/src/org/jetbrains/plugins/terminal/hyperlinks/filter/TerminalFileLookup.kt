@@ -4,6 +4,7 @@ package org.jetbrains.plugins.terminal.hyperlinks.filter
 import com.intellij.diagnostic.rethrowControlFlowException
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VFileProperty
 import com.intellij.platform.eel.path.EelPath
 import com.intellij.platform.eel.provider.asNioPath
 import org.jetbrains.annotations.ApiStatus
@@ -22,7 +23,8 @@ import java.nio.file.attribute.BasicFileAttributes
 fun interface TerminalFileLookup {
   /**
    * Returns the kind of the file at [path], or `null` if there is no such file.
-   * Symbolic links are followed.
+   * Symbolic links are followed. The finders link only a [TerminalFileKind.FILE] or a
+   * [TerminalFileKind.DIRECTORY], see [lookupLinkTarget].
    */
   fun lookup(path: EelPath): TerminalFileKind?
 }
@@ -31,8 +33,16 @@ fun interface TerminalFileLookup {
 enum class TerminalFileKind {
   FILE,
   DIRECTORY,
+  /** A named pipe, a device, a socket, or another file that is not regular. */
   OTHER,
 }
+
+/**
+ * Returns the kind of the file at [path] if a link to it can be followed, or `null`.
+ * A file of kind [TerminalFileKind.OTHER] is never a link target.
+ */
+internal fun TerminalFileLookup.lookupLinkTarget(path: EelPath): TerminalFileKind? =
+  lookup(path)?.takeUnless { it == TerminalFileKind.OTHER }
 
 /**
  * Looks up files already loaded into the VFS, without reading the disk.
@@ -42,7 +52,11 @@ class TerminalVfsFileLookup(private val localFileSystem: LocalFileSystem) : Term
   override fun lookup(path: EelPath): TerminalFileKind? {
     val nioPath = path.asNioPathOrNull() ?: return null
     val file = localFileSystem.findFileByPathIfCached(nioPath.toString())?.takeIf { it.isValid } ?: return null
-    return if (file.isDirectory) TerminalFileKind.DIRECTORY else TerminalFileKind.FILE
+    return when {
+      file.`is`(VFileProperty.SPECIAL) -> TerminalFileKind.OTHER
+      file.isDirectory -> TerminalFileKind.DIRECTORY
+      else -> TerminalFileKind.FILE
+    }
   }
 }
 

@@ -288,9 +288,9 @@ class TipCoalescingTest {
 
     for (clash in listOf("Zbc", "abZ")) {
       val theirs = History().type(U, 0, clash).graph()
-      val failure = assertThrows(IllegalArgumentException::class.java) { mine.mergeFrom(theirs) }
+      val failure = assertThrows(EventIdClashException::class.java) { mine.mergeFrom(theirs) }
       assertTrue(failure.message!!.contains("the inserted character")) { "$clash: ${failure.message}" }
-      assertThrows(IllegalArgumentException::class.java) { theirs.mergeFrom(mine) }
+      assertThrows(EventIdClashException::class.java) { theirs.mergeFrom(mine) }
     }
   }
 

@@ -304,13 +304,13 @@ class EventGraphTest {
     // end of the shared range and not at the end of either history.
     val ahead = mine.append(Event.createInsert(u, 2, 2, "c"), mine.version())
     val clashingPrefix = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "Zb"), root)
-    assertThrows(IllegalArgumentException::class.java) { ahead.mergeFrom(clashingPrefix) }
-    assertThrows(IllegalArgumentException::class.java) { clashingPrefix.mergeFrom(ahead) }
+    assertThrows(EventIdClashException::class.java) { ahead.mergeFrom(clashingPrefix) }
+    assertThrows(EventIdClashException::class.java) { clashingPrefix.mergeFrom(ahead) }
     // A shared range of ONE seq has both ends at seq 0, so the second sample is skipped.
     val oneUnit = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "a"), root)
     val otherUnit = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "Q"), root)
-    assertThrows(IllegalArgumentException::class.java) { oneUnit.mergeFrom(otherUnit) }
-    assertThrows(IllegalArgumentException::class.java) { otherUnit.mergeFrom(oneUnit) }
+    assertThrows(EventIdClashException::class.java) { oneUnit.mergeFrom(otherUnit) }
+    assertThrows(EventIdClashException::class.java) { otherUnit.mergeFrom(oneUnit) }
   }
 
   /**
@@ -467,6 +467,8 @@ class EventGraphTest {
     val backward = theirs.mergeFrom(mine)
     assertEquals(3, forward.size())
     assertEquals(3, backward.size())
+    // The reference gives "abZ": the two inserts at 1 are concurrent, and u sorts before v.
+    assertEquals("abZ", forward.replay().string())
     assertEquals(forward.replay().string(), backward.replay().string())
     // An agent that only this graph knows brings nothing back from the other side.
     assertEquals(3, forward.mergeFrom(theirs).size())
@@ -556,8 +558,10 @@ class EventGraphTest {
     }
     // The two siblings gave the id (u, 10) to different characters. That sits at the LAST
     // shared seq, which is the end the check samples.
-    assertThrows(IllegalArgumentException::class.java) { first.mergeFrom(second) }
-    assertThrows(IllegalArgumentException::class.java) { second.mergeFrom(first) }
+    val clash = assertThrows(EventIdClashException::class.java) { first.mergeFrom(second) }
+    assertEquals(u, clash.agent())
+    assertEquals(10, clash.seq())
+    assertThrows(EventIdClashException::class.java) { second.mergeFrom(first) }
   }
 
   @Test

@@ -26,62 +26,64 @@ internal class EventGraphInvariantFuzzTest {
 
   @Test
   fun `branches that edit and pull keep every invariant`() {
-    val random = Random(20260930)
     repeat(ROUNDS) { round ->
-      val base = DocBranch.createBranch(randomText(random, 8), Agent.createAgent("base"))
-      val replicas = (0 until 2 + random.nextInt(3)).mapTo(ArrayList()) { base.fork(Agent.createAgent("agent$it")) }
-      val carets = IntArray(replicas.size)
-      repeat(STEPS) { step ->
-        val i = random.nextInt(replicas.size)
-        if (random.nextInt(3) == 0) {
-          val merge = replicas[i].mergeWithOps(replicas[random.nextInt(replicas.size)])
-          val folded = merge.ops().fold(replicas[i].text()) { text, op -> text.applyOp(op) }
-          assertEquals(merge.branch().text().string(), folded.string()) { "round $round, step $step, the ops of replica $i" }
-          replicas[i] = merge.branch()
-        } else {
-          val op = randomOp(random, replicas[i].text().length(), carets[i])
-          replicas[i] = replicas[i].applyOp(op)
-          carets[i] = if (op is DocOp.Insert) op.offset() + op.length() else op.offset()
+      fuzzRound(20260930L, round) { random ->
+        val base = DocBranch.createBranch(randomText(random, 8), Agent.createAgent("base"))
+        val replicas = (0 until 2 + random.nextInt(3)).mapTo(ArrayList()) { base.fork(Agent.createAgent("agent$it")) }
+        val carets = IntArray(replicas.size)
+        repeat(STEPS) { step ->
+          val i = random.nextInt(replicas.size)
+          if (random.nextInt(3) == 0) {
+            val merge = replicas[i].mergeWithOps(replicas[random.nextInt(replicas.size)])
+            val folded = merge.ops().fold(replicas[i].text()) { text, op -> text.applyOp(op) }
+            assertEquals(merge.branch().text().string(), folded.string()) { "round $round, step $step, the ops of replica $i" }
+            replicas[i] = merge.branch()
+          } else {
+            val op = randomOp(random, replicas[i].text().length(), carets[i])
+            replicas[i] = replicas[i].applyOp(op)
+            carets[i] = if (op is DocOp.Insert) op.offset() + op.length() else op.offset()
+          }
+          checkGraph(replicas[i].graph()) { "round $round, step $step, replica $i" }
+          assertEquals(replicas[i].graph().replay().string(), replicas[i].text().string()) { "round $round, step $step, replica $i" }
         }
-        checkGraph(replicas[i].graph()) { "round $round, step $step, replica $i" }
-        assertEquals(replicas[i].graph().replay().string(), replicas[i].text().string()) { "round $round, step $step, replica $i" }
       }
     }
   }
 
   @Test
   fun `raw appends at past versions keep every invariant`() {
-    val random = Random(20261001)
     repeat(ROUNDS) { round ->
-      val agents = (0 until 2 + random.nextInt(2)).map { Agent.createAgent("agent$it") }
-      val graphs = agents.mapTo(ArrayList()) { EventGraph.createGraph() }
-      // Every version each replica passed through. A replica only appends, so each one stays valid.
-      val versions = agents.mapTo(ArrayList()) { arrayListOf(Version.root()) }
-      val carets = IntArray(agents.size)
-      repeat(STEPS) { step ->
-        val i = random.nextInt(graphs.size)
-        val graph = graphs[i]
-        if (random.nextInt(4) == 0) {
-          graphs[i] = graph.mergeFrom(graphs[random.nextInt(graphs.size)])
-        } else {
-          val atTip = random.nextBoolean()
-          val parents = if (atTip) graph.version() else versions[i][random.nextInt(versions[i].size)]
-          val text = graph.replay(parents).string()
-          val caret = if (atTip) carets[i] else random.nextInt(text.length + 1)
-          val seq = EventGraphImpl.implOf(graph).nextSeqFor(agents[i])
-          val event = randomEvent(random, agents[i], seq, text, caret)
-          graphs[i] = graph.append(event, parents)
-          carets[i] = event.op().offset() + if (event.op() is DocOp.Insert) event.length() else 0
+      fuzzRound(20261001L, round) { random ->
+        val agents = (0 until 2 + random.nextInt(2)).map { Agent.createAgent("agent$it") }
+        val graphs = agents.mapTo(ArrayList()) { EventGraph.createGraph() }
+        // Every version each replica passed through. A replica only appends, so each one stays valid.
+        val versions = agents.mapTo(ArrayList()) { arrayListOf(Version.root()) }
+        val carets = IntArray(agents.size)
+        repeat(STEPS) { step ->
+          val i = random.nextInt(graphs.size)
+          val graph = graphs[i]
+          if (random.nextInt(4) == 0) {
+            graphs[i] = graph.mergeFrom(graphs[random.nextInt(graphs.size)])
+          } else {
+            val atTip = random.nextBoolean()
+            val parents = if (atTip) graph.version() else versions[i][random.nextInt(versions[i].size)]
+            val text = graph.replay(parents).string()
+            val caret = if (atTip) carets[i] else random.nextInt(text.length + 1)
+            val seq = EventGraphImpl.implOf(graph).nextSeqFor(agents[i])
+            val event = randomEvent(random, agents[i], seq, text, caret)
+            graphs[i] = graph.append(event, parents)
+            carets[i] = event.op().offset() + if (event.op() is DocOp.Insert) event.length() else 0
+          }
+          versions[i].add(graphs[i].version())
+          checkGraph(graphs[i]) { "round $round, step $step, replica $i" }
         }
-        versions[i].add(graphs[i].version())
-        checkGraph(graphs[i]) { "round $round, step $step, replica $i" }
+        // A full sync in two orders gives one text.
+        val forward = graphs.fold(EventGraph.createGraph()) { all, graph -> all.mergeFrom(graph) }
+        val backward = graphs.foldRight(EventGraph.createGraph()) { graph, all -> all.mergeFrom(graph) }
+        checkGraph(forward) { "round $round, the forward sync" }
+        checkGraph(backward) { "round $round, the backward sync" }
+        assertEquals(forward.replay().string(), backward.replay().string()) { "round $round" }
       }
-      // A full sync in two orders gives one text.
-      val forward = graphs.fold(EventGraph.createGraph()) { all, graph -> all.mergeFrom(graph) }
-      val backward = graphs.foldRight(EventGraph.createGraph()) { graph, all -> all.mergeFrom(graph) }
-      checkGraph(forward) { "round $round, the forward sync" }
-      checkGraph(backward) { "round $round, the backward sync" }
-      assertEquals(forward.replay().string(), backward.replay().string()) { "round $round" }
     }
   }
 
@@ -95,9 +97,20 @@ internal class EventGraphInvariantFuzzTest {
     assertTrue(failure.message!!.contains("not reduced"), failure.message)
   }
 
+  /** Runs one round with a [Random] of its own seed, so a failing round replays alone. */
+  private fun fuzzRound(seed: Long, round: Int, body: (Random) -> Unit) {
+    try {
+      body(Random(seed + round))
+    } catch (e: Throwable) {
+      throw AssertionError("The fuzz round $round with the seed ${seed + round} failed: ${e.message}", e)
+    }
+  }
+
+  /** Fails unless every invariant of [graph] holds. The diagram of a random graph must draw, too. */
   private fun checkGraph(graph: EventGraph, where: () -> String) {
     try {
       EventGraphImpl.implOf(graph).checkInvariants()
+      graph.toString()
     } catch (e: IllegalArgumentException) {
       throw AssertionError("${where()}: ${e.message}", e)
     }

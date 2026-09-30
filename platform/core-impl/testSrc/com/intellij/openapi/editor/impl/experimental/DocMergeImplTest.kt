@@ -45,16 +45,22 @@ internal class DocMergeImplTest {
 
   /**
    * The publication mode lets two threads build at once, but every caller must get the list that
-   * won. Each build returns a list of its own, so a caller that got a losing list shows up.
+   * won. Each build returns a list of its own and waits until a second build has started, so the
+   * builds overlap for sure. A lazy value without thread safety would then hand out both lists.
    */
   @Test
   fun `threads that read deferred ops at once all get one list`() {
     val pool = Executors.newFixedThreadPool(THREADS)
+    var overlaps = 0
     try {
       repeat(ROUNDS) {
         val builds = AtomicInteger()
+        val twoBuilds = CountDownLatch(2)
         val merge = DocMergeImpl.deferred(BRANCH) {
           builds.incrementAndGet()
+          twoBuilds.countDown()
+          // A lock that allowed one build only would time out here, and still give one list.
+          twoBuilds.await(BUILD_WAIT_MILLIS, TimeUnit.MILLISECONDS)
           listOf(DocOp.ins(0, "x"))
         }
         val start = CountDownLatch(1)
@@ -70,16 +76,23 @@ internal class DocMergeImplTest {
           assertSame(lists[0], list)
         }
         assertSame(lists[0], merge.ops())
-        assertTrue(builds.get() >= 1)
+        if (builds.get() >= 2) {
+          overlaps++
+        }
       }
     } finally {
       pool.shutdownNow()
     }
+    // Without overlapping builds the test would prove nothing.
+    assertTrue(overlaps > 0) { "No round built the ops twice at once" }
   }
 
   private companion object {
     val BRANCH: DocBranch = DocBranch.createBranch("abc", Agent.createAgent("a"))
     const val THREADS = 8
-    const val ROUNDS = 200
+    const val ROUNDS = 50
+
+    /** How long a build waits for a second build to start. */
+    const val BUILD_WAIT_MILLIS = 2_000L
   }
 }

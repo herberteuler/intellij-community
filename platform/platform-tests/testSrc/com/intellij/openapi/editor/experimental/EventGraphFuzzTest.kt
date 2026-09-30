@@ -23,77 +23,78 @@ class EventGraphFuzzTest {
    */
   @Test
   fun `run boundaries do not change the document`() {
-    val random = Random(20260827)
     var coalescedRounds = 0
     var recutRounds = 0
     repeat(ROUNDS) { round ->
-      val u = agent("u")
-      var whole = EventGraph.createGraph()
-      var pieces = EventGraph.createGraph()
-      var partial: EventGraph? = null
-      val stopAfterPieces = random.nextInt(12)
-      var pieceCount = 0
-      val text = StringBuilder()
-      var seq = 0
+      fuzzRound(20260827L, round) { random ->
+        val u = agent("u")
+        var whole = EventGraph.createGraph()
+        var pieces = EventGraph.createGraph()
+        var partial: EventGraph? = null
+        val stopAfterPieces = random.nextInt(12)
+        var pieceCount = 0
+        val text = StringBuilder()
+        var seq = 0
 
-      repeat(1 + random.nextInt(6)) {
-        if (text.isEmpty() || random.nextBoolean()) {
-          val pos = random.nextInt(text.length + 1)
-          val content = randomString(random)
-          whole = whole.append(Event.createInsert(u, seq, pos, content), whole.version())
-          var offset = 0
-          while (offset < content.length) {
-            val piece = 1 + random.nextInt(content.length - offset)
-            if (pieceCount == stopAfterPieces) {
-              partial = pieces
+        repeat(1 + random.nextInt(6)) {
+          if (text.isEmpty() || random.nextBoolean()) {
+            val pos = random.nextInt(text.length + 1)
+            val content = randomString(random)
+            whole = whole.append(Event.createInsert(u, seq, pos, content), whole.version())
+            var offset = 0
+            while (offset < content.length) {
+              val piece = 1 + random.nextInt(content.length - offset)
+              if (pieceCount == stopAfterPieces) {
+                partial = pieces
+              }
+              pieces = pieces.append(
+                Event.createInsert(u, seq + offset, pos + offset, content.substring(offset, offset + piece)),
+                pieces.version(),
+              )
+              pieceCount++
+              offset += piece
             }
-            pieces = pieces.append(
-              Event.createInsert(u, seq + offset, pos + offset, content.substring(offset, offset + piece)),
-              pieces.version(),
-            )
-            pieceCount++
-            offset += piece
-          }
-          text.insert(pos, content)
-          seq += content.length
-        } else {
-          val pos = random.nextInt(text.length)
-          val length = 1 + random.nextInt(minOf(3, text.length - pos))
-          whole = whole.append(Event.createDelete(u, seq, pos, length), whole.version())
-          var offset = 0
-          while (offset < length) {
-            val piece = 1 + random.nextInt(length - offset)
-            if (pieceCount == stopAfterPieces) {
-              partial = pieces
+            text.insert(pos, content)
+            seq += content.length
+          } else {
+            val pos = random.nextInt(text.length)
+            val length = 1 + random.nextInt(minOf(3, text.length - pos))
+            whole = whole.append(Event.createDelete(u, seq, pos, length), whole.version())
+            var offset = 0
+            while (offset < length) {
+              val piece = 1 + random.nextInt(length - offset)
+              if (pieceCount == stopAfterPieces) {
+                partial = pieces
+              }
+              pieces = pieces.append(Event.createDelete(u, seq + offset, pos, piece), pieces.version())
+              pieceCount++
+              offset += piece
             }
-            pieces = pieces.append(Event.createDelete(u, seq + offset, pos, piece), pieces.version())
-            pieceCount++
-            offset += piece
+            text.delete(pos, pos + length)
+            seq += length
           }
-          text.delete(pos, pos + length)
-          seq += length
         }
-      }
 
-      val expected = text.toString()
-      assertEquals(expected, whole.replay().string()) { "round $round, one event per op" }
-      assertEquals(expected, pieces.replay().string()) { "round $round, pieces" }
-      assertEquals(whole.size(), pieces.size()) { "round $round" }
-      if (pieces.runCount() < pieceCount) {
-        coalescedRounds++
-      }
-      if (pieces.runCount() != whole.runCount()) {
-        recutRounds++
-      }
+        val expected = text.toString()
+        assertEquals(expected, whole.replay().string()) { "round $round, one event per op" }
+        assertEquals(expected, pieces.replay().string()) { "round $round, pieces" }
+        assertEquals(whole.size(), pieces.size()) { "round $round" }
+        if (pieces.runCount() < pieceCount) {
+          coalescedRounds++
+        }
+        if (pieces.runCount() != whole.runCount()) {
+          recutRounds++
+        }
 
-      // The same units with different run boundaries merge into the same document.
-      assertEquals(expected, whole.mergeFrom(pieces).replay().string()) { "round $round, whole + pieces" }
-      assertEquals(expected, pieces.mergeFrom(whole).replay().string()) { "round $round, pieces + whole" }
+        // The same units with different run boundaries merge into the same document.
+        assertEquals(expected, whole.mergeFrom(pieces).replay().string()) { "round $round, whole + pieces" }
+        assertEquals(expected, pieces.mergeFrom(whole).replay().string()) { "round $round, pieces + whole" }
 
-      // A partly caught-up replica catches up from either encoding.
-      val caughtUp = partial ?: pieces
-      assertEquals(expected, caughtUp.mergeFrom(whole).replay().string()) { "round $round, partial + whole" }
-      assertEquals(expected, caughtUp.mergeFrom(pieces).replay().string()) { "round $round, partial + pieces" }
+        // A partly caught-up replica catches up from either encoding.
+        val caughtUp = partial ?: pieces
+        assertEquals(expected, caughtUp.mergeFrom(whole).replay().string()) { "round $round, partial + whole" }
+        assertEquals(expected, caughtUp.mergeFrom(pieces).replay().string()) { "round $round, partial + pieces" }
+      }
     }
     // The fuzz did both jobs: pieces coalesced, and the two encodings still cut some runs apart.
     assertTrue(coalescedRounds > ROUNDS / 2) { "only $coalescedRounds rounds coalesced a piece" }

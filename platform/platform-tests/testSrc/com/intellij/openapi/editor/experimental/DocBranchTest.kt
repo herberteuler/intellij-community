@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.Random
 
 class DocBranchTest {
 
@@ -183,8 +184,10 @@ class DocBranchTest {
     val merged = x.merge(y)
     assertSameText(DocText.createText(merged.string()), merged.text())
     for (round in 0 until 12) {
-      assertTrue(merged.string().contains("x$round")) { "The edit x$round is lost" }
-      assertTrue(merged.string().contains("y$round")) { "The edit y$round is lost" }
+      // Every marker is a word of its own, so "x1" cannot pass on "x10" or "x11".
+      val words = merged.string().split(' ', '\n')
+      assertEquals(1, words.count { it == "x$round" }) { "The edit x$round is lost or doubled" }
+      assertEquals(1, words.count { it == "y$round" }) { "The edit y$round is lost or doubled" }
     }
   }
 
@@ -198,14 +201,15 @@ class DocBranchTest {
       .applyOp(insertOp(6, "pasted block\n"))
       .applyOp(deleteOp(0, 6))
       .applyOp(insertOp(0, "L1\n"))
-    val forward = a.merge(b)
+    val merge = a.mergeWithOps(b)
+    val forward = merge.branch()
     val backward = b.merge(a)
+    // The reference gives this text.
+    assertEquals("top\nL1\npasted block\nline2\nline3\n", forward.string())
     assertEquals(forward.string(), backward.string())
     assertEquals(forward.graph().replay().string(), forward.string())
-    for (marker in listOf("top\n", "L1\n", "pasted block\n")) {
-      assertTrue(forward.string().contains(marker)) { "The fragment '$marker' is lost" }
-    }
-    assertTrue(!forward.string().contains("line1"))
+    // The paste and the range delete each arrive as one op, and not one per character.
+    assertEquals(listOf("ins(10, \"pasted block\\n\")", "del(4, len=6)", "ins(4, \"L1\\n\")"), merge.ops().map { it.toString() })
     assertSameText(DocText.createText(forward.string()), forward.text())
   }
 
@@ -242,10 +246,10 @@ class DocBranchTest {
     val sibling = merged.fork(agent("c")).applyOp(insertOp(0, "CC"))
     val forward = resumed.merge(sibling)
     val backward = sibling.merge(resumed)
+    // A seq collision would make the merge drop "RR" as an already known run. The reference gives
+    // this text: "b" sorts before "c", so "RR" comes first.
+    assertEquals("RRCC23bbb", forward.string())
     assertEquals(forward.string(), backward.string())
-    // A seq collision would make the merge drop "RR" as an already known run.
-    assertTrue(forward.string().contains("RR"))
-    assertTrue(forward.string().contains("CC"))
     assertEquals(forward.graph().replay().string(), forward.string())
   }
 
@@ -259,11 +263,10 @@ class DocBranchTest {
     assertEquals(size, base.graph().size())
     assertEquals(1, base.graph().runCount())
     val edited = base.fork(agent("b")).applyOp(insertOp(size, "end"))
-    // A fast-forward adopts the descendant's text; a full replay here would time out.
+    // A fast-forward adopts the text of the descendant as it is, so no replay ran.
     val merged = base.merge(edited)
-    assertEquals(size + 3, merged.text().length())
+    assertSame(edited.text(), merged.text())
     assertEquals(2, merged.graph().runCount())
-    assertTrue(merged.string().endsWith("end"))
   }
 
   @Test
@@ -325,11 +328,10 @@ class DocBranchTest {
     val b2 = b1.merge(a1).applyOp(insertOp(0, "4"))
     val forward = a2.merge(b2)
     val backward = b2.merge(a2)
+    // The reference gives this text.
+    assertEquals("341abc2", forward.string())
     assertEquals(forward.string(), backward.string())
     assertEquals(forward.graph().replay().string(), forward.string())
-    for (marker in listOf("1", "2", "3", "4")) {
-      assertTrue(forward.string().contains(marker)) { "The marker $marker is lost in '${forward.string()}'" }
-    }
     assertSameText(DocText.createText(forward.string()), forward.text())
   }
 
@@ -379,7 +381,8 @@ class DocBranchTest {
       val merged = order.map { replicas[it] }.reduce { acc, replica -> acc.merge(replica) }
       texts.add(merged.string())
     }
-    assertEquals(1, texts.size) { "The merge orders diverge: $texts" }
+    // Every order gives the text of the reference.
+    assertEquals(setOf("aase\nbb"), texts)
   }
 
   @Test
@@ -682,6 +685,18 @@ internal fun DocBranch.length(): Int = text().length()
 internal fun insertOp(offset: Int, fragment: CharSequence): DocOp.Insert = DocOp.ins(offset, fragment)
 
 internal fun deleteOp(offset: Int, length: Int): DocOp.Delete = DocOp.del(offset, length)
+
+/**
+ * Runs one round of a fuzz test with a [Random] of its own [seed], so a failing round
+ * replays alone. A failure names the seed and the round.
+ */
+internal fun fuzzRound(seed: Long, round: Int, body: (Random) -> Unit) {
+  try {
+    body(Random(seed + round))
+  } catch (e: Throwable) {
+    throw AssertionError("The fuzz round $round with the seed ${seed + round} failed: ${e.message}", e)
+  }
+}
 
 /** This text with [ops] applied one after another, as [DocMerge.ops] says an editor applies them. */
 internal fun DocText.afterOps(ops: List<DocOp>): DocText = ops.fold(this) { text, op -> text.applyOp(op) }

@@ -237,6 +237,8 @@ class EventGraphDiagramTest {
     assertTrue(lines.any { it.contains("lv 0") }) { "the first run is gone" }
     assertTrue(lines.any { it.contains("lv 44") }) { "the last run is gone" }
     assertFalse(lines.any { it.contains("lv 5 ") }) { "run 5 is in the middle and must go" }
+    // The second run has a child that the trim dropped, so its border still shows the line down.
+    assertTrue(lines[13].contains('┬')) { "the second box hides its child: ${lines[13]}" }
     // The run under the count line follows one that went, so its border still joins.
     assertTrue(lines[15].contains('┴')) { "the join is missing: ${lines[15]}" }
     // The box holds the kind, the offset, the lv and the agent, one per line.

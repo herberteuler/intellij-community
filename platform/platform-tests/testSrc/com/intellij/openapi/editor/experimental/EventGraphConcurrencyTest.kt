@@ -59,22 +59,26 @@ class EventGraphConcurrencyTest {
       val ready = CyclicBarrier(READERS + 1)
       val writer = pool.submit<DocBranch> {
         var branch = DocBranch.createBranch("", agent("writer"))
-        ready.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        var caret = 0
-        repeat(APPENDS) { op ->
-          caret = if (op % BURST == 0) 0 else caret + 1
-          branch = branch.applyOp(insertOp(caret, "x"))
-          // The queue hands the value over, and a value is complete once it is built.
-          published.add(branch)
+        try {
+          ready.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+          var caret = 0
+          repeat(APPENDS) { op ->
+            caret = if (op % BURST == 0) 0 else caret + 1
+            branch = branch.applyOp(insertOp(caret, "x"))
+            // The queue hands the value over, and a value is complete once it is built.
+            published.add(branch)
+          }
+        } finally {
+          // A writer that fails must still release the readers.
+          writing.set(false)
         }
-        writing.set(false)
         branch
       }
       val readers = List(READERS) {
         pool.submit<Int> {
           ready.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
           var verified = 0
-          while (writing.get() || published.isNotEmpty()) {
+          while ((writing.get() || published.isNotEmpty()) && !Thread.currentThread().isInterrupted) {
             val branch = published.poll()
             if (branch == null) {
               Thread.yield()
@@ -86,6 +90,7 @@ class EventGraphConcurrencyTest {
           verified
         }
       }
+      awaitAll(readers + writer)
       val written = writer.await()
       // Every published value was polled by exactly one reader, so the counts must add up.
       // This is what keeps the test from passing without doing anything.
@@ -128,16 +133,20 @@ class EventGraphConcurrencyTest {
       val grownSize = past.graph().size() + APPENDS
       val writer = pool.submit<DocBranch> {
         var branch = past
-        ready.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        smallReads.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        var caret = past.length() - 1
-        repeat(APPENDS) { op ->
-          caret = if (op > 0 && op % BURST == 0) 0 else caret + 1
-          branch = branch.applyOp(insertOp(caret, "x"))
-          current.set(branch)
+        try {
+          ready.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+          awaitLatch(smallReads, "every reader read the small graph")
+          var caret = past.length() - 1
+          repeat(APPENDS) { op ->
+            caret = if (op > 0 && op % BURST == 0) 0 else caret + 1
+            branch = branch.applyOp(insertOp(caret, "x"))
+            current.set(branch)
+          }
+          awaitLatch(grownReads, "every reader read the grown graph")
+        } finally {
+          // A writer that fails must still release the readers.
+          writing.set(false)
         }
-        grownReads.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        writing.set(false)
         branch
       }
       val readers = List(READERS) {
@@ -150,7 +159,7 @@ class EventGraphConcurrencyTest {
           // and a slow reader never sees both sides of the growth.
           var countedSmall = false
           var countedGrown = false
-          while (writing.get()) {
+          while (writing.get() && !Thread.currentThread().isInterrupted) {
             val graph = current.get().graph()
             assertEquals(pastText, graph.replay(pastVersion).string()) { "out of ${graph.size()} units" }
             if (graph.size() != lastSize) {
@@ -169,6 +178,7 @@ class EventGraphConcurrencyTest {
           sizesSeen
         }
       }
+      awaitAll(readers + writer)
       val grown = writer.await()
       val sizesSeen = readers.sumOf { it.await() }
       // The writer finished its whole run, and the fences make every reader see at least the
@@ -399,6 +409,26 @@ class EventGraphConcurrencyTest {
     return get(TIMEOUT_SECONDS, TimeUnit.SECONDS)
   }
 
+  /**
+   * Waits until every one of [futures] is done, and fails at the first one that fails. A reader
+   * that fails early would otherwise hide behind a writer that waits for it until the timeout.
+   */
+  private fun awaitAll(futures: List<Future<*>>) {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS)
+    while (!futures.all { it.isDone }) {
+      // A future that is done and failed throws its failure here.
+      futures.filter { it.isDone }.forEach { it.get() }
+      assertTrue(System.nanoTime() < deadline) { "The workers did not finish in $TIMEOUT_SECONDS seconds" }
+      Thread.sleep(POLL_MILLIS)
+    }
+    futures.forEach { it.get() }
+  }
+
+  /** Waits for [latch], and fails when it does not open in time. */
+  private fun awaitLatch(latch: CountDownLatch, what: String) {
+    assertTrue(latch.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)) { "Not in time: $what" }
+  }
+
   private fun withPool(threads: Int, body: (ExecutorService) -> Unit) {
     val pool = Executors.newFixedThreadPool(threads)
     try {
@@ -445,5 +475,8 @@ class EventGraphConcurrencyTest {
 
     /** A deadlock has to fail the test instead of hanging the build. */
     const val TIMEOUT_SECONDS = 60L
+
+    /** How often [awaitAll] looks at the workers. */
+    const val POLL_MILLIS = 10L
   }
 }

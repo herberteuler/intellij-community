@@ -10,65 +10,66 @@ class DocBranchFuzzTest {
 
   @Test
   fun `replicas converge after a full sync`() {
-    val random = Random(20260827)
     repeat(ROUNDS) { round ->
-      val base = DocBranch.createBranch(randomText(random), agent("base"))
-      val baseVersion = base.graph().version()
+      fuzzRound(20260827L, round) { random ->
+        val base = DocBranch.createBranch(randomText(random), agent("base"))
+        val baseVersion = base.graph().version()
 
-      // Every replica forks from the base and edits under its own agent.
-      val replicas = ArrayList<DocBranch>()
-      val replicaCount = 2 + random.nextInt(2)
-      for (i in 0 until replicaCount) {
-        var replica = base.fork(agent("agent$i"))
-        repeat(1 + random.nextInt(6)) {
-          replica = replica.applyOp(randomOp(random, replica.length()))
+        // Every replica forks from the base and edits under its own agent.
+        val replicas = ArrayList<DocBranch>()
+        val replicaCount = 2 + random.nextInt(2)
+        for (i in 0 until replicaCount) {
+          var replica = base.fork(agent("agent$i"))
+          repeat(1 + random.nextInt(6)) {
+            replica = replica.applyOp(randomOp(random, replica.length()))
+          }
+          replicas.add(replica)
         }
-        replicas.add(replica)
-      }
 
-      // A full sync in different orders must converge to one text.
-      val forward = replicas.reduce { acc, replica -> acc.merge(replica) }
-      val backward = replicas.asReversed().reduce { acc, replica -> acc.merge(replica) }
-      val shuffledReplicas = ArrayList(replicas)
-      shuffledReplicas.shuffle(random.asKotlinRandom())
-      val shuffled = shuffledReplicas.reduce { acc, replica -> acc.merge(replica) }
-      assertEquals(forward.string(), backward.string()) { "round $round" }
-      assertEquals(forward.string(), shuffled.string()) { "round $round, shuffled order" }
+        // A full sync in different orders must converge to one text.
+        val forward = replicas.reduce { acc, replica -> acc.merge(replica) }
+        val backward = replicas.asReversed().reduce { acc, replica -> acc.merge(replica) }
+        val shuffledReplicas = ArrayList(replicas)
+        shuffledReplicas.shuffle(random.asKotlinRandom())
+        val shuffled = shuffledReplicas.reduce { acc, replica -> acc.merge(replica) }
+        assertEquals(forward.string(), backward.string()) { "round $round" }
+        assertEquals(forward.string(), shuffled.string()) { "round $round, shuffled order" }
 
-      // The materialized text matches a from-scratch replay of the merged graph.
-      assertEquals(forward.graph().replay().string(), forward.string()) { "round $round" }
+        // The materialized text matches a from-scratch replay of the merged graph.
+        assertEquals(forward.graph().replay().string(), forward.string()) { "round $round" }
 
-      // A replay of the merged graph at the base version returns the base text.
-      assertEquals(base.string(), forward.graph().replay(baseVersion).string()) { "round $round, base version" }
+        // A replay of the merged graph at the base version returns the base text.
+        assertEquals(base.string(), forward.graph().replay(baseVersion).string()) { "round $round, base version" }
 
-      // The text and the line data match a fresh DocText over the same chars.
-      assertSameText(DocText.createText(forward.string()), forward.text())
+        // The text and the line data match a fresh DocText over the same chars.
+        assertSameText(DocText.createText(forward.string()), forward.text())
 
-      // A second generation: edit after the merge, then merge again.
-      val left = forward.applyOp(randomOp(random, forward.length()))
-      val right = forward.fork(agent("second")).applyOp(randomOp(random, forward.length()))
-      val leftRight = left.merge(right)
-      val rightLeft = right.merge(left)
-      assertEquals(leftRight.string(), rightLeft.string()) { "round $round, second generation" }
-      assertSameText(DocText.createText(leftRight.string()), leftRight.text())
+        // A second generation: edit after the merge, then merge again.
+        val left = forward.applyOp(randomOp(random, forward.length()))
+        val right = forward.fork(agent("second")).applyOp(randomOp(random, forward.length()))
+        val leftRight = left.merge(right)
+        val rightLeft = right.merge(left)
+        assertEquals(leftRight.string(), rightLeft.string()) { "round $round, second generation" }
+        assertSameText(DocText.createText(leftRight.string()), leftRight.text())
 
-      // A pull-based staircase: the common ancestor climbs with every pull.
-      var x = leftRight
-      var y = leftRight.fork(agent("stair"))
-      repeat(3) {
-        x = x.applyOp(randomOp(random, x.length()))
-        y = y.applyOp(randomOp(random, y.length()))
-        if (random.nextBoolean()) {
-          x = x.merge(y)
-        } else {
-          y = y.merge(x)
+        // A pull-based staircase: the common ancestor climbs with every pull.
+        var x = leftRight
+        var y = leftRight.fork(agent("stair"))
+        repeat(3) {
+          x = x.applyOp(randomOp(random, x.length()))
+          y = y.applyOp(randomOp(random, y.length()))
+          if (random.nextBoolean()) {
+            x = x.merge(y)
+          } else {
+            y = y.merge(x)
+          }
         }
+        val stairForward = x.merge(y)
+        val stairBackward = y.merge(x)
+        assertEquals(stairForward.string(), stairBackward.string()) { "round $round, staircase" }
+        assertEquals(stairForward.graph().replay().string(), stairForward.string()) { "round $round, staircase replay" }
+        assertSameText(DocText.createText(stairForward.string()), stairForward.text())
       }
-      val stairForward = x.merge(y)
-      val stairBackward = y.merge(x)
-      assertEquals(stairForward.string(), stairBackward.string()) { "round $round, staircase" }
-      assertEquals(stairForward.graph().replay().string(), stairForward.string()) { "round $round, staircase replay" }
-      assertSameText(DocText.createText(stairForward.string()), stairForward.text())
     }
   }
 

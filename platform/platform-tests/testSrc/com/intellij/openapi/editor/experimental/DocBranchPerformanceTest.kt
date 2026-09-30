@@ -3,6 +3,8 @@ package com.intellij.openapi.editor.experimental
 
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.util.TextRange
+import com.intellij.testFramework.PerformanceUnitTest
+import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -11,9 +13,7 @@ import java.nio.file.Path
 import java.util.Random
 
 /**
- * A benchmark, not a regression test: it emulates a realistic collaborative editing
- * history over a huge file and prints the phase timings. The "Performance" name keeps
- * it out of the functional runs.
+ * A benchmark, not a regression test: it emulates realistic editing histories over a huge file.
  *
  * The history imitates real users. Each user action is one of:
  * - type char by char: every keystroke is its own insert op, and the keystrokes of one burst
@@ -22,113 +22,128 @@ import java.util.Random
  * - copy-paste: a medium fragment of the current text lands as one insert op;
  * - move text: one delete op plus one insert op of the same fragment.
  *
- * The concurrency varies: the sessions run with 1, 2, 3, 4, and 5 users editing at
- * once. Every user forks from the current base, edits, and merges back. The first
- * merge of a session is a fast-forward; every later one resolves real concurrency
- * with a partial replay from the common ancestor over one lazily-split placeholder.
- * Its remaining per-merge costs are two O(graph size) arrays and the linear item
- * scans over the region. The size ladder makes what remains visible.
- *
- * Every scenario also reports the history size: the units, the runs, and the heap in use.
- * The history grows without a bound, and no timing shows that.
+ * [benchmarkSubtest] times every scenario with the platform benchmark framework. Every scenario
+ * also reports the history size: the units, the runs, and the heap in use. The history grows
+ * without a bound, and no timing shows that.
  */
+@StressTestApplication
+@PerformanceUnitTest
 class DocBranchPerformanceTest {
 
+  /**
+   * The concurrency varies: the sessions run with 1, 2, 3, 4, and 5 users editing at once. Every
+   * user forks from the current base, edits, and merges back. The first merge of a session is a
+   * fast-forward; every later one resolves real concurrency with a partial replay from the common
+   * ancestor over one lazily-split placeholder. Its remaining per-merge costs are two O(graph size)
+   * arrays and the linear item scans over the region. The size ladder makes what remains visible.
+   *
+   * One timed pass runs the whole scenario from a fresh base. So every merge starts from a value
+   * that owns its store tip, as it does in a real session. A pass takes a few milliseconds, so
+   * one attempt runs [COLLABORATIVE_PASSES] of them.
+   */
   @Test
   fun `a realistic collaborative history over EditorImpl`() {
     val fullText = Files.readString(hugeTextPath())
-    println("the source text: ${fullText.length} chars")
     for (size in SIZES) {
       val text = if (size == 0 || size >= fullText.length) fullText else fullText.substring(0, size)
-      runScenario(text)
+      val final = runScenario(text)
+      assertTrue(final.text().length() > 0)
+      println("=== the collaborative scenario over ${text.length} chars ===")
+      println("  final: ${final.text().length()} chars")
+      reportHistory(final)
+      benchmarkSubtest("collaborative history over ${text.length} chars", COLLABORATIVE_PASSES) {
+        runScenario(text).text().length()
+      }
     }
   }
 
   /**
    * The base case: one user edits the huge file alone, with no forks and no merges.
-   * The batches report the throughput as the history grows, so a per-op cost that
-   * scales with the history length shows up as growing batch times. At the end, the
-   * recorded ops replay apply-only against a fresh branch and against a plain
-   * [DocText]: their difference is the price of the history tracking per op.
+   *
+   * The session is recorded once, and its ops then replay in the timed subtests. Applied to a fresh
+   * branch and to a plain [DocText], they give the price of the history tracking per op. The first
+   * and the last [FLAT_COST_BATCHES] batches show whether the cost of an op grows with the history.
+   * Each of them applies to a fresh branch that holds the batches before it.
    */
   @Test
   fun `a single user edits EditorImpl`() {
     val text = Files.readString(hugeTextPath())
-    println("the source text: ${text.length} chars")
     val random = Random(20260827)
     val recorded = ArrayList<DocOp>()
+    val batchEnds = IntArray(SINGLE_USER_BATCHES)
     val user = User(DocBranch.createBranch(text, agent("user")))
     user.recorder = recorded
-
     for (batch in 0 until SINGLE_USER_BATCHES) {
-      val start = System.nanoTime()
-      var ops = 0
       repeat(SINGLE_USER_ACTIONS_PER_BATCH) {
-        ops += performAction(user, random)
+        performAction(user, random)
       }
-      val graph = user.branch.graph()
-      println("  batch $batch: $ops ops in ${sinceMs(start)} ms (history: ${graph.size()} units, ${graph.runCount()} runs)")
+      batchEnds[batch] = recorded.size
     }
+    println("=== one user edits ${text.length} chars ===")
     println("  total: ${recorded.size} ops, ${user.branch.text().length()} chars")
     reportHistory(user.branch)
 
-    // The same ops, apply-only, on a fresh branch and on a plain text.
-    var fresh: DocBranch = DocBranch.createBranch(text, agent("user"))
-    val freshStart = System.nanoTime()
-    for (op in recorded) {
-      fresh = fresh.applyOp(op)
-    }
-    val freshMs = sinceMs(freshStart)
-    var plain = DocText.createText(text)
-    val plainStart = System.nanoTime()
-    for (op in recorded) {
-      plain = plain.applyOp(op)
-    }
-    val plainMs = sinceMs(plainStart)
-    println("  apply-only, ${recorded.size} ops: DocBranch $freshMs ms, plain DocText $plainMs ms")
-
     // The history-tracking branch and the plain text agree on every op.
-    assertEquals(plain.string(), fresh.string())
+    val plain = applied(DocText.createText(text), recorded)
+    assertEquals(plain.string(), applied(freshBranch(text), recorded, 0, recorded.size).string())
     assertEquals(plain.string(), user.branch.string())
+
+    benchmarkSubtest("apply-only, DocBranch") {
+      applied(freshBranch(text), recorded, 0, recorded.size).length()
+    }
+    benchmarkSubtest("apply-only, plain DocText") {
+      applied(DocText.createText(text), recorded).length()
+    }
+
+    val firstEnd = batchEnds[FLAT_COST_BATCHES - 1]
+    val lastStart = batchEnds[SINGLE_USER_BATCHES - FLAT_COST_BATCHES - 1]
+    lateinit var start: DocBranch
+    benchmarkSubtest("the first $FLAT_COST_BATCHES batches", setup = { start = freshBranch(text) }) {
+      applied(start, recorded, 0, firstEnd).length()
+    }
+    benchmarkSubtest("the last $FLAT_COST_BATCHES batches", setup = { start = applied(freshBranch(text), recorded, 0, lastStart) }) {
+      applied(start, recorded, lastStart, recorded.size).length()
+    }
   }
 
-  private fun runScenario(text: String) {
-    println("=== the scenario over ${text.length} chars ===")
+  /** The collaborative scenario over [text]. Every session forks, edits, and merges back. */
+  private fun runScenario(text: String): DocBranch {
     val random = Random(20260827)
-    val createStart = System.nanoTime()
     var base = DocBranch.createBranch(text, agent("base"))
-    println("  create the base branch: ${sinceMs(createStart)} ms")
-
-    for ((session, level) in CONCURRENCY_LEVELS.withIndex()) {
+    for (level in CONCURRENCY_LEVELS) {
       // `level` users fork from the current base and edit concurrently.
-      val users = ArrayList<User>()
-      for (i in 0 until level) {
-        users.add(User(base.fork(agent("user$i"))))
-      }
-      val editStart = System.nanoTime()
-      var ops = 0
+      val users = List(level) { i -> User(base.fork(agent("user$i"))) }
       for (user in users) {
         repeat(ACTIONS_PER_USER) {
-          ops += performAction(user, random)
+          performAction(user, random)
         }
       }
-      println("  session $session: $level users, $ops ops in ${sinceMs(editStart)} ms")
-      for ((i, user) in users.withIndex()) {
-        base = timedMerge("    merge user$i", base, user.branch)
+      for (user in users) {
+        base = base.merge(user.branch)
       }
     }
-
-    println("  final: ${base.text().length()} chars")
-    reportHistory(base)
-    assertTrue(base.text().length() > 0)
+    return base
   }
 
-  private fun timedMerge(label: String, base: DocBranch, other: DocBranch): DocBranch {
-    val start = System.nanoTime()
-    val merged = base.merge(other)
-    val kind = if (merged.text() === other.text() || merged === base) "fast-forward" else "replay"
-    println("$label: ${sinceMs(start)} ms ($kind, ${merged.graph().size()} units)")
-    return merged
+  private fun freshBranch(text: String): DocBranch {
+    return DocBranch.createBranch(text, agent("user"))
+  }
+
+  /** [branch] with the ops `[from, until)` of [ops] applied. */
+  private fun applied(branch: DocBranch, ops: List<DocOp>, from: Int, until: Int): DocBranch {
+    var result = branch
+    for (i in from until until) {
+      result = result.applyOp(ops[i])
+    }
+    return result
+  }
+
+  private fun applied(text: DocText, ops: List<DocOp>): DocText {
+    var result = text
+    for (op in ops) {
+      result = result.applyOp(op)
+    }
+    return result
   }
 
   // ---------------------------------------------------------------------------- the user model
@@ -144,13 +159,13 @@ class DocBranchPerformanceTest {
   }
 
   /**
-   * Performs one random user action and returns the op count it produced.
+   * Performs one random user action.
    *
    * The bounds weight the four actions 40, 25, 15, and 9. Keep the bound at 89. Another
    * bound draws a different history, so the measured times no longer compare.
    */
-  private fun performAction(user: User, random: Random): Int {
-    return when (random.nextInt(89)) {
+  private fun performAction(user: User, random: Random) {
+    when (random.nextInt(89)) {
       in 0..39 -> typeChars(user, random)
       in 40..64 -> autocompleteWord(user, random)
       in 65..79 -> copyPasteFragment(user, random)
@@ -162,28 +177,25 @@ class DocBranchPerformanceTest {
     user.caret = random.nextInt(user.branch.text().length() + 1)
   }
 
-  private fun typeChars(user: User, random: Random): Int {
+  private fun typeChars(user: User, random: Random) {
     moveCaret(user, random)
-    val count = 5 + random.nextInt(25)
-    repeat(count) {
+    repeat(5 + random.nextInt(25)) {
       user.apply(insertOp(user.caret, TYPED[random.nextInt(TYPED.length)].toString()))
       user.caret++
     }
-    return count
   }
 
-  private fun autocompleteWord(user: User, random: Random): Int {
+  private fun autocompleteWord(user: User, random: Random) {
     moveCaret(user, random)
     val word = COMPLETIONS[random.nextInt(COMPLETIONS.size)]
     user.apply(insertOp(user.caret, word))
     user.caret += word.length
-    return 1
   }
 
-  private fun copyPasteFragment(user: User, random: Random): Int {
+  private fun copyPasteFragment(user: User, random: Random) {
     val length = user.branch.text().length()
     if (length < 200) {
-      return 0
+      return
     }
     val fragmentLength = minOf(100 + random.nextInt(301), length / 2)
     val from = random.nextInt(length - fragmentLength + 1)
@@ -191,13 +203,12 @@ class DocBranchPerformanceTest {
     moveCaret(user, random)
     user.apply(insertOp(user.caret, fragment))
     user.caret += fragment.length
-    return 1
   }
 
-  private fun moveFragment(user: User, random: Random): Int {
+  private fun moveFragment(user: User, random: Random) {
     val length = user.branch.text().length()
     if (length < 100) {
-      return 0
+      return
     }
     val fragmentLength = minOf(30 + random.nextInt(121), length / 2)
     val from = random.nextInt(length - fragmentLength + 1)
@@ -206,14 +217,9 @@ class DocBranchPerformanceTest {
     val to = random.nextInt(user.branch.text().length() + 1)
     user.apply(insertOp(to, fragment))
     user.caret = to + fragment.length
-    return 2
   }
 
   // -------------------------------------------------------------------------------- utilities
-
-  private fun sinceMs(startNanos: Long): Long {
-    return (System.nanoTime() - startNanos) / 1_000_000
-  }
 
   /**
    * Reports what the history costs. The timings alone cannot show this, and the history
@@ -221,17 +227,13 @@ class DocBranchPerformanceTest {
    *
    * The unit and run counts are exact and repeat run to run, so they compare directly.
    * The run count is the one that tip coalescing changes: a burst of typing makes one run and
-   * not one per keystroke. The heap number is a hint only, because a collection is a request,
-   * but it gives the order of the retained size.
+   * not one per keystroke. The heap number is a hint only (see [heapInUse]), but it gives the
+   * order of the retained size.
    */
   private fun reportHistory(branch: DocBranch) {
     val graph = branch.graph()
     val perRun = graph.size().toDouble() / maxOf(1, graph.runCount())
-    val runtime = Runtime.getRuntime()
-    repeat(3) {
-      runtime.gc()
-    }
-    val usedMb = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)
+    val usedMb = heapInUse() / (1024 * 1024)
     println(
       "  history: ${graph.size()} units, ${graph.runCount()} runs " +
       "(${String.format("%.1f", perRun)} units per run), heap in use ~$usedMb MB"
@@ -250,8 +252,14 @@ class DocBranchPerformanceTest {
     private val CONCURRENCY_LEVELS = intArrayOf(1, 2, 3, 4, 5)
 
     private const val ACTIONS_PER_USER = 6
+
+    /** The passes of one collaborative attempt. The framework reports whole milliseconds. */
+    private const val COLLABORATIVE_PASSES = 50
     private const val SINGLE_USER_BATCHES = 1000
     private const val SINGLE_USER_ACTIONS_PER_BATCH = 200
+
+    /** The batches at each end of the single-user session that the flat-cost subtests apply. */
+    private const val FLAT_COST_BATCHES = 100
     private const val TYPED = "abcdefghijklmnopqrstuvwxyz    ();.{}\n"
     private val COMPLETIONS = arrayOf(
       "getDocument()",

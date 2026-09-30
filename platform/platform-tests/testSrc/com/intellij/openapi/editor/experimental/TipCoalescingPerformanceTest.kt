@@ -2,6 +2,7 @@
 package com.intellij.openapi.editor.experimental
 
 import com.intellij.testFramework.PerformanceUnitTest
+import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -13,14 +14,13 @@ import java.util.Random
  * Every scenario builds one editing session twice, from the same ops. The `coalesced` history
  * appends every op under one agent, so a burst of typing extends one run. The `control` history
  * lets two agents take turns, so no op extends the run before it. The ops, the units, and the
- * text are the same in both, and only the run count differs. So the ratio of the two rows is the
- * effect of coalescing, and it compares two rows of one run.
+ * text are the same in both, and only the run count differs. So the ratio of a `coalesced`
+ * subtest to its `control` subtest is the effect of coalescing, within one run.
  *
- * Every time is the best of [TIMED_RUNS] runs after [WARMUP_RUNS] warm-up runs. A single timing
- * is worthless on a busy machine; see [ReplayPerformanceTest]. The heap figure is the growth of
- * `totalMemory() - freeMemory()` across three `gc()` requests. So it is a hint of the retained
- * size, and not a measurement of it.
+ * [benchmarkSubtest] times every row with the platform benchmark framework. The test prints only
+ * what a timing cannot show: the run counts, and the heap that each history holds.
  */
+@StressTestApplication
 @PerformanceUnitTest
 class TipCoalescingPerformanceTest {
 
@@ -32,9 +32,6 @@ class TipCoalescingPerformanceTest {
   @Test
   fun `a typing session appends, replays, and holds the heap`() {
     val session = Session.generate(Random(20260930), SESSION_OPS)
-    println("=== a typing session: ${session.size()} ops over ${session.startText.length} chars ===")
-    println("  %-10s %9s %10s %11s %10s %10s".format("history", "runs", "units/run", "append", "replay", "heap"))
-
     val before = heapInUse()
     val coalesced = session.graph(sharedAgent = true)
     val afterCoalesced = heapInUse()
@@ -45,32 +42,28 @@ class TipCoalescingPerformanceTest {
     assertEquals(expected, coalesced.replay().string())
     assertEquals(expected, control.replay().string())
     assertTrue(coalesced.runCount() < control.runCount())
+    println("=== a typing session: ${session.size()} ops over ${session.startText.length} chars ===")
+    println("  %-10s %9s %10s %10s".format("history", "runs", "units/run", "heap"))
+    printRow("coalesced", coalesced, afterCoalesced - before)
+    printRow("control", control, afterControl - afterCoalesced)
 
-    val appendCoalesced = bestOf { session.graph(sharedAgent = true) }
-    val appendControl = bestOf { session.graph(sharedAgent = false) }
-    val replayCoalesced = bestOf { coalesced.replay() }
-    val replayControl = bestOf { control.replay() }
-    val heapCoalesced = afterCoalesced - before
-    val heapControl = afterControl - afterCoalesced
-    printRow("coalesced", coalesced, appendCoalesced, replayCoalesced, heapCoalesced)
-    printRow("control", control, appendControl, replayControl, heapControl)
-    println(
-      "  %-10s %8.1fx %10s %10.2fx %9.2fx %8.1fx".format(
-        "gain", control.runCount().toDouble() / coalesced.runCount(), "",
-        appendControl / appendCoalesced, replayControl / replayCoalesced,
-        heapControl.toDouble() / maxOf(1, heapCoalesced),
-      )
-    )
-    println()
+    for ((label, sharedAgent, graph) in listOf(Triple("coalesced", true, coalesced), Triple("control", false, control))) {
+      benchmarkSubtest("append, $label", SESSION_PASSES) {
+        session.graph(sharedAgent).runCount()
+      }
+      benchmarkSubtest("replay, $label", REPLAY_PASSES) {
+        graph.replay().length()
+      }
+    }
   }
 
   /**
    * Two users type one session each, concurrently, over one base text, and then merge. The merge
    * replays only the concurrent region, and the region holds fewer runs when bursts coalesce.
    *
-   * Every timed merge after the first also copies the run prefix of the left history. The first
-   * merge took the store tip, and the merge must close the left tail into the store. That copy
-   * costs per run too, so it belongs in the gain, but it is not only the replay.
+   * Every timed merge also copies the run prefix of the left history. A warm-up merge already took
+   * the store tip, and the merge must close the left tail into the store. That copy costs per run
+   * too, so it belongs in the gain, but it is not only the replay.
    */
   @Test
   fun `a merge of two concurrent typing sessions`() {
@@ -78,43 +71,36 @@ class TipCoalescingPerformanceTest {
     val left = Session.generate(random, MERGE_OPS)
     val right = Session.generate(random, MERGE_OPS, left.startText)
     println("=== a merge of two sessions of $MERGE_OPS ops each ===")
-    println("  %-10s %9s %10s".format("history", "runs", "merge"))
-    var coalescedMillis = 0.0
+    println("  %-10s %9s".format("history", "runs"))
     for (sharedAgent in booleanArrayOf(true, false)) {
+      val label = if (sharedAgent) "coalesced" else "control"
       val base = DocBranch.createBranch(left.startText, agent("base"))
       val leftBranch = left.branch(base, "left", sharedAgent)
       val rightBranch = right.branch(base, "right", sharedAgent)
       val merged = leftBranch.merge(rightBranch)
       val expected = merged.string()
       assertEquals(expected, rightBranch.merge(leftBranch).string())
-      val millis = bestOf {
-        assertEquals(expected.length, leftBranch.merge(rightBranch).length())
-      }
-      println("  %-10s %9d %8.1f ms".format(if (sharedAgent) "coalesced" else "control", merged.graph().runCount(), millis))
-      if (sharedAgent) {
-        coalescedMillis = millis
-      } else {
-        println("  %-10s %9s %9.2fx".format("gain", "", millis / coalescedMillis))
+      println("  %-10s %9d".format(label, merged.graph().runCount()))
+      benchmarkSubtest("merge, $label", MERGE_PASSES) {
+        leftBranch.merge(rightBranch).length()
       }
     }
-    println()
   }
 
   /**
-   * The cost of one keystroke, by the length of the burst it belongs to. An extension copies
-   * the fragment of the run, so a longer burst copies more per keystroke, up to
+   * The cost of [KEYSTROKES] keystrokes, by the length of the burst they belong to. An extension
+   * copies the fragment of the run, so a longer burst copies more per keystroke, up to
    * [EventGraph.MAX_COALESCED_INSERT] characters. The last row types right after a paste
    * of [PASTE_LENGTH] characters, which no keystroke may extend.
    */
   @Test
   fun `a keystroke costs a bounded copy`() {
-    println("=== one keystroke, by the burst it belongs to, $KEYSTROKES keystrokes ===")
-    println("  %-18s %9s %12s %12s %9s".format("burst", "runs", "coalesced", "control", "ratio"))
+    println("=== $KEYSTROKES keystrokes, by the burst they belong to ===")
+    println("  %-18s %9s".format("burst", "runs"))
     for (burst in BURST_LENGTHS) {
       keystrokeRow("$burst chars", burst, pasteLength = 0)
     }
     keystrokeRow("after a paste", KEYSTROKES, PASTE_LENGTH)
-    println()
   }
 
   private fun keystrokeRow(label: String, burst: Int, pasteLength: Int) {
@@ -132,44 +118,19 @@ class TipCoalescingPerformanceTest {
       }
       return typist.graph()
     }
-    val runs = build(sharedAgent = true).runCount()
-    val coalesced = bestOf { build(sharedAgent = true) }
-    val control = bestOf { build(sharedAgent = false) }
+    println("  %-18s %9d".format(label, build(sharedAgent = true).runCount()))
+    benchmarkSubtest("keystrokes, $label, coalesced", KEYSTROKE_PASSES) {
+      build(sharedAgent = true).runCount()
+    }
+    benchmarkSubtest("keystrokes, $label, control", KEYSTROKE_PASSES) {
+      build(sharedAgent = false).runCount()
+    }
+  }
+
+  private fun printRow(label: String, graph: EventGraph, heap: Long) {
     println(
-      "  %-18s %9d %9.0f ns %9.0f ns %8.2fx".format(
-        label, runs, coalesced * 1_000_000 / KEYSTROKES, control * 1_000_000 / KEYSTROKES, control / coalesced,
-      )
+      "  %-10s %9d %10.1f %7d KB".format(label, graph.runCount(), graph.size().toDouble() / graph.runCount(), heap / 1024)
     )
-  }
-
-  private fun printRow(label: String, graph: EventGraph, append: Double, replay: Double, heap: Long) {
-    println(
-      "  %-10s %9d %10.1f %8.1f ms %7.1f ms %7d KB".format(
-        label, graph.runCount(), graph.size().toDouble() / graph.runCount(), append, replay, heap / 1024,
-      )
-    )
-  }
-
-  /** The best time of [action], in milliseconds, over [TIMED_RUNS] runs after the warm-up. */
-  private fun bestOf(action: () -> Unit): Double {
-    repeat(WARMUP_RUNS) {
-      action()
-    }
-    var best = Long.MAX_VALUE
-    repeat(TIMED_RUNS) {
-      val start = System.nanoTime()
-      action()
-      best = minOf(best, System.nanoTime() - start)
-    }
-    return best / 1_000_000.0
-  }
-
-  private fun heapInUse(): Long {
-    val runtime = Runtime.getRuntime()
-    repeat(3) {
-      runtime.gc()
-    }
-    return runtime.totalMemory() - runtime.freeMemory()
   }
 
   /**
@@ -344,7 +305,13 @@ class TipCoalescingPerformanceTest {
     val BURST_LENGTHS = intArrayOf(16, EventGraph.MAX_COALESCED_INSERT, 4_096)
     const val PASTE_LENGTH = 1_000_000
 
-    const val WARMUP_RUNS = 3
-    const val TIMED_RUNS = 5
+    /**
+     * The passes of one attempt, per scenario. Each count keeps the faster variant at about 50 ms
+     * or more, because the framework reports whole milliseconds.
+     */
+    const val SESSION_PASSES = 100
+    const val REPLAY_PASSES = 50
+    const val MERGE_PASSES = 50
+    const val KEYSTROKE_PASSES = 32
   }
 }

@@ -4,6 +4,9 @@ package com.intellij.openapi.fileEditor.impl
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.editor.experimental.DocOp
 import com.intellij.openapi.editor.experimental.DocText
+import com.intellij.openapi.editor.experimental.benchmarkSubtest
+import com.intellij.testFramework.PerformanceUnitTest
+import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -11,11 +14,11 @@ import java.nio.file.Path
 
 /**
  * A benchmark, not a regression test: it runs [DocTextDiff] over a set of realistic document changes
- * and prints the cost of each one. The "Performance" name keeps it out of the functional runs.
+ * and reports the cost of each one.
  *
  * Each scenario reports four numbers.
- * - The time, as the best of [TIMED_RUNS] after [WARMUP_RUNS] warm-up runs.
- * - The throughput over the base document, so the numbers compare across the sizes.
+ * - The time of the diff, and the time to apply its script to the base. [benchmarkSubtest] measures
+ *   both with the platform benchmark framework. Divide a time by the passes in its subtest name.
  * - The op count. Every op becomes an [com.intellij.openapi.editor.experimental.Event] that the
  *   graph keeps forever, so this is the per-event memory.
  * - The unit count, which is the number of characters that the ops insert or delete. A unit is what
@@ -28,6 +31,8 @@ import java.nio.file.Path
  * Every scenario also applies its script back to the base and checks the text, so the benchmark
  * doubles as a correctness run over inputs that the functional tests never reach.
  */
+@StressTestApplication
+@PerformanceUnitTest
 class DocTextDiffPerformanceTest {
 
   @Test
@@ -43,9 +48,8 @@ class DocTextDiffPerformanceTest {
         if (copies > 1 && !scenario.scalesUp) {
           continue
         }
-        run(scenario.name, base, DocText.createText(scenario.target()))
+        run("$label, ${scenario.name}", base, DocText.createText(scenario.target()), scenario.passes)
       }
-      println()
     }
   }
 
@@ -60,64 +64,65 @@ class DocTextDiffPerformanceTest {
     val base = DocText.createText(oneLine)
     println("=== one line of ${base.length()} chars ===")
     printHeader()
-    run("one edit in the middle", base, DocText.createText(edited(oneLine, 1)))
-    run("20 edits", base, DocText.createText(edited(oneLine, 20)))
-    run("500 edits", base, DocText.createText(edited(oneLine, 500)))
-    println()
+    run("one line, one edit in the middle", base, DocText.createText(edited(oneLine, 1)), passes = 100)
+    run("one line, 20 edits", base, DocText.createText(edited(oneLine, 20)), passes = 5)
+    run("one line, 500 edits", base, DocText.createText(edited(oneLine, 500)), passes = 2)
   }
 
   private fun scenarios(base: DocText, text: String): List<Scenario> = listOf(
     // The reload cases. A document comes back from disk with a few changes.
-    Scenario("no change") { text },
-    Scenario("append one line") { "$text  // appended\n" },
-    Scenario("delete the first 200 lines") { text.substring(base.lineStartOffset(200)) },
-    Scenario("one edit inside one line") { text.replaceFirst("myScrollingModel", "theScrollingModel") },
-    Scenario("20 new lines, scattered") { withNewLines(base, 20) },
-    Scenario("500 new lines, scattered") { withNewLines(base, 500) },
+    Scenario("no change", passes = 80) { text },
+    Scenario("append one line", passes = 80) { "$text  // appended\n" },
+    Scenario("delete the first 200 lines", passes = 80) { text.substring(base.lineStartOffset(200)) },
+    Scenario("one edit inside one line", passes = 600) { text.replaceFirst("myScrollingModel", "theScrollingModel") },
+    Scenario("20 new lines, scattered", passes = 40) { withNewLines(base, 20) },
+    Scenario("500 new lines, scattered", passes = 40) { withNewLines(base, 500) },
 
     // The tool cases. Something rewrote the file.
-    Scenario("rename an identifier everywhere") { text.replace("myScrollingModel", "theScrollingModel") },
-    Scenario("reindent every line") { text.replace("    ", "\t") },
+    Scenario("rename an identifier everywhere", passes = 50) { text.replace("myScrollingModel", "theScrollingModel") },
+    Scenario("reindent every line", passes = 4) { text.replace("    ", "\t") },
 
     // The cases that punish the algorithm. They stay at the smallest size on purpose.
-    Scenario("convert every line to CRLF", scalesUp = false) { text.replace("\n", "\r\n") },
-    Scenario("reverse the line order", scalesUp = false) { text.split("\n").asReversed().joinToString("\n") },
-    Scenario("replace the whole text", scalesUp = false) { unrelatedText(text.length) },
+    Scenario("convert every line to CRLF", passes = 4, scalesUp = false) { text.replace("\n", "\r\n") },
+    Scenario("reverse the line order", passes = 1, scalesUp = false) { text.split("\n").asReversed().joinToString("\n") },
+    Scenario("replace the whole text", passes = 1, scalesUp = false) { unrelatedText(text.length) },
   )
 
-  private fun run(name: String, base: DocText, target: DocText) {
-    repeat(WARMUP_RUNS) { DocTextDiff.diff(base, target) }
-    var best = Long.MAX_VALUE
-    repeat(TIMED_RUNS) {
-      val start = System.nanoTime()
-      DocTextDiff.diff(base, target)
-      best = minOf(best, System.nanoTime() - start)
-    }
+  /**
+   * Diffs [base] against [target], checks that the script rebuilds [target], and prints the op and
+   * unit counts. Then it times the diff, [passes] times per attempt.
+   *
+   * It times the apply only for a script of [MIN_TIMED_APPLY_OPS] ops or more, because a shorter
+   * one applies in microseconds. An attempt then applies about [APPLY_OPS_PER_ATTEMPT] ops in all.
+   */
+  private fun run(name: String, base: DocText, target: DocText, passes: Int) {
     val ops = DocTextDiff.diff(base, target)
-
-    val applyStart = System.nanoTime()
-    var applied = base
-    for (op in ops) {
-      applied = applied.applyOp(op)
-    }
-    val applyMillis = (System.nanoTime() - applyStart) / 1_000_000.0
-    assertEquals(target.string(), applied.string()) { "the script does not rebuild the target of \"$name\"" }
-
-    val millis = best / 1_000_000.0
-    val throughput = if (millis == 0.0) 0.0 else base.length() / millis / 1000.0
+    assertEquals(target.string(), applied(base, ops).string()) { "the script does not rebuild the target of \"$name\"" }
     val units = units(ops)
     val share = 100.0 * units / maxOf(base.length(), 1)
-    println(
-      "  %-32s%9.1f ms%7.0f MB/s%9d ops%11d units%8.1f%%%9.1f ms".format(
-        name, millis, throughput, ops.size, units, share, applyMillis
-      )
-    )
+    val applyPasses = if (ops.size < MIN_TIMED_APPLY_OPS) 0 else Math.ceilDiv(APPLY_OPS_PER_ATTEMPT, ops.size)
+    val applyColumn = if (applyPasses == 0) "not timed" else "$applyPasses"
+    println("  %-56s%9d ops%11d units%8.1f%%%8d%12s".format(name, ops.size, units, share, passes, applyColumn))
+    benchmarkSubtest("diff, $name", passes) {
+      DocTextDiff.diff(base, target).size
+    }
+    if (applyPasses > 0) {
+      benchmarkSubtest("apply, $name", applyPasses) {
+        applied(base, ops).length()
+      }
+    }
+  }
+
+  private fun applied(base: DocText, ops: List<DocOp>): DocText {
+    var result = base
+    for (op in ops) {
+      result = result.applyOp(op)
+    }
+    return result
   }
 
   private fun printHeader() {
-    println(
-      "  %-32s%12s%12s%13s%17s%9s%12s".format("scenario", "diff", "throughput", "ops", "units", "of doc", "apply")
-    )
+    println("  %-56s%13s%17s%9s%8s%12s".format("scenario", "ops", "units", "of doc", "passes", "apply"))
   }
 
   /** The number of characters that [ops] insert or delete. One character is one unit of the graph. */
@@ -167,14 +172,20 @@ class DocTextDiffPerformanceTest {
     return Path.of(PathManager.getCommunityHomePath(), "platform/platform-tests/testData/editor/docBranch/EditorImpl.java.txt")
   }
 
-  private class Scenario(val name: String, val scalesUp: Boolean = true, val target: () -> String)
+  /**
+   * One document change. [passes] keeps one attempt over the source file at about 60 ms or more,
+   * because the framework reports whole milliseconds. A copy of the file costs more per pass, so
+   * it takes the same passes and a longer attempt.
+   */
+  private class Scenario(val name: String, val passes: Int, val scalesUp: Boolean = true, val target: () -> String)
 
   companion object {
     /** How many times the source file repeats. The repeat makes every line a duplicate, which the
      * comparison finds harder than a real file of the same size. */
     private val COPIES = intArrayOf(1, 10)
 
-    private const val WARMUP_RUNS = 2
-    private const val TIMED_RUNS = 5
+    /** The shortest script whose apply is timed, and the ops that one apply attempt runs. */
+    private const val MIN_TIMED_APPLY_OPS = 20
+    private const val APPLY_OPS_PER_ATTEMPT = 20_000
   }
 }

@@ -1,12 +1,13 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.experimental
 
+import com.intellij.testFramework.PerformanceUnitTest
+import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
  * A benchmark, not a regression test: it measures what the replay pays to REPORT its output.
- * The "Performance" name keeps it out of the functional runs.
  *
  * [DocBranchPerformanceTest] cannot isolate this cost, because its runs have whatever length
  * its typing gives them. These scenarios instead fix the run length and vary the insert
@@ -17,16 +18,14 @@ import org.junit.jupiter.api.Test
  * pays the document length per insert. A history that appends pays nothing. So the front
  * case is the worst case for a report, and the append case is the best.
  *
- * Every time is the BEST of [TIMED_RUNS] runs after [WARMUP_RUNS] warm-up runs. A single
- * timing is worthless here: this benchmark measured a 16x spread between two runs of one
- * unchanged build. A graph value is immutable, so every run does identical work, and the
- * best run is the one least disturbed by the machine.
- *
- * Read the `of len 1` column and not the milliseconds when two builds are compared. Even the
- * best of five varies by 2x between JVM launches on a busy machine. The `len 1` row is the
- * control: one unit per run leaves a per-character report and a per-run report the same work,
- * so dividing by it cancels the load out.
+ * [benchmarkSubtest] times every row with the platform benchmark framework. Compare the rows of
+ * one run, and not the milliseconds of two builds. This benchmark once measured a 16x spread
+ * between two runs of one unchanged build. The `len 1` row of a sweep is the control. One unit
+ * per run leaves a per-character report and a per-run report the same work, so a ratio to that
+ * row cancels the load out. Divide a published time by the passes of its row first.
  */
+@StressTestApplication
+@PerformanceUnitTest
 class ReplayPerformanceTest {
 
   /**
@@ -37,16 +36,7 @@ class ReplayPerformanceTest {
    */
   @Test
   fun `a full replay of a history that inserts at the front`() {
-    println("=== insert at the front, $UNITS units ===")
-    printHeader()
-    var control = 0.0
-    for (runLength in RUN_LENGTHS) {
-      val millis = replayScenario("front", runLength, control) { _ -> 0 }
-      if (runLength == RUN_LENGTHS[0]) {
-        control = millis
-      }
-    }
-    println()
+    replaySweep("front", FRONT_PASSES_PER_RUN_UNIT) { _ -> 0 }
   }
 
   /**
@@ -55,16 +45,7 @@ class ReplayPerformanceTest {
    */
   @Test
   fun `a full replay of a history that appends`() {
-    println("=== append, $UNITS units ===")
-    printHeader()
-    var control = 0.0
-    for (runLength in RUN_LENGTHS) {
-      val millis = replayScenario("append", runLength, control) { length -> length }
-      if (runLength == RUN_LENGTHS[0]) {
-        control = millis
-      }
-    }
-    println()
+    replaySweep("append", APPEND_PASSES_PER_RUN_UNIT) { length -> length }
   }
 
   /**
@@ -74,18 +55,17 @@ class ReplayPerformanceTest {
   @Test
   fun `a merge of two concurrent pastes`() {
     println("=== a merge of two concurrent pastes ===")
-    println("  %-14s %10s %10s".format("paste", "units", "merge"))
+    println("  %-14s %10s".format("paste", "units"))
     for (paste in PASTE_SIZES) {
       val base = DocBranch.createBranch("base\n", agent("base"))
       val left = base.fork(agent("aaa")).applyOp(DocOp.ins(5, "L".repeat(paste)))
       val right = base.fork(agent("bbb")).applyOp(DocOp.ins(5, "R".repeat(paste)))
-      val expected = 5 + 2 * paste
-      val millis = bestOf {
-        assertEquals(expected, left.merge(right).text().length())
+      assertEquals(5 + 2 * paste, left.merge(right).text().length())
+      println("  %-14s %10d".format("$paste chars", 2 * paste))
+      benchmarkSubtest("merge of two $paste-char pastes", PASTE_MERGE_CHAR_PASSES / paste) {
+        left.merge(right).text().length()
       }
-      println("  %-14s %10d %8.1f ms".format("$paste chars", expected - 5, millis))
     }
-    println()
   }
 
   /**
@@ -93,24 +73,24 @@ class ReplayPerformanceTest {
    *
    * The replay cost is fixed here: the concurrent region is two ops whatever the history
    * holds. So this row measures the id join, and a time that grows with the history says the
-   * join walks the whole history instead of the new part.
+   * join walks the whole history instead of the new part. Every timed merge also copies the
+   * run prefix, because a warm-up merge already took the store tip. That copy is linear in the
+   * history too.
    */
   @Test
   fun `a merge of one op over a growing history`() {
     println("=== a merge of one new op, by history size ===")
-    println("  %-14s %10s %10s %9s".format("history", "runs", "merge", "per run"))
+    println("  %-14s %10s".format("history", "runs"))
     for (runs in HISTORY_RUNS) {
       val base = historyOfRuns(runs)
       val left = base.fork(agent("aaa")).applyOp(DocOp.ins(0, "L"))
       val right = base.fork(agent("bbb")).applyOp(DocOp.ins(0, "R"))
-      val expected = runs + 2
-      val millis = bestOf {
-        assertEquals(expected, left.merge(right).text().length())
+      assertEquals(runs + 2, left.merge(right).text().length())
+      println("  %-14s %10d".format("$runs runs", left.graph().runCount()))
+      benchmarkSubtest("merge of one op over $runs runs", ONE_OP_MERGE_RUN_PASSES / runs) {
+        left.merge(right).text().length()
       }
-      val perRun = millis * 1_000_000 / (runs + 1)
-      println("  %-14s %10d %8.1f ms %7.0f ns".format("$runs runs", left.graph().runCount(), millis, perRun))
     }
-    println()
   }
 
   /**
@@ -125,49 +105,47 @@ class ReplayPerformanceTest {
   @Test
   fun `a merge that brings nothing over a growing history`() {
     println("=== a merge that brings nothing, by history size ===")
-    println("  %-14s %10s %10s %9s".format("history", "runs", "merge", "per run"))
+    println("  %-14s %10s".format("history", "runs"))
     for (runs in HISTORY_RUNS) {
       val branch = historyOfRuns(runs)
       // The fork adds no op, so it holds exactly the history of the branch.
       val same = branch.fork(agent("aaa"))
-      val expected = branch.text().length()
-      val millis = bestOf {
-        assertEquals(expected, branch.merge(same).text().length())
+      assertEquals(branch.text().length(), branch.merge(same).text().length())
+      println("  %-14s %10d".format("$runs runs", branch.graph().runCount()))
+      benchmarkSubtest("merge of nothing over $runs runs", EMPTY_MERGE_PASSES) {
+        branch.merge(same).text().length()
       }
-      val perRun = millis * 1_000_000 / runs
-      println("  %-14s %10d %8.3f ms %7.1f ns".format("$runs runs", branch.graph().runCount(), millis, perRun))
     }
-    println()
   }
 
   /**
-   * Builds a history of [UNITS] units in runs of [runLength], each run inserted at the
-   * position that [positionOf] picks from the current length, then times a full replay and
-   * returns it. [control] is the time of the `len 1` row, or 0 for the row that sets it.
+   * Builds a history of [UNITS] units for each run length, in runs of that length. Each run goes
+   * to the position that [positionOf] picks from the current length. Then it times a full replay.
+   * A longer run makes the replay cheaper. So a row makes [passesPerRunUnit] passes per unit of its
+   * run length, and every row takes a similar time.
    *
    * Two agents take turns, so no run extends the one before it, and every run keeps the length
    * that the row names. The history stays linear, so the agents never meet in a tie-break.
    */
-  private fun replayScenario(name: String, runLength: Int, control: Double, positionOf: (Int) -> Int): Double {
-    val fragment = "x".repeat(runLength)
-    var branch = DocBranch.createBranch("", AUTHORS[0])
-    var length = 0
-    for (run in 0 until UNITS / runLength) {
-      branch = branch.fork(AUTHORS[run % AUTHORS.size]).applyOp(DocOp.ins(positionOf(length), fragment))
-      length += runLength
+  private fun replaySweep(name: String, passesPerRunUnit: Int, positionOf: (Int) -> Int) {
+    println("=== $name, $UNITS units ===")
+    println("  %-14s %10s %10s %8s".format("history", "units", "runs", "passes"))
+    for (runLength in RUN_LENGTHS) {
+      val fragment = "x".repeat(runLength)
+      var branch = DocBranch.createBranch("", AUTHORS[0])
+      var length = 0
+      for (run in 0 until UNITS / runLength) {
+        branch = branch.fork(AUTHORS[run % AUTHORS.size]).applyOp(DocOp.ins(positionOf(length), fragment))
+        length += runLength
+      }
+      val graph = branch.graph()
+      assertEquals(branch.text().string(), graph.replay().string())
+      val passes = passesPerRunUnit * runLength
+      println("  %-14s %10d %10d %8d".format("$name, len $runLength", graph.size(), graph.runCount(), passes))
+      benchmarkSubtest("$name, len $runLength", passes) {
+        graph.replay().length()
+      }
     }
-    val graph = branch.graph()
-    val expected = branch.text().string()
-    val millis = bestOf {
-      assertEquals(expected, graph.replay().string())
-    }
-    val share = if (control == 0.0) 1.0 else millis / control
-    println(
-      "  %-14s %10d %10d %8.1f ms %9.3f".format(
-        "$name, len $runLength", graph.size(), graph.runCount(), millis, share,
-      )
-    )
-    return millis
   }
 
   /**
@@ -180,24 +158,6 @@ class ReplayPerformanceTest {
       branch = branch.applyOp(DocOp.ins(0, "x"))
     }
     return branch
-  }
-
-  /** The best time of [action], in milliseconds, over [TIMED_RUNS] runs after the warm-up. */
-  private fun bestOf(action: () -> Unit): Double {
-    repeat(WARMUP_RUNS) {
-      action()
-    }
-    var best = Long.MAX_VALUE
-    repeat(TIMED_RUNS) {
-      val start = System.nanoTime()
-      action()
-      best = minOf(best, System.nanoTime() - start)
-    }
-    return best / 1_000_000.0
-  }
-
-  private fun printHeader() {
-    println("  %-14s %10s %10s %10s %9s".format("history", "units", "runs", "replay", "of len 1"))
   }
 
   companion object {
@@ -214,7 +174,15 @@ class ReplayPerformanceTest {
     /** The history sizes that the one-op merge sweeps, in runs. */
     private val HISTORY_RUNS = intArrayOf(2_000, 8_000, 32_000, 128_000)
 
-    private const val WARMUP_RUNS = 3
-    private const val TIMED_RUNS = 5
+    /**
+     * The passes of one attempt, per scenario. Each count keeps an attempt at about 50 ms or
+     * more, because the framework reports whole milliseconds. A cost that grows with the paste
+     * or the history divides a budget by that size. So every row of a sweep takes a similar time.
+     */
+    private const val FRONT_PASSES_PER_RUN_UNIT = 4
+    private const val APPEND_PASSES_PER_RUN_UNIT = 8
+    private const val PASTE_MERGE_CHAR_PASSES = 2_000_000
+    private const val ONE_OP_MERGE_RUN_PASSES = 12_800_000
+    private const val EMPTY_MERGE_PASSES = 500_000
   }
 }

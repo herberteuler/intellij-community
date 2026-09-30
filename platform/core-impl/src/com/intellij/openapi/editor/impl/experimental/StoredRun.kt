@@ -38,19 +38,9 @@ internal class StoredRun(
     return lvStart + (seq - event.seq())
   }
 
-  /** Whether this run covers [lv]. */
-  fun contains(lv: LV): Boolean {
-    return lv >= lvStart && lv < lvEnd()
-  }
-
   /** Whether [lv] is at or after the first unit. The run search uses this. */
   fun startsAtOrBefore(lv: LV): Boolean {
     return lvStart <= lv
-  }
-
-  /** The number of units from [lv] to the end of the run. */
-  fun unitsFrom(lv: LV): Int {
-    return lvEnd() - lv
   }
 
   val isDelete: Boolean get() = event.op() is DocOp.Delete

@@ -40,6 +40,7 @@ import java.util.Set;
 import static org.jetbrains.plugins.gradle.settings.TestRunner.CHOOSE_PER_TEST;
 import static org.jetbrains.plugins.gradle.settings.TestRunner.GRADLE;
 import static org.jetbrains.plugins.gradle.settings.TestRunner.PLATFORM;
+import static org.jetbrains.plugins.gradle.util.GradleUtil.summarizeList;
 
 public abstract class GradleTestRunConfigurationProducer extends GradleRunConfigurationProducer {
 
@@ -107,32 +108,20 @@ public abstract class GradleTestRunConfigurationProducer extends GradleRunConfig
   ) {
     return GradleBundle.message(
       "gradle.tests.task.first.configuration.name.for",
-      suggestSelectionName(taskNames),
-      suggestSelectionName(targetNames)
+      summarizeList(taskNames),
+      summarizeList(targetNames)
     );
   }
 
   protected static @NotNull String createTaskFirstConfigurationNameIn(
     @NotNull List<String> taskNames,
-    @NotNull List<String> targetNames
+    @NotNull String targetName
   ) {
     return GradleBundle.message(
       "gradle.tests.task.first.configuration.name.in",
-      suggestSelectionName(taskNames),
-      suggestSelectionName(targetNames)
+      summarizeList(taskNames),
+      targetName
     );
-  }
-
-  protected static @NotNull String suggestSelectionName(@NotNull List<String> names) {
-    List<String> distinctNames = names.stream().distinct().toList();
-    if (distinctNames.isEmpty()) return "";
-    if (distinctNames.size() == 1) return distinctNames.getFirst();
-    return GradleBundle.message("gradle.tests.pattern.producer.configuration.name", distinctNames.getFirst(), distinctNames.size() - 1);
-  }
-
-  protected static @Nullable String resolveGradleIdentityPath(@NotNull Module module) {
-    GradleModuleData gradleModuleData = CachedModuleDataFinder.getGradleModuleData(module);
-    return gradleModuleData == null ? null : gradleModuleData.getGradleIdentityPathOrNull();
   }
 
 

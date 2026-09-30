@@ -31,7 +31,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.gradle.service.execution.GradleExternalTaskConfigurationType;
 import org.jetbrains.plugins.gradle.service.execution.GradleRunConfiguration;
-import org.jetbrains.plugins.gradle.util.GradleBundle;
 import org.jetbrains.plugins.gradle.util.GradleConstants;
 import org.jetbrains.plugins.gradle.util.TasksToRun;
 
@@ -47,6 +46,7 @@ import static org.jetbrains.plugins.gradle.execution.test.runner.TestGradleConfi
 import static org.jetbrains.plugins.gradle.execution.test.runner.TestGradleConfigurationProducerUtilKt.getNormalizedTaskTokens;
 import static org.jetbrains.plugins.gradle.execution.test.runner.TestGradleConfigurationProducerUtilKt.getSourceFile;
 import static org.jetbrains.plugins.gradle.util.GradleExecutionSettingsUtil.createTestFilterFrom;
+import static org.jetbrains.plugins.gradle.util.GradleUtil.summarizeList;
 
 
 public final class PatternGradleConfigurationProducer extends GradleTestRunConfigurationProducer {
@@ -87,7 +87,7 @@ public final class PatternGradleConfigurationProducer extends GradleTestRunConfi
     Module module = getModuleFromContext(context);
     if (module == null) return false;
     if (!applyTestConfiguration(settings, module, tests, findTestSource, createFilter)) return false;
-    configuration.setName(suggestConfigurationName(tests));
+    configuration.setName(summarizeList(tests));
     setUniqueNameIfNeeded(project, configuration);
     JavaRunConfigurationExtensionManager.getInstance().extendCreatedConfiguration(configuration, contextLocation);
     return true;
@@ -154,18 +154,12 @@ public final class PatternGradleConfigurationProducer extends GradleTestRunConfi
           runConfiguration.setName(createTaskFirstConfigurationNameFor(selectedTestTaskNames, getPresentableTestNames(tests, testMappings)));
         }
         else {
-          runConfiguration.setName(suggestConfigurationName(tests));
+          runConfiguration.setName(summarizeList(tests));
         }
         setUniqueNameIfNeeded(project, runConfiguration);
       }
       super.onFirstRun(configuration, context, startRunnable);
     });
-  }
-
-  private static @NotNull String suggestConfigurationName(List<String> tests) {
-    if (tests.isEmpty()) return "";
-    if (tests.size() == 1) return tests.get(0);
-    return GradleBundle.message("gradle.tests.pattern.producer.configuration.name", tests.get(0), tests.size() - 1);
   }
 
   private static @NotNull List<String> getAvailableTestTaskNames(@NotNull Project project, @NotNull TestMappings testMappings) {

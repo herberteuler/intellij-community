@@ -70,7 +70,7 @@ public class AllInPackageGradleConfigurationProducer extends AbstractGradleTestR
                                                                @NotNull PsiPackage element,
                                                                @NotNull List<? extends PsiPackage> chosenElements,
                                                                @NotNull List<String> selectedTestTaskNames) {
-    return createTaskFirstConfigurationNameIn(selectedTestTaskNames, List.of(element.getQualifiedName()));
+    return createTaskFirstConfigurationNameIn(selectedTestTaskNames, element.getQualifiedName());
   }
 
   @Override

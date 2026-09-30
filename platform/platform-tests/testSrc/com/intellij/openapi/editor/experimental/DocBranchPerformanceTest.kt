@@ -16,7 +16,8 @@ import java.util.Random
  * it out of the functional runs.
  *
  * The history imitates real users. Each user action is one of:
- * - type char by char: every keystroke is its own insert op (and its own run);
+ * - type char by char: every keystroke is its own insert op, and the keystrokes of one burst
+ *   extend one run;
  * - autocomplete: one word lands as one insert op;
  * - copy-paste: a medium fragment of the current text lands as one insert op;
  * - move text: one delete op plus one insert op of the same fragment.
@@ -219,9 +220,9 @@ class DocBranchPerformanceTest {
    * is what grows without a bound.
    *
    * The unit and run counts are exact and repeat run to run, so they compare directly.
-   * The run count is the one that run coalescing changes: today one op makes one run, and
-   * a keystroke is one op. The heap number is a hint only, because a collection is a
-   * request, but it gives the order of the retained size.
+   * The run count is the one that tip coalescing changes: a burst of typing makes one run and
+   * not one per keystroke. The heap number is a hint only, because a collection is a request,
+   * but it gives the order of the retained size.
    */
   private fun reportHistory(branch: DocBranch) {
     val graph = branch.graph()

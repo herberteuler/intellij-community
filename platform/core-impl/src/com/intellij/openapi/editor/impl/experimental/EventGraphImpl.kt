@@ -11,22 +11,40 @@ import java.util.Collections
 import java.util.PriorityQueue
 
 /**
- * See [EventGraph]. An immutable view over an [EventStore] prefix: [runCount] runs
- * covering the lvs `[0, size)`.
+ * See [EventGraph]. An immutable value: [storeRunCount] closed runs in a shared [EventStore]
+ * prefix, then the newest run, the [tail]. Together they cover the lvs `[0, size)`.
+ *
+ * The tail lives in this value and not in the store, because an append that continues it
+ * replaces it with a longer run (see [StoredRun.tryAppend]). The store never changes a
+ * committed run, and its lock-free reads depend on that. So a sibling value keeps its own
+ * tail, and the next append that does not continue the tail closes it into the store.
+ *
+ * Thread safety: the tail needs no argument of its own. It is a final field of this value, every
+ * field it reaches is final, and nothing writes its parents array after construction. So a
+ * thread that sees this value sees the tail it was built with. An append that extends the tail
+ * touches no shared state at all.
+ *
+ * Only the empty graph has no tail. [checkTail] enforces that when a graph is built, and
+ * [requireTail] relies on it.
  */
 internal class EventGraphImpl private constructor(
   private val store: EventStore,
-  private val runCount: Int,
+  private val storeRunCount: Int,
+  private val tail: StoredRun?,
   private val size: Int,
   private val version: VersionImpl,
 ) : EventGraph {
+
+  init {
+    checkTail()
+  }
 
   override fun size(): Int {
     return size
   }
 
   override fun runCount(): Int {
-    return runCount
+    return if (tail == null) storeRunCount else storeRunCount + 1
   }
 
   override fun version(): Version {
@@ -60,33 +78,58 @@ internal class EventGraphImpl private constructor(
 
   // --------------------------------------------------- what this graph knows, by event id
   //
-  // Each of these hands the store this graph's own size as the limit, so a caller never
-  // threads an lvLimit through. A graph answers only for itself.
+  // Each of these asks the tail first. Then it hands the store this graph's closed size as the
+  // limit, so a caller never threads an lvLimit through. A graph answers only for itself.
 
-  /** The next free seq of [agent] in this graph. */
+  /**
+   * The next free seq of [agent] in this graph. The tail is the newest run, and the seqs of
+   * one agent ascend with the lvs, so a tail of [agent] holds its greatest seq.
+   */
   fun nextSeqFor(agent: Agent): Int {
-    return store.nextSeq(agent, size)
+    val tail = tail
+    if (tail != null && tail.event.agent() == agent) {
+      return tail.endSeq()
+    }
+    return store.nextSeq(agent, closedSize())
   }
 
   /** What this graph knows, as one end seq per agent. */
   fun summarize(): VersionSummary {
-    return store.summarizeVersion(size)
+    val summary = store.summarizeVersion(closedSize())
+    val tail = tail ?: return summary
+    return summary.withEndSeq(tail.event.agent(), tail.endSeq())
   }
 
   /** The lv of the unit ([agent], [seq]) in this graph, or -1 when it holds no such unit. */
   fun lvOfUnit(agent: Agent, seq: Int): LV {
-    return store.lvOfSeq(agent, seq, size)
+    val tail = tail
+    if (tail != null && tail.holdsUnit(agent, seq)) {
+      return tail.lvOfSeq(seq)
+    }
+    return store.lvOfSeq(agent, seq, closedSize())
   }
 
-  /** The [StoredRun.lvStart] of every run of THIS graph that [summary] does not cover. */
+  /** The [StoredRun.lvStart] of every run of THIS graph that [summary] does not cover, ascending. */
   fun newRunStarts(summary: VersionSummary): IntArray {
-    return store.newRunStarts(summary, size)
+    val starts = store.newRunStarts(summary, closedSize())
+    val tail = tail
+    if (tail == null || tail.endSeq() <= summary.endSeq(tail.event.agent())) {
+      return starts
+    }
+    // The tail is the newest run, so its start goes last and the result still ascends.
+    return starts + tail.lvStart
+  }
+
+  /** The lvs before the tail, which the store holds. The store sees nothing past them. */
+  private fun closedSize(): Int {
+    return tail?.lvStart ?: size
   }
 
   /**
    * The union of the two graphs, joined by unit ids, plus the version of [other]
    * re-expressed in the result graph's lvs. A run of [other] that this graph knows
-   * in part contributes only its unknown suffix, as a new run.
+   * in part contributes only its unknown suffix. That suffix goes through the same append as
+   * a local edit, so it extends the tail when it continues it.
    *
    * The cost is the size of the CHANGE, not the size of either history. A [VersionSummary]
    * holds one integer per agent, so the two graphs compare their histories without reading
@@ -113,28 +156,69 @@ internal class EventGraphImpl private constructor(
     return MergeResult(graph, size, plan.remappedOtherVersion())
   }
 
+  /**
+   * Extends the tail when [event] continues it, and otherwise closes the tail into the store
+   * and makes [event] the new tail. The units and their parents are the same either way, so
+   * only [runCount] can tell the two apart.
+   */
   private fun appendImpl(event: Event, parents: VersionImpl): EventGraphImpl {
     checkVersionOfThisGraph(parents)
     checkLvSpace(event.length(), size)
     checkNextSeq(event)
-    val run = StoredRun(event, size, parents.lvs)
-    val newStore = store.appendAt(size, runCount, run)
-    val newLastLv = size + event.length() - 1
-    return EventGraphImpl(newStore, runCount + 1, size + event.length(), version.advancedBy(parents, newLastLv))
+    val newSize = size + event.length()
+    val newVersion = version.advancedBy(parents, newSize - 1)
+    val tail = tail
+    val extended = tail?.tryAppend(event, parents)
+    if (extended != null) {
+      return EventGraphImpl(store, storeRunCount, extended, newSize, newVersion)
+    }
+    val newTail = StoredRun(event, size, parents.lvs)
+    if (tail == null) {
+      return EventGraphImpl(store, storeRunCount, newTail, newSize, newVersion)
+    }
+    val newStore = store.appendAt(tail.lvStart, storeRunCount, tail)
+    return EventGraphImpl(newStore, storeRunCount + 1, newTail, newSize, newVersion)
   }
 
   // ------------------------------------------------------------------- queries for the replay
 
   /** The run that covers [lv]. */
   fun runAt(lv: LV): StoredRun {
-    return runByIndex(runIndexOf(lv))
+    checkLv(lv)
+    val tail = requireTail()
+    return if (tail.startsAtOrBefore(lv)) tail else store.runByIndex(closedRunIndexOf(lv))
   }
 
   /** The index of the run that covers [lv]. An index counts runs, and an lv counts units. */
   fun runIndexOf(lv: LV): Int {
     checkLv(lv)
+    val tail = requireTail()
+    return if (tail.startsAtOrBefore(lv)) storeRunCount else closedRunIndexOf(lv)
+  }
+
+  /** The run at [index], which must be below [runCount]. The tail comes last. */
+  fun runByIndex(index: Int): StoredRun {
+    checkRunIndex(index)
+    return if (index == storeRunCount) requireTail() else store.runByIndex(index)
+  }
+
+  /**
+   * The tail, for a caller that has checked an lv or a run index against this graph. That
+   * check passes only in a graph that holds at least one unit, and [checkTail] makes sure that
+   * such a graph has a tail. So this fails only when [checkTail] itself is wrong.
+   */
+  private fun requireTail(): StoredRun {
+    val tail = tail
+    require(tail != null) {
+      "A graph of size $size has no tail, but only the empty graph may have none"
+    }
+    return tail
+  }
+
+  /** The index of the closed run that covers [lv], which must sit before the tail. */
+  private fun closedRunIndexOf(lv: LV): Int {
     var lo = 0
-    var hi = runCount - 1
+    var hi = storeRunCount - 1
     while (lo < hi) {
       val mid = (lo + hi + 1) ushr 1
       if (store.runByIndex(mid).startsAtOrBefore(lv)) {
@@ -144,11 +228,6 @@ internal class EventGraphImpl private constructor(
       }
     }
     return lo
-  }
-
-  /** The run stored at [index], which must be below [runCount]. */
-  fun runByIndex(index: Int): StoredRun {
-    return store.runByIndex(index)
   }
 
   fun parentsOf(lv: LV): Frontier {
@@ -336,6 +415,23 @@ internal class EventGraphImpl private constructor(
 
   // ------------------------------------------------------------------------------------ checks
 
+  /**
+   * Fails when the tail does not fit the graph. Only the empty graph has no tail, and a tail is
+   * the newest run, so it ends at [size]. The queries for the replay rely on both.
+   */
+  private fun checkTail() {
+    val tail = tail
+    if (tail == null) {
+      require(size == 0 && storeRunCount == 0) {
+        "A graph of size $size and $storeRunCount closed runs has no tail, but only the empty graph may have none"
+      }
+      return
+    }
+    require(tail.lvEnd() == size) {
+      "The tail $tail does not end at the graph size $size"
+    }
+  }
+
   private fun checkVersionOfThisGraph(version: VersionImpl) {
     require(version.unitSpan() <= size) {
       "The version $version does not belong to a graph of size $size"
@@ -377,6 +473,13 @@ internal class EventGraphImpl private constructor(
     }
   }
 
+  /** The store may hold runs of a newer value past [storeRunCount], so a bad index must not reach it. */
+  private fun checkRunIndex(index: Int) {
+    require(index in 0 until runCount()) {
+      "The run index $index is out of the graph of ${runCount()} runs"
+    }
+  }
+
   /**
    * Fails when the two graphs disagree about an id they both hold.
    *
@@ -394,7 +497,7 @@ internal class EventGraphImpl private constructor(
    * and a merge must cost the size of the change.
    */
   private fun checkSharedIds(other: EventGraphImpl, summary: VersionSummary) {
-    val otherSummary = other.store.summarizeVersion(other.size)
+    val otherSummary = other.summarize()
     for (agent in otherSummary.agents()) {
       val sharedEnd = minOf(summary.endSeq(agent), otherSummary.endSeq(agent))
       if (sharedEnd == 0) {
@@ -409,8 +512,8 @@ internal class EventGraphImpl private constructor(
 
   /** Fails when the unit ([agent], [seq]) is a different operation in the two graphs. */
   private fun checkSameId(other: EventGraphImpl, agent: Agent, seq: Int) {
-    val lv = store.lvOfSeq(agent, seq, size)
-    val otherLv = other.store.lvOfSeq(agent, seq, other.size)
+    val lv = lvOfUnit(agent, seq)
+    val otherLv = other.lvOfUnit(agent, seq)
     require(lv >= 0 && otherLv >= 0) {
       "The id ($agent, $seq) is inside the shared range, but one graph does not hold it"
     }
@@ -467,7 +570,7 @@ internal class EventGraphImpl private constructor(
      * whole box diagram, which no message wants inside another one.
      */
     override fun toString(): String {
-      return "MergeResult(units=${graph.size}, runs=${graph.runCount}, " +
+      return "MergeResult(units=${graph.size}, runs=${graph.runCount()}, " +
              "addsNothing=${addsNothing()}, fastForward=${isFastForward()})"
     }
   }
@@ -522,7 +625,8 @@ internal class EventGraphImpl private constructor(
     fun empty(): EventGraphImpl {
       return EventGraphImpl(
         store = EventStore.empty(),
-        runCount = 0,
+        storeRunCount = 0,
+        tail = null,
         size = 0,
         version = VersionImpl.ROOT,
       )

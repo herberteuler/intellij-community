@@ -8,10 +8,9 @@ import org.junit.jupiter.api.Test
  * A benchmark, not a regression test: it measures what the replay pays to REPORT its output.
  * The "Performance" name keeps it out of the functional runs.
  *
- * [DocBranchPerformanceTest] cannot see this cost. Its history is one run per op, so a
- * per-character report and a per-run report do the same work there. These scenarios instead
- * vary the run length and the insert position, which are the two things the report cost
- * depends on.
+ * [DocBranchPerformanceTest] cannot isolate this cost, because its runs have whatever length
+ * its typing gives them. These scenarios instead fix the run length and vary the insert
+ * position, which are the two things the report cost depends on.
  *
  * Why the position matters: the full replay builds the text in a `StringBuilder`, and an
  * insert shifts everything after it. A history that always inserts at the front therefore
@@ -101,11 +100,7 @@ class ReplayPerformanceTest {
     println("=== a merge of one new op, by history size ===")
     println("  %-14s %10s %10s %9s".format("history", "runs", "merge", "per run"))
     for (runs in HISTORY_RUNS) {
-      var branch = DocBranch.createBranch("", agent("u"))
-      repeat(runs) {
-        branch = branch.applyOp(DocOp.ins(branch.text().length(), "x"))
-      }
-      val base = branch
+      val base = historyOfRuns(runs)
       val left = base.fork(agent("aaa")).applyOp(DocOp.ins(0, "L"))
       val right = base.fork(agent("bbb")).applyOp(DocOp.ins(0, "R"))
       val expected = runs + 2
@@ -132,10 +127,7 @@ class ReplayPerformanceTest {
     println("=== a merge that brings nothing, by history size ===")
     println("  %-14s %10s %10s %9s".format("history", "runs", "merge", "per run"))
     for (runs in HISTORY_RUNS) {
-      var branch = DocBranch.createBranch("", agent("u"))
-      repeat(runs) {
-        branch = branch.applyOp(DocOp.ins(branch.text().length(), "x"))
-      }
+      val branch = historyOfRuns(runs)
       // The fork adds no op, so it holds exactly the history of the branch.
       val same = branch.fork(agent("aaa"))
       val expected = branch.text().length()
@@ -152,13 +144,16 @@ class ReplayPerformanceTest {
    * Builds a history of [UNITS] units in runs of [runLength], each run inserted at the
    * position that [positionOf] picks from the current length, then times a full replay and
    * returns it. [control] is the time of the `len 1` row, or 0 for the row that sets it.
+   *
+   * Two agents take turns, so no run extends the one before it, and every run keeps the length
+   * that the row names. The history stays linear, so the agents never meet in a tie-break.
    */
   private fun replayScenario(name: String, runLength: Int, control: Double, positionOf: (Int) -> Int): Double {
     val fragment = "x".repeat(runLength)
-    var branch = DocBranch.createBranch("", agent("u"))
+    var branch = DocBranch.createBranch("", AUTHORS[0])
     var length = 0
-    repeat(UNITS / runLength) {
-      branch = branch.applyOp(DocOp.ins(positionOf(length), fragment))
+    for (run in 0 until UNITS / runLength) {
+      branch = branch.fork(AUTHORS[run % AUTHORS.size]).applyOp(DocOp.ins(positionOf(length), fragment))
       length += runLength
     }
     val graph = branch.graph()
@@ -173,6 +168,18 @@ class ReplayPerformanceTest {
       )
     )
     return millis
+  }
+
+  /**
+   * A history of [runs] runs of one character. Every op inserts at the front, so no op extends
+   * the run before it.
+   */
+  private fun historyOfRuns(runs: Int): DocBranch {
+    var branch = DocBranch.createBranch("", agent("u"))
+    repeat(runs) {
+      branch = branch.applyOp(DocOp.ins(0, "x"))
+    }
+    return branch
   }
 
   /** The best time of [action], in milliseconds, over [TIMED_RUNS] runs after the warm-up. */
@@ -197,8 +204,10 @@ class ReplayPerformanceTest {
     /** The unit count that every run length builds up to, so the rows compare. */
     private const val UNITS = 40_000
 
-    /** The run lengths to sweep. One unit per run is what typing produces. */
+    /** The run lengths to sweep. One unit per run is what a backspace produces. */
     private val RUN_LENGTHS = intArrayOf(1, 4, 16, 64)
+
+    private val AUTHORS = arrayOf(agent("u"), agent("w"))
 
     private val PASTE_SIZES = intArrayOf(2_000, 8_000, 20_000)
 

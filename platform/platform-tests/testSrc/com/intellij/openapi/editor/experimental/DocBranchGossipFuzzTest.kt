@@ -11,6 +11,10 @@ import java.util.Random
  * small ops. This test adds the shapes that shape misses: many pulls in any direction,
  * whole-document deletes, big pastes, and a replica with no common history.
  *
+ * Each replica also has a caret, and most edits type or delete at it. Those edits extend the
+ * newest run. So a pull often lands in the middle of a run, and two replicas often cut the
+ * runs of one agent in different places.
+ *
  * Two invariants hold after every merge:
  * - the branch text equals a from-scratch replay of the merged graph;
  * - a full sync brings every replica to one text.
@@ -38,6 +42,7 @@ class DocBranchGossipFuzzTest {
       for (replica in replicas) {
         history.add(arrayListOf(replica.graph().version() to replica.string()))
       }
+      val carets = IntArray(replicas.size)
 
       repeat(STEPS) { step ->
         val i = random.nextInt(replicas.size)
@@ -51,7 +56,9 @@ class DocBranchGossipFuzzTest {
             replicas[i] = merged
           }
         } else {
-          replicas[i] = replicas[i].applyOp(randomOp(random, replicas[i].length()))
+          val op = randomOp(random, replicas[i].length(), carets[i])
+          replicas[i] = replicas[i].applyOp(op)
+          carets[i] = if (op is DocOp.Insert) op.offset() + op.length() else op.offset()
         }
         history[i].add(replicas[i].graph().version() to replicas[i].string())
       }
@@ -89,7 +96,25 @@ class DocBranchGossipFuzzTest {
     return text.toString()
   }
 
-  private fun randomOp(random: Random, length: Int): DocOp {
+  /**
+   * The next edit of a replica whose caret is at [caret]. Most edits type one character or
+   * press the Delete key at the caret. The rest jump anywhere, as [randomJump] describes. A
+   * merge can shorten the text, so the caret is clamped first.
+   */
+  private fun randomOp(random: Random, length: Int, caret: Int): DocOp {
+    val at = minOf(caret, length)
+    val roll = random.nextInt(10)
+    if (roll < 4) {
+      return insertOp(at, ALPHABET[random.nextInt(ALPHABET.length)].toString())
+    }
+    if (roll < 5 && at < length) {
+      return deleteOp(at, 1)
+    }
+    return randomJump(random, length)
+  }
+
+  /** An edit anywhere in the text: a keystroke or a paste, a small delete or a wipe. */
+  private fun randomJump(random: Random, length: Int): DocOp {
     if (length == 0 || random.nextInt(10) < 6) {
       // A mix of single keystrokes and big pastes.
       val fragmentLength = if (random.nextInt(5) == 0) 1 + random.nextInt(12) else 1 + random.nextInt(2)

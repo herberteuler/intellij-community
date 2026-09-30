@@ -46,6 +46,39 @@ class EventGraphDiagramTest {
     )
   }
 
+  /**
+   * Three keystrokes extend one run, so they draw as one box. A fork from inside that run
+   * joins the box and not the unit, which is one of the two things the diagram cannot show.
+   */
+  @Test
+  fun `typing draws one box, and a fork from inside it joins the box`() {
+    val u1 = agent("user1")
+    var graph = EventGraph.createGraph()
+    for ((seq, char) in "abc".withIndex()) {
+      graph = graph.append(Event.createInsert(u1, seq, seq, char.toString()), graph.version())
+    }
+    graph = graph.append(Event.createInsert(agent("user2"), 0, 1, "Z"), Version.of(0))
+    assertEquals(
+      """
+      EventGraph(units=4, runs=2, version=v[2, 3])
+      ┌───────────────┐
+      │ insert "abc"  │
+      │ offset 0      │
+      │ lv 0..2       │
+      │ agent "user1" │
+      └───────┬───────┘
+              │
+      ┌───────┴───────┐
+      │ insert "Z"    │
+      │ offset 1      │
+      │ lv 3          │
+      │ agent "user2" │
+      └───────────────┘
+      """.trimIndent(),
+      graph.toString(),
+    )
+  }
+
   @Test
   fun `a fork draws the branches side by side and a head keeps a plain border`() {
     val u1 = agent("user1")
@@ -53,8 +86,9 @@ class EventGraphDiagramTest {
     var graph = EventGraph.createGraph()
     graph = graph.append(Event.createInsert(u1, 0, 0, "ab"), graph.version())
     val base = graph.version()
-    graph = graph.append(Event.createInsert(u1, 2, 2, "c"), base)
-    graph = graph.append(Event.createInsert(u1, 3, 3, "d"), graph.version())
+    // Neither "c" nor "d" starts at the end of the run before it, so each one is a run.
+    graph = graph.append(Event.createInsert(u1, 2, 1, "c"), base)
+    graph = graph.append(Event.createInsert(u1, 3, 1, "d"), graph.version())
     graph = graph.append(Event.createInsert(u2, 0, 2, "Z"), base)
     // The run of user2 has no child, so its lower border carries no join.
     assertEquals(
@@ -71,14 +105,14 @@ class EventGraphDiagramTest {
               │                  │
       ┌───────┴───────┐  ┌───────┴───────┐
       │ insert "c"    │  │ insert "Z"    │
-      │ offset 2      │  │ offset 2      │
+      │ offset 1      │  │ offset 2      │
       │ lv 2          │  │ lv 4          │
       │ agent "user1" │  │ agent "user2" │
       └───────┬───────┘  └───────────────┘
               │
       ┌───────┴───────┐
       │ insert "d"    │
-      │ offset 3      │
+      │ offset 1      │
       │ lv 3          │
       │ agent "user1" │
       └───────────────┘
@@ -94,10 +128,11 @@ class EventGraphDiagramTest {
     val root = Version.root()
     val shared = EventGraph.createGraph().append(Event.createInsert(u1, 0, 0, "a"), root)
     // One side makes a single edit while the other makes two, so the short side waits one
-    // row for its merge. Its column carries the line down beside the box it skips.
-    val shortSide = shared.append(Event.createInsert(u1, 1, 1, "b"), shared.version())
+    // row for its merge. Its column carries the line down beside the box it skips. No edit
+    // starts at the end of the run before it, so each edit is a run.
+    val shortSide = shared.append(Event.createInsert(u1, 1, 0, "b"), shared.version())
     var longSide = shared.append(Event.createInsert(u2, 0, 1, "X"), shared.version())
-    longSide = longSide.append(Event.createInsert(u2, 1, 2, "Y"), longSide.version())
+    longSide = longSide.append(Event.createInsert(u2, 1, 1, "Y"), longSide.version())
     val merged = shortSide.mergeFrom(longSide)
     assertEquals(
       """
@@ -113,14 +148,14 @@ class EventGraphDiagramTest {
               │                  │
       ┌───────┴───────┐  ┌───────┴───────┐
       │ insert "b"    │  │ insert "X"    │
-      │ offset 1      │  │ offset 1      │
+      │ offset 0      │  │ offset 1      │
       │ lv 1          │  │ lv 2          │
       │ agent "user1" │  │ agent "user2" │
       └───────┬───────┘  └───────┬───────┘
               │                  │
               │          ┌───────┴───────┐
               │          │ insert "Y"    │
-              │          │ offset 2      │
+              │          │ offset 1      │
               │          │ lv 3          │
               │          │ agent "user2" │
               │          └───────┬───────┘
@@ -188,8 +223,9 @@ class EventGraphDiagramTest {
   fun `a long history loses its middle and keeps the newest runs`() {
     val u = agent("u")
     var graph = EventGraph.createGraph()
+    // Every append inserts at the front, so no run extends the one before it.
     for (seq in 0 until 45) {
-      graph = graph.append(Event.createInsert(u, seq, seq, "x"), graph.version())
+      graph = graph.append(Event.createInsert(u, seq, 0, "x"), graph.version())
     }
     assertEquals(45, graph.runCount())
     val lines = graph .toString().lines()

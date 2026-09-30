@@ -101,7 +101,7 @@ class EventGraphTest {
     val merged = prefix.mergeFrom(whole)
     assertEquals("abcd", merged.replay().string())
     assertEquals(4, merged.size())
-    assertEquals(2, merged.runCount()) // "ab" plus the appended "cd" suffix
+    assertEquals(1, merged.runCount()) // the appended "cd" suffix extends the known "ab" run
     // The reverse direction knows every unit already, so nothing is appended.
     assertEquals(4, whole.mergeFrom(prefix).size())
     assertEquals(1, whole.mergeFrom(prefix).runCount())
@@ -119,20 +119,24 @@ class EventGraphTest {
     assertEquals("af", forward.replay().string())
     assertEquals("af", whole.mergeFrom(prefix).replay().string())
     assertEquals(10, forward.size())
-    assertEquals(3, forward.runCount()) // the insert, the known "bc" half, the appended "de" half
+    assertEquals(2, forward.runCount()) // the insert, and the known "bc" half that the "de" half extends
   }
 
   @Test
   fun `mergeFrom counts a prefix known as several pieces`() {
     val u = agent("u")
+    // A run of another agent comes between the two pieces, so "cd" cannot extend "ab".
     var pieces = EventGraph.createGraph()
     pieces = pieces.append(Event.createInsert(u, 0, 0, "ab"), pieces.version())
-    pieces = pieces.append(Event.createInsert(u, 2, 2, "cd"), pieces.version())
+    val afterAb = pieces.version()
+    pieces = pieces.append(Event.createInsert(agent("v"), 0, 2, "Z"), afterAb)
+    pieces = pieces.append(Event.createInsert(u, 2, 2, "cd"), afterAb)
     val whole = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "abcdef"), Version.root())
     val merged = pieces.mergeFrom(whole)
-    assertEquals("abcdef", merged.replay().string())
-    assertEquals(6, merged.size())
-    assertEquals(3, merged.runCount()) // "ab", "cd", and the appended "ef" suffix
+    assertEquals("abcdefZ", merged.replay().string())
+    assertEquals("abcdefZ", whole.mergeFrom(pieces).replay().string())
+    assertEquals(7, merged.size())
+    assertEquals(3, merged.runCount()) // "ab", "Z", and "cd" that the appended "ef" suffix extends
   }
 
   @Test
@@ -288,11 +292,14 @@ class EventGraphTest {
       assertThrows(IllegalArgumentException::class.java, { mine.mergeFrom(theirs) }, "$clash")
       assertThrows(IllegalArgumentException::class.java, { theirs.mergeFrom(mine) }, "$clash")
     }
-    // A different run cut over the same operations stays legal.
+    // A different run cut over the same operations stays legal. A run of another agent comes
+    // between the two units, so "b" cannot extend "a".
     var recut = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "a"), root)
-    recut = recut.append(Event.createInsert(u, 1, 1, "b"), recut.version())
-    assertEquals("ab", mine.mergeFrom(recut).replay().string())
-    assertEquals("ab", recut.mergeFrom(mine).replay().string())
+    val afterA = recut.version()
+    recut = recut.append(Event.createInsert(agent("v"), 0, 1, "Q"), afterA)
+    recut = recut.append(Event.createInsert(u, 1, 1, "b"), afterA)
+    assertEquals("abQ", mine.mergeFrom(recut).replay().string())
+    assertEquals("abQ", recut.mergeFrom(mine).replay().string())
     // A clash is caught whichever graph is further ahead, because the sample stops at the
     // end of the shared range and not at the end of either history.
     val ahead = mine.append(Event.createInsert(u, 2, 2, "c"), mine.version())
@@ -432,13 +439,14 @@ class EventGraphTest {
     val u = agent("u")
     val root = Version.root()
     val short = EventGraph.createGraph().append(Event.createInsert(u, 0, 0, "ab"), root)
-    val long = short.append(Event.createInsert(u, 2, 2, "cd"), short.version())
+    // "cd" goes to the front, so it cannot extend "ab" and stays a run of its own.
+    val long = short.append(Event.createInsert(u, 2, 0, "cd"), short.version())
     // Nothing new: the run count does not move.
     assertEquals(2, long.mergeFrom(long).runCount())
     assertEquals(1, short.mergeFrom(short).runCount())
     // One new run in one direction, none in the other.
     assertEquals(2, short.mergeFrom(long).runCount())
-    assertEquals("abcd", short.mergeFrom(long).replay().string())
+    assertEquals("cdab", short.mergeFrom(long).replay().string())
     assertEquals(2, long.mergeFrom(short).runCount())
     // An empty graph takes everything; an empty source brings nothing.
     assertEquals(2, EventGraph.createGraph().mergeFrom(long).runCount())
@@ -468,6 +476,9 @@ class EventGraphTest {
    * The delta merge binary searches the per-agent index twice: once for what this graph
    * knows, and once for the first entry that goes past it. Both land in the MIDDLE here, and
    * an off-by-one in either one hides on the short histories the other tests build.
+   *
+   * Every append inserts at the front, so no run extends the one before it, and the index
+   * gets one entry per append.
    */
   @Test
   fun `a merge finds the boundary inside a long per-agent history`() {
@@ -475,12 +486,12 @@ class EventGraphTest {
     val v = agent("v")
     var base = EventGraph.createGraph()
     repeat(HALF) { i ->
-      base = base.append(Event.createInsert(u, i, i, "a"), base.version())
+      base = base.append(Event.createInsert(u, i, 0, "a"), base.version())
     }
     // The same agent doubles its history, so the destination knows an exact middle prefix.
     var ahead = base
     repeat(HALF) { i ->
-      ahead = ahead.append(Event.createInsert(u, HALF + i, HALF + i, "b"), ahead.version())
+      ahead = ahead.append(Event.createInsert(u, HALF + i, 0, "b"), ahead.version())
     }
     // A second agent forks off the middle prefix, so the merge also has to place its runs.
     var side = base
@@ -492,7 +503,7 @@ class EventGraphTest {
     val caughtUp = base.mergeFrom(ahead)
     assertEquals(2 * HALF, caughtUp.size())
     assertEquals(2 * HALF, caughtUp.runCount())
-    assertEquals("a".repeat(HALF) + "b".repeat(HALF), caughtUp.replay().string())
+    assertEquals("b".repeat(HALF) + "a".repeat(HALF), caughtUp.replay().string())
     // The reverse direction knows it all already.
     assertEquals(2 * HALF, ahead.mergeFrom(base).size())
     assertEquals(2 * HALF, ahead.mergeFrom(base).runCount())
@@ -523,20 +534,24 @@ class EventGraphTest {
       base = base.append(Event.createInsert(u, i, 2 * i, "a"), base.version())
       base = base.append(Event.createInsert(v, i, 2 * i + 1, "B"), base.version())
     }
-    // The first append keeps the store tip. The second finds it taken, so it copies the
-    // prefix and replays all 20 entries into a fresh index.
+    // The first append closes the newest run of base into the store, at its tip. The second
+    // finds the tip taken, so it copies the prefix, replays its 19 entries into a fresh
+    // index, and closes the run there.
     val tip = base.append(Event.createInsert(u, 10, 20, "x"), base.version())
-    val copied = base.append(Event.createInsert(u, 10, 20, "y"), base.version())
+    var copied = base.append(Event.createInsert(u, 10, 20, "y"), base.version())
     assertEquals(21, tip.size())
     assertEquals(21, copied.size())
+    // A run of a third agent closes "y" into the copied store. So every question about u and v
+    // below reaches the rebuilt index, and the newest run answers none of them.
+    copied = copied.append(Event.createInsert(agent("w"), 0, 21, "W"), copied.version())
 
     // The rebuilt index answers every question an append and a merge ask of it.
-    assertEquals(22, copied.append(Event.createInsert(u, 11, 21, "z"), copied.version()).size())
-    assertEquals(22, copied.append(Event.createInsert(v, 10, 21, "C"), copied.version()).size())
+    assertEquals(23, copied.append(Event.createInsert(u, 11, 22, "z"), copied.version()).size())
+    assertEquals(23, copied.append(Event.createInsert(v, 10, 22, "C"), copied.version()).size())
     for (seq in intArrayOf(0, 5, 10)) {
       assertThrows(
         IllegalArgumentException::class.java,
-        { copied.append(Event.createInsert(u, seq, 21, "z"), copied.version()) },
+        { copied.append(Event.createInsert(u, seq, 22, "z"), copied.version()) },
         "seq $seq",
       )
     }
@@ -560,7 +575,7 @@ class EventGraphTest {
     val merged = dest.mergeFrom(src)
     assertEquals("abcdZ", merged.replay().string())
     assertEquals(5, merged.size())
-    assertEquals(3, merged.runCount()) // "ab", the appended "cd" suffix, and "Z"
+    assertEquals(2, merged.runCount()) // "ab" that the appended "cd" suffix extends, and "Z"
     assertEquals("abcdZ", src.mergeFrom(dest).replay().string())
   }
 

@@ -22,6 +22,11 @@ import java.util.concurrent.atomic.AtomicReference
  * KDoc argues that a reader of a published value is safe anyway. Nothing had ever executed
  * that argument concurrently, and these tests do.
  *
+ * The newest run of a value is not in the store. It lives in the value, and an append that
+ * extends it touches no shared state. The store receives the run only when an append that
+ * does not continue it closes it. So a test that must reach the store either types in bursts
+ * or inserts at the front, where no op continues the one before it.
+ *
  * Every assertion here holds whatever the scheduling, so a failure is a real defect and not
  * a flake. The one thing the tests cannot control is how much the threads overlap, so each
  * one also asserts that the work actually happened.
@@ -38,6 +43,9 @@ class EventStoreConcurrencyTest {
    * self-describing: its text must equal a from-scratch replay of its own graph, so a reader
    * needs no expectation from the writer. A torn store would break that, or fail a null
    * check on a run slot.
+   *
+   * The writer types in bursts. Inside a burst, a value differs from the one before only in
+   * its newest run. The first keystroke of each burst closes the run before it into the store.
    */
   @Test
   fun `a reader replays a published value while a writer appends`() {
@@ -48,15 +56,18 @@ class EventStoreConcurrencyTest {
       // writer to completion before it creates a reader thread, and the readers would then
       // drain a queue that nobody is still filling.
       val ready = CyclicBarrier(READERS + 1)
-      val writer = pool.submit {
+      val writer = pool.submit<DocBranch> {
         var branch = DocBranch.createBranch("", agent("writer"))
         ready.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        repeat(APPENDS) {
-          branch = branch.applyOp(insertOp(branch.length(), "x"))
+        var caret = 0
+        repeat(APPENDS) { op ->
+          caret = if (op % BURST == 0) 0 else caret + 1
+          branch = branch.applyOp(insertOp(caret, "x"))
           // The queue publishes the value safely: a reader cannot see a half-built store.
           published.add(branch)
         }
         writing.set(false)
+        branch
       }
       val readers = List(READERS) {
         pool.submit<Int> {
@@ -74,10 +85,12 @@ class EventStoreConcurrencyTest {
           verified
         }
       }
-      writer.await()
+      val written = writer.await()
       // Every published value was polled by exactly one reader, so the counts must add up.
       // This is what keeps the test from passing without doing anything.
       assertEquals(APPENDS, readers.sumOf { it.await() })
+      // Each burst made one run: the writer coalesced, and the store grew.
+      assertEquals(APPENDS / BURST, written.graph().runCount())
     }
   }
 
@@ -85,6 +98,9 @@ class EventStoreConcurrencyTest {
    * A reader holds an OLD value and replays it out of a graph that keeps growing over the
    * same store. This is the harder read: the old version names lvs, and the graph that
    * answers for them has a larger size and a run array that the writer may have replaced.
+   *
+   * The writer's first burst continues the run that the old value ends in. So the old version
+   * names a unit inside a run that keeps growing, and that run later closes into the store.
    */
   @Test
   fun `a past version replays while the store grows`() {
@@ -113,8 +129,10 @@ class EventStoreConcurrencyTest {
         var branch = past
         ready.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         smallReads.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        repeat(APPENDS) {
-          branch = branch.applyOp(insertOp(branch.length(), "x"))
+        var caret = past.length() - 1
+        repeat(APPENDS) { op ->
+          caret = if (op > 0 && op % BURST == 0) 0 else caret + 1
+          branch = branch.applyOp(insertOp(caret, "x"))
           current.set(branch)
         }
         grownReads.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -155,6 +173,8 @@ class EventStoreConcurrencyTest {
       // The writer finished its whole run, and the fences make every reader see at least the
       // small size and the grown one.
       assertEquals(past.length() + APPENDS, grown.length())
+      // The first burst joined the run of the old value, and every later burst made one run.
+      assertEquals(APPENDS / BURST, grown.graph().runCount())
       assertTrue(sizesSeen >= 2 * READERS) { "the readers saw only $sizesSeen graph sizes" }
       // Deterministic close: the past version still replays out of the final, larger graph.
       assertEquals(pastText, grown.graph().replay(pastVersion).string())
@@ -178,11 +198,7 @@ class EventStoreConcurrencyTest {
         // the race window on many rounds. That replaces the array under a copy in flight,
         // which is the worst case the store's argument has to survive.
         val baseOps = MIN_BASE_OPS + round % BASE_OPS_SWEEP
-        var base = DocBranch.createBranch("", agent("base"))
-        repeat(baseOps) {
-          base = base.applyOp(insertOp(base.length(), "o"))
-        }
-        val shared = base
+        val shared = baseOfRuns(baseOps)
         // The barrier lines the writers up, so the first append of each one collides. The
         // winner then keeps appending while the losers copy the prefix.
         val barrier = CyclicBarrier(WRITERS)
@@ -230,11 +246,7 @@ class EventStoreConcurrencyTest {
     withPool(WRITERS) { pool ->
       repeat(MERGE_ROUNDS) { round ->
         val baseOps = MIN_BASE_OPS + round % BASE_OPS_SWEEP
-        var base = DocBranch.createBranch("", agent("base"))
-        repeat(baseOps) {
-          base = base.applyOp(insertOp(base.length(), "o"))
-        }
-        val shared = base
+        val shared = baseOfRuns(baseOps)
         // One concurrent edit per thread. Building these already moves the store tip away
         // from `shared`, so every merge below has to copy the prefix.
         val sources = List(WRITERS) { i ->
@@ -326,6 +338,65 @@ class EventStoreConcurrencyTest {
     }
   }
 
+  /**
+   * Writers that share one value type in bursts, each under its own agent. A keystroke inside
+   * a burst extends the writer's own newest run and touches no shared state. The first keystroke
+   * of the next burst closes that run into the store, and there the writers race for the tip.
+   *
+   * Every past value of a writer must still replay to its text out of the writer's final
+   * graph. That covers a version inside a run, both while the run grows and after it closes.
+   */
+  @Test
+  fun `writers that type in bursts keep valid histories and converge`() {
+    withPool(WRITERS) { pool ->
+      repeat(BURST_ROUNDS) { round ->
+        val baseOps = MIN_BASE_OPS + round % BASE_OPS_SWEEP
+        val shared = baseOfRuns(baseOps)
+        val barrier = CyclicBarrier(WRITERS)
+        val results = List(WRITERS) { writer ->
+          pool.submit<DocBranch> {
+            var branch = shared.fork(agent("w$writer"))
+            val past = ArrayList<Pair<Version, String>>()
+            var caret = 0
+            barrier.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            repeat(BURST_OPS_PER_WRITER) { op ->
+              caret = if (op % WRITER_BURST == 0) 0 else caret + 1
+              branch = branch.applyOp(insertOp(caret, "$writer"))
+              past.add(branch.graph().version() to branch.string())
+            }
+            val graph = branch.graph()
+            for ((version, text) in past) {
+              assertEquals(text, graph.replay(version).string()) { "round $round, writer $writer at $version" }
+            }
+            branch
+          }
+        }.map { it.await() }
+
+        // Each burst made one run on top of the base, so every writer coalesced.
+        for ((writer, branch) in results.withIndex()) {
+          assertEquals(baseOps + BURST_OPS_PER_WRITER / WRITER_BURST, branch.graph().runCount()) { "round $round, writer $writer" }
+        }
+        val forward = results.reduce { left, right -> left.merge(right) }
+        val backward = results.reversed().reduce { left, right -> left.merge(right) }
+        assertEquals(forward.string(), backward.string()) { "round $round" }
+        assertEquals(forward.graph().replay().string(), forward.string()) { "round $round" }
+        assertEquals(baseOps + WRITERS * BURST_OPS_PER_WRITER, forward.length()) { "round $round" }
+      }
+    }
+  }
+
+  /**
+   * A base of [ops] runs. Every op inserts at the front, so no op extends the run before it,
+   * and the run count, not only the length, sweeps with [ops].
+   */
+  private fun baseOfRuns(ops: Int): DocBranch {
+    var base = DocBranch.createBranch("", agent("base"))
+    repeat(ops) {
+      base = base.applyOp(insertOp(0, "o"))
+    }
+    return base
+  }
+
   private fun <T> Future<T>.await(): T {
     return get(TIMEOUT_SECONDS, TimeUnit.SECONDS)
   }
@@ -345,7 +416,14 @@ class EventStoreConcurrencyTest {
     const val REPLICAS = 6
 
     /** The writer's op count. It bounds the replay work, which grows with the history. */
-    const val APPENDS = 300
+    const val APPENDS = 600
+
+    /**
+     * The keystrokes of one burst in the reader tests. A burst makes one run, and the next one
+     * closes it. So the writer still closes 300 runs into the store, and its run array crosses
+     * five capacity doublings while the readers read.
+     */
+    const val BURST = 2
 
     const val ROUNDS = 300
 
@@ -357,6 +435,11 @@ class EventStoreConcurrencyTest {
     const val OPS_PER_WRITER = 8
 
     const val MERGE_ROUNDS = 60
+
+    /** The rounds of the burst test, the keystrokes of one burst, and those of one writer. */
+    const val BURST_ROUNDS = 100
+    const val WRITER_BURST = 10
+    const val BURST_OPS_PER_WRITER = 4 * WRITER_BURST
 
     /** The gossip rounds, and the edit-or-pull steps each replica takes in one round. */
     const val GOSSIP_ROUNDS = 25

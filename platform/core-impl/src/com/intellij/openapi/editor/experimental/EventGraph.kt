@@ -11,7 +11,8 @@ import com.intellij.openapi.editor.impl.experimental.EventGraphImpl
  * this one untouched. Successive graphs share storage, so an append at the tip is cheap.
  *
  * The storage is run-length encoded: one [Event] run of n characters costs one entry,
- * not n. Adjacent runs never coalesce yet, which is a follow-up optimization.
+ * not n. An [append] that continues the newest run extends it, so typing costs one run per
+ * burst and not one per keystroke.
  */
 interface EventGraph {
   /** The number of single-character operations in the graph, summed over all runs. */
@@ -32,6 +33,18 @@ interface EventGraph {
    * one agent ascend and leave no gap, which keeps the rule that one (agent, seq) pair names
    * one unit forever, and lets [mergeFrom] compare two histories by agent instead of by run.
    * Each agent owns its own seq space, so two agents interleave freely.
+   *
+   * When [event] continues the newest run, the append extends that run and adds none. The
+   * event continues the run when all of these hold:
+   * - it has the same agent, and its seq is the next one after the run;
+   * - [parents] names the last unit of the run and nothing else;
+   * - it has the same kind of op, and the op starts where the next unit of the run would
+   *   edit: at the end of an insert, or at the offset of a delete;
+   * - an insert run stays within [MAX_COALESCED_INSERT] characters.
+   *
+   * The units, their ids, and their parents are the same either way, so only [runCount] shows
+   * the difference. A backspace does not continue a delete run, because its units walk
+   * backwards.
    */
   fun append(event: Event, parents: Version): EventGraph
 
@@ -57,6 +70,13 @@ interface EventGraph {
   fun replay(): DocText = replay(version())
 
   companion object {
+    /**
+     * The longest insert run that [append] builds by extending the newest run. Each extension
+     * copies the fragment of the run, and this bounds that copy. One [Event] may still be
+     * longer, and nothing then extends it.
+     */
+    const val MAX_COALESCED_INSERT: Int = 256
+
     fun createGraph(): EventGraph = EventGraphImpl.empty()
   }
 }

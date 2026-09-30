@@ -211,14 +211,15 @@ class DocBranchTest {
   @Test
   fun `a fork from a stale value mints fresh seqs`() {
     val base = DocBranch.createBranch("xy", agent("a"))
-    // The abandoned fork extends the shared store beyond the base's own size.
-    val abandoned = base.fork(agent("b")).applyOp(insertOp(0, "A"))
+    // The abandoned fork makes two runs, so its first run lands in the shared store beyond the
+    // base's own size. A single run would stay in the fork's own value.
+    val abandoned = base.fork(agent("b")).applyOp(insertOp(0, "A")).applyOp(insertOp(0, "Z"))
     // A fork of the same agent from the stale base must not see those units.
     val fork = base.fork(agent("b")).applyOp(insertOp(2, "B"))
     assertEquals("xyB", fork.string())
     assertEquals("xyB", base.merge(fork).string())
     // The abandoned branch stays intact; it is never merged with its twin.
-    assertEquals("Axy", abandoned.string())
+    assertEquals("ZAxy", abandoned.string())
   }
 
   @Test

@@ -1,0 +1,350 @@
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.openapi.editor.experimental
+
+import com.intellij.testFramework.PerformanceUnitTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.util.Random
+
+/**
+ * A benchmark, not a regression test: it measures what tip coalescing buys and what it costs.
+ *
+ * Every scenario builds one editing session twice, from the same ops. The `coalesced` history
+ * appends every op under one agent, so a burst of typing extends one run. The `control` history
+ * lets two agents take turns, so no op extends the run before it. The ops, the units, and the
+ * text are the same in both, and only the run count differs. So the ratio of the two rows is the
+ * effect of coalescing, and it compares two rows of one run.
+ *
+ * Every time is the best of [TIMED_RUNS] runs after [WARMUP_RUNS] warm-up runs. A single timing
+ * is worthless on a busy machine; see [ReplayPerformanceTest]. The heap figure is the growth of
+ * `totalMemory() - freeMemory()` across three `gc()` requests. So it is a hint of the retained
+ * size, and not a measurement of it.
+ */
+@PerformanceUnitTest
+class TipCoalescingPerformanceTest {
+
+  /**
+   * A typing session in the shape of a real editing trace: typing bursts at a caret, backspace
+   * and Delete-key bursts, caret jumps, and pastes. It measures the append of every op, a full
+   * replay of the history, and the heap that the history holds.
+   */
+  @Test
+  fun `a typing session appends, replays, and holds the heap`() {
+    val session = Session.generate(Random(20260930), SESSION_OPS)
+    println("=== a typing session: ${session.size()} ops over ${session.startText.length} chars ===")
+    println("  %-10s %9s %10s %11s %10s %10s".format("history", "runs", "units/run", "append", "replay", "heap"))
+
+    val before = heapInUse()
+    val coalesced = session.graph(sharedAgent = true)
+    val afterCoalesced = heapInUse()
+    val control = session.graph(sharedAgent = false)
+    val afterControl = heapInUse()
+
+    val expected = session.endText()
+    assertEquals(expected, coalesced.replay().string())
+    assertEquals(expected, control.replay().string())
+    assertTrue(coalesced.runCount() < control.runCount())
+
+    val appendCoalesced = bestOf { session.graph(sharedAgent = true) }
+    val appendControl = bestOf { session.graph(sharedAgent = false) }
+    val replayCoalesced = bestOf { coalesced.replay() }
+    val replayControl = bestOf { control.replay() }
+    val heapCoalesced = afterCoalesced - before
+    val heapControl = afterControl - afterCoalesced
+    printRow("coalesced", coalesced, appendCoalesced, replayCoalesced, heapCoalesced)
+    printRow("control", control, appendControl, replayControl, heapControl)
+    println(
+      "  %-10s %8.1fx %10s %10.2fx %9.2fx %8.1fx".format(
+        "gain", control.runCount().toDouble() / coalesced.runCount(), "",
+        appendControl / appendCoalesced, replayControl / replayCoalesced,
+        heapControl.toDouble() / maxOf(1, heapCoalesced),
+      )
+    )
+    println()
+  }
+
+  /**
+   * Two users type one session each, concurrently, over one base text, and then merge. The merge
+   * replays only the concurrent region, and the region holds fewer runs when bursts coalesce.
+   *
+   * Every timed merge after the first also copies the run prefix of the left history. The first
+   * merge took the store tip, and the merge must close the left tail into the store. That copy
+   * costs per run too, so it belongs in the gain, but it is not only the replay.
+   */
+  @Test
+  fun `a merge of two concurrent typing sessions`() {
+    val random = Random(20260930)
+    val left = Session.generate(random, MERGE_OPS)
+    val right = Session.generate(random, MERGE_OPS, left.startText)
+    println("=== a merge of two sessions of $MERGE_OPS ops each ===")
+    println("  %-10s %9s %10s".format("history", "runs", "merge"))
+    var coalescedMillis = 0.0
+    for (sharedAgent in booleanArrayOf(true, false)) {
+      val base = DocBranch.createBranch(left.startText, agent("base"))
+      val leftBranch = left.branch(base, "left", sharedAgent)
+      val rightBranch = right.branch(base, "right", sharedAgent)
+      val merged = leftBranch.merge(rightBranch)
+      val expected = merged.string()
+      assertEquals(expected, rightBranch.merge(leftBranch).string())
+      val millis = bestOf {
+        assertEquals(expected.length, leftBranch.merge(rightBranch).length())
+      }
+      println("  %-10s %9d %8.1f ms".format(if (sharedAgent) "coalesced" else "control", merged.graph().runCount(), millis))
+      if (sharedAgent) {
+        coalescedMillis = millis
+      } else {
+        println("  %-10s %9s %9.2fx".format("gain", "", millis / coalescedMillis))
+      }
+    }
+    println()
+  }
+
+  /**
+   * The cost of one keystroke, by the length of the burst it belongs to. An extension copies
+   * the fragment of the run, so a longer burst copies more per keystroke, up to
+   * [EventGraph.MAX_COALESCED_INSERT] characters. The last row types right after a paste
+   * of [PASTE_LENGTH] characters, which no keystroke may extend.
+   */
+  @Test
+  fun `a keystroke costs a bounded copy`() {
+    println("=== one keystroke, by the burst it belongs to, $KEYSTROKES keystrokes ===")
+    println("  %-18s %9s %12s %12s %9s".format("burst", "runs", "coalesced", "control", "ratio"))
+    for (burst in BURST_LENGTHS) {
+      keystrokeRow("$burst chars", burst, pasteLength = 0)
+    }
+    keystrokeRow("after a paste", KEYSTROKES, PASTE_LENGTH)
+    println()
+  }
+
+  private fun keystrokeRow(label: String, burst: Int, pasteLength: Int) {
+    fun build(sharedAgent: Boolean): EventGraph {
+      val typist = Typist(sharedAgent)
+      if (pasteLength > 0) {
+        typist.insert(0, "p".repeat(pasteLength))
+      }
+      // The first keystroke types at the end of the paste. Every later burst starts with a jump
+      // to the front, which ends the run before it.
+      var caret = pasteLength - 1
+      for (keystroke in 0 until KEYSTROKES) {
+        caret = if (keystroke > 0 && keystroke % burst == 0) 0 else caret + 1
+        typist.insert(caret, "k")
+      }
+      return typist.graph()
+    }
+    val runs = build(sharedAgent = true).runCount()
+    val coalesced = bestOf { build(sharedAgent = true) }
+    val control = bestOf { build(sharedAgent = false) }
+    println(
+      "  %-18s %9d %9.0f ns %9.0f ns %8.2fx".format(
+        label, runs, coalesced * 1_000_000 / KEYSTROKES, control * 1_000_000 / KEYSTROKES, control / coalesced,
+      )
+    )
+  }
+
+  private fun printRow(label: String, graph: EventGraph, append: Double, replay: Double, heap: Long) {
+    println(
+      "  %-10s %9d %10.1f %8.1f ms %7.1f ms %7d KB".format(
+        label, graph.runCount(), graph.size().toDouble() / graph.runCount(), append, replay, heap / 1024,
+      )
+    )
+  }
+
+  /** The best time of [action], in milliseconds, over [TIMED_RUNS] runs after the warm-up. */
+  private fun bestOf(action: () -> Unit): Double {
+    repeat(WARMUP_RUNS) {
+      action()
+    }
+    var best = Long.MAX_VALUE
+    repeat(TIMED_RUNS) {
+      val start = System.nanoTime()
+      action()
+      best = minOf(best, System.nanoTime() - start)
+    }
+    return best / 1_000_000.0
+  }
+
+  private fun heapInUse(): Long {
+    val runtime = Runtime.getRuntime()
+    repeat(3) {
+      runtime.gc()
+    }
+    return runtime.totalMemory() - runtime.freeMemory()
+  }
+
+  /**
+   * Appends at the graph's own version. With [sharedAgent] every op goes under one agent;
+   * without it two agents take turns, so no op can extend the run before it.
+   */
+  private class Typist(private val sharedAgent: Boolean) {
+    private var graph = EventGraph.createGraph()
+    private val seqs = IntArray(AUTHORS.size)
+    private var ops = 0
+
+    fun graph(): EventGraph {
+      return graph
+    }
+
+    fun insert(offset: Int, fragment: CharSequence) {
+      val author = nextAuthor()
+      graph = graph.append(Event.createInsert(AUTHORS[author], takeSeqs(author, fragment.length), offset, fragment), graph.version())
+    }
+
+    fun delete(offset: Int, length: Int) {
+      val author = nextAuthor()
+      graph = graph.append(Event.createDelete(AUTHORS[author], takeSeqs(author, length), offset, length), graph.version())
+    }
+
+    private fun nextAuthor(): Int {
+      val author = if (sharedAgent) 0 else ops % AUTHORS.size
+      ops++
+      return author
+    }
+
+    private fun takeSeqs(author: Int, count: Int): Int {
+      val seq = seqs[author]
+      seqs[author] += count
+      return seq
+    }
+  }
+
+  /**
+   * One editing session as plain data, so that both histories replay the same ops and share no
+   * object with each other. An insert names its text as a range of [typed].
+   */
+  private class Session private constructor(
+    val startText: String,
+    private val typed: String,
+    private val kinds: IntArray,
+    private val offsets: IntArray,
+    private val lengths: IntArray,
+    private val textStarts: IntArray,
+  ) {
+    fun size(): Int {
+      return kinds.size
+    }
+
+    /** The session appended to a graph that starts with [startText]. */
+    fun graph(sharedAgent: Boolean): EventGraph {
+      val typist = Typist(sharedAgent)
+      typist.insert(0, startText)
+      for (i in kinds.indices) {
+        if (kinds[i] == INSERT) {
+          typist.insert(offsets[i], typed.subSequence(textStarts[i], textStarts[i] + lengths[i]).toString())
+        } else {
+          typist.delete(offsets[i], lengths[i])
+        }
+      }
+      return typist.graph()
+    }
+
+    /** The session applied to a fork of [base]. Without [sharedAgent], two agents take turns. */
+    fun branch(base: DocBranch, name: String, sharedAgent: Boolean): DocBranch {
+      val authors = arrayOf(agent("$name-a"), agent("$name-b"))
+      var branch = base.fork(authors[0])
+      for (i in kinds.indices) {
+        if (!sharedAgent) {
+          branch = branch.fork(authors[i % 2])
+        }
+        val op = if (kinds[i] == INSERT) {
+          DocOp.ins(offsets[i], typed.subSequence(textStarts[i], textStarts[i] + lengths[i]).toString())
+        } else {
+          DocOp.del(offsets[i], lengths[i])
+        }
+        branch = branch.applyOp(op)
+      }
+      return branch
+    }
+
+    fun endText(): String {
+      val text = StringBuilder(startText)
+      for (i in kinds.indices) {
+        if (kinds[i] == INSERT) {
+          text.insert(offsets[i], typed, textStarts[i], textStarts[i] + lengths[i])
+        } else {
+          text.delete(offsets[i], offsets[i] + lengths[i])
+        }
+      }
+      return text.toString()
+    }
+
+    companion object {
+      private const val INSERT = 0
+      private const val DELETE = 1
+
+      /**
+       * A session of [ops] ops. The weights follow the real traces that the coalescing design
+       * measured: mostly typing bursts, then backspaces, jumps, Delete-key bursts, and pastes.
+       */
+      fun generate(random: Random, ops: Int, startText: String = randomText(random, START_LENGTH)): Session {
+        val typed = StringBuilder()
+        val kinds = IntArray(ops)
+        val offsets = IntArray(ops)
+        val lengths = IntArray(ops)
+        val textStarts = IntArray(ops)
+        var length = startText.length
+        var caret = 0
+        var op = 0
+        fun add(kind: Int, offset: Int, count: Int) {
+          kinds[op] = kind
+          offsets[op] = offset
+          lengths[op] = count
+          textStarts[op] = typed.length
+          op++
+        }
+        while (op < ops) {
+          when (random.nextInt(20)) {
+            in 0..10 -> repeat(minOf(1 + random.nextInt(40), ops - op)) {
+              add(INSERT, caret, 1)
+              typed.append(ALPHABET[random.nextInt(ALPHABET.length)])
+              caret++
+              length++
+            }
+            in 11..13 -> repeat(minOf(1 + random.nextInt(8), caret, ops - op)) {
+              caret--
+              add(DELETE, caret, 1)
+              length--
+            }
+            14 -> repeat(minOf(1 + random.nextInt(8), length - caret, ops - op)) {
+              add(DELETE, caret, 1)
+              length--
+            }
+            in 15..18 -> caret = random.nextInt(length + 1)
+            else -> {
+              val paste = randomText(random, 20 + random.nextInt(200))
+              add(INSERT, caret, paste.length)
+              typed.append(paste)
+              caret += paste.length
+              length += paste.length
+            }
+          }
+        }
+        return Session(startText, typed.toString(), kinds, offsets, lengths, textStarts)
+      }
+
+      private fun randomText(random: Random, length: Int): String {
+        val text = StringBuilder(length)
+        repeat(length) {
+          text.append(ALPHABET[random.nextInt(ALPHABET.length)])
+        }
+        return text.toString()
+      }
+    }
+  }
+
+  private companion object {
+    val AUTHORS = arrayOf(agent("user"), agent("other"))
+
+    const val SESSION_OPS = 20_000
+    const val MERGE_OPS = 4_000
+    const val START_LENGTH = 2_000
+    const val ALPHABET = "abcdefghijklmnopqrstuvwxyz    \n"
+
+    const val KEYSTROKES = 65_536
+    val BURST_LENGTHS = intArrayOf(16, EventGraph.MAX_COALESCED_INSERT, 4_096)
+    const val PASTE_LENGTH = 1_000_000
+
+    const val WARMUP_RUNS = 3
+    const val TIMED_RUNS = 5
+  }
+}

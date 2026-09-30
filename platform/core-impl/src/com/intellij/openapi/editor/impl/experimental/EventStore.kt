@@ -7,9 +7,10 @@ import com.intellij.openapi.editor.experimental.Agent
  * The shared append-only storage behind [EventGraphImpl] values, run-length encoded:
  * one slot per [StoredRun], not per character.
  *
- * Successive graphs of one linear chain share one store; each graph sees the run
- * prefix that covers its first `size` lvs. When a graph that is not the tip appends,
- * the store copies that prefix into a new store, so the old chain stays untouched.
+ * Successive graphs of one linear chain share one store; each graph sees the run prefix that
+ * covers its closed lvs. A graph keeps its newest run out of the store, because that run can
+ * still grow (see [EventGraphImpl]). A graph that is not the tip may close that run into the
+ * store. The store then copies the prefix into a new store, so the old chain stays untouched.
  *
  * Thread safety: appends and the per-agent id index synchronize on this store. Reads of
  * committed run slots do not synchronize. Three facts make that safe. A slot is written
@@ -125,9 +126,10 @@ internal class EventStore private constructor(
    * hold none. The entries ascend by seqStart AND by lvStart and leave no gap, so the last
    * visible entry holds the greatest seq.
    *
-   * A graph's size is always a run boundary, because every append adds a whole run and
-   * [copyPrefix] copies whole runs. So [lvLimit] never cuts an entry in half, and visibility
-   * is a property of the whole entry. That is what makes this a binary search.
+   * A graph passes its closed size as [lvLimit], and that is always a run boundary. The store
+   * receives only whole runs that no longer grow, and [copyPrefix] copies whole runs. So
+   * [lvLimit] never cuts an entry in half, and visibility is a property of the whole entry.
+   * That is what makes this a binary search.
    */
   private fun endSeqBelow(list: ArrayList<AgentRun>, lvLimit: LV): Int {
     var lo = 0

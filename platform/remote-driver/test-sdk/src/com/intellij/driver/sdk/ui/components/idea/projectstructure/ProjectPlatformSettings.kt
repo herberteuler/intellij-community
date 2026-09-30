@@ -2,7 +2,9 @@ package com.intellij.driver.sdk.ui.components.idea.projectstructure
 
 import com.intellij.driver.sdk.ui.components.ComponentData
 import com.intellij.driver.sdk.ui.components.UiComponent
+import com.intellij.driver.sdk.ui.components.common.editorTabs
 import com.intellij.driver.sdk.ui.components.elements.JTreeUiComponent
+import com.intellij.driver.sdk.ui.components.elements.table
 import com.intellij.driver.sdk.ui.components.elements.textField
 import com.intellij.driver.sdk.ui.components.elements.tree
 import com.intellij.driver.sdk.ui.components.idea.ProjectStructureUI
@@ -41,6 +43,28 @@ class ModuleSettingsSectionUI(data: ComponentData) : UiComponent(data) {
     if (expand) tree.expandAll()
     return tree
   }
+
+  private val tabsSection = editorTabs("//div[@class='JBEditorTabs']")
+
+  fun openSection(section: Section) {
+    tabsSection.x { and(byClass("TabLabel"), contains(byAccessibleName(section.title))) }.click()
+  }
+
+  //Dependencies section
+  fun getCurrentDependencies(): List<Dependency> {
+    return tabsSection.table().content().values.map { it.values.toList() }
+      .apply { check(size == 3) { "Expected amount of columns:[3], actual [$size]." } }
+      .map { Dependency(it[1], it[2]) }
+  }
+
+  data class Dependency(val name: String, val scope: String)
+
+  enum class Section(val title: String) {
+    SOURCES("Sources"),
+    PATHS("Paths"),
+    DEPENDENCIES("Dependencies")
+  }
+
 }
 
 class FacetsSettingsSectionUI(data: ComponentData) : UiComponent(data) {

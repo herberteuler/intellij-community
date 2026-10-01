@@ -26,12 +26,12 @@ internal class EgWalkerReplayTest {
     val b = base.fork(Agent.createAgent("b")).applyOp(DocTextOp.deleteOp(5, 1))
     val merged = EventGraphImpl.implOf(a.graph()).mergeFromImpl(EventGraphImpl.implOf(b.graph())).graph()
     val failure = assertThrows(IllegalArgumentException::class.java) {
-      EgWalkerReplay.mergeInto(merged, VersionImpl(intArrayOf(7)), BatchingSink(b.text()))
+      EgWalkerReplay.mergeInto(merged, LvVersion(intArrayOf(7)), BatchingSink(b.text()))
     }
     assertTrue(failure.message.orEmpty().contains("do not all sit above"), failure.message)
     // The direction that a merge uses works on the same graph.
     val sink = BatchingSink(a.text())
-    EgWalkerReplay.mergeInto(merged, EventGraphImpl.implOf(a.graph()).versionImpl(), sink)
+    EgWalkerReplay.mergeInto(merged, EventGraphImpl.implOf(a.graph()).lvVersion(), sink)
     assertEquals("bcde", sink.result().string())
   }
 }

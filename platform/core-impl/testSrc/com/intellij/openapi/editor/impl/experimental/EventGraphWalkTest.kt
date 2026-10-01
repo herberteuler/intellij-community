@@ -24,14 +24,14 @@ internal class EventGraphWalkTest {
     val agents = (0 until 3).map { Agent.createAgent("agent$it") }
     repeat(ROUNDS) { round ->
       var graph = EventGraphImpl.empty()
-      val versions = arrayListOf(VersionImpl.ROOT)
+      val versions = arrayListOf(LvVersion.ROOT)
       repeat(1 + random.nextInt(25)) {
         val agent = agents[random.nextInt(agents.size)]
         val parents = randomParents(random, graph, versions)
         val text = "x".repeat(1 + random.nextInt(4))
         val event = Event.createInsert(agent, graph.nextSeqFor(agent), continuingOffset(graph, agent, parents), text)
         graph = graph.appendAt(event, parents)
-        versions.add(graph.versionImpl())
+        versions.add(graph.lvVersion())
       }
       repeat(PAIRS) {
         val a = randomVersion(random, graph, versions)
@@ -43,8 +43,8 @@ internal class EventGraphWalkTest {
 
   private fun checkWalks(
     graph: EventGraphImpl,
-    a: VersionImpl,
-    b: VersionImpl,
+    a: LvVersion,
+    b: LvVersion,
     where: () -> String,
   ) {
     val eventsA = graph.eventsOf(a)
@@ -73,7 +73,7 @@ internal class EventGraphWalkTest {
       var lv = all.nextSetBit(0)
       while (lv >= 0) {
         if (!ancestor.get(lv)) {
-          ancestor.and(graph.eventsOf(VersionImpl(intArrayOf(lv))))
+          ancestor.and(graph.eventsOf(LvVersion(intArrayOf(lv))))
         }
         lv = all.nextSetBit(lv + 1)
       }
@@ -87,14 +87,14 @@ internal class EventGraphWalkTest {
   private fun randomParents(
     random: Random,
     graph: EventGraphImpl,
-    versions: List<VersionImpl>,
-  ): VersionImpl {
+    versions: List<LvVersion>,
+  ): LvVersion {
     if (graph.size() == 0) {
-      return VersionImpl.ROOT
+      return LvVersion.ROOT
     }
     return when (random.nextInt(4)) {
-      0 -> graph.versionImpl()
-      1 -> VersionImpl(intArrayOf(random.nextInt(graph.size())))
+      0 -> graph.lvVersion()
+      1 -> LvVersion(intArrayOf(random.nextInt(graph.size())))
       2 -> {
         val one = versions[random.nextInt(versions.size)]
         val other = versions[random.nextInt(versions.size)]
@@ -107,8 +107,8 @@ internal class EventGraphWalkTest {
   private fun randomVersion(
     random: Random,
     graph: EventGraphImpl,
-    versions: List<VersionImpl>,
-  ): VersionImpl {
+    versions: List<LvVersion>,
+  ): LvVersion {
     if (graph.size() == 0 || random.nextInt(3) != 0) {
       return versions[random.nextInt(versions.size)]
     }
@@ -118,7 +118,7 @@ internal class EventGraphWalkTest {
   /**
    * The offset that extends the tail when [agent] owns it and [parents] names its last unit, else 0.
    */
-  private fun continuingOffset(graph: EventGraphImpl, agent: Agent, parents: VersionImpl): Int {
+  private fun continuingOffset(graph: EventGraphImpl, agent: Agent, parents: LvVersion): Int {
     val last = graph.size() - 1
     if (last < 0 || !parents.lvs.contentEquals(intArrayOf(last))) {
       return 0
@@ -131,16 +131,17 @@ internal class EventGraphWalkTest {
   /**
    * The heads among [lvs]: every lv that is no ancestor of another one.
    */
-  private fun reduced(graph: EventGraphImpl, lvs: List<Int>): VersionImpl {
+  private fun reduced(graph: EventGraphImpl, lvs: List<Int>): LvVersion {
     val distinct = lvs.toSortedSet()
     val heads = distinct.filter { lv ->
-      distinct.none { other -> other != lv && graph.eventsOf(VersionImpl(intArrayOf(other))).get(lv) }
+      distinct.none { other -> other != lv && graph.eventsOf(LvVersion(intArrayOf(other))).get(lv) }
     }
-    return VersionImpl(heads.toIntArray())
+    return LvVersion(heads.toIntArray())
   }
 
-  private fun EventGraphImpl.appendAt(event: Event, parents: VersionImpl): EventGraphImpl {
-    return EventGraphImpl.implOf(append(event, parents))
+  private fun EventGraphImpl.appendAt(event: Event, parents: LvVersion): EventGraphImpl {
+    val parentIds = VersionImpl.fromLvVersion(this, parents)
+    return EventGraphImpl.implOf(append(event, parentIds))
   }
 
   private fun bitsOf(ranges: LvRanges): BitSet {

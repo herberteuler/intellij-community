@@ -31,6 +31,12 @@ interface DocBranch {
   fun text(): DocText
 
   /**
+   * The version of [text]. Under the agent contract, it stays valid in every branch that merges
+   * this one, and a replay of it there returns [text].
+   */
+  fun version(): Version
+
+  /**
    * A branch with [op] applied at this branch's version: the same edit as [DocText.applyOp].
    */
   fun applyOp(op: DocTextOp): DocBranch

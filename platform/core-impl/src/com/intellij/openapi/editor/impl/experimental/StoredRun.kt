@@ -142,7 +142,7 @@ internal class StoredRun(
    * An insert run grows only up to [EventGraph.MAX_COALESCED_INSERT] characters, because each
    * extension copies the fragment.
    */
-  fun tryAppend(next: EventImpl, parents: VersionImpl): StoredRun? {
+  fun tryAppend(next: EventImpl, parents: LvVersion): StoredRun? {
     val continuesId = next.agent() == event.agent() && next.seq() == endSeq()
     if (!isOnlyParent(parents) || !continuesId) {
       return null
@@ -168,7 +168,7 @@ internal class StoredRun(
   /**
    * Whether [parents] names the last unit of this run and nothing else.
    */
-  private fun isOnlyParent(parents: VersionImpl): Boolean {
+  private fun isOnlyParent(parents: LvVersion): Boolean {
     val lvs = parents.lvs
     return lvs.size == 1 && lvs[0] == lvEnd() - 1
   }

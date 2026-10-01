@@ -2,6 +2,7 @@
 package com.intellij.openapi.editor.experimental
 
 import com.intellij.openapi.editor.impl.experimental.LV
+import com.intellij.openapi.editor.impl.experimental.LvNamedVersion
 import com.intellij.openapi.editor.impl.experimental.VersionImpl
 import org.jetbrains.annotations.TestOnly
 
@@ -12,9 +13,15 @@ import org.jetbrains.annotations.TestOnly
  * A version identifies a document state: `Events(V)` is the set of all events at or before it,
  * and a replay of that set is the document at this version.
  *
- * A version is opaque and belongs to the graph that produced it. Two versions are [equals] when
- * they hold the same heads. The heads of the versions of a graph are transitively reduced. So two
- * versions of one graph have the same heads exactly when they name the same event set.
+ * A version names its heads by event id. Under the agent contract of [DocBranch], one event id
+ * names one event in every graph. So a version means the same in every graph that holds its
+ * heads, such as a graph that merged the one that made it. A graph checks only that it holds the
+ * event ids, and not that they name the same events.
+ *
+ * Two versions are [equals] when they hold the same heads. Under the agent contract, they then name
+ * the same events. A version from [of] is the exception, because it names lvs.
+ *
+ * The value is immutable, and any thread may read it.
  */
 interface Version {
   /**
@@ -23,13 +30,18 @@ interface Version {
   fun isRoot(): Boolean
 
   companion object {
-    fun root(): Version = VersionImpl.ROOT
+    fun root(): Version {
+      return VersionImpl.ROOT
+    }
 
     /**
-     * A version that names its heads by lv. An lv is local to one graph value, so only a test
-     * that builds the graph itself knows which unit an lv names.
+     * A version that names its heads by lv, for a test that builds the graph itself. An lv is local
+     * to one graph value, so the graph that takes this version reads the lvs as its own. This
+     * version never equals a version that a graph returns.
      */
     @TestOnly
-    fun of(lv: LV, vararg lvs: LV): Version = VersionImpl(intArrayOf(lv, *lvs))
+    fun of(lv: LV, vararg lvs: LV): Version {
+      return LvNamedVersion(intArrayOf(lv, *lvs))
+    }
   }
 }

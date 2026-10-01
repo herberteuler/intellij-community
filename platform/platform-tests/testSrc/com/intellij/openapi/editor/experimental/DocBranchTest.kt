@@ -3,8 +3,10 @@ package com.intellij.openapi.editor.experimental
 
 import com.intellij.openapi.util.TextRange
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Random
 
@@ -621,6 +623,31 @@ class DocBranchTest {
     val later = merged.applyOp(insertOp(0, "Z")).applyOp(deleteOp(1, 2))
     assertEquals(merged.string(), later.graph().replay(mergedVersion).string())
     assertEquals(later.string(), later.graph().replay().string())
+  }
+
+  @Test
+  fun `the version of a merged branch replays its text in the merge`() {
+    // A memory-disk merge: the user branch merges the disk branch and keeps both versions.
+    val base = DocBranch.createBranch("abc", agent("a"))
+    val user = base.applyOp(insertOp(0, "U"))
+    val disk = base.fork(agent("disk")).applyOp(insertOp(3, "D"))
+    val merged = user.merge(disk).applyOp(insertOp(0, "Z"))
+    assertEquals("ZUabcD", merged.string())
+    assertEquals("abcD", merged.graph().replay(disk.version()).string())
+    assertEquals("Uabc", merged.graph().replay(user.version()).string())
+    assertEquals(disk.graph().version(), disk.version())
+  }
+
+  @Test
+  fun `the version of a branch follows a fast-forward and a merge that adds nothing`() {
+    val empty = DocBranch.createBranch("", agent("a"))
+    val ahead = empty.applyOp(insertOp(0, "x"))
+    assertTrue(empty.version().isRoot())
+    assertFalse(ahead.version().isRoot())
+    // A fast-forward takes the version of the other branch, and a merge that adds nothing keeps
+    // its own.
+    assertEquals(ahead.version(), empty.merge(ahead).version())
+    assertEquals(ahead.version(), ahead.merge(empty).version())
   }
 
   @Test

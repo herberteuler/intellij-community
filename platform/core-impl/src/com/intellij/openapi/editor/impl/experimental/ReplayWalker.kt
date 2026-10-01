@@ -70,17 +70,17 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   /**
    * Starts the prepare version at [ancestor], which the walk never moves below. It takes a
-   * [VersionImpl] and not a raw [Frontier], so only a checked version can reach it.
+   * an [LvVersion] and not a raw [Frontier], so only a checked version can reach it.
    */
-  fun startAt(ancestor: VersionImpl) {
+  fun startAt(ancestor: LvVersion) {
     curVersion = ancestor.lvs
   }
 
   /**
    * Walks the whole graph, or the part of it that a past [version] selects.
    */
-  fun replayAt(version: VersionImpl, sink: EgWalkerReplay.Sink) {
-    val subset = if (version == graph.versionImpl()) {
+  fun replayAt(version: LvVersion, sink: EgWalkerReplay.Sink) {
+    val subset = if (version == graph.lvVersion()) {
       null
     } else {
       graph.eventsOf(version)

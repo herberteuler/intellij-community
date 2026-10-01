@@ -104,7 +104,7 @@ class TipCoalescingTest {
     // A merge point: the version has two heads, and one of them is the end of the run.
     var merge = EventGraph.createGraph().append(Event.createInsert(V, 0, 0, "X"), Version.root())
     merge = merge.append(Event.createInsert(U, 0, 0, "ab"), Version.root())
-    assertEquals(Version.of(0, 2), merge.version())
+    assertEquals("v[(u, 1), (v, 0)]", merge.version().toString())
     merge = merge.append(Event.createInsert(U, 2, 2, "c"), merge.version())
     assertEquals(3, merge.runCount())
     assertEquals("abcX", merge.replay().string())

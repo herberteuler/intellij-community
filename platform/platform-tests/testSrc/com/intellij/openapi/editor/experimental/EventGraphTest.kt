@@ -645,7 +645,8 @@ class EventGraphTest {
 
   @Test
   fun `a foreign op is rejected`() {
-    // Only DocOp.ins and DocOp.del detach the content from a sequence the caller can change.
+    // Only DocTextOp.insertOp and DocTextOp.deleteOp detach the content from a sequence the caller
+    // can change.
     val foreign = object : DocTextOp.Insert {
       override fun offset(): Int = 0
       override fun length(): Int = 1
@@ -802,6 +803,94 @@ class EventGraphTest {
       .append(Event.createInsert(agent("v"), 0, 0, "XYZ"), root)
     assertEquals("abXY", graph.replay(Version.of(1, 7)).string())
     assertEquals("abcdefXYZ", graph.replay().string())
+  }
+
+  @Test
+  fun `a version of the other side replays in the merged graph`() {
+    // The two merge orders put "B" at different lvs, and the version of b finds it in both.
+    val a = rootInsert("alice", "A")
+    val b = rootInsert("bob", "B")
+    for (merged in listOf(a.mergeFrom(b), b.mergeFrom(a))) {
+      assertEquals("A", merged.replay(a.version()).string())
+      assertEquals("B", merged.replay(b.version()).string())
+      assertEquals("AB", merged.replay().string())
+    }
+  }
+
+  @Test
+  fun `an append at a version of the other side keeps the parents of that version`() {
+    // Bob types "!" after his own "B", in a graph that puts "A" at the lv of "B".
+    val a = rootInsert("alice", "A")
+    val b = rootInsert("bob", "B")
+    val bang = Event.createInsert(agent("bob"), 1, 1, "!")
+    val appended = a.mergeFrom(b).append(bang, b.version())
+    val expected = b.append(bang, b.version()).mergeFrom(a)
+    assertEquals("AB!", appended.replay().string())
+    assertEquals(expected.version(), appended.version())
+  }
+
+  @Test
+  fun `a version that names a unit the graph lacks fails`() {
+    // Each graph has one unit, so the lvs of either version would fit the other graph.
+    val a = rootInsert("alice", "A")
+    val b = rootInsert("bob", "B")
+    val failure = assertThrows(IllegalArgumentException::class.java) { a.replay(b.version()) }
+    assertEquals(
+      "A graph of size 1 does not hold the head (bob, 0) of the version v[(bob, 0)]",
+      failure.message,
+    )
+    val event = Event.createInsert(agent("alice"), 1, 0, "x")
+    val appendFailure = assertThrows(IllegalArgumentException::class.java) {
+      a.append(event, b.version())
+    }
+    assertEquals(failure.message, appendFailure.message)
+  }
+
+  @Test
+  fun `a version of a graph that broke the agent contract names the other event`() {
+    // Both graphs give the id (alice, 0) to a different insert, and they never merge. A graph
+    // checks only that it holds the id, so it replays its own event.
+    val x = rootInsert("alice", "x")
+    val y = rootInsert("alice", "y")
+    assertEquals(x.version(), y.version())
+    assertEquals("y", y.replay(x.version()).string())
+  }
+
+  @Test
+  fun `versions compare by event id across graphs`() {
+    val a = rootInsert("alice", "A")
+    val b = rootInsert("bob", "B")
+    val forward = a.mergeFrom(b).version()
+    val backward = b.mergeFrom(a).version()
+    assertNotEquals(a.version(), b.version())
+    assertEquals(forward, backward)
+    assertEquals(forward.hashCode(), backward.hashCode())
+    assertEquals("v[(alice, 0), (bob, 0)]", forward.toString())
+  }
+
+  @Test
+  fun `a version of lvs reads the lvs of the graph that takes it`() {
+    // The lv 0 names "A" in one merge order and "B" in the other.
+    val a = rootInsert("alice", "A")
+    val b = rootInsert("bob", "B")
+    assertEquals("A", a.mergeFrom(b).replay(Version.of(0)).string())
+    assertEquals("B", b.mergeFrom(a).replay(Version.of(0)).string())
+    assertEquals(Version.of(0, 1), Version.of(0, 1))
+    assertEquals(Version.of(0, 1).hashCode(), Version.of(0, 1).hashCode())
+    assertNotEquals(Version.of(0), a.version())
+    assertFalse(Version.of(0).isRoot())
+    assertEquals("v[0, 1]", Version.of(0, 1).toString())
+    // Only the size can reject it.
+    val failure = assertThrows(IllegalArgumentException::class.java) { a.replay(Version.of(1)) }
+    assertEquals("The version v[1] does not fit a graph of size 1", failure.message)
+  }
+
+  /**
+   * A graph with one insert of [text] by [name], at the root.
+   */
+  private fun rootInsert(name: String, text: String): EventGraph {
+    val event = Event.createInsert(agent(name), 0, 0, text)
+    return EventGraph.createGraph().append(event, Version.root())
   }
 
   private companion object {

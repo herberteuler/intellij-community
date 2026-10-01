@@ -24,7 +24,7 @@ private const val FLAG_SHARED = 2
 /**
  * The paper's `Events(V)`: [version] and all its ancestors, as a set of lvs.
  */
-internal fun EventGraphImpl.eventsOf(version: VersionImpl): BitSet {
+internal fun EventGraphImpl.eventsOf(version: LvVersion): BitSet {
   val seen = BitSet(size())
   val stack = ArrayDeque<Int>()
   for (lv in version.lvs) {
@@ -137,7 +137,7 @@ internal fun EventGraphImpl.findConflicting(a: Frontier, b: Frontier): ConflictR
       conflictRanges.add(start, end)
     }
   }
-  return ConflictRegion(VersionImpl(commonAncestor), conflictRanges.build(), newRanges.build())
+  return ConflictRegion(LvVersion(commonAncestor), conflictRanges.build(), newRanges.build())
 }
 
 /**

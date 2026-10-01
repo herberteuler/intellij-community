@@ -36,19 +36,27 @@ internal fun CharSequence.quotedForMessage(): String {
 }
 
 /**
- * The longest lv list that a message prints in full.
+ * The longest list that a message prints in full.
  */
-private const val MAX_LISTED_LVS = 10
+private const val MAX_LISTED_ITEMS = 10
 
 /**
- * The lvs as a list that is safe to put in a message.
+ * The lvs as a list that is safe to put in a message. See the list overload.
+ */
+internal fun Frontier.listedForMessage(): String {
+  return asList().listedForMessage("lvs")
+}
+
+/**
+ * The items as a list that is safe to put in a message. [noun] names the items in the length.
  *
  * A version gets one head per replica that a merge joins, and a check can list every head of a
- * graph. A long list therefore keeps its head and reports its own length.
+ * graph. A long list therefore keeps its first items and reports its own length.
  */
-internal fun IntArray.listedForMessage(): String {
-  if (size <= MAX_LISTED_LVS) {
+internal fun List<Any>.listedForMessage(noun: String): String {
+  if (size <= MAX_LISTED_ITEMS) {
     return joinToString(prefix = "[", postfix = "]")
   }
-  return take(MAX_LISTED_LVS).joinToString(prefix = "[", postfix = ", ... ($size lvs)]")
+  val postfix = ", ... ($size $noun)]"
+  return take(MAX_LISTED_ITEMS).joinToString(prefix = "[", postfix = postfix)
 }

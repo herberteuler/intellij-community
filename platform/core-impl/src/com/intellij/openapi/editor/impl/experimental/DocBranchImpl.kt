@@ -7,6 +7,7 @@ import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.DocBranch
 import com.intellij.openapi.editor.experimental.DocMerge
 import com.intellij.openapi.editor.experimental.EventGraph
+import com.intellij.openapi.editor.experimental.Version
 import com.intellij.openapi.editor.impl.DocTextImpl
 import java.util.Collections
 
@@ -46,6 +47,10 @@ internal class DocBranchImpl private constructor(
 
   override fun text(): DocText {
     return docText
+  }
+
+  override fun version(): Version {
+    return graph.version()
   }
 
   override fun applyOp(op: DocTextOp): DocBranch {
@@ -132,7 +137,7 @@ internal class DocBranchImpl private constructor(
    */
   private fun replayOnto(merged: EventGraphImpl, start: DocText): BatchingSink {
     val sink = BatchingSink(start)
-    EgWalkerReplay.mergeInto(merged, graph.versionImpl(), sink)
+    EgWalkerReplay.mergeInto(merged, graph.lvVersion(), sink)
     return sink
   }
 

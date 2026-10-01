@@ -34,7 +34,8 @@ interface EventGraph {
   /**
    * Returns a graph with the [event] run appended.
    *
-   * [parents] must be a version of this graph, and must be transitively reduced.
+   * This graph must hold every head of [parents], or the append fails. The heads must be
+   * transitively reduced, as they are in every version that a graph returns.
    *
    * The seq of the run must be the next free seq of its agent in this graph. So the seqs of one
    * agent ascend and leave no gap. That keeps the rule that one (agent, seq) pair names one unit
@@ -71,7 +72,8 @@ interface EventGraph {
 
   /**
    * The paper's `replay(G)`, generalized to the subgraph `Events(version)`:
-   * builds the document at [version] from scratch.
+   * builds the document at [version] from scratch. This graph must hold every head of [version],
+   * or the replay fails.
    *
    * The replay walks the events in a topological order. It resolves concurrent
    * insertions with the Fugue order, so every replica computes the same text.

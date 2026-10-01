@@ -10,7 +10,7 @@ package com.intellij.openapi.editor.impl.experimental
  * replay the wrong thing.
  */
 internal class ConflictRegion(
-  val commonAncestor: VersionImpl,
+  val commonAncestor: LvVersion,
   val conflictRanges: LvRanges,
   val newRanges: LvRanges,
 ) {

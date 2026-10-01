@@ -57,7 +57,7 @@ internal object EventGraphDiagram {
     val text = StringBuilder()
     text.append("EventGraph(units=").append(graph.size())
       .append(", runs=").append(count)
-      .append(", version=").append(graph.versionImpl())
+      .append(", version=").append(graph.lvVersion())
       .append(')')
     if (count <= MAX_RUNS) {
       if (count > 0) {

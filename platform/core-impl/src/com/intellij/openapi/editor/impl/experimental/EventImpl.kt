@@ -86,8 +86,8 @@ internal class EventImpl(
 
 private fun checkKnownOp(op: DocTextOp) {
   require(op is InsertDocTextOpImpl || op is DeleteDocTextOpImpl) {
-    "Foreign DocOp implementation: ${op.javaClass.name}. An event keeps its op forever, " +
-    "so the op must come from DocOp.ins or DocOp.del."
+    "Foreign DocTextOp implementation: ${op.javaClass.name}. An event keeps its op forever, " +
+    "so the op must come from DocTextOp.insertOp or DocTextOp.deleteOp."
   }
 }
 

@@ -16,7 +16,7 @@ package com.intellij.openapi.editor.impl.experimental
  *
  * Three documents therefore carry a position, and the names keep them apart. An `offset`
  * belongs to an op or an event, and it indexes the document at the PARENT version, which is
- * what the public `DocOp.offset` means. A `preparePos` indexes the prepare version, and an
+ * what the public `DocTextOp.offset` means. A `preparePos` indexes the prepare version, and an
  * `effectPos` indexes the effect version. A bare `pos` names no document, so the code does
  * not use one.
  *
@@ -49,7 +49,7 @@ internal object EgWalkerReplay {
   /**
    * Rebuilds the text at [version] from scratch and reports every effect to [sink], in order.
    */
-  fun replay(graph: EventGraphImpl, version: VersionImpl, sink: Sink) {
+  fun replay(graph: EventGraphImpl, version: LvVersion, sink: Sink) {
     ReplayWalker(graph, placeholderCount = 0).replayAt(version, sink)
   }
 
@@ -68,8 +68,8 @@ internal object EgWalkerReplay {
    * ascending lv order only. A merge that appended the other history to the graph of the branch
    * always gives that order, and [checkNewAboveConflict] checks it.
    */
-  fun mergeInto(graph: EventGraphImpl, branchVersion: VersionImpl, sink: Sink) {
-    val conflict = graph.findConflicting(branchVersion.lvs, graph.versionImpl().lvs)
+  fun mergeInto(graph: EventGraphImpl, branchVersion: LvVersion, sink: Sink) {
+    val conflict = graph.findConflicting(branchVersion.lvs, graph.lvVersion().lvs)
     checkNewAboveConflict(conflict)
     // One span of placeholder units, at least as long as the document at the common
     // ancestor. The trailing extras sit after every reachable position, inert.

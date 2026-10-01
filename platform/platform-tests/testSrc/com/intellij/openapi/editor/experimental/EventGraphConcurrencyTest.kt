@@ -103,8 +103,8 @@ class EventGraphConcurrencyTest {
 
   /**
    * A reader holds an OLD value and replays it out of the newer values that the writer grows
-   * from it. This is the harder read: the old version names lvs, and the graph that answers for
-   * them is a newer value, with a larger size and paths that the writer copied.
+   * from it. This is the harder read: the graph that answers for the old version is a newer
+   * value, with a larger size and paths that the writer copied.
    *
    * The writer's first burst continues the run that the old value ends in. So the old version
    * names a unit inside a run that keeps growing, and that run later closes into the trees.
@@ -297,8 +297,9 @@ class EventGraphConcurrencyTest {
    * A thread reads a neighbour through an [AtomicReference], while the neighbour keeps growing
    * values that share nodes with the one it read.
    *
-   * Two invariants, the same two the single-threaded fuzz uses: a replica's text always
-   * equals a replay of its own graph, and a full sync brings every replica to one text.
+   * Three invariants. A replica's text always equals a replay of its own graph, and a full sync
+   * brings every replica to one text: the single-threaded fuzz uses the same two. The version of a
+   * neighbour, which another thread made, also replays in the merge of that neighbour.
    */
   @Test
   fun `replicas that gossip on their own threads converge`() {
@@ -316,7 +317,13 @@ class EventGraphConcurrencyTest {
                 mine.applyOp(insertOp(0, "$i"))
               } else {
                 // The neighbour is editing its own replica as this reads the snapshot.
-                mine.merge(published[(i + 1) % REPLICAS].get())
+                val neighbour = published[(i + 1) % REPLICAS].get()
+                val merged = mine.merge(neighbour)
+                val neighbourText = merged.graph().replay(neighbour.version()).string()
+                assertEquals(neighbour.string(), neighbourText) {
+                  "round $round, replica $i, step $step, the version of the neighbour"
+                }
+                merged
               }
               assertEquals(mine.string(), mine.graph().replay().string()) {
                 "round $round, replica $i, step $step"

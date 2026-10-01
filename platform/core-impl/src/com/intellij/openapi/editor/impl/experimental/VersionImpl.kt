@@ -1,102 +1,114 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.Version
-import java.util.Arrays
 
 /**
- * A version as a sorted array of lvs. The reference implementation calls an lv a local
- * version (LV).
+ * See [Version]. The heads are event ids, sorted by agent and then by seq. So two versions with the
+ * same heads hold equal arrays.
+ *
+ * A graph keeps its version as an [LvVersion] and converts it only at the API. [fromLvVersion]
+ * names the lvs of a graph by event id, and [lvVersionIn] finds the event ids in a graph. Each
+ * costs one run lookup per head, and a version with more than one head also sorts them.
+ *
+ * Thread safety: the arrays are private, filled before the constructor runs, and never change. So
+ * the value is immutable.
  */
-internal class VersionImpl(val lvs: Frontier) : Version {
-
-  init {
-    checkSorted(lvs)
-    checkSpan(lvs)
-  }
+internal class VersionImpl private constructor(
+  private val agents: Array<Agent>,
+  private val seqs: IntArray,
+) : Version {
 
   override fun isRoot(): Boolean {
-    return lvs.isEmpty()
+    return seqs.isEmpty()
   }
 
   /**
-   * The size of the unit space this version can name: the greatest lv plus one, and 0 for the root.
-   * A graph can hold this version only when its size is at least this value. The document at this
-   * version is never longer than it. [checkSpan] keeps the sum inside an `Int`.
+   * The heads as lvs of [graph]. Fails when [graph] does not hold one of them.
    */
-  fun unitSpan(): Int {
-    return if (lvs.isEmpty()) 0 else lvs[lvs.size - 1] + 1
-  }
-
-  /**
-   * The version after an append of a run that ends at [newLastLv] and has [parents].
-   *
-   * The new unit replaces every head it descends from, and the other heads stay. Only a
-   * head that [parents] names literally can be replaced: a head has no children, so no
-   * head is a strict ancestor of any parent.
-   */
-  fun advancedBy(parents: VersionImpl, newLastLv: LV): VersionImpl {
-    var kept = 0
-    for (lv in lvs) {
-      if (!parents.contains(lv)) {
-        kept++
-      }
+  fun lvVersionIn(graph: EventGraphImpl): LvVersion {
+    val lvs = IntArray(seqs.size) { index ->
+      lvOfHead(graph, index)
     }
-    val advanced = IntArray(kept + 1)
-    var i = 0
-    for (lv in lvs) {
-      if (!parents.contains(lv)) {
-        advanced[i] = lv
-        i++
-      }
-    }
-    // The new lv is greater than every existing lv, so the ascending order holds.
-    advanced[i] = newLastLv
-    return VersionImpl(advanced)
-  }
-
-  /**
-   * Whether this version names [lv] as one of its heads.
-   */
-  fun contains(lv: LV): Boolean {
-    return Arrays.binarySearch(lvs, lv) >= 0
+    lvs.sort()
+    return LvVersion(lvs)
   }
 
   override fun equals(other: Any?): Boolean {
-    return other is VersionImpl && lvs.contentEquals(other.lvs)
+    return other is VersionImpl &&
+           seqs.contentEquals(other.seqs) &&
+           agents.contentEquals(other.agents)
   }
 
   override fun hashCode(): Int {
-    return lvs.contentHashCode()
+    return 31 * agents.contentHashCode() + seqs.contentHashCode()
   }
 
   override fun toString(): String {
-    return "v${lvs.listedForMessage()}"
+    val heads = seqs.indices.map { index ->
+      headText(index)
+    }
+    return "v${heads.listedForMessage("heads")}"
   }
 
-  private fun checkSorted(lvs: Frontier) {
-    for (i in 1 until lvs.size) {
-      require(lvs[i - 1] < lvs[i]) {
-        "The version is not sorted or not distinct at the index $i: ${lvs.listedForMessage()}"
-      }
-    }
-    require(lvs.isEmpty() || lvs[0] >= 0) {
-      "Negative lv: ${lvs.listedForMessage()}"
-    }
+  private fun lvOfHead(graph: EventGraphImpl, index: Int): LV {
+    val lv = graph.lvOfUnit(agents[index], seqs[index])
+    checkHeld(graph, lv, index)
+    return lv
   }
 
   /**
-   * Fails when the version names the lv [Int.MAX_VALUE]. A graph holds at most that many units,
-   * so no graph has that lv, and [unitSpan] would overflow on it.
+   * Fails when [EventGraphImpl.lvOfUnit] found no [lv] for the head at [index].
    */
-  private fun checkSpan(lvs: Frontier) {
-    require(lvs.isEmpty() || lvs[lvs.size - 1] < Int.MAX_VALUE) {
-      "The lv ${Int.MAX_VALUE} names no unit of any graph"
+  private fun checkHeld(graph: EventGraphImpl, lv: LV, index: Int) {
+    require(lv != NO_UNIT) {
+      val head = headText(index)
+      "A graph of size ${graph.size()} does not hold the head $head of the version $this"
     }
   }
 
+  private fun headText(index: Int): String {
+    return "(${agents[index]}, ${seqs[index]})"
+  }
+
   companion object {
-    val ROOT: VersionImpl = VersionImpl(IntArray(0))
+    val ROOT: VersionImpl = VersionImpl(emptyArray(), IntArray(0))
+
+    /**
+     * The heads of [lvVersion], which belongs to [graph], as event ids.
+     */
+    fun fromLvVersion(graph: EventGraphImpl, lvVersion: LvVersion): VersionImpl {
+      val lvs = lvVersion.lvs
+      val runs = Array(lvs.size) { i ->
+        graph.runAt(lvs[i])
+      }
+      val agents = Array(lvs.size) { i ->
+        runs[i].event.agent()
+      }
+      val seqs = IntArray(lvs.size) { i ->
+        runs[i].seqAt(lvs[i])
+      }
+      if (lvs.size < 2) {
+        return VersionImpl(agents, seqs)
+      }
+      return sortedById(agents, seqs)
+    }
+
+    /**
+     * The heads in the order of their event ids: by agent, then by seq. That is also the tie-break
+     * order of concurrent inserts.
+     */
+    private fun sortedById(agents: Array<Agent>, seqs: IntArray): VersionImpl {
+      val order = agents.indices.sortedWith(compareBy({ agents[it] }, { seqs[it] }))
+      val sortedAgents = Array(order.size) { i ->
+        agents[order[i]]
+      }
+      val sortedSeqs = IntArray(order.size) { i ->
+        seqs[order[i]]
+      }
+      return VersionImpl(sortedAgents, sortedSeqs)
+    }
 
     fun implOf(version: Version): VersionImpl {
       require(version is VersionImpl) {

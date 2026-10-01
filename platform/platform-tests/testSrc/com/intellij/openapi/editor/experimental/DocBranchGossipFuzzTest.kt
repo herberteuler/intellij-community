@@ -21,6 +21,8 @@ import java.util.Random
  * - the branch text equals a from-scratch replay of the merged graph;
  * - the ops of the merge fold the text of the receiver into the merged text;
  * - a full sync brings every replica to one text.
+ *
+ * After the sync, a past version of a replica replays to the text it held, in another replica too.
  */
 class DocBranchGossipFuzzTest {
 
@@ -39,8 +41,8 @@ class DocBranchGossipFuzzTest {
           replicas.add(DocBranch.createBranch(randomText(random, 6), agent("alien")))
         }
 
-        // Per replica: the versions it passed through, with the text it held there. A
-        // replica only ever appends to its own lv space, so its old versions stay valid.
+        // Per replica: the versions it passed through, with the text it held there. A version
+        // names its heads by event id, so it stays valid in every replica that merges this one.
         val history = ArrayList<ArrayList<Pair<Version, String>>>()
         for (replica in replicas) {
           history.add(arrayListOf(replica.graph().version() to replica.string()))
@@ -86,10 +88,11 @@ class DocBranchGossipFuzzTest {
           assertEquals(replicas[i].graph().replay().string(), replicas[i].string()) {
             "round $round, replica $i replay"
           }
-          // Every past version of this replica still replays to the text it held there,
-          // out of the much larger merged graph.
+          // Every past version of this replica and of the next one still replays to the text
+          // it held there, out of the much larger merged graph.
           val graph = replicas[i].graph()
-          for ((at, text) in history[i]) {
+          val next = (i + 1) % replicas.size
+          for ((at, text) in history[i] + history[next]) {
             assertEquals(text, graph.replay(at).string()) { "round $round, replica $i at $at" }
           }
         }

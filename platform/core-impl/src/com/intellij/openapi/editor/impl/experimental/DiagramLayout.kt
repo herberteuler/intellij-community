@@ -256,7 +256,7 @@ internal class DiagramLayout(private val graph: EventGraphImpl, private val runs
    * the drawn children answer first.
    */
   private fun hasChild(slot: Int): Boolean {
-    return children[slot].isNotEmpty() || !graph.versionImpl().contains(runOf(slot).lvEnd() - 1)
+    return children[slot].isNotEmpty() || !graph.lvVersion().contains(runOf(slot).lvEnd() - 1)
   }
 
   /**

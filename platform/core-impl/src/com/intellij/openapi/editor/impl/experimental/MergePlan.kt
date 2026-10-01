@@ -33,7 +33,7 @@ internal class MergePlan(
    * The three below run in step with [newStarts], so one index names one planned entry.
    */
   private val events = ArrayList<EventImpl>(newStarts.size)
-  private val parents = ArrayList<VersionImpl>(newStarts.size)
+  private val parents = ArrayList<LvVersion>(newStarts.size)
   private val destStarts = IntArray(newStarts.size) { NO_UNIT }
 
   /**
@@ -41,18 +41,18 @@ internal class MergePlan(
    */
   private var lvEnd: LV = dest.size()
 
-  private val remappedVersion: VersionImpl
+  private val remappedVersion: LvVersion
 
   init {
     for (index in newStarts.indices) {
       planEntry(index)
     }
     // The version remap rejects an unknown unit too, so it belongs in the plan.
-    val remapped = IntArray(other.versionImpl().lvs.size) { i: Int ->
-      remap(other.versionImpl().lvs[i])
+    val remapped = IntArray(other.lvVersion().lvs.size) { i: Int ->
+      remap(other.lvVersion().lvs[i])
     }
     remapped.sort()
-    remappedVersion = VersionImpl(remapped)
+    remappedVersion = LvVersion(remapped)
   }
 
   /**
@@ -72,14 +72,14 @@ internal class MergePlan(
   /**
    * The parents that the run at [index] gets, in the merged graph's lvs.
    */
-  fun parentsAt(index: Int): VersionImpl {
+  fun parentsAt(index: Int): LvVersion {
     return parents[index]
   }
 
   /**
    * The version of [other], re-expressed in the merged graph's lvs.
    */
-  fun remappedOtherVersion(): VersionImpl {
+  fun remappedOtherVersion(): LvVersion {
     return remappedVersion
   }
 
@@ -103,7 +103,7 @@ internal class MergePlan(
     val suffix = event.suffixFrom(known)
     checkUnitSpace(suffix.length())
     events.add(suffix)
-    parents.add(VersionImpl(entryParents))
+    parents.add(LvVersion(entryParents))
     destStarts[index] = lvEnd
     lvEnd += suffix.length()
   }

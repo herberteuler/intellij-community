@@ -35,7 +35,7 @@ internal class EventGraphImpl private constructor(
   private val agents: AgentIndex,
   private val tail: StoredRun?,
   private val size: Int,
-  private val version: VersionImpl,
+  private val version: LvVersion,
 ) : EventGraph {
 
   init {
@@ -52,11 +52,11 @@ internal class EventGraphImpl private constructor(
   }
 
   override fun version(): Version {
-    return version
+    return VersionImpl.fromLvVersion(this, version)
   }
 
   override fun append(event: Event, parents: Version): EventGraph {
-    return appendImpl(EventImpl.implOf(event), VersionImpl.implOf(parents))
+    return appendImpl(EventImpl.implOf(event), lvVersionOf(parents))
   }
 
   override fun mergeFrom(other: EventGraph): EventGraph {
@@ -64,15 +64,37 @@ internal class EventGraphImpl private constructor(
   }
 
   override fun replay(version: Version): DocText {
-    val versionImpl = VersionImpl.implOf(version)
-    checkVersionFits(versionImpl)
-    val text = StringBuilder()
-    EgWalkerReplay.replay(this, versionImpl, StringBuilderSink(text))
-    return DocText.createText(text)
+    return replayAt(lvVersionOf(version))
   }
 
-  fun versionImpl(): VersionImpl {
+  /**
+   * The replay at this graph's own frontier, which needs no conversion.
+   */
+  override fun replay(): DocText {
+    return replayAt(version)
+  }
+
+  fun lvVersion(): LvVersion {
     return version
+  }
+
+  /**
+   * The heads of [version] as lvs of this graph. Fails when this graph does not hold one of them.
+   * An [LvNamedVersion] names lvs already, so only the size of this graph can reject it.
+   */
+  private fun lvVersionOf(version: Version): LvVersion {
+    if (version is LvNamedVersion) {
+      val lvVersion = version.lvVersion()
+      checkVersionFits(lvVersion)
+      return lvVersion
+    }
+    return VersionImpl.implOf(version).lvVersionIn(this)
+  }
+
+  private fun replayAt(lvVersion: LvVersion): DocText {
+    val text = StringBuilder()
+    EgWalkerReplay.replay(this, lvVersion, StringBuilderSink(text))
+    return DocText.createText(text)
   }
 
   /**
@@ -107,7 +129,7 @@ internal class EventGraphImpl private constructor(
   }
 
   /**
-   * The lv of the unit ([agent], [seq]) in this graph, or -1 when it holds no such unit.
+   * The lv of the unit ([agent], [seq]) in this graph, or [NO_UNIT] when it holds no such unit.
    */
   fun lvOfUnit(agent: Agent, seq: Int): LV {
     val tail = tail
@@ -166,7 +188,7 @@ internal class EventGraphImpl private constructor(
    * and makes [event] the new tail. The units and their parents are the same either way, so
    * only [runCount] can tell the two apart.
    */
-  private fun appendImpl(event: EventImpl, parents: VersionImpl): EventGraphImpl {
+  private fun appendImpl(event: EventImpl, parents: LvVersion): EventGraphImpl {
     checkVersionFits(parents)
     checkLvSpace(event.length())
     checkNextSeq(event)
@@ -364,7 +386,7 @@ internal class EventGraphImpl private constructor(
       return
     }
     for (parent in parents) {
-      val ancestors = eventsOf(VersionImpl(intArrayOf(parent)))
+      val ancestors = eventsOf(LvVersion(intArrayOf(parent)))
       for (otherParent in parents) {
         require(otherParent == parent || !ancestors.get(otherParent)) {
           "The parents of the run $run are not reduced: $otherParent is an ancestor of $parent"
@@ -407,10 +429,11 @@ internal class EventGraphImpl private constructor(
   }
 
   /**
-   * Fails when [version] names an lv that this graph does not have. That is all an lv version can
-   * tell: a version of another graph with small enough lvs passes, and names other units here.
+   * Fails when [version] names an lv that this graph does not have. From outside, only a version
+   * from [Version.of] reaches this check, and the size is all that its lvs can tell. So the lvs of
+   * another graph pass when they are small enough, and they name other units here.
    */
-  private fun checkVersionFits(version: VersionImpl) {
+  private fun checkVersionFits(version: LvVersion) {
     require(version.unitSpan() <= size) {
       "The version $version does not fit a graph of size $size"
     }
@@ -482,7 +505,7 @@ internal class EventGraphImpl private constructor(
         agents = AgentIndex.EMPTY,
         tail = null,
         size = 0,
-        version = VersionImpl.ROOT,
+        version = LvVersion.ROOT,
       )
     }
 

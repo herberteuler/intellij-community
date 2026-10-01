@@ -531,7 +531,7 @@ object PyTypeUtil {
   ): PyType? {
     if (memberResolveResults.isNullOrEmpty()) return PyAnyType.unknown
     val memberType = getTypeOfMember(memberResolveResults, context)
-    val specializedMemberType = if (classType is PyClassType) specializeMemberType(classType, selfType, memberType, context) else memberType
+    val specializedMemberType = specializeMemberType(classType, selfType, memberType, context)
     // An annotated instance attribute holding a callable is not a descriptor, so it must not be bound to `self`.
     if (!selfType.isDefinition() && isInstanceMember(memberResolveResults, context)) {
       return specializedMemberType
@@ -646,13 +646,13 @@ object PyTypeUtil {
   @ApiStatus.Internal
   @JvmStatic
   fun specializeMemberType(
-    classType: PyClassType,
+    classType: PyClassLikeType,
     selfType: PyInstantiableType<*>,
     memberType: PyType?,
     context: TypeEvalContext,
   ): PyType? {
     return if (memberType.hasGenerics(context)) {
-      val substitutions = collectTypeSubstitutions(classType, context)
+      val substitutions = if (classType is PyClassType) collectTypeSubstitutions(classType, context) else GenericSubstitutions()
       substitutions.selfType = selfType
       PyTypeChecker.substitute(memberType, substitutions, context)
     }

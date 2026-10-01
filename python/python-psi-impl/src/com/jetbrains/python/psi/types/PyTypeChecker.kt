@@ -13,6 +13,7 @@ import com.intellij.util.ArrayUtil
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.xml.util.XmlStringUtil
 import com.jetbrains.python.ProtectionLevel
+import com.jetbrains.python.PyCustomType
 import com.jetbrains.python.PyNames
 import com.jetbrains.python.PyPsiBundle
 import com.jetbrains.python.PythonRuntimeService
@@ -465,6 +466,10 @@ object PyTypeChecker {
     }
 
     if (actual is PyIntersectionType) {
+      return Optional.of(match(expected, actual, context))
+    }
+
+    if (actual is PyCustomType) {
       return Optional.of(match(expected, actual, context))
     }
 
@@ -1016,6 +1021,11 @@ object PyTypeChecker {
     }) {
       expected.members.any { type: PyType? -> match(type, actual, context).getOrDefault(true) }
     }
+  }
+
+  // PyCustomType operates as an implicit intersection of its "typesToMimic"
+  private fun match(expected: PyType, actual: PyCustomType, context: MatchContext): Boolean {
+    return actual.typesToMimic.any { type: PyType? -> match(expected, type, context).orElse(false)!! }
   }
 
   private fun match(

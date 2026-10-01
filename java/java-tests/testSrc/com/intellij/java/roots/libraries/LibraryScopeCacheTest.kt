@@ -1,5 +1,5 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.roots.libraries
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.roots.libraries
 
 import com.intellij.openapi.application.runWriteActionAndWait
 import com.intellij.openapi.roots.DependencyScope

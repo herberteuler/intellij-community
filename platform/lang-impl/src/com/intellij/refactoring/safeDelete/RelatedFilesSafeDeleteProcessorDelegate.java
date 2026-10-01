@@ -85,11 +85,6 @@ public final class RelatedFilesSafeDeleteProcessorDelegate implements SafeDelete
   }
 
   @Override
-  public Collection<String> findConflicts(@NotNull PsiElement element, PsiElement @NotNull [] allElementsToDelete) {
-    return Collections.emptyList();
-  }
-
-  @Override
   public UsageInfo[] preprocessUsages(@NotNull Project project, final UsageInfo @NotNull [] usages) {
     return usages;
   }

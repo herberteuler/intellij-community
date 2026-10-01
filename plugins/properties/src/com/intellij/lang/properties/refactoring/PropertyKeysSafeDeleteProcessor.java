@@ -66,11 +66,6 @@ final class PropertyKeysSafeDeleteProcessor extends SafeDeleteProcessorDelegateB
   }
 
   @Override
-  public @Nullable Collection<String> findConflicts(@NotNull PsiElement element, PsiElement @NotNull [] allElementsToDelete) {
-    return null;
-  }
-
-  @Override
   public UsageInfo @Nullable [] preprocessUsages(@NotNull Project project, UsageInfo @NotNull [] usages) {
     return usages;
   }

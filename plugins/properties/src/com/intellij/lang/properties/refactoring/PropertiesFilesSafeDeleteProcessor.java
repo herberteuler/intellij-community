@@ -46,11 +46,6 @@ public class PropertiesFilesSafeDeleteProcessor implements SafeDeleteProcessorDe
   }
 
   @Override
-  public Collection<String> findConflicts(final @NotNull PsiElement element, final PsiElement @NotNull [] allElementsToDelete) {
-    return null;
-  }
-
-  @Override
   public UsageInfo[] preprocessUsages(final @NotNull Project project, final UsageInfo @NotNull [] usages) {
     return usages;
   }

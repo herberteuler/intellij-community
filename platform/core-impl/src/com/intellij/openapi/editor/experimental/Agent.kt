@@ -12,6 +12,7 @@ import com.intellij.openapi.editor.impl.experimental.AgentImpl
  */
 interface Agent : Comparable<Agent> {
   companion object {
+    @JvmStatic
     fun createAgent(name: String): Agent {
       return AgentImpl(name)
     }

@@ -41,6 +41,7 @@ sealed interface DocTextOp {
      * The op does not check the bounds. The document rejects an offset it cannot use, and an empty
      * fragment is a legal op that changes nothing.
      */
+    @JvmStatic
     fun insertOp(offset: Int, fragment: CharSequence): Insert {
       return InsertDocTextOpImpl(offset, fragment)
     }
@@ -48,6 +49,7 @@ sealed interface DocTextOp {
     /**
      * A delete of [length] characters at [offset]. A zero length is a legal op that changes nothing.
      */
+    @JvmStatic
     fun deleteOp(offset: Int, length: Int): Delete {
       return DeleteDocTextOpImpl(offset, length)
     }

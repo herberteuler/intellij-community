@@ -41,6 +41,7 @@ interface DocMerge {
     /**
      * A merge with [ops] ready. The list must not change after this call.
      */
+    @JvmStatic
     fun ready(branch: DocBranch, ops: List<DocTextOp>): DocMerge {
       return DocMergeImpl(branch, lazyOf(ops))
     }
@@ -48,6 +49,7 @@ interface DocMerge {
     /**
      * A merge whose ops [lazyOps] makes on the first call of [ops]. [lazyOps] must return a list that cannot change.
      */
+    @JvmStatic
     fun deferred(branch: DocBranch, lazyOps: () -> List<DocTextOp>): DocMerge {
       return DocMergeImpl(branch, lazy(LazyThreadSafetyMode.PUBLICATION, lazyOps))
     }

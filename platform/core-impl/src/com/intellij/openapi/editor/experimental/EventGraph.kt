@@ -90,6 +90,9 @@ interface EventGraph {
      */
     const val MAX_COALESCED_INSERT: Int = 256
 
-    fun createGraph(): EventGraph = EventGraphImpl.empty()
+    @JvmStatic
+    fun createGraph(): EventGraph {
+      return EventGraphImpl.empty()
+    }
   }
 }

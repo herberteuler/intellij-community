@@ -77,6 +77,7 @@ interface DocBranch {
   fun mergeWithOps(other: DocBranch): DocMerge
 
   companion object {
+    @JvmStatic
     fun createBranch(chars: CharSequence, agent: Agent): DocBranch {
       return DocBranchImpl.create(chars, agent)
     }

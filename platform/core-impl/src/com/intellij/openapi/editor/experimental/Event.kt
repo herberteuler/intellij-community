@@ -63,10 +63,12 @@ interface Event {
      * [DocTextOp.deleteOp]. Only those two detach the content from a sequence the caller can still
      * change, and an event lives in the graph forever.
      */
+    @JvmStatic
     fun create(agent: Agent, seq: Int, op: DocTextOp): Event {
       return EventImpl(agent, seq, op)
     }
 
+    @JvmStatic
     fun createInsert(
       agent: Agent,
       seq: Int,
@@ -76,6 +78,7 @@ interface Event {
       return create(agent, seq, DocTextOp.insertOp(offset, fragment))
     }
 
+    @JvmStatic
     fun createDelete(
       agent: Agent,
       seq: Int,

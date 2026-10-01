@@ -72,9 +72,8 @@ object ProductModeCapabilities {
     val backendSplit = PluginModuleId("intellij.platform.backend.split", PluginModuleId.JETBRAINS_NAMESPACE)
     setModuleAvailability(backendSplit, productMode == ProductMode.BACKEND)
 
-    val frontendSplitBase = PluginModuleId("intellij.platform.frontend.split.base", PluginModuleId.JETBRAINS_NAMESPACE)
+    val frontendSplitBase = PluginModuleId("intellij.platform.frontend.split.baseline", PluginModuleId.JETBRAINS_NAMESPACE)
     setModuleAvailability(frontendSplitBase, productMode.isFrontendProcess)
-
     val frontendSplit = PluginModuleId("intellij.platform.frontend.split", PluginModuleId.JETBRAINS_NAMESPACE)
     when {
       productMode.isLight -> {

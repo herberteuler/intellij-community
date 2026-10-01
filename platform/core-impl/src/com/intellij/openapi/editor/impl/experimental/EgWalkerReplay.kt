@@ -5,10 +5,10 @@ package com.intellij.openapi.editor.impl.experimental
  * The Eg-walker replay: rebuilds the document at a version from the event graph.
  * [ReplayWalker] holds the state and does the work; this is the entry point.
  *
- * This is a direct port of the reference implementation
- * (`Resources/eg-walker/eg-walker-reference/src/index.ts`). A function that the reference
- * also has keeps the reference's name, so the two stay easy to compare. A helper that only
- * this port needs gets a descriptive name.
+ * This is a direct port of the reference implementation: `src/index.ts` of
+ * https://github.com/josephg/eg-walker-reference at the commit `7287f4bc2c05`. A function that
+ * the reference also has keeps the reference's name, so the two stay easy to compare. A helper
+ * that only this port needs gets a descriptive name.
  *
  * The walk keeps the document at two versions at once. The *prepare* version is where the next
  * event was authored. The *effect* version has every walked event applied. The walk moves the

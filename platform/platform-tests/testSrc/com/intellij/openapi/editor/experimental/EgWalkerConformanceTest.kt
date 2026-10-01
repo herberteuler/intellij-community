@@ -6,8 +6,8 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.openapi.application.PathManager
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
@@ -15,8 +15,7 @@ import java.util.BitSet
 
 /**
  * Replays editing histories whose final texts come from the reference implementation, and checks
- * that the port reaches the same texts. Only this test holds the port to an implementation other
- * than itself.
+ * that the port reaches the same texts.
  *
  * A history takes one path or two:
  * - the full replay of its event graph;
@@ -30,62 +29,36 @@ import java.util.BitSet
  * op before it as its only parent. The lvs match the lvs of the port, because the graph appends the
  * transactions in their order.
  *
- * The histories in the repository come from `conformanceHistories.ts` next to them: random
- * histories, with the final texts from the reference. The other data sets come with the checkout of
- * the reference under `Resources/eg-walker`, and their tests are skipped without it.
+ * The histories are random, with the final texts from the reference. In one set, every history
+ * keeps the agent contract. In the other set, an agent edits concurrently with itself in every
+ * history.
  */
 class EgWalkerConformanceTest {
 
   @Test
-  fun `every history in the repository reaches the text of the reference`() {
-    val histories = readHistories(testDataFile())
-    assertEquals(REPOSITORY_HISTORIES, histories.size)
+  fun `every history reaches the text of the reference on both paths`() {
+    val histories = readHistories(testDataFile("conformanceHistories.json"))
+    assertEquals(HISTORIES, histories.size)
     for ((index, history) in histories.withIndex()) {
       val where = { "history $index" }
       checkFullReplay(history, where)
-      checkBranches(history, stepChecks = true, where)
+      checkBranches(history, where)
     }
   }
 
   /**
-   * The fuzzer of diamond types lets one agent edit concurrently with itself, which the agent
-   * contract of [DocBranch] forbids. So these histories take the full replay only.
+   * An agent that edits concurrently with itself breaks the agent contract of [DocBranch]. So
+   * these histories take the full replay only.
    */
   @Test
-  fun `every conformance history of the reference reaches its text`() {
-    val file = referenceFile("conformance.json")
-    assumeTrue(Files.exists(file)) { "No conformance data at $file" }
-    val histories = readHistories(file)
-    assertEquals(REFERENCE_HISTORIES, histories.size)
+  fun `every self-concurrent history reaches the text of the reference`() {
+    val histories = readHistories(testDataFile("selfConcurrentHistories.json"))
+    assertEquals(SELF_CONCURRENT_HISTORIES, histories.size)
     for ((index, history) in histories.withIndex()) {
-      checkFullReplay(history) { "history $index" }
+      val where = { "self-concurrent history $index" }
+      assertNotNull(firstContractBreak(history)) { "${where()} keeps the agent contract" }
+      checkFullReplay(history, where)
     }
-  }
-
-  /**
-   * Two agents that keep the agent contract, so the trace takes both paths.
-   */
-  @Test
-  fun `the ff trace of the reference reaches its final text`() {
-    val file = referenceFile("ff-raw.json")
-    assumeTrue(Files.exists(file)) { "No editing trace at $file" }
-    val history = readHistory(file)
-    checkFullReplay(history) { "ff" }
-    checkBranches(history, stepChecks = false) { "ff" }
-  }
-
-  /**
-   * 194 agents and 947,337 units. Some agents edit concurrently with themselves, so the trace takes
-   * the full replay only.
-   *
-   * The trace `git-makefile-raw.json` is left out on purpose. Its seqs do not follow the lvs within
-   * one agent, which the graph rejects, and a renumbering changes the text that the reference reaches.
-   */
-  @Test
-  fun `the node_nodecc trace of the reference reaches its final text`() {
-    val file = referenceFile("node_nodecc-raw.json")
-    assumeTrue(Files.exists(file)) { "No editing trace at $file" }
-    checkFullReplay(readHistory(file)) { "node_nodecc" }
   }
 
   private fun checkFullReplay(history: History, where: () -> String) {
@@ -93,14 +66,13 @@ class EgWalkerConformanceTest {
   }
 
   /**
-   * Fails unless the rebuild through branches reaches the final text of [history]. With
-   * [stepChecks], every branch that a transaction starts from must also hold the text of the full
-   * replay at its parents, which names the first merge that goes wrong. That costs a replay per
-   * transaction, so a long trace skips it.
+   * Fails unless the rebuild through branches reaches the final text of [history]. Every branch
+   * that a transaction starts from must also hold the text of the full replay at its parents, which
+   * names the first merge that goes wrong.
    */
-  private fun checkBranches(history: History, stepChecks: Boolean, where: () -> String) {
-    val stepGraph = if (stepChecks) graphOf(history) else null
-    assertEquals(history.endContent, textThroughBranches(history, stepGraph, where)) { "${where()}: the branches" }
+  private fun checkBranches(history: History, where: () -> String) {
+    val text = textThroughBranches(history, graphOf(history), where)
+    assertEquals(history.endContent, text) { "${where()}: the branches" }
   }
 
   private fun graphOf(history: History): EventGraph {
@@ -125,8 +97,8 @@ class EgWalkerConformanceTest {
   }
 
   /**
-   * The text that [history] reaches through branches. With [stepGraph], each branch that a
-   * transaction starts from must hold the text of [stepGraph] at the parents.
+   * The text that [history] reaches through branches. Each branch that a transaction starts from
+   * must hold the text of [stepGraph] at the parents.
    *
    * A branch mints the next seq of its agent, so the rebuild gives the ids of the history only when
    * each transaction of an agent descends from the one before it. That is the agent contract of
@@ -137,7 +109,7 @@ class EgWalkerConformanceTest {
    */
   private fun textThroughBranches(
     history: History,
-    stepGraph: EventGraph?,
+    stepGraph: EventGraph,
     where: () -> String,
   ): String {
     checkAgentContract(history, where)
@@ -155,10 +127,8 @@ class EgWalkerConformanceTest {
     val root = DocBranch.createBranch("", agent("root"))
     for (txn in history.txns) {
       var branch = branchAt(txn.parents, root.fork(txn.agent), branchAt)
-      if (stepGraph != null) {
-        assertEquals(stepGraph.replay(versionOf(txn.parents)).string(), branch.string()) {
-          "${where()}: the branch before $txn"
-        }
+      assertEquals(stepGraph.replay(versionOf(txn.parents)).string(), branch.string()) {
+        "${where()}: the branch before $txn"
       }
       var lv = txn.start
       for (op in txn.ops) {
@@ -207,16 +177,26 @@ class EgWalkerConformanceTest {
    * Fails unless every transaction of an agent descends from the transaction of that agent before it.
    */
   private fun checkAgentContract(history: History, where: () -> String) {
+    val breaking = firstContractBreak(history)
+    assertNull(breaking) {
+      "${where()}: $breaking does not descend from the transaction of its agent before it"
+    }
+  }
+
+  /**
+   * The first transaction that does not descend from the transaction of its agent before it, or
+   * null when [history] keeps the agent contract.
+   */
+  private fun firstContractBreak(history: History): Txn? {
     val lastUnitOf = HashMap<Agent, Int>()
     for (txn in history.txns) {
       val last = lastUnitOf[txn.agent]
-      if (last != null) {
-        assertTrue(eventsOf(history, txn.parents).get(last)) {
-          "${where()}: $txn does not descend from the transaction of its agent before it"
-        }
+      if (last != null && !eventsOf(history, txn.parents).get(last)) {
+        return txn
       }
       lastUnitOf[txn.agent] = txn.end - 1
     }
+    return null
   }
 
   /**
@@ -261,10 +241,6 @@ class EgWalkerConformanceTest {
     return histories.map { historyOf(it.asJsonObject) }
   }
 
-  private fun readHistory(file: Path): History {
-    return historyOf(Files.newBufferedReader(file).use { JsonParser.parseReader(it).asJsonObject })
-  }
-
   private fun historyOf(json: JsonObject): History {
     val txns = json.arrayAt("txns").map { element ->
       val txn = element.asJsonObject
@@ -297,12 +273,8 @@ class EgWalkerConformanceTest {
     return array
   }
 
-  private fun testDataFile(): Path {
-    return Path.of(PathManager.getCommunityHomePath(), TEST_DATA, "conformanceHistories.json")
-  }
-
-  private fun referenceFile(name: String): Path {
-    return Path.of(PathManager.getCommunityHomePath()).parent.resolve(REFERENCE_DATA).resolve(name)
+  private fun testDataFile(name: String): Path {
+    return Path.of(PathManager.getCommunityHomePath(), TEST_DATA, name)
   }
 
   /**
@@ -350,17 +322,12 @@ class EgWalkerConformanceTest {
     /**
      * The sizes of the data sets, so a truncated file fails and does not pass on less data.
      */
-    const val REPOSITORY_HISTORIES = 150
+    const val HISTORIES = 150
+    const val SELF_CONCURRENT_HISTORIES = 100
 
     /**
      * The test data of the feature, under the community root.
      */
     const val TEST_DATA = "platform/platform-tests/testData/editor/docBranch"
-
-    /**
-     * The test data of the reference checkout, under the repository root.
-     */
-    const val REFERENCE_DATA = "Resources/eg-walker/eg-walker-reference/testdata"
-    const val REFERENCE_HISTORIES = 1000
   }
 }

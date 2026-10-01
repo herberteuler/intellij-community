@@ -23,8 +23,10 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFileFactory
 import com.intellij.ui.EditorTextField
 import com.intellij.util.LocalTimeCounter
+import org.jetbrains.annotations.ApiStatus
 
-internal object CodeReviewMarkdownEditor {
+@ApiStatus.Internal
+object CodeReviewMarkdownEditor {
   private val INJECTION_PROCESSED = Key.create<Boolean>("CODEREVIEW_INJECTION_PROCESSED")
 
   fun create(project: Project, inline: Boolean = false, oneLine: Boolean = false): Editor {

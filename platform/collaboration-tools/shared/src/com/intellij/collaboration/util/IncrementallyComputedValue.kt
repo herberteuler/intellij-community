@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
 import org.jetbrains.annotations.ApiStatus
 
-class IncrementallyComputedValue<T> private constructor(
+class IncrementallyComputedValue<out T> private constructor(
   @PublishedApi
   internal val value: Value<T>?,
   private val complete: Boolean,
@@ -112,7 +112,7 @@ class IncrementallyComputedValue<T> private constructor(
 
   @PublishedApi
   @JvmInline
-  internal value class Value<T>(val value: T)
+  internal value class Value<out T>(val value: T)
 }
 
 inline fun <T> IncrementallyComputedValue<T>.onValueAvailable(consumer: (T) -> Unit): IncrementallyComputedValue<T> {

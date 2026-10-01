@@ -21,6 +21,21 @@ f:com.intellij.collaboration.ui.codereview.editor.action.CodeReviewEditorShowFil
 - actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent):V
 - getActionUpdateThread():com.intellij.openapi.actionSystem.ActionUpdateThread
 - update(com.intellij.openapi.actionSystem.AnActionEvent):V
+f:com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory
+- sf:INSTANCE:com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory
+f:com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory$IconConfig
+- sf:Companion:com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory$IconConfig$Companion
+- <init>(javax.swing.Icon,I):V
+- f:component1():javax.swing.Icon
+- f:component2():I
+- f:copy(javax.swing.Icon,I):com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory$IconConfig
+- bs:copy$default(com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory$IconConfig,javax.swing.Icon,I,I,java.lang.Object):com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory$IconConfig
+- equals(java.lang.Object):Z
+- f:getGap():I
+- f:getIcon():javax.swing.Icon
+- hashCode():I
+f:com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory$IconConfig$Companion
+- f:of(com.intellij.collaboration.ui.codereview.CodeReviewChatItemUIUtil$ComponentType,com.intellij.collaboration.ui.icon.IconsProvider,java.lang.Object):com.intellij.collaboration.ui.codereview.timeline.comment.CommentTextFieldFactory$IconConfig
 com.intellij.collaboration.ui.codereview.timeline.thread.CodeReviewFoldableThreadViewModel
 - a:getCanCreateReplies():kotlinx.coroutines.flow.StateFlow
 - a:getRepliesFolded():kotlinx.coroutines.flow.StateFlow
@@ -42,8 +57,22 @@ com.intellij.collaboration.ui.codereview.timeline.thread.CodeReviewResolvableIte
 - a:getCanChangeResolvedState():kotlinx.coroutines.flow.StateFlow
 - a:isBusy():kotlinx.coroutines.flow.StateFlow
 - a:isResolved():kotlinx.coroutines.flow.StateFlow
+f:com.intellij.collaboration.ui.codereview.timeline.thread.TimelineThreadCommentsPanel
+- com.intellij.util.ui.components.BorderLayoutPanel
+- com.intellij.openapi.actionSystem.UiDataProvider
+- sf:Companion:com.intellij.collaboration.ui.codereview.timeline.thread.TimelineThreadCommentsPanel$Companion
+- sf:FOLD_THRESHOLD:I
+- sf:UNFOLD_BUTTON_VERTICAL_GAP:I
+- <init>(javax.swing.ListModel,kotlin.jvm.functions.Function1,I,I):V
+- b:<init>(javax.swing.ListModel,kotlin.jvm.functions.Function1,I,I,I,kotlin.jvm.internal.DefaultConstructorMarker):V
+- f:getFoldModel():com.intellij.collaboration.ui.SingleValueModel
+- uiDataSnapshot(com.intellij.openapi.actionSystem.DataSink):V
+f:com.intellij.collaboration.ui.codereview.timeline.thread.TimelineThreadCommentsPanel$Companion
+- f:createUnfoldComponent(I,kotlin.jvm.functions.Function1):javax.swing.JComponent
 com.intellij.collaboration.ui.codereview.user.CodeReviewUser
 - a:getAvatarUrl():java.lang.String
+f:com.intellij.collaboration.ui.util.popup.PopupAwaitingKt
+- sf:awaitClose(com.intellij.openapi.ui.popup.JBPopup,kotlin.coroutines.Continuation):java.lang.Object
 f:com.intellij.collaboration.util.CollectionDelta
 - <init>(java.util.Collection,java.util.Collection):V
 - f:getNewCollection():java.util.Collection
@@ -87,9 +116,46 @@ f:com.intellij.collaboration.util.HashingUtil
 - bs:mappingStrategy$default(com.intellij.collaboration.util.HashingUtil,kotlin.jvm.functions.Function1,com.intellij.util.containers.HashingStrategy,I,java.lang.Object):com.intellij.util.containers.HashingStrategy
 f:com.intellij.collaboration.util.HideableKt
 - sf:syncOrToggleAll(kotlin.sequences.Sequence):V
+f:com.intellij.collaboration.util.IncrementallyComputedValue
+- sf:Companion:com.intellij.collaboration.util.IncrementallyComputedValue$Companion
+- f:getExceptionOrNull():java.lang.Exception
+- f:getValue-fHzv8Uk():com.intellij.collaboration.util.IncrementallyComputedValue$Value
+- f:getValueOrNull():java.lang.Object
+- f:isComplete():Z
+- f:isLoading():Z
+- f:isValueAvailable():Z
+f:com.intellij.collaboration.util.IncrementallyComputedValue$Companion
+- f:appendPart(com.intellij.collaboration.util.IncrementallyComputedValue,Z,kotlin.jvm.functions.Function1):com.intellij.collaboration.util.IncrementallyComputedValue
+- f:complete(com.intellij.collaboration.util.IncrementallyComputedValue,kotlin.jvm.functions.Function0):com.intellij.collaboration.util.IncrementallyComputedValue
+- f:failure(java.lang.Exception):com.intellij.collaboration.util.IncrementallyComputedValue
+- f:initial():com.intellij.collaboration.util.IncrementallyComputedValue
+- f:loading():com.intellij.collaboration.util.IncrementallyComputedValue
+- f:partialFailure(java.lang.Object,java.lang.Exception):com.intellij.collaboration.util.IncrementallyComputedValue
+- f:partialSuccess(java.lang.Object,Z):com.intellij.collaboration.util.IncrementallyComputedValue
+- bs:partialSuccess$default(com.intellij.collaboration.util.IncrementallyComputedValue$Companion,java.lang.Object,Z,I,java.lang.Object):com.intellij.collaboration.util.IncrementallyComputedValue
+- f:success(java.lang.Object):com.intellij.collaboration.util.IncrementallyComputedValue
+- f:withException(com.intellij.collaboration.util.IncrementallyComputedValue,java.lang.Exception):com.intellij.collaboration.util.IncrementallyComputedValue
+- f:withLoading(com.intellij.collaboration.util.IncrementallyComputedValue,Z):com.intellij.collaboration.util.IncrementallyComputedValue
+f:com.intellij.collaboration.util.IncrementallyComputedValue$Value
+- bsf:box-impl(java.lang.Object):com.intellij.collaboration.util.IncrementallyComputedValue$Value
+- s:constructor-impl(java.lang.Object):java.lang.Object
+- equals(java.lang.Object):Z
+- s:equals-impl(java.lang.Object,java.lang.Object):Z
+- sf:equals-impl0(java.lang.Object,java.lang.Object):Z
+- f:getValue():java.lang.Object
+- hashCode():I
+- s:hashCode-impl(java.lang.Object):I
+- s:toString-impl(java.lang.Object):java.lang.String
+- bf:unbox-impl():java.lang.Object
 f:com.intellij.collaboration.util.RefComparisonChangeKt
 - sf:getFilePath(com.intellij.collaboration.util.RefComparisonChange):com.intellij.openapi.vcs.FilePath
 - sf:getFileStatus(com.intellij.collaboration.util.RefComparisonChange):com.intellij.openapi.vcs.FileStatus
+f:com.intellij.collaboration.util.SingleCoroutineLauncher
+- <init>(kotlinx.coroutines.CoroutineScope):V
+- f:cancel():V
+- f:getBusy():kotlinx.coroutines.flow.StateFlow
+- f:launch(kotlin.coroutines.CoroutineContext,kotlinx.coroutines.CoroutineStart,kotlin.jvm.functions.Function2):V
+- bs:launch$default(com.intellij.collaboration.util.SingleCoroutineLauncher,kotlin.coroutines.CoroutineContext,kotlinx.coroutines.CoroutineStart,kotlin.jvm.functions.Function2,I,java.lang.Object):V
 f:icons.CollaborationToolsIcons
 - sf:AddEmoji:javax.swing.Icon
 - sf:AddEmojiHovered:javax.swing.Icon

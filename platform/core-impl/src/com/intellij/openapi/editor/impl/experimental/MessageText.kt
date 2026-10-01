@@ -3,13 +3,19 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.util.text.StringUtil
 
-/** The longest fragment that a message quotes in full, the ellipsis included. */
+/**
+ * The longest fragment that a message quotes in full, the ellipsis included.
+ */
 private const val MAX_QUOTED_CHARS = 40
 
-/** How many characters of the tail a shortened fragment keeps. */
+/**
+ * How many characters of the tail a shortened fragment keeps.
+ */
 private const val QUOTED_TAIL_CHARS = 12
 
-/** What a shortened fragment puts in place of its middle. */
+/**
+ * What a shortened fragment puts in place of its middle.
+ */
 private const val ELLIPSIS = "..."
 
 /**
@@ -29,7 +35,9 @@ internal fun CharSequence.quotedForMessage(): String {
   return "\"${StringUtil.escapeStringCharacters("$head$ELLIPSIS$tail")}\" ($length chars)"
 }
 
-/** The longest lv list that a message prints in full. */
+/**
+ * The longest lv list that a message prints in full.
+ */
 private const val MAX_LISTED_LVS = 10
 
 /**

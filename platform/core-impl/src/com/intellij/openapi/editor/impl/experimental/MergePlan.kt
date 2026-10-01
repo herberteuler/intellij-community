@@ -24,15 +24,21 @@ internal class MergePlan(
   private val summary: VersionSummary,
 ) {
 
-  /** The [StoredRun.lvStart] in [other] of every run with something new, ascending. */
+  /**
+   * The [StoredRun.lvStart] in [other] of every run with something new, ascending.
+   */
   private val newStarts: IntArray = other.newRunStarts(summary)
 
-  /** The three below run in step with [newStarts], so one index names one planned entry. */
+  /**
+   * The three below run in step with [newStarts], so one index names one planned entry.
+   */
   private val events = ArrayList<EventImpl>(newStarts.size)
   private val parents = ArrayList<VersionImpl>(newStarts.size)
   private val destStarts = IntArray(newStarts.size) { NO_UNIT }
 
-  /** The first lv after everything the plan appends. */
+  /**
+   * The first lv after everything the plan appends.
+   */
   private var lvEnd: LV = dest.size()
 
   private val remappedVersion: VersionImpl
@@ -49,22 +55,30 @@ internal class MergePlan(
     remappedVersion = VersionImpl(remapped)
   }
 
-  /** The number of runs the plan appends. */
+  /**
+   * The number of runs the plan appends.
+   */
   fun size(): Int {
     return events.size
   }
 
-  /** The run to append at [index], already cut down to the part [dest] lacks. */
+  /**
+   * The run to append at [index], already cut down to the part [dest] lacks.
+   */
   fun eventAt(index: Int): EventImpl {
     return events[index]
   }
 
-  /** The parents that the run at [index] gets, in the merged graph's lvs. */
+  /**
+   * The parents that the run at [index] gets, in the merged graph's lvs.
+   */
   fun parentsAt(index: Int): VersionImpl {
     return parents[index]
   }
 
-  /** The version of [other], re-expressed in the merged graph's lvs. */
+  /**
+   * The version of [other], re-expressed in the merged graph's lvs.
+   */
   fun remappedOtherVersion(): VersionImpl {
     return remappedVersion
   }
@@ -94,7 +108,9 @@ internal class MergePlan(
     lvEnd += suffix.length()
   }
 
-  /** The leading units of [event] that [dest] already holds. */
+  /**
+   * The leading units of [event] that [dest] already holds.
+   */
   private fun knownUnits(event: Event): Int {
     return (summary.endSeq(event.agent()) - event.seq()).coerceIn(0, event.length())
   }
@@ -126,14 +142,18 @@ internal class MergePlan(
     }
   }
 
-  /** Fails when the planned runs would take the unit space past [Int.MAX_VALUE]. */
+  /**
+   * Fails when the planned runs would take the unit space past [Int.MAX_VALUE].
+   */
   private fun checkUnitSpace(length: Int) {
     require(length <= Int.MAX_VALUE - lvEnd) {
       "The merged unit space overflows: the plan reaches $lvEnd and adds $length"
     }
   }
 
-  /** The size of the plan and not its content: the content is a whole region of a history. */
+  /**
+   * The size of the plan and not its content: the content is a whole region of a history.
+   */
   override fun toString(): String {
     return "MergePlan(runs=${events.size}, units=${lvEnd - dest.size()}, " +
            "from a graph of ${other.size()} units in ${other.runCount()} runs)"

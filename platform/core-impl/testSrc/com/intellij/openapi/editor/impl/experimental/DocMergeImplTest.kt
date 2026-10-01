@@ -3,7 +3,7 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.DocBranch
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -13,12 +13,14 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Tests [DocMergeImpl]: ready ops, deferred ops, and deferred ops that many threads read at once. */
+/**
+ * Tests [DocMergeImpl]: ready ops, deferred ops, and deferred ops that many threads read at once.
+ */
 internal class DocMergeImplTest {
 
   @Test
   fun `ready ops come back as given`() {
-    val ops = listOf(DocOp.ins(0, "x"))
+    val ops = listOf(DocTextOp.insertOp(0, "x"))
     val merge = DocMergeImpl.ready(BRANCH, ops)
     assertSame(BRANCH, merge.branch())
     assertSame(ops, merge.ops())
@@ -28,7 +30,7 @@ internal class DocMergeImplTest {
   @Test
   fun `deferred ops wait for the first call and are built once`() {
     val builds = AtomicInteger()
-    val ops = listOf(DocOp.del(0, 1))
+    val ops = listOf(DocTextOp.deleteOp(0, 1))
     val merge = DocMergeImpl.deferred(BRANCH) {
       builds.incrementAndGet()
       ops
@@ -61,11 +63,11 @@ internal class DocMergeImplTest {
           twoBuilds.countDown()
           // A lock that allowed one build only would time out here, and still give one list.
           twoBuilds.await(BUILD_WAIT_MILLIS, TimeUnit.MILLISECONDS)
-          listOf(DocOp.ins(0, "x"))
+          listOf(DocTextOp.insertOp(0, "x"))
         }
         val start = CountDownLatch(1)
         val results = (0 until THREADS).map {
-          pool.submit<List<DocOp>> {
+          pool.submit<List<DocTextOp>> {
             start.await()
             merge.ops()
           }
@@ -92,7 +94,9 @@ internal class DocMergeImplTest {
     const val THREADS = 8
     const val ROUNDS = 50
 
-    /** How long a build waits for a second build to start. */
+    /**
+     * How long a build waits for a second build to start.
+     */
     const val BUILD_WAIT_MILLIS = 2_000L
   }
 }

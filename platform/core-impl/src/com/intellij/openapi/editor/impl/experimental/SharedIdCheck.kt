@@ -22,7 +22,9 @@ import com.intellij.openapi.editor.experimental.EventIdClashException
  */
 internal class SharedIdCheck(private val graph: EventGraphImpl, private val other: EventGraphImpl) {
 
-  /** Samples every agent of [other] against [summary], which says what [graph] knows. */
+  /**
+   * Samples every agent of [other] against [summary], which says what [graph] knows.
+   */
   fun check(summary: VersionSummary) {
     val otherSummary = other.summarize()
     for (agent in otherSummary.agents()) {
@@ -37,7 +39,9 @@ internal class SharedIdCheck(private val graph: EventGraphImpl, private val othe
     }
   }
 
-  /** Fails when the unit ([agent], [seq]) is a different operation in the two graphs. */
+  /**
+   * Fails when the unit ([agent], [seq]) is a different operation in the two graphs.
+   */
   private fun checkSameId(agent: Agent, seq: Int) {
     val lv = graph.lvOfUnit(agent, seq)
     val otherLv = other.lvOfUnit(agent, seq)
@@ -55,7 +59,9 @@ internal class SharedIdCheck(private val graph: EventGraphImpl, private val othe
     checkNoClash(hasSameParentIds(lv, otherLv), agent, seq, "the parents")
   }
 
-  /** Fails with a typed exception, so a caller can tell a broken agent contract from a bug. */
+  /**
+   * Fails with a typed exception, so a caller can tell a broken agent contract from a bug.
+   */
   private fun checkNoClash(
     same: Boolean,
     agent: Agent,
@@ -81,17 +87,28 @@ internal class SharedIdCheck(private val graph: EventGraphImpl, private val othe
     if (parents.size == 1) {
       return hasSameId(parents[0], otherParents[0])
     }
-    return parents.mapTo(HashSet()) { idOf(graph, it) } == otherParents.mapTo(HashSet()) { idOf(other, it) }
+    val parentIdSet = parents.mapTo(HashSet()) {
+      idOf(graph, it)
+    }
+    val otherParentIdSet = otherParents.mapTo(HashSet()) {
+      idOf(other, it)
+    }
+    return parentIdSet == otherParentIdSet
   }
 
-  /** Whether the unit [lv] of [graph] and the unit [otherLv] of [other] have one id. */
+  /**
+   * Whether the unit [lv] of [graph] and the unit [otherLv] of [other] have one id.
+   */
   private fun hasSameId(lv: LV, otherLv: LV): Boolean {
     val run = graph.runAt(lv)
     val otherRun = other.runAt(otherLv)
-    return run.event.agent() == otherRun.event.agent() && run.seqAt(lv) == otherRun.seqAt(otherLv)
+    return run.event.agent() == otherRun.event.agent() &&
+           run.seqAt(lv) == otherRun.seqAt(otherLv)
   }
 
-  /** The id of the unit [lv] of [of], as a pair for a set compare. */
+  /**
+   * The id of the unit [lv] of [of], as a pair for a set compare.
+   */
   private fun idOf(of: EventGraphImpl, lv: LV): Pair<Agent, Int> {
     val run = of.runAt(lv)
     return run.event.agent() to run.seqAt(lv)

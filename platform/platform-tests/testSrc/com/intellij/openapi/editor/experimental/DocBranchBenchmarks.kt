@@ -33,11 +33,10 @@ internal fun benchmarkSubtest(
       checksum += pass()
     }
     sink = checksum
-  }
-    .setup { setup() }
-    .warmupIterations(WARMUP_ITERATIONS)
-    .attempts(ATTEMPTS)
-    .startAsSubtest(subtest)
+  }.setup { setup() }
+   .warmupIterations(WARMUP_ITERATIONS)
+   .attempts(ATTEMPTS)
+   .startAsSubtest(subtest)
 }
 
 /**

@@ -82,7 +82,7 @@ class DocBranchFuzzTest {
     return text.toString()
   }
 
-  private fun randomOp(random: Random, length: Int): DocOp {
+  private fun randomOp(random: Random, length: Int): DocTextOp {
     if (length == 0 || random.nextBoolean()) {
       val offset = random.nextInt(length + 1)
       val fragment = StringBuilder()

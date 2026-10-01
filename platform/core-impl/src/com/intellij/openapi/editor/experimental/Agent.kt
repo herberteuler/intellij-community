@@ -12,6 +12,8 @@ import com.intellij.openapi.editor.impl.experimental.AgentImpl
  */
 interface Agent : Comparable<Agent> {
   companion object {
-    fun createAgent(name: String): Agent = AgentImpl(name)
+    fun createAgent(name: String): Agent {
+      return AgentImpl(name)
+    }
   }
 }

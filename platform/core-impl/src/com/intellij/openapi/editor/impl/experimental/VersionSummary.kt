@@ -16,12 +16,16 @@ import com.intellij.openapi.editor.experimental.Agent
  */
 internal class VersionSummary(private val endSeqs: Map<Agent, Int>) {
 
-  /** The agents that the graph knows anything about. */
+  /**
+   * The agents that the graph knows anything about.
+   */
   fun agents(): Set<Agent> {
     return endSeqs.keys
   }
 
-  /** The first seq of [agent] that the graph does NOT hold. Zero when it knows no [agent]. */
+  /**
+   * The first seq of [agent] that the graph does NOT hold. Zero when it knows no [agent].
+   */
   fun endSeq(agent: Agent): Int {
     return endSeqs[agent] ?: 0
   }

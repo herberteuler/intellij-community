@@ -17,9 +17,13 @@ class EventIdClashException internal constructor(
   message: String,
 ) : IllegalArgumentException(message) {
 
-  /** The agent of the id that names two operations. */
+  /**
+   * The agent of the id that names two operations.
+   */
   fun agent(): Agent = agent
 
-  /** The seq of the id that names two operations. */
+  /**
+   * The seq of the id that names two operations.
+   */
   fun seq(): Int = seq
 }

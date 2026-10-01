@@ -3,7 +3,7 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.DocBranch
 import com.intellij.openapi.editor.experimental.DocMerge
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 
 /**
  * See [DocMerge]. The ops are ready when the merge replayed and recorded them. They are deferred
@@ -17,31 +17,37 @@ import com.intellij.openapi.editor.experimental.DocOp
  */
 internal class DocMergeImpl private constructor(
   private val branch: DocBranch,
-  private val ops: Lazy<List<DocOp>>,
+  private val ops: Lazy<List<DocTextOp>>,
 ) : DocMerge {
 
   override fun branch(): DocBranch {
     return branch
   }
 
-  override fun ops(): List<DocOp> {
+  override fun ops(): List<DocTextOp> {
     return ops.value
   }
 
-  /** The branch and the number of ops. It never builds deferred ops. */
+  /**
+   * The branch and the number of ops. It never builds deferred ops.
+   */
   override fun toString(): String {
     val opsText = if (ops.isInitialized()) "${ops.value.size} ops" else "ops deferred"
     return "DocMerge($branch, $opsText)"
   }
 
   companion object {
-    /** A merge with [ops] ready. The list must not change after this call. */
-    fun ready(branch: DocBranch, ops: List<DocOp>): DocMergeImpl {
+    /**
+     * A merge with [ops] ready. The list must not change after this call.
+     */
+    fun ready(branch: DocBranch, ops: List<DocTextOp>): DocMergeImpl {
       return DocMergeImpl(branch, lazyOf(ops))
     }
 
-    /** A merge whose ops [build] makes on the first call of [ops]. [build] must return a list that cannot change. */
-    fun deferred(branch: DocBranch, build: () -> List<DocOp>): DocMergeImpl {
+    /**
+     * A merge whose ops [build] makes on the first call of [ops]. [build] must return a list that cannot change.
+     */
+    fun deferred(branch: DocBranch, build: () -> List<DocTextOp>): DocMergeImpl {
       return DocMergeImpl(branch, lazy(LazyThreadSafetyMode.PUBLICATION, build))
     }
   }

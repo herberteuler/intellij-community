@@ -253,10 +253,10 @@ class EventGraphDiagramTest {
   @Test
   fun `a merge line leaves only the box of a parent`() {
     val base = DocBranch.createBranch("base", agent("u0"))
-    val a = base.fork(agent("u1")).applyOp(DocOp.ins(0, "a"))
-    val d = base.fork(agent("u2")).applyOp(DocOp.ins(4, "b")).applyOp(DocOp.ins(4, "d"))
-    val f = a.fork(agent("u3")).merge(d).applyOp(DocOp.ins(0, "f"))
-    val graph = a.applyOp(DocOp.ins(0, "c")).merge(f).graph()
+    val a = base.fork(agent("u1")).applyOp(DocTextOp.insertOp(0, "a"))
+    val d = base.fork(agent("u2")).applyOp(DocTextOp.insertOp(4, "b")).applyOp(DocTextOp.insertOp(4, "d"))
+    val f = a.fork(agent("u3")).merge(d).applyOp(DocTextOp.insertOp(0, "f"))
+    val graph = a.applyOp(DocTextOp.insertOp(0, "c")).merge(f).graph()
     assertEquals(
       """
       EventGraph(units=9, runs=6, version=v[5, 8])
@@ -369,7 +369,9 @@ class EventGraphDiagramTest {
     assertTrue(diagram.lines().all { it.length < 80 }) { "a line is too wide: $diagram" }
   }
 
-  /** Three concurrent roots, "D" after "a" and "c", and "E" after [eParents]. */
+  /**
+   * Three concurrent roots, "D" after "a" and "c", and "E" after [eParents].
+   */
   private fun threeRootsAndTwoMerges(eParents: Version): EventGraph {
     var graph = EventGraph.createGraph()
     for (name in listOf("a", "b", "c")) {

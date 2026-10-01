@@ -35,7 +35,9 @@ package com.intellij.openapi.editor.impl.experimental
  * right parent. So [splitAfter] rebuilds them without storing them.
  */
 internal class Item(
-  /** The lv of the first unit. A right parent always names this one. */
+  /**
+   * The lv of the first unit. A right parent always names this one.
+   */
   val firstUnit: LV,
   length: Int,
   val originLeft: LV,
@@ -51,23 +53,33 @@ internal class Item(
     checkStates(prepareState, effectState)
   }
 
-  /** The lv of the last unit. A left origin always names this one. */
+  /**
+   * The lv of the last unit. A left origin always names this one.
+   */
   val lastUnit: LV get() = firstUnit + length - 1
 
-  /** Whether the prepare version has these characters. */
+  /**
+   * Whether the prepare version has these characters.
+   */
   val inPrepare: Boolean get() = prepareState == INSERTED
 
-  /** Whether the effect version has these characters. */
+  /**
+   * Whether the effect version has these characters.
+   */
   val inEffect: Boolean get() = effectState == INSERTED
 
-  /** Whether the prepare version already reached the op that creates the item. */
+  /**
+   * Whether the prepare version already reached the op that creates the item.
+   */
   val appliedInPrepare: Boolean get() = prepareState != NOT_YET_INSERTED
 
   val prepareWidth: Int get() = if (inPrepare) length else 0
 
   val effectWidth: Int get() = if (inEffect) length else 0
 
-  /** Whether the span stands in for the document at the common ancestor. */
+  /**
+   * Whether the span stands in for the document at the common ancestor.
+   */
   private val isPlaceholder: Boolean get() = firstUnit < 0
 
   fun contains(unit: LV): Boolean = unit >= firstUnit && unit < firstUnit + length
@@ -118,7 +130,9 @@ internal class Item(
     }
   }
 
-  /** Removes the span from both versions. */
+  /**
+   * Removes the span from both versions.
+   */
   fun deleteHere() {
     require(inPrepare) {
       "Delete of an item that is not inserted in the prepare version"
@@ -151,14 +165,18 @@ internal class Item(
     return right
   }
 
-  /** An empty span would own no unit, and the walk could never reach it by an lv. */
+  /**
+   * An empty span would own no unit, and the walk could never reach it by an lv.
+   */
   private fun checkLength(length: Int) {
     require(length >= 1) {
       "The span length is not positive: $length"
     }
   }
 
-  /** Fails unless the pair is one of the five states in the class KDoc. */
+  /**
+   * Fails unless the pair is one of the five states in the class KDoc.
+   */
   private fun checkStates(prepareState: Int, effectState: Int) {
     require(effectState == INSERTED || effectState == DELETED) {
       "The effect state $effectState is not a state"
@@ -184,13 +202,19 @@ internal class Item(
   }
 
   private companion object {
-    /** The prepare version has not reached the op that creates the item. */
+    /**
+     * The prepare version has not reached the op that creates the item.
+     */
     const val NOT_YET_INSERTED = -1
 
-    /** The version has the characters. */
+    /**
+     * The version has the characters.
+     */
     const val INSERTED = 0
 
-    /** The version removed the characters. A prepare state counts stacked concurrent deletes. */
+    /**
+     * The version removed the characters. A prepare state counts stacked concurrent deletes.
+     */
     const val DELETED = 1
 
     /**

@@ -3,7 +3,7 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.DocBranch
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
 import com.intellij.openapi.editor.experimental.Version
@@ -43,7 +43,7 @@ internal class EventGraphInvariantFuzzTest {
           } else {
             val op = randomOp(random, replicas[i].text().length(), carets[i])
             replicas[i] = replicas[i].applyOp(op)
-            carets[i] = if (op is DocOp.Insert) op.offset() + op.length() else op.offset()
+            carets[i] = if (op is DocTextOp.Insert) op.offset() + op.length() else op.offset()
           }
           checkGraph(replicas[i].graph()) { "round $round, step $step, replica $i" }
           assertEquals(replicas[i].graph().replay().string(), replicas[i].text().string()) {
@@ -76,7 +76,7 @@ internal class EventGraphInvariantFuzzTest {
             val seq = EventGraphImpl.implOf(graph).nextSeqFor(agents[i])
             val event = randomEvent(random, agents[i], seq, text, caret)
             graphs[i] = graph.append(event, parents)
-            carets[i] = event.op().offset() + if (event.op() is DocOp.Insert) event.length() else 0
+            carets[i] = event.op().offset() + if (event.op() is DocTextOp.Insert) event.length() else 0
           }
           versions[i].add(graphs[i].version())
           checkGraph(graphs[i]) { "round $round, step $step, replica $i" }
@@ -91,7 +91,9 @@ internal class EventGraphInvariantFuzzTest {
     }
   }
 
-  /** The check must be able to fail. [EventGraph.append] leaves the reduction of parents to its caller. */
+  /**
+   * The check must be able to fail. [EventGraph.append] leaves the reduction of parents to its caller.
+   */
   @Test
   fun `the invariant check rejects parents that are not reduced`() {
     val graph = EventGraph.createGraph()
@@ -101,7 +103,9 @@ internal class EventGraphInvariantFuzzTest {
     assertTrue(failure.message.orEmpty().contains("not reduced"), failure.message)
   }
 
-  /** Runs one round with a [Random] of its own seed, so a failing round replays alone. */
+  /**
+   * Runs one round with a [Random] of its own seed, so a failing round replays alone.
+   */
   private fun fuzzRound(seed: Long, round: Int, body: (Random) -> Unit) {
     try {
       body(Random(seed + round))
@@ -110,7 +114,9 @@ internal class EventGraphInvariantFuzzTest {
     }
   }
 
-  /** Fails unless every invariant of [graph] holds. The diagram of a random graph must draw, too. */
+  /**
+   * Fails unless every invariant of [graph] holds. The diagram of a random graph must draw, too.
+   */
   private fun checkGraph(graph: EventGraph, where: () -> String) {
     try {
       EventGraphImpl.implOf(graph).checkInvariants()
@@ -120,16 +126,18 @@ internal class EventGraphInvariantFuzzTest {
     }
   }
 
-  private fun randomOp(random: Random, length: Int, caret: Int): DocOp {
+  private fun randomOp(random: Random, length: Int, caret: Int): DocTextOp {
     val at = if (random.nextInt(4) == 0) random.nextInt(length + 1) else caret.coerceIn(0, length)
     if (length > 0 && random.nextInt(3) == 0) {
       val offset = at.coerceAtMost(length - 1)
-      return DocOp.del(offset, 1 + random.nextInt(minOf(3, length - offset)))
+      return DocTextOp.deleteOp(offset, 1 + random.nextInt(minOf(3, length - offset)))
     }
-    return DocOp.ins(at, randomText(random, 1 + random.nextInt(3)))
+    return DocTextOp.insertOp(at, randomText(random, 1 + random.nextInt(3)))
   }
 
-  /** An event that fits [text], the document at its parents. It edits at [caret] when it can. */
+  /**
+   * An event that fits [text], the document at its parents. It edits at [caret] when it can.
+   */
   private fun randomEvent(
     random: Random,
     agent: Agent,

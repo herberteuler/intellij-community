@@ -1,12 +1,16 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 
-/** The greatest number of concurrent runs that one row draws. */
+/**
+ * The greatest number of concurrent runs that one row draws.
+ */
 private const val MAX_RUNS_PER_ROW = 6
 
-/** The spaces between two boxes that stand side by side. */
+/**
+ * The spaces between two boxes that stand side by side.
+ */
 private const val GAP = 2
 
 private const val NO_COLUMN = -1
@@ -26,7 +30,9 @@ private const val NO_COLUMN = -1
  * depth 0.
  */
 internal class DiagramLayout(private val graph: EventGraphImpl, private val runs: List<Int>) {
-  /** The slot of each drawn run, by its run index. */
+  /**
+   * The slot of each drawn run, by its run index.
+   */
   private val slots = HashMap<Int, Int>(runs.size)
   private val depths = IntArray(runs.size)
   private val rows = ArrayList<MutableList<Int>>()
@@ -70,17 +76,23 @@ internal class DiagramLayout(private val graph: EventGraphImpl, private val runs
 
   // --------------------------------------------------------------------------------- layout
 
-  /** The run of the [slot]. */
+  /**
+   * The run of the [slot].
+   */
   private fun runOf(slot: Int): StoredRun {
     return graph.runByIndex(runs[slot])
   }
 
-  /** The slot of the run that holds the parent unit [parent], or `null` when it is not drawn. */
+  /**
+   * The slot of the run that holds the parent unit [parent], or `null` when it is not drawn.
+   */
   private fun parentSlot(parent: LV): Int? {
     return slots[graph.runIndexOf(parent)]
   }
 
-  /** Groups the runs by depth, and drops the ones that [MAX_RUNS_PER_ROW] leaves out. */
+  /**
+   * Groups the runs by depth, and drops the ones that [MAX_RUNS_PER_ROW] leaves out.
+   */
   private fun buildRows() {
     for (slot in runs.indices) {
       var depth = 0
@@ -102,7 +114,9 @@ internal class DiagramLayout(private val graph: EventGraphImpl, private val runs
     }
   }
 
-  /** Links the drawn runs to the drawn parents and children. A dropped run links to none. */
+  /**
+   * Links the drawn runs to the drawn parents and children. A dropped run links to none.
+   */
   private fun buildLinks() {
     for (row in rows) {
       for (slot in row) {
@@ -194,7 +208,9 @@ internal class DiagramLayout(private val graph: EventGraphImpl, private val runs
     }
   }
 
-  /** The line [line] of the box of the [slot], as wide as its column. */
+  /**
+   * The line [line] of the box of the [slot], as wide as its column.
+   */
   private fun boxLine(slot: Int, line: Int): String {
     val body = bodyOf(slot)
     val boxWidth = widths[columns[slot]]
@@ -208,7 +224,9 @@ internal class DiagramLayout(private val graph: EventGraphImpl, private val runs
     return "│ " + inner + " ".repeat(boxWidth - inner.length - 4) + " │"
   }
 
-  /** The lines of the box of the [slot]. Only a drawn run has a box. */
+  /**
+   * The lines of the box of the [slot]. Only a drawn run has a box.
+   */
   private fun bodyOf(slot: Int): List<String> {
     val body = bodies[slot]
     require(body != null) {
@@ -241,7 +259,9 @@ internal class DiagramLayout(private val graph: EventGraphImpl, private val runs
     return children[slot].isNotEmpty() || !graph.versionImpl().contains(runOf(slot).lvEnd() - 1)
   }
 
-  /** A box border of [boxWidth], with [middle] where a line joins it. */
+  /**
+   * A box border of [boxWidth], with [middle] where a line joins it.
+   */
   private fun border(
     boxWidth: Int,
     left: Char,
@@ -332,7 +352,9 @@ internal class DiagramLayout(private val graph: EventGraphImpl, private val runs
     text.append('\n').append(verticals(BooleanArray(widths.size) { true }, down))
   }
 
-  /** One line with a `│` in every column that both [up] and [down] name. */
+  /**
+   * One line with a `│` in every column that both [up] and [down] name.
+   */
   private fun verticals(up: BooleanArray, down: BooleanArray): String {
     val chars = CharArray(width) { ' ' }
     for (column in widths.indices) {
@@ -388,13 +410,15 @@ internal class DiagramLayout(private val graph: EventGraphImpl, private val runs
   }
 }
 
-/** The lines of one box, one field per line. */
+/**
+ * The lines of one box, one field per line.
+ */
 private fun body(run: StoredRun): List<String> {
   val event = run.event
   val op = event.op()
   val head = when (op) {
-    is DocOp.Insert -> "insert ${op.fragment().quotedForMessage()}"
-    is DocOp.Delete -> "delete ${op.length()} ${if (op.length() == 1) "char" else "chars"}"
+    is DocTextOp.Insert -> "insert ${op.fragment().quotedForMessage()}"
+    is DocTextOp.Delete -> "delete ${op.length()} ${if (op.length() == 1) "char" else "chars"}"
   }
   // A name is free text, so it gets the quoting of a fragment: it can neither break the box nor
   // widen it past the bound.
@@ -406,13 +430,17 @@ private fun body(run: StoredRun): List<String> {
   )
 }
 
-/** The lv range of [run]: one lv for a run of one unit, and `first..last` for a longer one. */
+/**
+ * The lv range of [run]: one lv for a run of one unit, and `first..last` for a longer one.
+ */
 private fun lvs(run: StoredRun): String {
   val last = run.lvEnd() - 1
   return if (run.lvStart == last) "${run.lvStart}" else "${run.lvStart}..$last"
 }
 
-/** A count of runs with the right noun: "1 more run", "2 more runs". */
+/**
+ * A count of runs with the right noun: "1 more run", "2 more runs".
+ */
 internal fun runsWord(count: Int, kind: String = ""): String {
   val noun = if (count == 1) "run" else "runs"
   return if (kind.isEmpty()) "$count more $noun" else "$count more $kind $noun"

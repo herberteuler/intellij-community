@@ -62,7 +62,9 @@ class EgWalkerConformanceTest {
     }
   }
 
-  /** Two agents that keep the agent contract, so the trace takes both paths. */
+  /**
+   * Two agents that keep the agent contract, so the trace takes both paths.
+   */
   @Test
   fun `the ff trace of the reference reaches its final text`() {
     val file = referenceFile("ff-raw.json")
@@ -168,9 +170,9 @@ class EgWalkerConformanceTest {
           val pieceEnd = if (cut in 0 until lv + length) cut + 1 else lv + length
           val count = pieceEnd - (lv + done)
           branch = if (op.deleted > 0) {
-            branch.applyOp(DocOp.del(op.offset, count))
+            branch.applyOp(DocTextOp.deleteOp(op.offset, count))
           } else {
-            branch.applyOp(DocOp.ins(op.offset + done, op.inserted.substring(done, done + count)))
+            branch.applyOp(DocTextOp.insertOp(op.offset + done, op.inserted.substring(done, done + count)))
           }
           done += count
           if (needed.get(pieceEnd - 1)) {
@@ -183,7 +185,9 @@ class EgWalkerConformanceTest {
     return branchAt(heads, root, branchAt).string()
   }
 
-  /** The branch at [lvs]: [start] when they are the root, and the merge of their branches otherwise. */
+  /**
+   * The branch at [lvs]: [start] when they are the root, and the merge of their branches otherwise.
+   */
   private fun branchAt(
     lvs: IntArray,
     start: DocBranch,
@@ -199,7 +203,9 @@ class EgWalkerConformanceTest {
     return branch
   }
 
-  /** Fails unless every transaction of an agent descends from the transaction of that agent before it. */
+  /**
+   * Fails unless every transaction of an agent descends from the transaction of that agent before it.
+   */
   private fun checkAgentContract(history: History, where: () -> String) {
     val lastUnitOf = HashMap<Agent, Int>()
     for (txn in history.txns) {
@@ -213,7 +219,9 @@ class EgWalkerConformanceTest {
     }
   }
 
-  /** The units at or before [lvs]. The units of a transaction before a unit are its ancestors. */
+  /**
+   * The units at or before [lvs]. The units of a transaction before a unit are its ancestors.
+   */
   private fun eventsOf(history: History, lvs: IntArray): BitSet {
     val seen = BitSet()
     val stack = ArrayDeque<Int>()
@@ -230,7 +238,9 @@ class EgWalkerConformanceTest {
     return seen
   }
 
-  /** The units that no transaction names as a parent and that end their transaction, ascending. */
+  /**
+   * The units that no transaction names as a parent and that end their transaction, ascending.
+   */
   private fun headsOf(history: History): IntArray {
     val named = BitSet()
     for (txn in history.txns) {
@@ -276,7 +286,9 @@ class EgWalkerConformanceTest {
     return History(txns, json.get("endContent").asString)
   }
 
-  /** The array under [key], which the export format always writes. */
+  /**
+   * The array under [key], which the export format always writes.
+   */
   private fun JsonObject.arrayAt(key: String): JsonArray {
     val array = getAsJsonArray(key)
     requireNotNull(array) {
@@ -293,7 +305,9 @@ class EgWalkerConformanceTest {
     return Path.of(PathManager.getCommunityHomePath()).parent.resolve(REFERENCE_DATA).resolve(name)
   }
 
-  /** One op of a transaction: a delete of [deleted] units at [offset], or an insert of [inserted] there. */
+  /**
+   * One op of a transaction: a delete of [deleted] units at [offset], or an insert of [inserted] there.
+   */
   private class Op(
     val offset: Int,
     val deleted: Int,
@@ -304,7 +318,9 @@ class EgWalkerConformanceTest {
     }
   }
 
-  /** One transaction: the units `[start, end)` of [agent], from [seqStart], after [parents]. */
+  /**
+   * One transaction: the units `[start, end)` of [agent], from [seqStart], after [parents].
+   */
   private class Txn(
     val agent: Agent,
     val seqStart: Int,
@@ -321,7 +337,9 @@ class EgWalkerConformanceTest {
   private class History(val txns: List<Txn>, val endContent: String) {
     private val starts = IntArray(txns.size) { txns[it].start }
 
-    /** The transaction that holds the unit [lv]. */
+    /**
+     * The transaction that holds the unit [lv].
+     */
     fun txnAt(lv: Int): Txn {
       val index = starts.binarySearch(lv)
       return txns[if (index >= 0) index else -index - 2]
@@ -329,13 +347,19 @@ class EgWalkerConformanceTest {
   }
 
   private companion object {
-    /** The sizes of the data sets, so a truncated file fails and does not pass on less data. */
+    /**
+     * The sizes of the data sets, so a truncated file fails and does not pass on less data.
+     */
     const val REPOSITORY_HISTORIES = 150
 
-    /** The test data of the feature, under the community root. */
+    /**
+     * The test data of the feature, under the community root.
+     */
     const val TEST_DATA = "platform/platform-tests/testData/editor/docBranch"
 
-    /** The test data of the reference checkout, under the repository root. */
+    /**
+     * The test data of the reference checkout, under the repository root.
+     */
     const val REFERENCE_DATA = "Resources/eg-walker/eg-walker-reference/testdata"
     const val REFERENCE_HISTORIES = 1000
   }

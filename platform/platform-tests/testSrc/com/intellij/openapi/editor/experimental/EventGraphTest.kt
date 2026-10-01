@@ -164,13 +164,13 @@ class EventGraphTest {
     assertEquals(agent("u"), insert.agent())
     assertEquals(5, insert.seq())
     assertEquals(3, insert.length())
-    val insertOp = insert.op() as DocOp.Insert
+    val insertOp = insert.op() as DocTextOp.Insert
     assertEquals(2, insertOp.offset())
     assertEquals("abc", insertOp.fragment().toString())
     val delete = Event.createDelete(agent("u"), 8, 1, 4)
     assertEquals(8, delete.seq())
     assertEquals(4, delete.length())
-    assertEquals(1, (delete.op() as DocOp.Delete).offset())
+    assertEquals(1, (delete.op() as DocTextOp.Delete).offset())
   }
 
   @Test
@@ -196,17 +196,17 @@ class EventGraphTest {
 
   /**
    * An event keeps the exact op it records. The other half of the claim is a compile-time
-   * one that no assert can state: an event is not a [DocOp], so it cannot reach
+   * one that no assert can state: an event is not a [DocTextOp], so it cannot reach
    * [DocText.applyOp] at all.
    */
   @Test
   fun `an event wraps the op it records`() {
-    val op = DocOp.ins(2, "abc")
+    val op = DocTextOp.insertOp(2, "abc")
     val insert = Event.create(agent("u"), 0, op)
     assertSame(op, insert.op())
     assertEquals(3, insert.length())
-    val delete = Event.create(agent("u"), 3, DocOp.del(1, 4))
-    assertEquals(1, (delete.op() as DocOp.Delete).offset())
+    val delete = Event.create(agent("u"), 3, DocTextOp.deleteOp(1, 4))
+    assertEquals(1, (delete.op() as DocTextOp.Delete).offset())
     assertEquals(4, delete.length())
   }
 
@@ -646,7 +646,7 @@ class EventGraphTest {
   @Test
   fun `a foreign op is rejected`() {
     // Only DocOp.ins and DocOp.del detach the content from a sequence the caller can change.
-    val foreign = object : DocOp.Insert {
+    val foreign = object : DocTextOp.Insert {
       override fun offset(): Int = 0
       override fun length(): Int = 1
       override fun fragment(): CharSequence = "x"
@@ -657,7 +657,7 @@ class EventGraphTest {
   @Test
   fun `an insert keeps its fragment when the caller changes the builder`() {
     val builder = StringBuilder("ab")
-    val op = DocOp.ins(0, builder)
+    val op = DocTextOp.insertOp(0, builder)
     builder.setLength(0)
     builder.append("zz")
     assertEquals("ab", op.fragment().toString())
@@ -668,15 +668,15 @@ class EventGraphTest {
   @Test
   fun `ops are equal when they make the same change at the same offset`() {
     // The fragment compares by content, whatever sequence the caller passed.
-    assertEquals(DocOp.ins(2, "ab"), DocOp.ins(2, StringBuilder("ab")))
-    assertEquals(DocOp.ins(2, "ab").hashCode(), DocOp.ins(2, StringBuilder("ab")).hashCode())
-    assertEquals(DocOp.del(1, 3), DocOp.del(1, 3))
-    assertEquals(DocOp.del(1, 3).hashCode(), DocOp.del(1, 3).hashCode())
-    assertNotEquals(DocOp.ins(2, "ab"), DocOp.ins(3, "ab"))
-    assertNotEquals(DocOp.ins(2, "ab"), DocOp.ins(2, "ac"))
-    assertNotEquals(DocOp.del(1, 3), DocOp.del(1, 2))
-    val delete: DocOp = DocOp.del(0, 1)
-    assertNotEquals(delete, DocOp.ins(0, "a"))
+    assertEquals(DocTextOp.insertOp(2, "ab"), DocTextOp.insertOp(2, StringBuilder("ab")))
+    assertEquals(DocTextOp.insertOp(2, "ab").hashCode(), DocTextOp.insertOp(2, StringBuilder("ab")).hashCode())
+    assertEquals(DocTextOp.deleteOp(1, 3), DocTextOp.deleteOp(1, 3))
+    assertEquals(DocTextOp.deleteOp(1, 3).hashCode(), DocTextOp.deleteOp(1, 3).hashCode())
+    assertNotEquals(DocTextOp.insertOp(2, "ab"), DocTextOp.insertOp(3, "ab"))
+    assertNotEquals(DocTextOp.insertOp(2, "ab"), DocTextOp.insertOp(2, "ac"))
+    assertNotEquals(DocTextOp.deleteOp(1, 3), DocTextOp.deleteOp(1, 2))
+    val delete: DocTextOp = DocTextOp.deleteOp(0, 1)
+    assertNotEquals(delete, DocTextOp.insertOp(0, "a"))
   }
 
   @Test

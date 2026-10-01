@@ -19,7 +19,9 @@ internal class AgentIndex private constructor(
   private val trees: Array<RunTree>,
 ) {
 
-  /** This index with [run] added to the tree of its agent. */
+  /**
+   * This index with [run] added to the tree of its agent.
+   */
   fun appended(run: StoredRun): AgentIndex {
     val agent = run.event.agent()
     val slot = slotOf(agent)
@@ -36,23 +38,33 @@ internal class AgentIndex private constructor(
     return AgentIndex(newAgents, newTrees)
   }
 
-  /** The first seq of [agent] that no closed run holds, or 0 when [agent] has none. */
+  /**
+   * The first seq of [agent] that no closed run holds, or 0 when [agent] has none.
+   */
   fun nextSeq(agent: Agent): Int {
     val slot = slotOf(agent)
     return if (slot < 0) 0 else endSeqOf(trees[slot])
   }
 
-  /** The lv of the unit ([agent], [seq]) when a closed run holds it, or -1. */
+  /**
+   * The lv of the unit ([agent], [seq]) when a closed run holds it, or -1.
+   */
   fun lvOfSeq(agent: Agent, seq: Int): LV {
     val slot = slotOf(agent)
     if (slot < 0) {
       return -1
     }
     val run = trees[slot].floor(seq)
-    return if (run != null && run.holdsUnit(agent, seq)) run.lvOfSeq(seq) else -1
+    return if (run != null && run.holdsUnit(agent, seq)) {
+      run.lvOfSeq(seq)
+    } else {
+      -1
+    }
   }
 
-  /** What the closed runs know, plus the [tail] of the graph, as one end seq per agent. */
+  /**
+   * What the closed runs know, plus the [tail] of the graph, as one end seq per agent.
+   */
   fun summarize(tail: StoredRun?): VersionSummary {
     val endSeqs = HashMap<Agent, Int>(agents.size + 1)
     for (slot in agents.indices) {
@@ -75,7 +87,11 @@ internal class AgentIndex private constructor(
     for (slot in agents.indices) {
       val known = summary.endSeq(agents[slot])
       val tree = trees[slot]
-      firsts[slot] = if (known >= endSeqOf(tree)) tree.size() else tree.floorIndex(known)
+      firsts[slot] = if (known >= endSeqOf(tree)) {
+        tree.size()
+      } else {
+        tree.floorIndex(known)
+      }
       count += tree.size() - firsts[slot]
     }
     val starts = IntArray(count)
@@ -92,7 +108,9 @@ internal class AgentIndex private constructor(
     return starts
   }
 
-  /** The slot of [agent], or `-(insertion point) - 1` when the index has no run of it. */
+  /**
+   * The slot of [agent], or `-(insertion point) - 1` when the index has no run of it.
+   */
   private fun slotOf(agent: Agent): Int {
     var lo = 0
     var hi = agents.size - 1

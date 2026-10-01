@@ -2,13 +2,13 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.Event
 
 internal class EventImpl(
   private val agent: Agent,
   private val seq: Int,
-  private val op: DocOp,
+  private val op: DocTextOp,
 ) : Event {
 
   init {
@@ -25,14 +25,14 @@ internal class EventImpl(
 
   override fun agent(): Agent = agent
   override fun seq(): Int = seq
-  override fun op(): DocOp = op
+  override fun op(): DocTextOp = op
   override fun length(): Int = op.length()
 
   override fun offsetOfUnit(index: Int): Int {
     checkUnitIndex(index)
     return when (op) {
-      is DocOp.Insert -> op.offset() + index
-      is DocOp.Delete -> op.offset()
+      is DocTextOp.Insert -> op.offset() + index
+      is DocTextOp.Delete -> op.offset()
     }
   }
 
@@ -44,18 +44,22 @@ internal class EventImpl(
     return EventImpl(agent, seq + units, suffixOp(units))
   }
 
-  /** The part of [op] from the unit [units] onward. A delete keeps its offset; see [offsetOfUnit]. */
-  private fun suffixOp(units: Int): DocOp {
+  /**
+   * The part of [op] from the unit [units] onward. A delete keeps its offset; see [offsetOfUnit].
+   */
+  private fun suffixOp(units: Int): DocTextOp {
     return when (op) {
-      is DocOp.Insert -> {
+      is DocTextOp.Insert -> {
         val fragment = op.fragment()
-        DocOp.ins(op.offset() + units, fragment.subSequence(units, fragment.length))
+        DocTextOp.insertOp(op.offset() + units, fragment.subSequence(units, fragment.length))
       }
-      is DocOp.Delete -> DocOp.del(op.offset(), op.length() - units)
+      is DocTextOp.Delete -> DocTextOp.deleteOp(op.offset(), op.length() - units)
     }
   }
 
-  /** Fails unless [index] names a unit of this run. A suffix from the end would be empty. */
+  /**
+   * Fails unless [index] names a unit of this run. A suffix from the end would be empty.
+   */
   private fun checkUnitIndex(index: Int) {
     require(index in 0 until length()) {
       "The unit index $index is outside the run of length ${length()}"
@@ -80,8 +84,8 @@ internal class EventImpl(
   }
 }
 
-private fun checkKnownOp(op: DocOp) {
-  require(op is InsertDocOpImpl || op is DeleteDocOpImpl) {
+private fun checkKnownOp(op: DocTextOp) {
+  require(op is InsertDocTextOpImpl || op is DeleteDocTextOpImpl) {
     "Foreign DocOp implementation: ${op.javaClass.name}. An event keeps its op forever, " +
     "so the op must come from DocOp.ins or DocOp.del."
   }
@@ -96,7 +100,9 @@ private fun checkNotNegative(seq: Int, offset: Int) {
   }
 }
 
-/** An empty op is a legal no-op, but an empty event would own no id and name nothing. */
+/**
+ * An empty op is a legal no-op, but an empty event would own no id and name nothing.
+ */
 private fun checkLength(length: Int) {
   require(length >= 1) {
     "The event length is not positive: $length"

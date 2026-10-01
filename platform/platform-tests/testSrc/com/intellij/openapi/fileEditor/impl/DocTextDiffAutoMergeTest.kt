@@ -2,7 +2,7 @@
 package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.openapi.editor.experimental.DocBranch
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.agent
 import com.intellij.openapi.editor.experimental.string
@@ -37,7 +37,9 @@ import org.junit.jupiter.api.Test
  */
 class DocTextDiffAutoMergeTest {
 
-  /** The saved document. Every test starts from this text, and the disk holds it too. */
+  /**
+   * The saved document. Every test starts from this text, and the disk holds it too.
+   */
   private fun savedDocument(): String = document(
     """
     package demo
@@ -328,11 +330,11 @@ class DocTextDiffAutoMergeTest {
    * it. The merge of the two branches must give [merged], in either order.
    */
   private fun assertAutoMerge(
-    saved: String,
-    userOps: List<DocOp>,
-    userText: String,
-    diskText: String,
-    merged: String,
+      saved: String,
+      userOps: List<DocTextOp>,
+      userText: String,
+      diskText: String,
+      merged: String,
   ) {
     // 1. The saved document. The file on disk holds the same text.
     val savedBranch = DocBranch.createBranch(saved, agent("saved"))

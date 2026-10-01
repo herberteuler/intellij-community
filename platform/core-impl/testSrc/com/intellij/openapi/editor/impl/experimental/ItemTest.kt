@@ -33,7 +33,9 @@ internal class ItemTest {
     }
   }
 
-  /** [State.E3] is only a destination: its delete advance leads past the tested counts. */
+  /**
+   * [State.E3] is only a destination: its delete advance leads past the tested counts.
+   */
   @Test
   fun `every other transition fails and keeps the state`() {
     for (from in State.entries.filter { it != State.E3 }) {
@@ -99,7 +101,9 @@ internal class ItemTest {
     }
   }
 
-  /** The raw states are the encoding of the private constants: -1, 0, and a count of deletes. */
+  /**
+   * The raw states are the encoding of the private constants: -1, 0, and a count of deletes.
+   */
   @Test
   fun `a pair outside the states is rejected`() {
     val outside = listOf(
@@ -116,7 +120,9 @@ internal class ItemTest {
     item(prepareState = 3, effectState = 1)
   }
 
-  /** The states of the KDoc table, with the deleted state at three values of k, which is [deletes]. */
+  /**
+   * The states of the KDoc table, with the deleted state at three values of k, which is [deletes].
+   */
   private enum class State(
     val inPrepare: Boolean,
     val inEffect: Boolean,
@@ -146,7 +152,9 @@ internal class ItemTest {
     val to: State,
   )
 
-  /** Builds an item in [state] through listed transitions only, starting from a new item. */
+  /**
+   * Builds an item in [state] through listed transitions only, starting from a new item.
+   */
   private fun itemIn(state: State): Item {
     val item = item()
     when (state) {

@@ -50,7 +50,7 @@ class ReplayPerformanceTest {
   }
 
   /**
-   * A merge of two concurrent pastes. This is the [DocOp] path through the batching sink, and
+   * A merge of two concurrent pastes. This is the [DocTextOp] path through the batching sink, and
    * not the `StringBuilder` path, so it reports one op however many calls it takes to build.
    */
   @Test
@@ -59,8 +59,8 @@ class ReplayPerformanceTest {
     println("  %-14s %10s".format("paste", "units"))
     for (paste in PASTE_SIZES) {
       val base = DocBranch.createBranch("base\n", agent("base"))
-      val left = base.fork(agent("aaa")).applyOp(DocOp.ins(5, "L".repeat(paste)))
-      val right = base.fork(agent("bbb")).applyOp(DocOp.ins(5, "R".repeat(paste)))
+      val left = base.fork(agent("aaa")).applyOp(DocTextOp.insertOp(5, "L".repeat(paste)))
+      val right = base.fork(agent("bbb")).applyOp(DocTextOp.insertOp(5, "R".repeat(paste)))
       assertEquals(5 + 2 * paste, left.merge(right).text().length())
       println("  %-14s %10d".format("$paste chars", 2 * paste))
       benchmarkSubtest("merge of two $paste-char pastes", PASTE_MERGE_PASSES) {
@@ -82,8 +82,8 @@ class ReplayPerformanceTest {
     println("  %-14s %10s".format("history", "runs"))
     for (runs in HISTORY_RUNS) {
       val base = historyOfRuns(runs)
-      val left = base.fork(agent("aaa")).applyOp(DocOp.ins(0, "L"))
-      val right = base.fork(agent("bbb")).applyOp(DocOp.ins(0, "R"))
+      val left = base.fork(agent("aaa")).applyOp(DocTextOp.insertOp(0, "L"))
+      val right = base.fork(agent("bbb")).applyOp(DocTextOp.insertOp(0, "R"))
       assertEquals(runs + 2, left.merge(right).text().length())
       println("  %-14s %10d".format("$runs runs", left.graph().runCount()))
       benchmarkSubtest("merge of one op over $runs runs", ONE_OP_MERGE_PASSES) {
@@ -134,7 +134,7 @@ class ReplayPerformanceTest {
       var branch = DocBranch.createBranch("", AUTHORS[0])
       var length = 0
       for (run in 0 until UNITS / runLength) {
-        branch = branch.fork(AUTHORS[run % AUTHORS.size]).applyOp(DocOp.ins(positionOf(length), fragment))
+        branch = branch.fork(AUTHORS[run % AUTHORS.size]).applyOp(DocTextOp.insertOp(positionOf(length), fragment))
         length += runLength
       }
       val graph = branch.graph()
@@ -154,23 +154,29 @@ class ReplayPerformanceTest {
   private fun historyOfRuns(runs: Int): DocBranch {
     var branch = DocBranch.createBranch("", agent("u"))
     repeat(runs) {
-      branch = branch.applyOp(DocOp.ins(0, "x"))
+      branch = branch.applyOp(DocTextOp.insertOp(0, "x"))
     }
     return branch
   }
 
   companion object {
-    /** The unit count that every run length builds up to, so the rows compare. */
+    /**
+     * The unit count that every run length builds up to, so the rows compare.
+     */
     private const val UNITS = 40_000
 
-    /** The run lengths to sweep. One unit per run is what a backspace produces. */
+    /**
+     * The run lengths to sweep. One unit per run is what a backspace produces.
+     */
     private val RUN_LENGTHS = intArrayOf(1, 4, 16, 64)
 
     private val AUTHORS = arrayOf(agent("u"), agent("w"))
 
     private val PASTE_SIZES = intArrayOf(2_000, 8_000, 20_000)
 
-    /** The history sizes that the one-op merge sweeps, in runs. */
+    /**
+     * The history sizes that the one-op merge sweeps, in runs.
+     */
     private val HISTORY_RUNS = intArrayOf(2_000, 8_000, 32_000, 128_000)
 
     /**

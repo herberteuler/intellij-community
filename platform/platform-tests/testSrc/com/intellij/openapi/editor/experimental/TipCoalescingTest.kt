@@ -145,7 +145,9 @@ class TipCoalescingTest {
     history.assertReplays("x".repeat(length) + "y")
   }
 
-  /** A delete run holds no characters, so an extension copies nothing, and no limit applies. */
+  /**
+   * A delete run holds no characters, so an extension copies nothing, and no limit applies.
+   */
   @Test
   fun `a delete run grows past the insert limit`() {
     val length = EventGraph.MAX_COALESCED_INSERT + 10
@@ -208,7 +210,9 @@ class TipCoalescingTest {
     assertEquals("ab", older.replay().string())
   }
 
-  /** A version that names a unit inside a run replays, before and after the run is closed. */
+  /**
+   * A version that names a unit inside a run replays, before and after the run is closed.
+   */
   @Test
   fun `a past version inside a run replays after the run is closed`() {
     val history = History().type(U, 0, "hello")
@@ -230,7 +234,9 @@ class TipCoalescingTest {
 
   // ------------------------------------------------------------------------------------- merges
 
-  /** A merge appends a suffix through the same append as a local edit, so it coalesces too. */
+  /**
+   * A merge appends a suffix through the same append as a local edit, so it coalesces too.
+   */
   @Test
   fun `a merged suffix extends the run it continues`() {
     val prefix = History().type(U, 0, "ab").graph()
@@ -388,7 +394,9 @@ class TipCoalescingTest {
       return this
     }
 
-    /** One insert per character of [chars], each at the end of the one before it. */
+    /**
+     * One insert per character of [chars], each at the end of the one before it.
+     */
     fun type(agent: Agent, offset: Int, chars: String): History {
       for ((i, char) in chars.withIndex()) {
         insert(agent, offset + i, char.toString())
@@ -396,7 +404,9 @@ class TipCoalescingTest {
       return this
     }
 
-    /** Checks the text, and that every version this history passed replays to its text. */
+    /**
+     * Checks the text, and that every version this history passed replays to its text.
+     */
     fun assertReplays(expected: String) {
       assertEquals(expected, text.toString())
       assertEquals(expected, graph.replay().string())

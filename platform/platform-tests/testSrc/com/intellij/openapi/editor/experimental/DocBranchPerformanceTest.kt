@@ -72,7 +72,7 @@ class DocBranchPerformanceTest {
   fun `a single user edits EditorImpl`() {
     val text = Files.readString(hugeTextPath())
     val random = Random(20260827)
-    val recorded = ArrayList<DocOp>()
+    val recorded = ArrayList<DocTextOp>()
     val batchEnds = IntArray(SINGLE_USER_BATCHES)
     val user = User(DocBranch.createBranch(text, agent("user")))
     user.recorder = recorded
@@ -110,7 +110,9 @@ class DocBranchPerformanceTest {
     }
   }
 
-  /** The collaborative scenario over [text]. Every session forks, edits, and merges back. */
+  /**
+   * The collaborative scenario over [text]. Every session forks, edits, and merges back.
+   */
   private fun runScenario(text: String): DocBranch {
     val random = Random(20260827)
     var base = DocBranch.createBranch(text, agent("base"))
@@ -133,10 +135,12 @@ class DocBranchPerformanceTest {
     return DocBranch.createBranch(text, agent("user"))
   }
 
-  /** [branch] with the ops `[from, until)` of [ops] applied. */
+  /**
+   * [branch] with the ops `[from, until)` of [ops] applied.
+   */
   private fun applied(
     branch: DocBranch,
-    ops: List<DocOp>,
+    ops: List<DocTextOp>,
     from: Int,
     until: Int,
   ): DocBranch {
@@ -147,7 +151,7 @@ class DocBranchPerformanceTest {
     return result
   }
 
-  private fun applied(text: DocText, ops: List<DocOp>): DocText {
+  private fun applied(text: DocText, ops: List<DocTextOp>): DocText {
     var result = text
     for (op in ops) {
       result = result.applyOp(op)
@@ -159,9 +163,9 @@ class DocBranchPerformanceTest {
 
   private class User(var branch: DocBranch) {
     var caret = 0
-    var recorder: ArrayList<DocOp>? = null
+    var recorder: ArrayList<DocTextOp>? = null
 
-    fun apply(op: DocOp) {
+    fun apply(op: DocTextOp) {
       branch = branch.applyOp(op)
       recorder?.add(op)
     }
@@ -254,28 +258,40 @@ class DocBranchPerformanceTest {
   }
 
   companion object {
-    /** The test data of the feature, under the community root. */
+    /**
+     * The test data of the feature, under the community root.
+     */
     private const val TEST_DATA = "platform/platform-tests/testData/editor/docBranch"
 
-    /** The document sizes to run; 0 means the whole file. */
+    /**
+     * The document sizes to run; 0 means the whole file.
+     */
     private val SIZES = intArrayOf(25_000, 100_000, 0)
 
-    /** The exact results of the collaborative scenario, one per entry of [SIZES]. */
+    /**
+     * The exact results of the collaborative scenario, one per entry of [SIZES].
+     */
     private val FINAL_LENGTHS = intArrayOf(30_801, 105_801, 244_567)
     private val HISTORY_UNITS = intArrayOf(32_733, 107_733, 246_499)
     private val HISTORY_RUNS = intArrayOf(99, 99, 99)
 
-    /** The number of users that edit at once, session by session. */
+    /**
+     * The number of users that edit at once, session by session.
+     */
     private val CONCURRENCY_LEVELS = intArrayOf(1, 2, 3, 4, 5)
 
     private const val ACTIONS_PER_USER = 6
 
-    /** The passes of one collaborative attempt. The framework reports whole milliseconds. */
+    /**
+     * The passes of one collaborative attempt. The framework reports whole milliseconds.
+     */
     private const val COLLABORATIVE_PASSES = 200
     private const val SINGLE_USER_BATCHES = 1000
     private const val SINGLE_USER_ACTIONS_PER_BATCH = 200
 
-    /** The batches at each end of the single-user session that the flat-cost subtests apply. */
+    /**
+     * The batches at each end of the single-user session that the flat-cost subtests apply.
+     */
     private const val FLAT_COST_BATCHES = 100
     private const val TYPED = "abcdefghijklmnopqrstuvwxyz    ();.{}\n"
     private val COMPLETIONS = arrayOf(

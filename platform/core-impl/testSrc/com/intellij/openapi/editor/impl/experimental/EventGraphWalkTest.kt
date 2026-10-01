@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.Event
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -62,7 +62,9 @@ internal class EventGraphWalkTest {
     assertEquals(without(joined(eventsA, eventsB), ancestor), joined(fresh, conflicting)) { "coverage, ${where()}" }
   }
 
-  /** The largest set of shared events that every other event of the union descends from. */
+  /**
+   * The largest set of shared events that every other event of the union descends from.
+   */
   private fun greatestAncestor(graph: EventGraphImpl, eventsA: BitSet, eventsB: BitSet): BitSet {
     val all = joined(eventsA, eventsB)
     val ancestor = (eventsA.clone() as BitSet).apply { and(eventsB) }
@@ -79,7 +81,9 @@ internal class EventGraphWalkTest {
     return ancestor
   }
 
-  /** The tip, a fork from inside a run, a merge of two past versions, or one past version. */
+  /**
+   * The tip, a fork from inside a run, a merge of two past versions, or one past version.
+   */
   private fun randomParents(
     random: Random,
     graph: EventGraphImpl,
@@ -111,7 +115,9 @@ internal class EventGraphWalkTest {
     return reduced(graph, List(1 + random.nextInt(3)) { random.nextInt(graph.size()) })
   }
 
-  /** The offset that extends the tail when [agent] owns it and [parents] names its last unit, else 0. */
+  /**
+   * The offset that extends the tail when [agent] owns it and [parents] names its last unit, else 0.
+   */
   private fun continuingOffset(graph: EventGraphImpl, agent: Agent, parents: VersionImpl): Int {
     val last = graph.size() - 1
     if (last < 0 || !parents.lvs.contentEquals(intArrayOf(last))) {
@@ -119,10 +125,12 @@ internal class EventGraphWalkTest {
     }
     val event = graph.runAt(last).event
     val op = event.op()
-    return if (event.agent() == agent && op is DocOp.Insert) op.offset() + op.length() else 0
+    return if (event.agent() == agent && op is DocTextOp.Insert) op.offset() + op.length() else 0
   }
 
-  /** The heads among [lvs]: every lv that is no ancestor of another one. */
+  /**
+   * The heads among [lvs]: every lv that is no ancestor of another one.
+   */
   private fun reduced(graph: EventGraphImpl, lvs: List<Int>): VersionImpl {
     val distinct = lvs.toSortedSet()
     val heads = distinct.filter { lv ->

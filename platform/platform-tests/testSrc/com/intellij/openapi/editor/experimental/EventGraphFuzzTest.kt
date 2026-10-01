@@ -101,7 +101,9 @@ class EventGraphFuzzTest {
     assertTrue(recutRounds > 0) { "no round cut its runs differently" }
   }
 
-  /** Mostly a few characters, and sometimes an insert longer than the coalescing limit. */
+  /**
+   * Mostly a few characters, and sometimes an insert longer than the coalescing limit.
+   */
   private fun randomString(random: Random): String {
     val length = if (random.nextInt(8) == 0) {
       EventGraph.MAX_COALESCED_INSERT - 20 + random.nextInt(60)

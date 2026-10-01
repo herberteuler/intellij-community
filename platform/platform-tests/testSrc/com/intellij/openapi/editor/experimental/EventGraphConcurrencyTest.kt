@@ -426,7 +426,9 @@ class EventGraphConcurrencyTest {
     futures.forEach { it.get() }
   }
 
-  /** Waits for [latch], and fails when it does not open in time. */
+  /**
+   * Waits for [latch], and fails when it does not open in time.
+   */
   private fun awaitLatch(latch: CountDownLatch, what: String) {
     assertTrue(latch.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)) { "Not in time: $what" }
   }
@@ -445,7 +447,9 @@ class EventGraphConcurrencyTest {
     const val WRITERS = 4
     const val REPLICAS = 6
 
-    /** The writer's op count. It bounds the replay work, which grows with the history. */
+    /**
+     * The writer's op count. It bounds the replay work, which grows with the history.
+     */
     const val APPENDS = 600
 
     /**
@@ -457,28 +461,40 @@ class EventGraphConcurrencyTest {
 
     const val ROUNDS = 300
 
-    /** The base run count, and how far it sweeps, to cross the first full leaf of the run tree. */
+    /**
+     * The base run count, and how far it sweeps, to cross the first full leaf of the run tree.
+     */
     const val MIN_BASE_OPS = 24
     const val BASE_OPS_SWEEP = 24
 
-    /** Enough ops that every writer closes several runs into its own trees. */
+    /**
+     * Enough ops that every writer closes several runs into its own trees.
+     */
     const val OPS_PER_WRITER = 8
 
     const val MERGE_ROUNDS = 60
 
-    /** The rounds of the burst test, the keystrokes of one burst, and those of one writer. */
+    /**
+     * The rounds of the burst test, the keystrokes of one burst, and those of one writer.
+     */
     const val BURST_ROUNDS = 100
     const val WRITER_BURST = 10
     const val BURST_OPS_PER_WRITER = 4 * WRITER_BURST
 
-    /** The gossip rounds, and the edit-or-pull steps each replica takes in one round. */
+    /**
+     * The gossip rounds, and the edit-or-pull steps each replica takes in one round.
+     */
     const val GOSSIP_ROUNDS = 25
     const val GOSSIP_STEPS = 20
 
-    /** A deadlock has to fail the test instead of hanging the build. */
+    /**
+     * A deadlock has to fail the test instead of hanging the build.
+     */
     const val TIMEOUT_SECONDS = 60L
 
-    /** How often [awaitAll] looks at the workers. */
+    /**
+     * How often [awaitAll] looks at the workers.
+     */
     const val POLL_MILLIS = 10L
   }
 }

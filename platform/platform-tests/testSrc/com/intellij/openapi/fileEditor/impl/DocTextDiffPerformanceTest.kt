@@ -2,7 +2,7 @@
 package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.benchmarkSubtest
 import com.intellij.testFramework.PerformanceUnitTest
@@ -113,7 +113,7 @@ class DocTextDiffPerformanceTest {
     }
   }
 
-  private fun applied(base: DocText, ops: List<DocOp>): DocText {
+  private fun applied(base: DocText, ops: List<DocTextOp>): DocText {
     var result = base
     for (op in ops) {
       result = result.applyOp(op)
@@ -125,30 +125,36 @@ class DocTextDiffPerformanceTest {
     println("  %-56s%13s%17s%9s%8s%12s".format("scenario", "ops", "units", "of doc", "passes", "apply"))
   }
 
-  /** The number of characters that [ops] insert or delete. One character is one unit of the graph. */
-  private fun units(ops: List<DocOp>): Int {
+  /**
+   * The number of characters that [ops] insert or delete. One character is one unit of the graph.
+   */
+  private fun units(ops: List<DocTextOp>): Int {
     var count = 0
     for (op in ops) {
       count += when (op) {
-        is DocOp.Insert -> op.fragment().length
-        is DocOp.Delete -> op.length()
+        is DocTextOp.Insert -> op.fragment().length
+        is DocTextOp.Delete -> op.length()
       }
     }
     return count
   }
 
-  /** [base] with [count] new lines, spread evenly over the document. */
+  /**
+   * [base] with [count] new lines, spread evenly over the document.
+   */
   private fun withNewLines(base: DocText, count: Int): String {
     var target = base
     val step = maxOf(base.lineCount() / (count + 1), 1)
     // Back to front, so every offset indexes the base.
     for (index in count downTo 1) {
-      target = target.applyOp(DocOp.ins(base.lineStartOffset(index * step), "    // edit $index\n"))
+      target = target.applyOp(DocTextOp.insertOp(base.lineStartOffset(index * step), "    // edit $index\n"))
     }
     return target.string()
   }
 
-  /** [text] with [count] tokens inserted, spread evenly. The text needs no line feed. */
+  /**
+   * [text] with [count] tokens inserted, spread evenly. The text needs no line feed.
+   */
   private fun edited(text: String, count: Int): String {
     val step = text.length / (count + 1)
     val builder = StringBuilder(text)
@@ -158,7 +164,9 @@ class DocTextDiffPerformanceTest {
     return builder.toString()
   }
 
-  /** A text of about [length] characters that shares no line with the source. */
+  /**
+   * A text of about [length] characters that shares no line with the source.
+   */
   private fun unrelatedText(length: Int): String {
     val builder = StringBuilder(length + 32)
     var line = 0
@@ -180,11 +188,15 @@ class DocTextDiffPerformanceTest {
   private class Scenario(val name: String, val passes: Int, val scalesUp: Boolean = true, val target: () -> String)
 
   companion object {
-    /** How many times the source file repeats. The repeat makes every line a duplicate, which the
-     * comparison finds harder than a real file of the same size. */
+    /**
+     * How many times the source file repeats. The repeat makes every line a duplicate, which the
+     * comparison finds harder than a real file of the same size.
+     */
     private val COPIES = intArrayOf(1, 10)
 
-    /** The shortest script whose apply is timed, and the ops that one apply attempt runs. */
+    /**
+     * The shortest script whose apply is timed, and the ops that one apply attempt runs.
+     */
     private const val MIN_TIMED_APPLY_OPS = 20
     private const val APPLY_OPS_PER_ATTEMPT = 20_000
   }

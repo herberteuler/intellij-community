@@ -60,7 +60,7 @@ internal class EventGraphImpl private constructor(
   }
 
   override fun mergeFrom(other: EventGraph): EventGraph {
-    return mergeFromImpl(implOf(other)).graph
+    return mergeFromImpl(implOf(other)).graph()
   }
 
   override fun replay(version: Version): DocText {
@@ -75,7 +75,9 @@ internal class EventGraphImpl private constructor(
     return version
   }
 
-  /** Appends the [event] run at this graph's own frontier. */
+  /**
+   * Appends the [event] run at this graph's own frontier.
+   */
   fun appendAtVersion(event: EventImpl): EventGraphImpl {
     return appendImpl(event, version)
   }
@@ -97,12 +99,16 @@ internal class EventGraphImpl private constructor(
     return agents.nextSeq(agent)
   }
 
-  /** What this graph knows, as one end seq per agent. */
+  /**
+   * What this graph knows, as one end seq per agent.
+   */
   fun summarize(): VersionSummary {
     return agents.summarize(tail)
   }
 
-  /** The lv of the unit ([agent], [seq]) in this graph, or -1 when it holds no such unit. */
+  /**
+   * The lv of the unit ([agent], [seq]) in this graph, or -1 when it holds no such unit.
+   */
   fun lvOfUnit(agent: Agent, seq: Int): LV {
     val tail = tail
     if (tail != null && tail.holdsUnit(agent, seq)) {
@@ -111,7 +117,9 @@ internal class EventGraphImpl private constructor(
     return agents.lvOfSeq(agent, seq)
   }
 
-  /** The [StoredRun.lvStart] of every run of THIS graph that [summary] does not cover, ascending. */
+  /**
+   * The [StoredRun.lvStart] of every run of THIS graph that [summary] does not cover, ascending.
+   */
   fun newRunStarts(summary: VersionSummary): IntArray {
     val starts = agents.newRunStarts(summary)
     val tail = tail
@@ -196,21 +204,27 @@ internal class EventGraphImpl private constructor(
 
   // ------------------------------------------------------------------- queries for the replay
 
-  /** The run that covers [lv]. */
+  /**
+   * The run that covers [lv].
+   */
   fun runAt(lv: LV): StoredRun {
     checkLv(lv)
     val tail = requireTail()
     return if (tail.startsAtOrBefore(lv)) tail else requireClosedRun(lv)
   }
 
-  /** The index of the run that covers [lv]. An index counts runs, and an lv counts units. */
+  /**
+   * The index of the run that covers [lv]. An index counts runs, and an lv counts units.
+   */
   fun runIndexOf(lv: LV): Int {
     checkLv(lv)
     val tail = requireTail()
     return if (tail.startsAtOrBefore(lv)) runs.size() else runs.floorIndex(lv)
   }
 
-  /** The run at [index], which must be below [runCount]. The tail comes last. */
+  /**
+   * The run at [index], which must be below [runCount]. The tail comes last.
+   */
   fun runByIndex(index: Int): StoredRun {
     checkRunIndex(index)
     return if (index == runs.size()) requireTail() else runs.get(index)
@@ -336,7 +350,9 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  /** Fails when a parent of [run] is not below it, or when one parent is an ancestor of another. */
+  /**
+   * Fails when a parent of [run] is not below it, or when one parent is an ancestor of another.
+   */
   private fun checkRunParents(run: StoredRun) {
     val parents = run.runParents()
     for (parent in parents) {
@@ -417,7 +433,9 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  /** Fails when a run of [length] units cannot fit after the units of this graph. */
+  /**
+   * Fails when a run of [length] units cannot fit after the units of this graph.
+   */
   private fun checkLvSpace(length: Int) {
     require(length <= Int.MAX_VALUE - size) {
       "The graph unit space overflows: size $size + run length $length"
@@ -436,7 +454,9 @@ internal class EventGraphImpl private constructor(
     }
   }
 
-  /** The graph as a text diagram. See [EventGraphDiagram] for the notation and its limits. */
+  /**
+   * The graph as a text diagram. See [EventGraphDiagram] for the notation and its limits.
+   */
   override fun toString(): String {
     return EventGraphDiagram.render(this)
   }

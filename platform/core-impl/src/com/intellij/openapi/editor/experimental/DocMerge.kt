@@ -11,7 +11,9 @@ package com.intellij.openapi.editor.experimental
  * The value is immutable, and any thread may read it.
  */
 interface DocMerge {
-  /** The merged branch: the value that [DocBranch.merge] returns for the same two branches. */
+  /**
+   * The merged branch: the value that [DocBranch.merge] returns for the same two branches.
+   */
   fun branch(): DocBranch
 
   /**
@@ -21,7 +23,7 @@ interface DocMerge {
    * it. So the text of the receiver, with every op applied in turn, equals the text of [branch]. A
    * text between two ops need not be the text of any version.
    *
-   * Each op comes from [DocOp.ins] or [DocOp.del], and no op is empty. A merge whose new units change
+   * Each op comes from [DocTextOp.insertOp] or [DocTextOp.deleteOp], and no op is empty. A merge whose new units change
    * no text has no ops. Ops that cancel each other can still occur, because the other side can
    * insert text and delete it later, and only neighbouring ops join. The list cannot change, and
    * every call returns the same list.
@@ -31,5 +33,5 @@ interface DocMerge {
    * document. The compare makes sure that the ops build the text of [branch]. It fails only when the
    * two branches broke the agent contract, in a way that the id check of the merge did not sample.
    */
-  fun ops(): List<DocOp>
+  fun ops(): List<DocTextOp>
 }

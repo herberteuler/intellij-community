@@ -2,7 +2,7 @@
 package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.assertSameText
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -322,9 +322,9 @@ class DocTextDiffTest {
     val base = DocText.createText(Files.readString(hugeTextPath()))
     // The ops run from the last offset to the first, so every offset indexes the base.
     val ops = listOf(
-      DocOp.ins(base.lineStartOffset(5000), "    myScrollingModel.dispose();\n"),
-      DocOp.del(base.lineStartOffset(3000), base.lineEndOffset(3000) - base.lineStartOffset(3000)),
-      DocOp.ins(base.lineStartOffset(120), "  // a note near the top\n"),
+      DocTextOp.insertOp(base.lineStartOffset(5000), "    myScrollingModel.dispose();\n"),
+      DocTextOp.deleteOp(base.lineStartOffset(3000), base.lineEndOffset(3000) - base.lineStartOffset(3000)),
+      DocTextOp.insertOp(base.lineStartOffset(120), "  // a note near the top\n"),
     )
     val version1 = applyOps(base, ops)
     val recovered = DocTextDiff.diff(base, version1)
@@ -349,7 +349,7 @@ class DocTextDiffTest {
    */
   private fun assertDiff(
     base: String,
-    ops: List<DocOp>,
+    ops: List<DocTextOp>,
     version1: String,
     script: String,
   ) {
@@ -365,7 +365,7 @@ class DocTextDiffTest {
     assertSameText(expected, actual)
   }
 
-  private fun applyOps(base: DocText, ops: List<DocOp>): DocText {
+  private fun applyOps(base: DocText, ops: List<DocTextOp>): DocText {
     var text = base
     for (op in ops) {
       text = text.applyOp(op)
@@ -373,13 +373,15 @@ class DocTextDiffTest {
     return text
   }
 
-  /** The number of characters that [ops] insert or delete. A small number means a small event graph. */
-  private fun touchedChars(ops: List<DocOp>): Int {
+  /**
+   * The number of characters that [ops] insert or delete. A small number means a small event graph.
+   */
+  private fun touchedChars(ops: List<DocTextOp>): Int {
     var count = 0
     for (op in ops) {
       count += when (op) {
-        is DocOp.Insert -> op.fragment().length
-        is DocOp.Delete -> op.length()
+        is DocTextOp.Insert -> op.fragment().length
+        is DocTextOp.Delete -> op.length()
       }
     }
     return count
@@ -409,8 +411,8 @@ class DocTextDiffTest {
     return text.toString()
   }
 
-  private fun randomOps(random: Random, base: DocText): List<DocOp> {
-    val ops = ArrayList<DocOp>()
+  private fun randomOps(random: Random, base: DocText): List<DocTextOp> {
+    val ops = ArrayList<DocTextOp>()
     var text = base
     repeat(1 + random.nextInt(8)) {
       val op = randomOp(random, text.length())
@@ -420,18 +422,18 @@ class DocTextDiffTest {
     return ops
   }
 
-  private fun randomOp(random: Random, length: Int): DocOp {
+  private fun randomOp(random: Random, length: Int): DocTextOp {
     if (length == 0 || random.nextBoolean()) {
       val offset = random.nextInt(length + 1)
       val fragment = StringBuilder()
       repeat(1 + random.nextInt(8)) {
         fragment.append(ALPHABET[random.nextInt(ALPHABET.length)])
       }
-      return DocOp.ins(offset, fragment.toString())
+      return DocTextOp.insertOp(offset, fragment.toString())
     }
     val offset = random.nextInt(length)
     val opLength = 1 + random.nextInt(minOf(8, length - offset))
-    return DocOp.del(offset, opLength)
+    return DocTextOp.deleteOp(offset, opLength)
   }
 
   private fun hugeTextPath(): Path {
@@ -451,16 +453,18 @@ class DocTextDiffTest {
  * Every offset indexes the base, because a script runs from the last changed region to the first.
  * So a delete can show the text that it removes.
  */
-internal fun formatOps(base: String, ops: List<DocOp>): String {
+internal fun formatOps(base: String, ops: List<DocTextOp>): String {
   return ops.joinToString("\n") { op ->
     when (op) {
-      is DocOp.Insert -> "ins ${op.offset()} ${quote(op.fragment().toString())}"
-      is DocOp.Delete -> "del ${op.offset()} ${quote(base.substring(op.offset(), op.offset() + op.length()))}"
+      is DocTextOp.Insert -> "ins ${op.offset()} ${quote(op.fragment().toString())}"
+      is DocTextOp.Delete -> "del ${op.offset()} ${quote(base.substring(op.offset(), op.offset() + op.length()))}"
     }
   }
 }
 
-/** [text] on one line, in quotation marks, with every line break and quotation mark escaped. */
+/**
+ * [text] on one line, in quotation marks, with every line break and quotation mark escaped.
+ */
 internal fun quote(text: String): String {
   val escaped = text
     .replace("\\", "\\\\")
@@ -470,24 +474,34 @@ internal fun quote(text: String): String {
   return "\"$escaped\""
 }
 
-/** The document that a text block states. The block drops the trailing line break, so this adds it. */
+/**
+ * The document that a text block states. The block drops the trailing line break, so this adds it.
+ */
 internal fun document(block: String): String = block.trimIndent() + "\n"
 
-/** An insert of [fragment] right before the first [anchor] of [base]. */
-internal fun insertBefore(base: String, anchor: String, fragment: String): DocOp {
-  return DocOp.ins(offsetOf(base, anchor), fragment)
+/**
+ * An insert of [fragment] right before the first [anchor] of [base].
+ */
+internal fun insertBefore(base: String, anchor: String, fragment: String): DocTextOp {
+  return DocTextOp.insertOp(offsetOf(base, anchor), fragment)
 }
 
-/** An insert of [fragment] at the end of [base]. */
-internal fun append(base: String, fragment: String): DocOp = DocOp.ins(base.length, fragment)
+/**
+ * An insert of [fragment] at the end of [base].
+ */
+internal fun append(base: String, fragment: String): DocTextOp = DocTextOp.insertOp(base.length, fragment)
 
-/** A delete of the first [fragment] of [base]. */
-internal fun delete(base: String, fragment: String): DocOp {
-  return DocOp.del(offsetOf(base, fragment), fragment.length)
+/**
+ * A delete of the first [fragment] of [base].
+ */
+internal fun delete(base: String, fragment: String): DocTextOp {
+  return DocTextOp.deleteOp(offsetOf(base, fragment), fragment.length)
 }
 
-/** A delete of the whole [base]. */
-internal fun deleteAll(base: String): DocOp = DocOp.del(0, base.length)
+/**
+ * A delete of the whole [base].
+ */
+internal fun deleteAll(base: String): DocTextOp = DocTextOp.deleteOp(0, base.length)
 
 private fun offsetOf(base: String, fragment: String): Int {
   val offset = base.indexOf(fragment)

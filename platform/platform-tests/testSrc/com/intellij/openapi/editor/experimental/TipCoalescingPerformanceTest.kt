@@ -188,7 +188,9 @@ class TipCoalescingPerformanceTest {
       return kinds.size
     }
 
-    /** The session appended to a graph that starts with [startText]. */
+    /**
+     * The session appended to a graph that starts with [startText].
+     */
     fun graph(sharedAgent: Boolean): EventGraph {
       val typist = Typist(sharedAgent)
       typist.insert(0, startText)
@@ -202,7 +204,9 @@ class TipCoalescingPerformanceTest {
       return typist.graph()
     }
 
-    /** The session applied to a fork of [base]. Without [sharedAgent], two agents take turns. */
+    /**
+     * The session applied to a fork of [base]. Without [sharedAgent], two agents take turns.
+     */
     fun branch(base: DocBranch, name: String, sharedAgent: Boolean): DocBranch {
       val authors = arrayOf(agent("$name-a"), agent("$name-b"))
       var branch = base.fork(authors[0])
@@ -211,9 +215,9 @@ class TipCoalescingPerformanceTest {
           branch = branch.fork(authors[i % 2])
         }
         val op = if (kinds[i] == INSERT) {
-          DocOp.ins(offsets[i], typed.subSequence(textStarts[i], textStarts[i] + lengths[i]).toString())
+          DocTextOp.insertOp(offsets[i], typed.subSequence(textStarts[i], textStarts[i] + lengths[i]).toString())
         } else {
-          DocOp.del(offsets[i], lengths[i])
+          DocTextOp.deleteOp(offsets[i], lengths[i])
         }
         branch = branch.applyOp(op)
       }

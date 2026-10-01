@@ -35,10 +35,14 @@ internal object EgWalkerReplay {
    * least one character, at a position of the effect version.
    */
   interface Sink {
-    /** Inserts [fragment] at [effectPos]. */
+    /**
+     * Inserts [fragment] at [effectPos].
+     */
     fun insert(effectPos: Int, fragment: CharSequence)
 
-    /** Removes [count] characters at [effectPos]. */
+    /**
+     * Removes [count] characters at [effectPos].
+     */
     fun delete(effectPos: Int, count: Int)
   }
 

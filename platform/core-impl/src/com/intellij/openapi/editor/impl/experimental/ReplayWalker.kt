@@ -14,10 +14,14 @@ import java.util.TreeMap
  */
 internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount: Int) {
 
-  /** Every item in document order. The list only grows: a split inserts, nothing removes. */
+  /**
+   * Every item in document order. The list only grows: a split inserts, nothing removes.
+   */
   private val items = ArrayList<Item>()
 
-  /** For each delete unit, the lv of the unit it deleted. */
+  /**
+   * For each delete unit, the lv of the unit it deleted.
+   */
   private val delTargets = DeleteTargets()
 
   /**
@@ -27,7 +31,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    */
   private val itemsByUnit = TreeMap<LV, Item>()
 
-  /** The prepare version. The reference calls this `curVersion`. */
+  /**
+   * The prepare version. The reference calls this `curVersion`.
+   */
   private var curVersion: Frontier = IntArray(0)
 
   /**
@@ -70,7 +76,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     curVersion = ancestor.lvs
   }
 
-  /** Walks the whole graph, or the part of it that a past [version] selects. */
+  /**
+   * Walks the whole graph, or the part of it that a past [version] selects.
+   */
   fun replayAt(version: VersionImpl, sink: EgWalkerReplay.Sink) {
     val subset = if (version == graph.versionImpl()) {
       null
@@ -99,7 +107,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     return subset?.nextSetBit(from) ?: from
   }
 
-  /** Walks [ranges], one whole run per step where a range allows it. */
+  /**
+   * Walks [ranges], one whole run per step where a range allows it.
+   */
   fun walk(ranges: LvRanges, sink: EgWalkerReplay.Sink?) {
     this.sink = sink
     for (index in 0 until ranges.size()) {
@@ -166,7 +176,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     }
   }
 
-  /** Puts [ranges] back into the prepare version, forwards, in the batches of [retreatRanges]. */
+  /**
+   * Puts [ranges] back into the prepare version, forwards, in the batches of [retreatRanges].
+   */
   private fun advanceRanges(ranges: LvRanges) {
     for (index in 0 until ranges.size()) {
       var start = ranges.start(index)
@@ -213,7 +225,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     return batchStart
   }
 
-  /** The unit that [lv] changes: the item it deleted, or itself when it is an insert. */
+  /**
+   * The unit that [lv] changes: the item it deleted, or itself when it is an insert.
+   */
   private fun targetUnitOf(isDelete: Boolean, lv: LV): LV {
     return if (isDelete) delTargets.targetOf(lv) else lv
   }
@@ -396,7 +410,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     }
   }
 
-  /** The scan bound that a right parent names. [NO_UNIT] means the end of the list. */
+  /**
+   * The scan bound that a right parent names. [NO_UNIT] means the end of the list.
+   */
   private fun indexOfBound(rightParent: LV): Int {
     return if (rightParent == NO_UNIT) items.size else findItemIdx(rightParent)
   }
@@ -432,7 +448,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     return cursor
   }
 
-  /** Finds the item that covers [needleLv]: an exact item, or the containing span. */
+  /**
+   * Finds the item that covers [needleLv]: an exact item, or the containing span.
+   */
   private fun findItemIdx(needleLv: LV): Int {
     val index = items.indexOfFirst { it.contains(needleLv) }
     require(index >= 0) {
@@ -443,7 +461,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   // ------------------------------------------------------------------------- the item bookkeeping
 
-  /** Splits the span at [itemIndex] after [units] units and files the new right piece. */
+  /**
+   * Splits the span at [itemIndex] after [units] units and files the new right piece.
+   */
   private fun splitItem(itemIndex: Int, units: Int) {
     addItem(itemIndex + 1, items[itemIndex].splitAfter(units))
   }
@@ -474,7 +494,9 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     cachedEffectPos = effectPos
   }
 
-  /** Sends the next lookup to the start of the item list. The start is valid for any widths. */
+  /**
+   * Sends the next lookup to the start of the item list. The start is valid for any widths.
+   */
   private fun resetCursorCache() {
     cacheCursor(0, 0, 0)
   }

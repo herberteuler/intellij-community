@@ -25,19 +25,29 @@ import com.intellij.openapi.editor.impl.experimental.DocBranchImpl
  *   nothing. A merge with a descendant fast-forwards. A repeated merge changes nothing.
  */
 interface DocBranch {
-  /** The materialized document at this branch's version. */
+  /**
+   * The materialized document at this branch's version.
+   */
   fun text(): DocText
 
-  /** A branch with [op] applied at this branch's version: the same edit as [DocText.applyOp]. */
-  fun applyOp(op: DocOp): DocBranch
+  /**
+   * A branch with [op] applied at this branch's version: the same edit as [DocText.applyOp].
+   */
+  fun applyOp(op: DocTextOp): DocBranch
 
-  /** The identity this branch edits under. */
+  /**
+   * The identity this branch edits under.
+   */
   fun agent(): Agent
 
-  /** The event graph that records this branch's history. */
+  /**
+   * The event graph that records this branch's history.
+   */
   fun graph(): EventGraph
 
-  /** A copy of this branch that edits under [agent]. The state and the history are shared. */
+  /**
+   * A copy of this branch that edits under [agent]. The state and the history are shared.
+   */
   fun fork(agent: Agent): DocBranch
 
   /**
@@ -61,6 +71,8 @@ interface DocBranch {
   fun mergeWithOps(other: DocBranch): DocMerge
 
   companion object {
-    fun createBranch(chars: CharSequence, agent: Agent): DocBranch = DocBranchImpl.create(chars, agent)
+    fun createBranch(chars: CharSequence, agent: Agent): DocBranch {
+      return DocBranchImpl.create(chars, agent)
+    }
   }
 }

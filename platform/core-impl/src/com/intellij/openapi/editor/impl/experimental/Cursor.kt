@@ -34,7 +34,9 @@ internal class Cursor(
     effectPos -= item.effectWidth
   }
 
-  /** Jumps to the place that the Fugue scan chose. The scan crosses no prepare width. */
+  /**
+   * Jumps to the place that the Fugue scan chose. The scan crosses no prepare width.
+   */
   fun moveTo(itemIndex: Int, effectPos: Int) {
     this.itemIndex = itemIndex
     this.effectPos = effectPos

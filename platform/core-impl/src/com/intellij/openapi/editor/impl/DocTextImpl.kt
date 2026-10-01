@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl
 
 import com.intellij.openapi.editor.ex.LineIterator
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.util.TextRange
 import com.intellij.util.text.CharArrayUtil
@@ -106,14 +106,14 @@ internal class DocTextImpl private constructor(
     return getLineSet().createIterator()
   }
 
-  override fun applyOp(op: DocOp): DocText {
+  override fun applyOp(op: DocTextOp): DocText {
     return when (op) {
-      is DocOp.Insert -> applyInsert(op)
-      is DocOp.Delete -> applyDelete(op)
+      is DocTextOp.Insert -> applyInsert(op)
+      is DocTextOp.Delete -> applyDelete(op)
     }
   }
 
-  private fun applyInsert(op: DocOp.Insert): DocText {
+  private fun applyInsert(op: DocTextOp.Insert): DocText {
     val offset = op.offset()
     val fragment = op.fragment()
     if (fragment.isEmpty()) {
@@ -130,7 +130,7 @@ internal class DocTextImpl private constructor(
     return docText(newChars, startOffset = offset, endOffset = offset, newFragment = fragment)
   }
 
-  private fun applyDelete(op: DocOp.Delete): DocText {
+  private fun applyDelete(op: DocTextOp.Delete): DocText {
     val offset = op.offset()
     val length = op.length()
     if (length == 0) {

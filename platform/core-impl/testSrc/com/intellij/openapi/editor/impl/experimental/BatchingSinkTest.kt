@@ -1,7 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.DocText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
@@ -175,7 +175,7 @@ internal class BatchingSinkTest {
     assertThrows(IllegalArgumentException::class.java) { sink.insert(0, "") }
     assertThrows(IllegalArgumentException::class.java) { sink.delete(0, 0) }
     assertThrows(IllegalArgumentException::class.java) { sink.delete(0, -1) }
-    assertEquals(emptyList<DocOp>(), sink.ops())
+    assertEquals(emptyList<DocTextOp>(), sink.ops())
   }
 
   @Test
@@ -183,8 +183,8 @@ internal class BatchingSinkTest {
     val sink = BatchingSink(DocText.createText("abc"))
     sink.insert(0, "x")
     @Suppress("UNCHECKED_CAST")
-    val ops = sink.ops() as MutableList<DocOp>
-    assertThrows(UnsupportedOperationException::class.java) { ops.add(DocOp.del(0, 1)) }
+    val ops = sink.ops() as MutableList<DocTextOp>
+    assertThrows(UnsupportedOperationException::class.java) { ops.add(DocTextOp.deleteOp(0, 1)) }
     assertThrows(UnsupportedOperationException::class.java) { ops.clear() }
   }
 
@@ -205,7 +205,9 @@ internal class BatchingSinkTest {
     private val start = DocText.createText(text)
     private val applied = ArrayList<String>()
 
-    /** The text the sink starts from, which records the ops. */
+    /**
+     * The text the sink starts from, which records the ops.
+     */
     val initial: DocText = RecordingText(start, applied)
     val inner = BatchingSink(initial)
 
@@ -227,12 +229,14 @@ internal class BatchingSinkTest {
     }
   }
 
-  /** A text that records every op it applies, and passes the rest to [inner]. */
+  /**
+   * A text that records every op it applies, and passes the rest to [inner].
+   */
   private class RecordingText(
     private val inner: DocText,
     private val ops: MutableList<String>,
   ) : DocText by inner {
-    override fun applyOp(op: DocOp): DocText {
+    override fun applyOp(op: DocTextOp): DocText {
       ops.add(op.toString())
       return RecordingText(inner.applyOp(op), ops)
     }

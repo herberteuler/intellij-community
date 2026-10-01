@@ -14,7 +14,9 @@ package com.intellij.openapi.editor.impl.experimental
  */
 internal typealias LV = Int
 
-/** No unit: the document start for a left origin, the document end for a right parent. */
+/**
+ * No unit: the document start for a left origin, the document end for a right parent.
+ */
 internal const val NO_UNIT: LV = -1
 
 /**

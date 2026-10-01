@@ -42,10 +42,14 @@ package com.intellij.openapi.editor.impl.experimental
  */
 internal object EventGraphDiagram {
 
-  /** The greatest number of runs that one diagram draws. A box costs six lines. */
+  /**
+   * The greatest number of runs that one diagram draws. A box costs six lines.
+   */
   private const val MAX_RUNS = 40
 
-  /** The number of runs that a trimmed diagram keeps at the start of the history. */
+  /**
+   * The number of runs that a trimmed diagram keeps at the start of the history.
+   */
   private const val HEAD_RUNS = 2
 
   fun render(graph: EventGraphImpl): String {

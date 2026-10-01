@@ -17,7 +17,9 @@ import org.jetbrains.annotations.TestOnly
  * versions of one graph have the same heads exactly when they name the same event set.
  */
 interface Version {
-  /** `true` for the version of the empty graph, before any event. */
+  /**
+   * `true` for the version of the empty graph, before any event.
+   */
   fun isRoot(): Boolean
 
   companion object {

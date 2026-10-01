@@ -19,24 +19,29 @@ package com.intellij.openapi.editor.impl.experimental
  */
 internal class RunTree private constructor(
   private val root: Node?,
-  /** The inner levels above the leaves. 0 means the root is a leaf. */
-  private val height: Int,
+  private val height: Int, // The inner levels above the leaves. 0 means the root is a leaf
   private val leafCount: Int,
   private val tailKeys: IntArray,
   private val tailRuns: Array<StoredRun>,
 ) {
 
-  /** The number of runs. */
+  /**
+   * The number of runs.
+   */
   fun size(): Int {
     return leafCount * WIDTH + tailRuns.size
   }
 
-  /** The newest run, or `null` in an empty tree. The tail is empty only in an empty tree. */
+  /**
+   * The newest run, or `null` in an empty tree. The tail is empty only in an empty tree.
+   */
   fun last(): StoredRun? {
     return if (tailRuns.isEmpty()) null else tailRuns[tailRuns.size - 1]
   }
 
-  /** This tree with [run] appended under [key]. The key must exceed every key the tree holds. */
+  /**
+   * This tree with [run] appended under [key]. The key must exceed every key the tree holds.
+   */
   fun appended(key: Int, run: StoredRun): RunTree {
     checkAscending(key)
     if (tailRuns.size < WIDTH) {
@@ -60,7 +65,9 @@ internal class RunTree private constructor(
     return RunTree(newRoot, newHeight, leafCount + 1, intArrayOf(key), arrayOf(run))
   }
 
-  /** The run with the greatest key at or below [key], or `null` when every key exceeds it. */
+  /**
+   * The run with the greatest key at or below [key], or `null` when every key exceeds it.
+   */
   fun floor(key: Int): StoredRun? {
     if (tailKeys.isNotEmpty() && key >= tailKeys[0]) {
       return tailRuns[floorIn(tailKeys, key)]
@@ -78,7 +85,9 @@ internal class RunTree private constructor(
     return if (index < 0) null else leaf.runs[index]
   }
 
-  /** The index of the run that [floor] finds, or -1. */
+  /**
+   * The index of the run that [floor] finds, or -1.
+   */
   fun floorIndex(key: Int): Int {
     if (tailKeys.isNotEmpty() && key >= tailKeys[0]) {
       return leafCount * WIDTH + floorIn(tailKeys, key)
@@ -101,7 +110,9 @@ internal class RunTree private constructor(
     return if (index < 0) -1 else leafIndex * WIDTH + index
   }
 
-  /** The run at [index], which counts runs from 0. */
+  /**
+   * The run at [index], which counts runs from 0.
+   */
   fun get(index: Int): StoredRun {
     checkIndex(index)
     val treeRuns = leafCount * WIDTH
@@ -142,7 +153,9 @@ internal class RunTree private constructor(
     return Inner(node.keys, children)
   }
 
-  /** [leaf] under [levels] inner nodes of one child each. */
+  /**
+   * [leaf] under [levels] inner nodes of one child each.
+   */
   private fun pathTo(leaf: Leaf, levels: Int): Node {
     var node: Node = leaf
     repeat(levels) {
@@ -179,7 +192,9 @@ internal class RunTree private constructor(
     return "RunTree(runs=${size()}, height=$height)"
   }
 
-  /** A node, with the first key of every child or run it holds, ascending. */
+  /**
+   * A node, with the first key of every child or run it holds, ascending.
+   */
   private sealed class Node(@JvmField val keys: IntArray)
 
   private class Leaf(keys: IntArray, @JvmField val runs: Array<StoredRun>) : Node(keys)
@@ -189,17 +204,23 @@ internal class RunTree private constructor(
   companion object {
     private const val SHIFT = 5
 
-    /** The runs of a leaf, and the children of an inner node. */
+    /**
+     * The runs of a leaf, and the children of an inner node.
+     */
     const val WIDTH: Int = 1 shl SHIFT
 
     val EMPTY: RunTree = RunTree(null, 0, 0, IntArray(0), emptyArray())
 
-    /** The leaves under a full subtree of [height] inner levels. */
+    /**
+     * The leaves under a full subtree of [height] inner levels.
+     */
     private fun capacity(height: Int): Int {
       return 1 shl (SHIFT * height)
     }
 
-    /** The index of the greatest key at or below [key], or -1 when every key exceeds it. */
+    /**
+     * The index of the greatest key at or below [key], or -1 when every key exceeds it.
+     */
     private fun floorIn(keys: IntArray, key: Int): Int {
       var lo = 0
       var hi = keys.size - 1

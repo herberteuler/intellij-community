@@ -14,12 +14,16 @@ import java.util.PriorityQueue
  * down to the run start in one step. So they cost one step per run they cross, and not one per unit.
  */
 
-/** The side a walk flag names: the version a, the version b, or both. */
+/**
+ * The side a walk flag names: the version a, the version b, or both.
+ */
 private const val FLAG_A = 0
 private const val FLAG_B = 1
 private const val FLAG_SHARED = 2
 
-/** The paper's `Events(V)`: [version] and all its ancestors, as a set of lvs. */
+/**
+ * The paper's `Events(V)`: [version] and all its ancestors, as a set of lvs.
+ */
 internal fun EventGraphImpl.eventsOf(version: VersionImpl): BitSet {
   val seen = BitSet(size())
   val stack = ArrayDeque<Int>()
@@ -206,7 +210,9 @@ private fun EventGraphImpl.walkToAncestor(
   }
 }
 
-/** The flag of [lv], which the walk queued with one. */
+/**
+ * The flag of [lv], which the walk queued with one.
+ */
 private fun flagOf(flags: Map<Int, Int>, lv: LV): Int {
   val flag = flags[lv]
   require(flag != null) {
@@ -215,14 +221,18 @@ private fun flagOf(flags: Map<Int, Int>, lv: LV): Int {
   return flag
 }
 
-/** A version under the walk of [findConflicting]: the lvs sorted descending, plus the flag. */
+/**
+ * A version under the walk of [findConflicting]: the lvs sorted descending, plus the flag.
+ */
 private class Point(val v: Frontier, val flag: Int) {
   override fun toString(): String {
     return "Point(${v.listedForMessage()}, ${flagName(flag)})"
   }
 }
 
-/** The side a walk flag names, as a word. */
+/**
+ * The side a walk flag names, as a word.
+ */
 private fun flagName(flag: Int): String {
   return when (flag) {
     FLAG_A -> "a"
@@ -231,7 +241,9 @@ private fun flagName(flag: Int): String {
   }
 }
 
-/** Orders the walk points of [findConflicting]: the greatest version first. */
+/**
+ * Orders the walk points of [findConflicting]: the greatest version first.
+ */
 private val POINT_MAX_FIRST = Comparator<Point> { p1, p2 ->
   val a = p1.v
   val b = p2.v

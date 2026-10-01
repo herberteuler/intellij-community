@@ -7,7 +7,7 @@ import com.intellij.diff.comparison.DiffTooBigException
 import com.intellij.diff.comparison.expand
 import com.intellij.diff.comparison.iterables.DiffIterableUtil
 import com.intellij.diff.util.Range
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.util.text.CharSequenceSubSequence
 
@@ -15,7 +15,7 @@ import com.intellij.util.text.CharSequenceSubSequence
  * Recovers an edit script from two states of one document.
  *
  * The caller knows the base text and the target text. The caller does not know the edits that
- * produced the target. [diff] returns a list of [DocOp] that reproduces the target from the base.
+ * produced the target. [diff] returns a list of [DocTextOp] that reproduces the target from the base.
  *
  * The returned script is not the real history. The text cannot record the real history. A user who
  * types a word and then deletes it leaves no trace. The script is one of many that give the same
@@ -48,7 +48,7 @@ internal object DocTextDiff {
    * that the op applies to, because each later op changes only the text to the right. A replacement
    * becomes a delete and then an insert at the same offset.
    */
-  fun diff(base: DocText, target: DocText): List<DocOp> {
+  fun diff(base: DocText, target: DocText): List<DocTextOp> {
     // Every phase reads one character at a time. On an ImmutableText that costs a leaf lookup and a
     // virtual call, which measures about twice a String read. cachedChars() hands back the String
     // when the document already holds one, and the rope when it does not, so this never costs more.
@@ -63,7 +63,9 @@ internal object DocTextDiff {
     return ops(targetChars, fragments(baseChars, targetChars, region))
   }
 
-  /** Fails when [region] did not come from a shared prefix and a shared suffix of the two texts. */
+  /**
+   * Fails when [region] did not come from a shared prefix and a shared suffix of the two texts.
+   */
   private fun checkTrimmed(baseChars: CharSequence, targetChars: CharSequence, region: Range) {
     require(region.start1 == region.start2) {
       "the trimmed prefix is shared, so the two starts must agree: $region"
@@ -98,7 +100,9 @@ internal object DocTextDiff {
     return fragments
   }
 
-  /** Splits one changed line block into character level parts, and adds them to [fragments]. */
+  /**
+   * Splits one changed line block into character level parts, and adds them to [fragments].
+   */
   private fun addRefined(
     baseChars: CharSequence,
     targetChars: CharSequence,
@@ -140,16 +144,16 @@ internal object DocTextDiff {
    * The right to left order keeps every offset valid without any arithmetic. When an op runs, the
    * document still holds the base text at and before that offset. Only the part to the right changed.
    */
-  private fun ops(targetChars: CharSequence, fragments: List<Range>): List<DocOp> {
-    val ops = ArrayList<DocOp>(2 * fragments.size)
+  private fun ops(targetChars: CharSequence, fragments: List<Range>): List<DocTextOp> {
+    val ops = ArrayList<DocTextOp>(2 * fragments.size)
     for (index in fragments.indices.reversed()) {
       val fragment = fragments[index]
       if (fragment.start1 < fragment.end1) {
-        ops.add(DocOp.del(fragment.start1, fragment.end1 - fragment.start1))
+        ops.add(DocTextOp.deleteOp(fragment.start1, fragment.end1 - fragment.start1))
       }
       if (fragment.start2 < fragment.end2) {
         // The delete already ran, so the insert offset is still the start of the fragment.
-        ops.add(DocOp.ins(fragment.start1, targetChars.subSequence(fragment.start2, fragment.end2).toString()))
+        ops.add(DocTextOp.insertOp(fragment.start1, targetChars.subSequence(fragment.start2, fragment.end2).toString()))
       }
     }
     return ops
@@ -182,7 +186,9 @@ internal object DocTextDiff {
     return Range(region.start1 - back, region.end1 + forward, region.start2 - back, region.end2 + forward)
   }
 
-  /** The start of the line that holds [offset]. */
+  /**
+   * The start of the line that holds [offset].
+   */
   private fun lineStart(chars: CharSequence, offset: Int): Int {
     var start = offset
     while (start > 0 && chars[start - 1] != '\n') {
@@ -191,7 +197,9 @@ internal object DocTextDiff {
     return start
   }
 
-  /** The start of the line after [offset], or the end of [chars] when no line follows. */
+  /**
+   * The start of the line after [offset], or the end of [chars] when no line follows.
+   */
   private fun nextLineStart(chars: CharSequence, offset: Int): Int {
     var end = offset
     while (end < chars.length && chars[end] != '\n') {
@@ -226,7 +234,9 @@ internal object DocTextDiff {
     return Range(start1, end1, start2, end2)
   }
 
-  /** True when [offset] falls between the two halves of one code point of [chars]. */
+  /**
+   * True when [offset] falls between the two halves of one code point of [chars].
+   */
   private fun splitsPair(chars: CharSequence, offset: Int): Boolean {
     return offset > 0 &&
            offset < chars.length &&
@@ -273,7 +283,9 @@ internal object DocTextDiff {
       }
     }
 
-    /** The document offset of the line [line]. The line count itself maps to the end of the region. */
+    /**
+     * The document offset of the line [line]. The line count itself maps to the end of the region.
+     */
     fun offset(line: Int): Int = offsets[line]
   }
 

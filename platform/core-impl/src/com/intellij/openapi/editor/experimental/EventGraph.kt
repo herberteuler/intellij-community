@@ -16,13 +16,19 @@ import com.intellij.openapi.editor.impl.experimental.EventGraphImpl
  * burst and not one per keystroke.
  */
 interface EventGraph {
-  /** The number of units in the graph, summed over all runs. See [Event] for a unit. */
+  /**
+   * The number of units in the graph, summed over all runs. See [Event] for a unit.
+   */
   fun size(): Int
 
-  /** The number of stored [Event] runs. `runCount() <= size()`; the gap is the encoding win. */
+  /**
+   * The number of stored [Event] runs. `runCount() <= size()`; the gap is the encoding win.
+   */
   fun runCount(): Int
 
-  /** The paper's `Version(G)`: the current frontier of the graph. */
+  /**
+   * The paper's `Version(G)`: the current frontier of the graph.
+   */
   fun version(): Version
 
   /**

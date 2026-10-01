@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
-/** Tests [DeleteTargets]: the lookup by delete unit, the merge of pieces, and the order checks. */
+/**
+ * Tests [DeleteTargets]: the lookup by delete unit, the merge of pieces, and the order checks.
+ */
 internal class DeleteTargetsTest {
 
   @Test
@@ -99,7 +101,9 @@ internal class DeleteTargetsTest {
   }
 
   private companion object {
-    /** More pieces than the initial capacity, so the arrays grow at least twice. */
+    /**
+     * More pieces than the initial capacity, so the arrays grow at least twice.
+     */
     const val PIECES = 70
   }
 }

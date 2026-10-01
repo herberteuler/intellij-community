@@ -27,7 +27,7 @@ class DocMergeTest {
     for ((receiver, other) in listOf(base to base, a to base, merged to b, merged to a)) {
       val merge = receiver.mergeWithOps(other)
       assertSame(receiver, merge.branch())
-      assertEquals(emptyList<DocOp>(), merge.ops())
+      assertEquals(emptyList<DocTextOp>(), merge.ops())
     }
   }
 
@@ -38,7 +38,7 @@ class DocMergeTest {
     val a = base.fork(agent("a")).applyOp(deleteOp(1, 1))
     val b = base.fork(agent("b")).applyOp(deleteOp(1, 1))
     val merge = a.mergeWithOps(b)
-    assertEquals(emptyList<DocOp>(), merge.ops())
+    assertEquals(emptyList<DocTextOp>(), merge.ops())
     assertSame(a.text(), merge.branch().text())
     assertEquals(a.graph().size() + 1, merge.branch().graph().size())
   }
@@ -50,7 +50,7 @@ class DocMergeTest {
     val merge = base.mergeWithOps(descendant)
     // The text needs no replay: it is the text of the descendant.
     assertSame(descendant.text(), merge.branch().text())
-    assertEquals(listOf(DocOp.ins(3, "def"), DocOp.del(0, 1)), merge.ops())
+    assertEquals(listOf(DocTextOp.insertOp(3, "def"), DocTextOp.deleteOp(0, 1)), merge.ops())
     assertEquals("bcdef", base.text().afterOps(merge.ops()).string())
   }
 
@@ -58,8 +58,8 @@ class DocMergeTest {
   fun `a fast-forward of an empty branch inserts the whole text`() {
     val empty = DocBranch.createBranch("", agent("a"))
     val typed = empty.fork(agent("b")).applyOp(insertOp(0, "xy")).applyOp(insertOp(2, "z"))
-    assertEquals(listOf(DocOp.ins(0, "xyz")), empty.mergeWithOps(typed).ops())
-    assertEquals(emptyList<DocOp>(), typed.mergeWithOps(empty).ops())
+    assertEquals(listOf(DocTextOp.insertOp(0, "xyz")), empty.mergeWithOps(typed).ops())
+    assertEquals(emptyList<DocTextOp>(), typed.mergeWithOps(empty).ops())
   }
 
   @Test
@@ -68,8 +68,8 @@ class DocMergeTest {
     val a = base.applyOp(insertOp(0, "1"))
     val b = base.fork(agent("b")).applyOp(insertOp(3, "2"))
     // Each side gets the edit of the other, at its place in the text of the receiver.
-    assertEquals(listOf(DocOp.ins(4, "2")), a.mergeWithOps(b).ops())
-    assertEquals(listOf(DocOp.ins(0, "1")), b.mergeWithOps(a).ops())
+    assertEquals(listOf(DocTextOp.insertOp(4, "2")), a.mergeWithOps(b).ops())
+    assertEquals(listOf(DocTextOp.insertOp(0, "1")), b.mergeWithOps(a).ops())
   }
 
   @Test
@@ -78,10 +78,10 @@ class DocMergeTest {
     val left = base.fork(agent("aaa")).applyOp(insertOp(5, "L".repeat(PASTE)))
     val right = base.fork(agent("bbb")).applyOp(insertOp(5, "R".repeat(PASTE)))
     // The agent order puts the paste of "aaa" first.
-    val intoLeft = left.mergeWithOps(right).ops().single() as DocOp.Insert
+    val intoLeft = left.mergeWithOps(right).ops().single() as DocTextOp.Insert
     assertEquals(5 + PASTE, intoLeft.offset())
     assertEquals("R".repeat(PASTE), intoLeft.fragment().toString())
-    val intoRight = right.mergeWithOps(left).ops().single() as DocOp.Insert
+    val intoRight = right.mergeWithOps(left).ops().single() as DocTextOp.Insert
     assertEquals(5, intoRight.offset())
     assertEquals("L".repeat(PASTE), intoRight.fragment().toString())
   }
@@ -96,9 +96,9 @@ class DocMergeTest {
       b = b.applyOp(deleteOp(offset, 1))
     }
     val merge = a.mergeWithOps(b)
-    assertEquals(emptyList<DocOp>(), merge.ops())
+    assertEquals(emptyList<DocTextOp>(), merge.ops())
     assertEquals("1ab", merge.branch().string())
-    assertEquals(emptyList<DocOp>(), base.mergeWithOps(b).ops())
+    assertEquals(emptyList<DocTextOp>(), base.mergeWithOps(b).ops())
   }
 
   @Test
@@ -109,8 +109,8 @@ class DocMergeTest {
     for (offset in 3 downTo 1) {
       b = b.applyOp(deleteOp(offset, 1))
     }
-    assertEquals(listOf(DocOp.del(1, 3)), a.mergeWithOps(b).ops())
-    assertEquals(listOf(DocOp.del(1, 3)), base.mergeWithOps(b).ops())
+    assertEquals(listOf(DocTextOp.deleteOp(1, 3)), a.mergeWithOps(b).ops())
+    assertEquals(listOf(DocTextOp.deleteOp(1, 3)), base.mergeWithOps(b).ops())
   }
 
   @Test
@@ -119,7 +119,7 @@ class DocMergeTest {
     val base = DocBranch.createBranch("ab", agent("base"))
     val a = base.fork(agent("a")).applyOp(insertOp(1, face))
     val b = base.fork(agent("b")).applyOp(insertOp(1, "x"))
-    val op = b.mergeWithOps(a).ops().single() as DocOp.Insert
+    val op = b.mergeWithOps(a).ops().single() as DocTextOp.Insert
     assertEquals(1, op.offset())
     assertEquals(face, op.fragment().toString())
     assertEquals("a${face}xb", b.merge(a).string())
@@ -145,7 +145,7 @@ class DocMergeTest {
       .applyOp(deleteOp(0, 1)).applyOp(deleteOp(5, 1))
     val forward = base.mergeWithOps(b)
     assertEquals("hello", forward.branch().string())
-    assertEquals(listOf(DocOp.ins(0, "X"), DocOp.ins(6, "Y"), DocOp.del(0, 1), DocOp.del(5, 1)), forward.ops())
+    assertEquals(listOf(DocTextOp.insertOp(0, "X"), DocTextOp.insertOp(6, "Y"), DocTextOp.deleteOp(0, 1), DocTextOp.deleteOp(5, 1)), forward.ops())
     val a = base.fork(agent("a")).applyOp(insertOp(5, "!"))
     val concurrent = a.mergeWithOps(b)
     assertEquals(a.string(), concurrent.branch().string())
@@ -201,8 +201,8 @@ class DocMergeTest {
     // A partial replay, a fast-forward, and a merge that brings nothing.
     for (merge in listOf(a.mergeWithOps(b), base.mergeWithOps(b), a.mergeWithOps(base))) {
       @Suppress("UNCHECKED_CAST")
-      val ops = merge.ops() as MutableList<DocOp>
-      assertThrows(UnsupportedOperationException::class.java) { ops.add(DocOp.ins(0, "x")) }
+      val ops = merge.ops() as MutableList<DocTextOp>
+      assertThrows(UnsupportedOperationException::class.java) { ops.add(DocTextOp.insertOp(0, "x")) }
       assertSame(merge.ops(), merge.ops())
     }
   }
@@ -231,7 +231,7 @@ class DocMergeTest {
         val merge = base.mergeWithOps(descendant)
         val start = CountDownLatch(1)
         val results = (0 until THREADS).map {
-          pool.submit<List<DocOp>> {
+          pool.submit<List<DocTextOp>> {
             start.await()
             val ops = merge.ops()
             assertEquals(descendant.string(), base.text().afterOps(ops).string())

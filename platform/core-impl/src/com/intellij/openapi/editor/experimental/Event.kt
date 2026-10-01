@@ -11,7 +11,7 @@ import com.intellij.openapi.editor.impl.experimental.EventImpl
  * change that the identity names. The identity is ([agent], [seq]) to ([agent], `seq + length - 1`),
  * and the change is [op].
  *
- * An event is NOT a [DocOp], so [DocText.applyOp] will not take one. The offset of [op] indexes the
+ * An event is NOT a [DocTextOp], so [DocText.applyOp] will not take one. The offset of [op] indexes the
  * document as it was in the PARENT VERSION. An old event applied to a document at another version
  * means nothing.
  *
@@ -24,13 +24,19 @@ import com.intellij.openapi.editor.impl.experimental.EventImpl
 interface Event {
   fun agent(): Agent
 
-  /** The seq of the first unit. The run consumes the seqs `[seq, seq + length)`. */
+  /**
+   * The seq of the first unit. The run consumes the seqs `[seq, seq + length)`.
+   */
   fun seq(): Int
 
-  /** The change this event records, against the document of its parent version. */
-  fun op(): DocOp
+  /**
+   * The change this event records, against the document of its parent version.
+   */
+  fun op(): DocTextOp
 
-  /** The number of units in this run. At least 1. */
+  /**
+   * The number of units in this run. At least 1.
+   */
   fun length(): Int
 
   /**
@@ -53,11 +59,11 @@ interface Event {
     /**
      * An event that records [op] under the id ([agent], [seq]).
      *
-     * The event keeps [op] and never copies it, so [op] must come from [DocOp.ins] or
-     * [DocOp.del]. Only those two detach the content from a sequence the caller can still
+     * The event keeps [op] and never copies it, so [op] must come from [DocTextOp.insertOp] or
+     * [DocTextOp.deleteOp]. Only those two detach the content from a sequence the caller can still
      * change, and an event lives in the graph forever.
      */
-    fun create(agent: Agent, seq: Int, op: DocOp): Event {
+    fun create(agent: Agent, seq: Int, op: DocTextOp): Event {
       return EventImpl(agent, seq, op)
     }
 
@@ -67,7 +73,7 @@ interface Event {
       offset: Int,
       fragment: CharSequence,
     ): Event {
-      return create(agent, seq, DocOp.ins(offset, fragment))
+      return create(agent, seq, DocTextOp.insertOp(offset, fragment))
     }
 
     fun createDelete(
@@ -76,7 +82,7 @@ interface Event {
       offset: Int,
       length: Int,
     ): Event {
-      return create(agent, seq, DocOp.del(offset, length))
+      return create(agent, seq, DocTextOp.deleteOp(offset, length))
     }
   }
 }

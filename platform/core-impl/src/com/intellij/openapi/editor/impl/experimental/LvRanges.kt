@@ -16,7 +16,9 @@ internal class LvRanges private constructor(
   private val starts: IntArray,
   private val ends: IntArray,
 ) {
-  /** The number of ranges, which is not the number of units. */
+  /**
+   * The number of ranges, which is not the number of units.
+   */
   fun size(): Int {
     return starts.size
   }
@@ -25,17 +27,23 @@ internal class LvRanges private constructor(
     return starts.isEmpty()
   }
 
-  /** The first lv of the range at [index]. */
+  /**
+   * The first lv of the range at [index].
+   */
   fun start(index: Int): LV {
     return starts[index]
   }
 
-  /** The lv after the last one of the range at [index]. */
+  /**
+   * The lv after the last one of the range at [index].
+   */
   fun end(index: Int): LV {
     return ends[index]
   }
 
-  /** The number of units in all the ranges. */
+  /**
+   * The number of units in all the ranges.
+   */
   fun unitCount(): Int {
     var count = 0
     for (index in starts.indices) {
@@ -68,7 +76,9 @@ internal class LvRanges private constructor(
     private var ends = IntArray(INITIAL_CAPACITY)
     private var count = 0
 
-    /** Adds the units `[start, end)`, which must sit below every range added so far. */
+    /**
+     * Adds the units `[start, end)`, which must sit below every range added so far.
+     */
     fun add(start: LV, end: LV) {
       checkRange(start, end)
       if (count > 0) {
@@ -87,7 +97,9 @@ internal class LvRanges private constructor(
       count++
     }
 
-    /** The collected ranges, ascending. */
+    /**
+     * The collected ranges, ascending.
+     */
     fun build(): LvRanges {
       return LvRanges(IntArray(count) { starts[count - 1 - it] }, IntArray(count) { ends[count - 1 - it] })
     }
@@ -112,7 +124,9 @@ internal class LvRanges private constructor(
   private companion object {
     const val INITIAL_CAPACITY = 8
 
-    /** The longest range list that a message prints in full. */
+    /**
+     * The longest range list that a message prints in full.
+     */
     const val MAX_LISTED_RANGES = 10
   }
 }

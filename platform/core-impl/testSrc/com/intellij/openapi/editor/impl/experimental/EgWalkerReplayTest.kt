@@ -3,13 +3,15 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.DocBranch
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** Tests the precondition of [EgWalkerReplay.mergeInto] that no public call can break. */
+/**
+ * Tests the precondition of [EgWalkerReplay.mergeInto] that no public call can break.
+ */
 internal class EgWalkerReplayTest {
 
   /**
@@ -20,9 +22,9 @@ internal class EgWalkerReplayTest {
   @Test
   fun `a merge into a branch whose own units sit above the new units is rejected`() {
     val base = DocBranch.createBranch("abcdef", Agent.createAgent("a"))
-    val a = base.applyOp(DocOp.del(0, 1))
-    val b = base.fork(Agent.createAgent("b")).applyOp(DocOp.del(5, 1))
-    val merged = EventGraphImpl.implOf(a.graph()).mergeFromImpl(EventGraphImpl.implOf(b.graph())).graph
+    val a = base.applyOp(DocTextOp.deleteOp(0, 1))
+    val b = base.fork(Agent.createAgent("b")).applyOp(DocTextOp.deleteOp(5, 1))
+    val merged = EventGraphImpl.implOf(a.graph()).mergeFromImpl(EventGraphImpl.implOf(b.graph())).graph()
     val failure = assertThrows(IllegalArgumentException::class.java) {
       EgWalkerReplay.mergeInto(merged, VersionImpl(intArrayOf(7)), BatchingSink(b.text()))
     }

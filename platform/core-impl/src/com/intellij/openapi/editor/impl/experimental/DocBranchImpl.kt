@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.DocText
 import com.intellij.openapi.editor.experimental.DocBranch
 import com.intellij.openapi.editor.experimental.DocMerge
@@ -21,7 +21,7 @@ import java.util.Collections
  *
  * A merge with concurrent history replays only the region above the common ancestor, which is the
  * partial replay of the paper. One placeholder item stands in for the older document, and it splits
- * only where an op needs it. The new units apply to [docText] as ordinary [DocOp]s. Those ops are
+ * only where an op needs it. The new units apply to [docText] as ordinary [DocTextOp]s. Those ops are
  * the op stream of [mergeWithOps]. The merge cost depends on the size of the change and of the
  * concurrent region, not on the size of either history.
  *
@@ -48,10 +48,10 @@ internal class DocBranchImpl private constructor(
     return docText
   }
 
-  override fun applyOp(op: DocOp): DocBranch {
+  override fun applyOp(op: DocTextOp): DocBranch {
     return when (op) {
-      is DocOp.Insert -> applyInsert(op)
-      is DocOp.Delete -> applyDelete(op)
+      is DocTextOp.Insert -> applyInsert(op)
+      is DocTextOp.Delete -> applyDelete(op)
     }
   }
 
@@ -78,7 +78,7 @@ internal class DocBranchImpl private constructor(
       // The same kind of list as the other outcomes, so a caller sees one behaviour.
       return DocMergeImpl.ready(this, Collections.emptyList())
     }
-    val merged = result.graph
+    val merged = result.graph()
     if (result.isFastForward()) {
       // This branch's history is inside the other branch's history, so its text is ready. The ops
       // would cost a replay of the change, so they wait until a caller asks for them. The lambda
@@ -95,7 +95,7 @@ internal class DocBranchImpl private constructor(
     return DocMergeImpl.ready(DocBranchImpl(sink.result(), agent, merged), sink.ops())
   }
 
-  private fun applyInsert(op: DocOp.Insert): DocBranch {
+  private fun applyInsert(op: DocTextOp.Insert): DocBranch {
     val fragment = op.fragment()
     if (fragment.isEmpty()) {
       return this
@@ -105,7 +105,7 @@ internal class DocBranchImpl private constructor(
     return DocBranchImpl(newDocText, agent, appendLocal(op))
   }
 
-  private fun applyDelete(op: DocOp.Delete): DocBranch {
+  private fun applyDelete(op: DocTextOp.Delete): DocBranch {
     val length = op.length()
     if (length == 0) {
       return this
@@ -121,7 +121,7 @@ internal class DocBranchImpl private constructor(
    * never saw, for example from a descendant of it. A seq kept beside the graph would then name a
    * unit that already exists.
    */
-  private fun appendLocal(op: DocOp): EventGraphImpl {
+  private fun appendLocal(op: DocTextOp): EventGraphImpl {
     return graph.appendAtVersion(EventImpl(agent, graph.nextSeqFor(agent), op))
   }
 
@@ -143,7 +143,7 @@ internal class DocBranchImpl private constructor(
    * The replay starts from a text without line data, because nothing reads the line data of its
    * result. With line data, each op would copy the line arrays of the whole document.
    */
-  private fun opsOfFastForward(merged: EventGraphImpl, expected: DocText): List<DocOp> {
+  private fun opsOfFastForward(merged: EventGraphImpl, expected: DocText): List<DocTextOp> {
     val sink = replayOnto(merged, DocText.createText(docText.chars()))
     checkFoldsInto(sink.result(), expected)
     return sink.ops()
@@ -169,7 +169,7 @@ internal class DocBranchImpl private constructor(
     fun create(chars: CharSequence, agent: Agent): DocBranchImpl {
       var graph = EventGraphImpl.empty()
       if (chars.isNotEmpty()) {
-        graph = graph.appendAtVersion(EventImpl(agent, 0, DocOp.ins(0, chars)))
+        graph = graph.appendAtVersion(EventImpl(agent, 0, DocTextOp.insertOp(0, chars)))
       }
       return DocBranchImpl(DocText.createText(chars), agent, graph)
     }

@@ -18,8 +18,10 @@ interface DocText {
   fun lineEndOffset(line: Int): Int
   fun lineSeparatorLength(line: Int): Int
   fun lineIterator(): LineIterator
-  fun applyOp(op: DocOp): DocText
+  fun applyOp(op: DocTextOp): DocText
   companion object {
-    fun createText(chars: CharSequence): DocText = DocTextImpl(chars)
+    fun createText(chars: CharSequence): DocText {
+      return DocTextImpl(chars)
+    }
   }
 }

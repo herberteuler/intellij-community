@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** Tests [LvRanges]: the descending build, the join of touching ranges, and the order checks. */
+/**
+ * Tests [LvRanges]: the descending build, the join of touching ranges, and the order checks.
+ */
 internal class LvRangesTest {
 
   @Test
@@ -69,7 +71,9 @@ internal class LvRangesTest {
   }
 
   private companion object {
-    /** More ranges than the first capacity and than a message lists. */
+    /**
+     * More ranges than the first capacity and than a message lists.
+     */
     const val RANGES = 20
   }
 }

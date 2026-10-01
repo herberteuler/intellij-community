@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.DocMerge
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.DocText
 import java.util.Collections
 
@@ -32,7 +32,7 @@ internal class BatchingSink(
   private var startEffectPos: Int = 0
   private val pendingFragment = StringBuilder()
   private var deleteCount: Int = 0
-  private val applied = ArrayList<DocOp>()
+  private val applied = ArrayList<DocTextOp>()
   private var finished = false
 
   override fun insert(effectPos: Int, fragment: CharSequence) {
@@ -67,19 +67,25 @@ internal class BatchingSink(
     }
   }
 
-  /** The text with every report applied. This finishes the sink. */
+  /**
+   * The text with every report applied. This finishes the sink.
+   */
   fun result(): DocText {
     finish()
     return updated
   }
 
-  /** The ops that [result] applied to the text, in order. This finishes the sink. */
-  fun ops(): List<DocOp> {
+  /**
+   * The ops that [result] applied to the text, in order. This finishes the sink.
+   */
+  fun ops(): List<DocTextOp> {
     finish()
     return Collections.unmodifiableList(applied)
   }
 
-  /** The text length so far, the op that still waits for its neighbour, and the ops so far. */
+  /**
+   * The text length so far, the op that still waits for its neighbour, and the ops so far.
+   */
   override fun toString(): String {
     val pending = when (kind) {
       INSERT -> "insert at $startEffectPos of ${pendingFragment.quotedForMessage()}"
@@ -100,8 +106,8 @@ internal class BatchingSink(
   private fun flush() {
     // The effect version IS the text this sink builds, so its position is the op's offset.
     val op = when (kind) {
-      INSERT -> DocOp.ins(startEffectPos, pendingFragment.toString())
-      DELETE -> DocOp.del(startEffectPos, deleteCount)
+      INSERT -> DocTextOp.insertOp(startEffectPos, pendingFragment.toString())
+      DELETE -> DocTextOp.deleteOp(startEffectPos, deleteCount)
       else -> null
     }
     if (op != null) {
@@ -117,12 +123,16 @@ internal class BatchingSink(
     return startEffectPos + pendingFragment.length
   }
 
-  /** Whether the delete of [count] at [effectPos] starts inside the pending insert and ends at its end. */
+  /**
+   * Whether the delete of [count] at [effectPos] starts inside the pending insert and ends at its end.
+   */
   private fun endsPendingInsert(effectPos: Int, count: Int): Boolean {
     return effectPos >= startEffectPos && effectPos + count == pendingInsertEnd()
   }
 
-  /** The length of the text with every report so far applied, the pending op included. */
+  /**
+   * The length of the text with every report so far applied, the pending op included.
+   */
   private fun currentLength(): Int {
     return when (kind) {
       INSERT -> updated.length() + pendingFragment.length
@@ -151,7 +161,9 @@ internal class BatchingSink(
     }
   }
 
-  /** Fails unless the delete removes at least one character, all inside the current text. */
+  /**
+   * Fails unless the delete removes at least one character, all inside the current text.
+   */
   private fun checkDelete(effectPos: Int, count: Int) {
     require(count >= 1) {
       "The delete count is not positive: $count"

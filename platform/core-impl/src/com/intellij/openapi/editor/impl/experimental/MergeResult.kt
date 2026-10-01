@@ -6,11 +6,13 @@ package com.intellij.openapi.editor.impl.experimental
  * [sourceSize] is the size of the graph the merge started from, so the result can answer them itself.
  */
 internal class MergeResult(
-  val graph: EventGraphImpl,
+  private val graph: EventGraphImpl,
   private val sourceSize: Int,
   private val remappedOtherVersion: VersionImpl,
 ) {
-  /** Whether the other graph brought nothing: its whole history was already here. */
+  /**
+   * Whether the other graph brought nothing: its whole history was already here.
+   */
   fun addsNothing(): Boolean {
     return graph.size() == sourceSize
   }
@@ -21,6 +23,10 @@ internal class MergeResult(
    */
   fun isFastForward(): Boolean {
     return graph.versionImpl() == remappedOtherVersion
+  }
+
+  fun graph(): EventGraphImpl {
+    return graph
   }
 
   /**

@@ -209,9 +209,9 @@ class DocBranchTest {
     assertEquals(forward.graph().replay().string(), forward.string())
     // The paste and the range delete each arrive as one op, and not one per character.
     val ops = listOf(
-      DocOp.ins(10, "pasted block\n"),
-      DocOp.del(4, 6),
-      DocOp.ins(4, "L1\n"),
+      DocTextOp.insertOp(10, "pasted block\n"),
+      DocTextOp.deleteOp(4, 6),
+      DocTextOp.insertOp(4, "L1\n"),
     )
     assertEquals(ops, merge.ops())
     assertSameText(DocText.createText(forward.string()), forward.text())
@@ -685,9 +685,9 @@ internal fun DocBranch.string(): String = text().string()
 
 internal fun DocBranch.length(): Int = text().length()
 
-internal fun insertOp(offset: Int, fragment: CharSequence): DocOp.Insert = DocOp.ins(offset, fragment)
+internal fun insertOp(offset: Int, fragment: CharSequence): DocTextOp.Insert = DocTextOp.insertOp(offset, fragment)
 
-internal fun deleteOp(offset: Int, length: Int): DocOp.Delete = DocOp.del(offset, length)
+internal fun deleteOp(offset: Int, length: Int): DocTextOp.Delete = DocTextOp.deleteOp(offset, length)
 
 /**
  * Runs one round of a fuzz test with a [Random] of its own [seed], so a failing round
@@ -701,8 +701,10 @@ internal fun fuzzRound(seed: Long, round: Int, body: (Random) -> Unit) {
   }
 }
 
-/** This text with [ops] applied one after another, as [DocMerge.ops] says an editor applies them. */
-internal fun DocText.afterOps(ops: List<DocOp>): DocText = ops.fold(this) { text, op -> text.applyOp(op) }
+/**
+ * This text with [ops] applied one after another, as [DocMerge.ops] says an editor applies them.
+ */
+internal fun DocText.afterOps(ops: List<DocTextOp>): DocText = ops.fold(this) { text, op -> text.applyOp(op) }
 
 internal fun assertSameText(expected: DocText, actual: DocText) {
   assertEquals(expected.string(), actual.string())

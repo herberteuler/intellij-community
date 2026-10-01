@@ -8,9 +8,7 @@ import java.util.Arrays
  * A version as a sorted array of lvs. The reference implementation calls an lv a local
  * version (LV).
  */
-internal class VersionImpl(
-  val lvs: Frontier,
-) : Version {
+internal class VersionImpl(val lvs: Frontier) : Version {
 
   init {
     checkSorted(lvs)
@@ -57,7 +55,9 @@ internal class VersionImpl(
     return VersionImpl(advanced)
   }
 
-  /** Whether this version names [lv] as one of its heads. */
+  /**
+   * Whether this version names [lv] as one of its heads.
+   */
   fun contains(lv: LV): Boolean {
     return Arrays.binarySearch(lvs, lv) >= 0
   }

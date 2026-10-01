@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.DocOp
+import com.intellij.openapi.editor.experimental.DocTextOp
 import com.intellij.openapi.editor.experimental.Event
 import com.intellij.openapi.editor.experimental.EventGraph
 
@@ -21,12 +21,16 @@ internal class StoredRun(
   val lvStart: LV,
   private val parents: Frontier,
 ) {
-  /** The lv after the last unit. */
+  /**
+   * The lv after the last unit.
+   */
   fun lvEnd(): LV {
     return lvStart + event.length()
   }
 
-  /** The index inside this run of the unit [lv], which this run must hold. */
+  /**
+   * The index inside this run of the unit [lv], which this run must hold.
+   */
   fun unitIndexOf(lv: LV): Int {
     require(lv in lvStart until lvEnd()) {
       "The lv $lv is outside the run $this"
@@ -34,17 +38,23 @@ internal class StoredRun(
     return lv - lvStart
   }
 
-  /** The first seq after the last unit. */
+  /**
+   * The first seq after the last unit.
+   */
   fun endSeq(): Int {
     return event.seq() + event.length()
   }
 
-  /** Whether this run holds the unit ([agent], [seq]). */
+  /**
+   * Whether this run holds the unit ([agent], [seq]).
+   */
   fun holdsUnit(agent: Agent, seq: Int): Boolean {
     return agent == event.agent() && seq in event.seq() until endSeq()
   }
 
-  /** The lv of the unit [seq], which this run must hold. */
+  /**
+   * The lv of the unit [seq], which this run must hold.
+   */
   fun lvOfSeq(seq: Int): LV {
     require(seq >= event.seq() && seq < endSeq()) {
       "The seq $seq is outside the run $this"
@@ -52,14 +62,18 @@ internal class StoredRun(
     return lvStart + (seq - event.seq())
   }
 
-  /** Whether [lv] is at or after the first unit. The run search uses this. */
+  /**
+   * Whether [lv] is at or after the first unit. The run search uses this.
+   */
   fun startsAtOrBefore(lv: LV): Boolean {
     return lvStart <= lv
   }
 
-  /** Whether the event of this run deletes. */
+  /**
+   * Whether the event of this run deletes.
+   */
   fun isDelete(): Boolean {
-    return event.op() is DocOp.Delete
+    return event.op() is DocTextOp.Delete
   }
 
   /**
@@ -74,22 +88,30 @@ internal class StoredRun(
     }
   }
 
-  /** The parents of the first unit, which are the parents of the whole run. */
+  /**
+   * The parents of the first unit, which are the parents of the whole run.
+   */
   fun runParents(): Frontier {
     return parents
   }
 
-  /** The offset that the unit [lv] edits, in its own parent version. */
+  /**
+   * The offset that the unit [lv] edits, in its own parent version.
+   */
   fun offsetAt(lv: LV): Int {
     return event.offsetOfUnit(unitIndexOf(lv))
   }
 
-  /** The seq that names the unit [lv]. */
+  /**
+   * The seq that names the unit [lv].
+   */
   fun seqAt(lv: LV): Int {
     return event.seq() + unitIndexOf(lv)
   }
 
-  /** The character that the unit [lv] inserts. The run must be an insert. */
+  /**
+   * The character that the unit [lv] inserts. The run must be an insert.
+   */
   fun charAt(lv: LV): Char {
     return insertOp(lv).fragment()[unitIndexOf(lv)]
   }
@@ -127,30 +149,34 @@ internal class StoredRun(
     }
     val nextOp = next.op()
     val joined = when (val op = event.op()) {
-      is DocOp.Insert -> {
-        if (nextOp !is DocOp.Insert || !continuesInsert(op, nextOp)) {
+      is DocTextOp.Insert -> {
+        if (nextOp !is DocTextOp.Insert || !continuesInsert(op, nextOp)) {
           return null
         }
-        DocOp.ins(op.offset(), op.fragment().toString() + nextOp.fragment())
+        DocTextOp.insertOp(op.offset(), op.fragment().toString() + nextOp.fragment())
       }
-      is DocOp.Delete -> {
-        if (nextOp !is DocOp.Delete || !continuesDelete(op, nextOp)) {
+      is DocTextOp.Delete -> {
+        if (nextOp !is DocTextOp.Delete || !continuesDelete(op, nextOp)) {
           return null
         }
-        DocOp.del(op.offset(), op.length() + nextOp.length())
+        DocTextOp.deleteOp(op.offset(), op.length() + nextOp.length())
       }
     }
     return StoredRun(EventImpl(event.agent(), event.seq(), joined), lvStart, this.parents)
   }
 
-  /** Whether [parents] names the last unit of this run and nothing else. */
+  /**
+   * Whether [parents] names the last unit of this run and nothing else.
+   */
   private fun isOnlyParent(parents: VersionImpl): Boolean {
     val lvs = parents.lvs
     return lvs.size == 1 && lvs[0] == lvEnd() - 1
   }
 
-  /** An insert walks forward, so [next] continues at the end of [op], within the length limit. */
-  private fun continuesInsert(op: DocOp.Insert, next: DocOp.Insert): Boolean {
+  /**
+   * An insert walks forward, so [next] continues at the end of [op], within the length limit.
+   */
+  private fun continuesInsert(op: DocTextOp.Insert, next: DocTextOp.Insert): Boolean {
     return next.offset() == op.offset() + op.length() &&
            next.length() <= EventGraph.MAX_COALESCED_INSERT - op.length()
   }
@@ -160,15 +186,17 @@ internal class StoredRun(
    * still fit the offset space that an event checks, or the append would fail where a new run
    * succeeds.
    */
-  private fun continuesDelete(op: DocOp.Delete, next: DocOp.Delete): Boolean {
+  private fun continuesDelete(op: DocTextOp.Delete, next: DocTextOp.Delete): Boolean {
     return next.offset() == op.offset() &&
            next.length() <= Int.MAX_VALUE - op.offset() - op.length()
   }
 
-  /** The insert op of this run, for a caller that reads its content. */
-  private fun insertOp(lv: LV): DocOp.Insert {
+  /**
+   * The insert op of this run, for a caller that reads its content.
+   */
+  private fun insertOp(lv: LV): DocTextOp.Insert {
     val op = event.op()
-    require(op is DocOp.Insert) {
+    require(op is DocTextOp.Insert) {
       "The lv $lv is not an insert"
     }
     return op

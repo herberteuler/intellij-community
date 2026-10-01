@@ -1947,6 +1947,8 @@ python/python-sdk/frontend
 python/python-sdk/tests
 python/python-syntax
 python/python-syntax-core
+python/python-syntax/lambdaTests
+python/python-syntax/lambdaTests/intellij.python.syntax.lambdaTests.plugin
 python/python-test-env/common
 python/python-test-env/conda
 python/python-test-env/core

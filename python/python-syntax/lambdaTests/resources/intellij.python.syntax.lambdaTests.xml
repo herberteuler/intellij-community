@@ -1,0 +1,34 @@
+<idea-plugin visibility="internal">
+  <!-- @skip-dependency-generation: a discovered test plugin gets no automatic dependency addition, so this is
+       declared by hand (see community/python/python-process-output/lambdaTests for the precedent this suite
+       copies). A content module's compile classpath (the .iml) is NOT the same graph as this runtime list: a
+       class resolvable at compile time can still throw NoClassDefFoundError inside a running lambda if its
+       owning module isn't declared here (confirmed by an earlier, now-reverted version of this file that
+       omitted `intellij.python.psi.impl` on the theory that "real production modules already part of the
+       normal layout" don't need declaring — that is false; a content module's classloader parents come only
+       from this list, not from what else happens to be loaded in the process).
+
+       `intellij.python.parser` (`PyLanguageFacade`, `LanguageLevel`) and `intellij.platform.projectModel`
+       (`FilePropertyPusher`) are listed because they are used directly, by class reference, inside this suite's
+       lambdas, and both are safe to list because both load on *both* sides of a split run — `PyLanguageFacade`
+       is implemented on the frontend by `PyFrontendLanguageFacade` and on the backend by `PyLanguageFacadeImpl`,
+       and `intellij.platform.projectModel` is depended on directly by frontend modules
+       (e.g. `community/python/python-sdk/frontend/intellij.python.sdk.frontend.iml`).
+
+       `intellij.python.psi.impl` (`PythonLanguageLevelPusher`, the real `persistAttribute` implementation) is
+       deliberately NOT listed, even though the backend lambda needs its behavior: that module is backend-only
+       (absent from the frontend's product layout), and this content module is the *same* module loaded on both
+       processes of a split run — a listed dependency unavailable on one side silently excludes the whole module
+       from that side (see community/python/python-process-output/lambdaTests/resources/
+       intellij.python.processOutput.lambdaTests.xml for the prior precedent of this exact rule). Declaring it
+       here would make every `runInFrontend` call fail with "Test plugin with test module ... is not found"
+       instead of running this suite's frontend lambda at all. Instead, the backend lambda reaches the real
+       pusher dynamically through `FilePropertyPusher.EP_NAME.extensionList`, never naming
+       `PythonLanguageLevelPusher` in this module's own bytecode — see the KDoc on
+       `PyLanguageFacadeFrontendSyncTest` for the full reasoning. -->
+  <dependencies>
+    <module name="intellij.lambda.testFramework"/>
+    <module name="intellij.python.parser"/>
+    <module name="intellij.platform.projectModel"/>
+  </dependencies>
+</idea-plugin>

@@ -1,0 +1,21 @@
+<!-- Handwritten on purpose: a "discovered" test plugin, not a DSL-defined one, so that standing up this suite
+     needs no entry in platform/buildScripts. Detection relies on a test-framework module being declared as
+     content below — see community/platform/build-scripts/product-dsl/docs/test-plugins.md. -->
+<idea-plugin>
+  <id>com.intellij.python.syntax.lambdaTests.plugin</id>
+  <name>Python Language Level Sync Lambda Tests</name>
+  <vendor>JetBrains</vendor>
+
+  <dependencies>
+    <module name="intellij.lambda.testFramework"/>
+    <module name="intellij.libraries.byte.buddy"/>
+  </dependencies>
+
+  <content namespace="jetbrains">
+    <module name="intellij.python.syntax.lambdaTests"/>
+  </content>
+  <content>
+    <module name="intellij.libraries.junit6"/>
+    <module name="intellij.libraries.assertj.core"/>
+  </content>
+</idea-plugin>

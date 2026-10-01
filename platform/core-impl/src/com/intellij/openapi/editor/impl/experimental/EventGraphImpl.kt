@@ -286,11 +286,12 @@ internal class EventGraphImpl private constructor(
   }
 
   /**
-   * The tie-break order for concurrent insertions of two units: by agent, then by seq. The name is
-   * the one of the reference implementation.
+   * The tie-break order for concurrent insertions of the units [lvA] and [lvB]: by agent, then by
+   * seq. [runA] is the run that holds [lvA]. A scan compares one unit with many others, so it looks
+   * that run up once. The name is the one of the reference implementation.
    */
-  fun lvCmp(lvA: LV, lvB: LV): Int {
-    val runA = runAt(lvA)
+  fun lvCmp(runA: StoredRun, lvA: LV, lvB: LV): Int {
+    checkRunHolds(runA, lvA)
     val runB = runAt(lvB)
     val byAgent = runA.event.agent().compareTo(runB.event.agent())
     if (byAgent != 0) {
@@ -462,6 +463,12 @@ internal class EventGraphImpl private constructor(
   private fun checkLvSpace(length: Int) {
     require(length <= Int.MAX_VALUE - size) {
       "The graph unit space overflows: size $size + run length $length"
+    }
+  }
+
+  private fun checkRunHolds(run: StoredRun, lv: LV) {
+    require(lv >= run.lvStart && lv < run.lvEnd()) {
+      "The run $run does not hold the lv $lv"
     }
   }
 

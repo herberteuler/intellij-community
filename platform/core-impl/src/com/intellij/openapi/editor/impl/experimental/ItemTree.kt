@@ -6,9 +6,10 @@ import java.util.TreeMap
 
 /**
  * The items of one [ReplayWalker] walk in document order, as an order-statistic B+tree. Every
- * node keeps three sums of its subtree: the items, the prepare width and the effect width. So a
- * lookup by index or by prepare position costs O(log n), and so does an insert or a split. A
- * lookup by unit costs O(log n) too, after the first one builds the unit index in O(n log n).
+ * node keeps four sums of its subtree: the items, the prepare width, the effect width, and the
+ * items that the prepare version has applied. So a lookup by index, by prepare position, or of the
+ * next applied item costs O(log n), and so does an insert or a split. A lookup by unit costs
+ * O(log n) too, after the first one builds the unit index in O(n log n).
  *
  * The tree only grows. An insert adds an item, a split adds the right piece, and nothing removes
  * an item. So no node ever merges, and every leaf sits at the same depth.
@@ -83,7 +84,13 @@ internal class ItemTree {
     val slot = index - cachedLeafStart
     leaf.items.add(slot, item)
     item.fileUnderLeaf(leaf.number)
-    addToSums(leaf, 1, item.prepareWidth, item.effectWidth)
+    addToSums(
+      from = leaf,
+      count = 1,
+      prepare = item.prepareWidth,
+      effect = item.effectWidth,
+      applied = appliedOf(item),
+    )
     splitIfFull(leaf, slot)
   }
 
@@ -98,8 +105,15 @@ internal class ItemTree {
     leaf.items.add(slot + 1, right)
     right.fileUnderLeaf(leaf.number)
     fileInBuiltIndex(right)
-    // The two pieces share one state, so together they keep the widths of the item.
-    addToSums(leaf, 1, 0, 0)
+    // The two pieces share one state, so together they keep the widths of the item. The right
+    // piece adds one applied item when the item is applied.
+    addToSums(
+      from = leaf,
+      count = 1,
+      prepare = 0,
+      effect = 0,
+      applied = appliedOf(right),
+    )
     splitIfFull(leaf, slot + 1)
   }
 
@@ -160,6 +174,28 @@ internal class ItemTree {
   }
 
   /**
+   * The first item at or after [index] that the prepare version has applied, or `null` when there
+   * is none. [index] may be the end of the items. The reference finds the item with a scan of the
+   * items in between.
+   */
+  fun firstAppliedFrom(index: Int): Item? {
+    checkFromIndex(index)
+    // The common cases: an append, and an applied item at the index itself.
+    if (index == size()) {
+      return null
+    }
+    val item = get(index)
+    if (item.appliedInPrepare) {
+      return item
+    }
+    val appliedBefore = appliedBefore(index)
+    if (appliedBefore == root.applied) {
+      return null
+    }
+    return appliedItem(appliedBefore)
+  }
+
+  /**
    * Applies one op to the prepare version of [item] again. See [Item.advance].
    */
   fun advance(item: Item, isDelete: Boolean) {
@@ -187,16 +223,113 @@ internal class ItemTree {
   }
 
   /**
-   * Runs the state [change] of [item], and moves the change of its widths into the sums.
+   * Runs the state [change] of [item], and moves the changes of its widths and of its applied count
+   * into the sums.
    */
   private inline fun changeState(item: Item, change: () -> Unit) {
     val prepare = item.prepareWidth
     val effect = item.effectWidth
+    val applied = appliedOf(item)
     change()
     val prepareDelta = item.prepareWidth - prepare
     val effectDelta = item.effectWidth - effect
-    if (prepareDelta != 0 || effectDelta != 0) {
-      addToSums(leafOf(item), 0, prepareDelta, effectDelta)
+    val appliedDelta = appliedOf(item) - applied
+    if (prepareDelta != 0 || effectDelta != 0 || appliedDelta != 0) {
+      addToSums(
+        from = leafOf(item),
+        count = 0,
+        prepare = prepareDelta,
+        effect = effectDelta,
+        applied = appliedDelta,
+      )
+    }
+  }
+
+  /**
+   * The items before [index] that the prepare version has applied.
+   */
+  private fun appliedBefore(index: Int): Int {
+    var node = root
+    var start = 0
+    var applied = 0
+    while (true) {
+      when (val current = node) {
+        is Inner -> {
+          val children = current.children
+          val last = children.size - 1
+          var i = 0
+          while (i < last && index - start >= children[i].count) {
+            start += children[i].count
+            applied += children[i].applied
+            i++
+          }
+          node = children[i]
+        }
+        is Leaf -> {
+          for (slot in 0 until index - start) {
+            applied += appliedOf(current.items[slot])
+          }
+          return applied
+        }
+      }
+    }
+  }
+
+  /**
+   * The applied item with [rank] applied items before it.
+   */
+  private fun appliedItem(rank: Int): Item {
+    checkAppliedRank(rank)
+    var node = root
+    var before = rank
+    while (true) {
+      when (val current = node) {
+        is Inner -> {
+          var i = 0
+          while (before >= current.children[i].applied) {
+            before -= current.children[i].applied
+            i++
+          }
+          node = current.children[i]
+        }
+        is Leaf -> {
+          return requireApplied(appliedItemOf(current, before))
+        }
+      }
+    }
+  }
+
+  /**
+   * The applied item of [leaf] with [rank] applied items of the leaf before it, or `null`.
+   */
+  private fun appliedItemOf(leaf: Leaf, rank: Int): Item? {
+    var before = rank
+    for (item in leaf.items) {
+      if (item.appliedInPrepare) {
+        if (before == 0) {
+          return item
+        }
+        before--
+      }
+    }
+    return null
+  }
+
+  private fun requireApplied(item: Item?): Item {
+    require(item != null) {
+      "A leaf keeps more applied items than it holds"
+    }
+    return item
+  }
+
+  /**
+   * 1 when the prepare version has applied [item], and 0 when it has not.
+   */
+  private fun appliedOf(item: Item): Int {
+    return if (item.appliedInPrepare) {
+      1
+    } else {
+      0
     }
   }
 
@@ -281,17 +414,23 @@ internal class ItemTree {
   }
 
   /**
-   * Adds the three deltas to the sums of [from] and of every node above it.
+   * Adds the four deltas to the sums of [from] and of every node above it.
    */
   private fun addToSums(
     from: Node,
     count: Int,
     prepare: Int,
     effect: Int,
+    applied: Int,
   ) {
     var node: Node? = from
     while (node != null) {
-      node.addToSums(count, prepare, effect)
+      node.addToSums(
+        count = count,
+        prepare = prepare,
+        effect = effect,
+        applied = applied,
+      )
       node = node.parent()
     }
   }
@@ -452,6 +591,18 @@ internal class ItemTree {
     }
   }
 
+  private fun checkFromIndex(index: Int) {
+    require(index in 0..size()) {
+      "The index $index is outside the ${size()} items and their end"
+    }
+  }
+
+  private fun checkAppliedRank(rank: Int) {
+    require(rank in 0 until root.applied) {
+      "The rank $rank is outside the ${root.applied} applied items"
+    }
+  }
+
   private fun checkPreparePos(preparePos: Int) {
     require(preparePos in 0 until prepareWidth()) {
       "The prepare position $preparePos is outside the document of width ${prepareWidth()}"
@@ -463,7 +614,7 @@ internal class ItemTree {
    * - every node knows its parent and holds at most [WIDTH] members;
    * - an inner node holds two members or more;
    * - only the empty tree has an empty leaf;
-   * - the three sums of a node are the sums of its members;
+   * - the four sums of a node are the sums of its members;
    * - every leaf sits at the same depth, and the tree reaches every leaf it numbered;
    * - every item knows the number of its leaf;
    * - no two items start at one unit;
@@ -550,9 +701,13 @@ internal class ItemTree {
           "The leaves do not all sit at one depth"
         }
         reached.add(node)
-        val prepare = node.items.sumOf { it.prepareWidth }
-        val effect = node.items.sumOf { it.effectWidth }
-        checkSums(node, node.items.size, prepare, effect)
+        val sums = Sums(
+          count = node.items.size,
+          prepare = node.items.sumOf { it.prepareWidth },
+          effect = node.items.sumOf { it.effectWidth },
+          applied = node.items.sumOf { appliedOf(it) },
+        )
+        checkSums(node, sums)
       }
       is Inner -> {
         require(node.children.size in 2..WIDTH) {
@@ -561,30 +716,41 @@ internal class ItemTree {
         for (child in node.children) {
           checkNode(child, node, depth + 1, reached)
         }
-        val count = node.children.sumOf { it.count }
-        val prepare = node.children.sumOf { it.prepareWidth }
-        val effect = node.children.sumOf { it.effectWidth }
-        checkSums(node, count, prepare, effect)
+        val sums = Sums(
+          count = node.children.sumOf { it.count },
+          prepare = node.children.sumOf { it.prepareWidth },
+          effect = node.children.sumOf { it.effectWidth },
+          applied = node.children.sumOf { it.applied },
+        )
+        checkSums(node, sums)
       }
     }
   }
 
-  private fun checkSums(
-    node: Node,
-    count: Int,
-    prepare: Int,
-    effect: Int,
-  ) {
-    require(node.count == count) {
-      "A node keeps the count ${node.count}, but its members hold $count items"
-    }
-    require(node.prepareWidth == prepare) {
-      "A node keeps the prepare width ${node.prepareWidth}, but its members hold $prepare"
-    }
-    require(node.effectWidth == effect) {
-      "A node keeps the effect width ${node.effectWidth}, but its members hold $effect"
+  /**
+   * Fails unless [node] keeps the [expected] sums of its members.
+   */
+  private fun checkSums(node: Node, expected: Sums) {
+    val kept = Sums(
+      count = node.count,
+      prepare = node.prepareWidth,
+      effect = node.effectWidth,
+      applied = node.applied,
+    )
+    require(kept == expected) {
+      "A node keeps $kept, but its members hold $expected"
     }
   }
+
+  /**
+   * The four sums of a node, for a message of [checkInvariants].
+   */
+  private data class Sums(
+    val count: Int,
+    val prepare: Int,
+    val effect: Int,
+    val applied: Int,
+  )
 
   private fun depthOf(node: Node): Int {
     var depth = 0
@@ -601,7 +767,7 @@ internal class ItemTree {
   }
 
   /**
-   * A node of the tree, with the three sums of its subtree.
+   * A node of the tree, with the four sums of its subtree.
    */
   private sealed class Node {
     private var parent: Inner? = null
@@ -613,6 +779,12 @@ internal class ItemTree {
     var effectWidth: Int = 0
       private set
 
+    /**
+     * The items that the prepare version has applied: [Item.appliedInPrepare].
+     */
+    var applied: Int = 0
+      private set
+
     fun parent(): Inner? {
       return parent
     }
@@ -621,21 +793,33 @@ internal class ItemTree {
       parent = newParent
     }
 
-    fun addToSums(count: Int, prepare: Int, effect: Int) {
+    fun addToSums(
+      count: Int,
+      prepare: Int,
+      effect: Int,
+      applied: Int,
+    ) {
       this.count += count
       prepareWidth += prepare
       effectWidth += effect
+      this.applied += applied
     }
 
     /**
-     * Sets the three sums from the direct members, after a split moved some of them away.
+     * Sets the four sums from the direct members, after a split moved some of them away.
      */
     abstract fun recount()
 
-    protected fun setSums(count: Int, prepare: Int, effect: Int) {
+    protected fun setSums(
+      count: Int,
+      prepare: Int,
+      effect: Int,
+      applied: Int,
+    ) {
       this.count = count
       prepareWidth = prepare
       effectWidth = effect
+      this.applied = applied
     }
   }
 
@@ -648,11 +832,20 @@ internal class ItemTree {
     override fun recount() {
       var prepare = 0
       var effect = 0
+      var applied = 0
       for (item in items) {
         prepare += item.prepareWidth
         effect += item.effectWidth
+        if (item.appliedInPrepare) {
+          applied++
+        }
       }
-      setSums(items.size, prepare, effect)
+      setSums(
+        count = items.size,
+        prepare = prepare,
+        effect = effect,
+        applied = applied,
+      )
     }
   }
 
@@ -672,12 +865,19 @@ internal class ItemTree {
       var count = 0
       var prepare = 0
       var effect = 0
+      var applied = 0
       for (child in children) {
         count += child.count
         prepare += child.prepareWidth
         effect += child.effectWidth
+        applied += child.applied
       }
-      setSums(count, prepare, effect)
+      setSums(
+        count = count,
+        prepare = prepare,
+        effect = effect,
+        applied = applied,
+      )
     }
   }
 

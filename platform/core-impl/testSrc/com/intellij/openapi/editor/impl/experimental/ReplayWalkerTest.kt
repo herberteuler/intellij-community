@@ -83,6 +83,27 @@ internal class ReplayWalkerTest {
   }
 
   @Test
+  fun `many concurrent inserts at one place come out in the order of their agents`() {
+    // Each run lands among the runs of every agent before it, so the Fugue scan steps through
+    // hundreds of items that the prepare version has not applied.
+    val base = DocBranch.createBranch("[]", U)
+    var merged = base
+    for (i in 0 until AGENTS) {
+      val typed = base.fork(Agent.createAgent("a$i")).applyOp(DocTextOp.insertOp(1, "<$i>"))
+      merged = merged.merge(typed)
+    }
+    // The runs share the left origin and the right parent, so the tie-break sorts them by agent,
+    // and an agent name sorts as a string. The reference gives this text for 40 and 300 agents.
+    val names = (0 until AGENTS).map { "a$it" }.sorted()
+    val expected = names.joinToString(separator = "", prefix = "[", postfix = "]") { name ->
+      "<" + name.substring(1) + ">"
+    }
+    assertEquals(expected, merged.text().string())
+    val walker = replayInFull(merged)
+    assertTrue(walker.itemTreeDepth() >= 1, "the item tree has no inner level")
+  }
+
+  @Test
   fun `two long concurrent histories merge to the text of a full replay`() {
     val random = Random(20261003L)
     val base = randomEdits(random, DocBranch.createBranch("", U), OPS / 10)
@@ -147,6 +168,11 @@ internal class ReplayWalkerTest {
      * Enough ops for two inner levels of the item tree: a leaf holds up to [ItemTree.WIDTH] items.
      */
     const val OPS = 3_000
+
+    /**
+     * The agents that insert at one place: enough for more than one leaf of concurrent runs.
+     */
+    const val AGENTS = 300
 
     val U: Agent = Agent.createAgent("u")
     val V: Agent = Agent.createAgent("v")

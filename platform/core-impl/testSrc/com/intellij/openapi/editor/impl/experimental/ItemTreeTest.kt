@@ -3,6 +3,7 @@ package com.intellij.openapi.editor.impl.experimental
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -62,6 +63,29 @@ internal class ItemTreeTest {
     assertEquals(140, cursor.effectPos)
     assertEquals(140, tree.get(cursor.itemIndex).firstUnit)
     assertEquals(1, tree.depth())
+    tree.checkInvariants()
+  }
+
+  @Test
+  fun `the next applied item lies past whole leaves of unapplied items`() {
+    val tree = ItemTree()
+    // Appends fill leaves of 32 items: 0 to 31, 32 to 63, 64 to 95, and 96 to 99.
+    for (i in 0 until 100) {
+      tree.add(i, item(firstUnit = 2 * i, length = 2))
+    }
+    // The items 10 to 95 leave the prepare version, so the second and the third leaf hold no
+    // applied item.
+    for (i in 10 until 96) {
+      tree.retreat(tree.get(i), isDelete = false)
+    }
+    assertSame(tree.get(9), tree.firstAppliedFrom(9))
+    assertSame(tree.get(96), tree.firstAppliedFrom(10))
+    assertSame(tree.get(96), tree.firstAppliedFrom(50))
+    for (i in 96 until 100) {
+      tree.retreat(tree.get(i), isDelete = false)
+    }
+    assertNull(tree.firstAppliedFrom(10))
+    assertNull(tree.firstAppliedFrom(100))
     tree.checkInvariants()
   }
 
@@ -234,6 +258,14 @@ internal class ItemTreeTest {
       val unit = item.firstUnit + random.nextInt(item.length)
       assertEquals(index, tree.indexCovering(unit)) { "unit $unit" }
       assertSame(item, tree.itemCovering(unit)) { "unit $unit" }
+    }
+    // The first applied item at or after each index, from the end backwards.
+    var nextApplied: Item? = null
+    for (index in expected.size downTo 0) {
+      if (index < expected.size && expected[index].appliedInPrepare) {
+        nextApplied = expected[index]
+      }
+      assertSame(nextApplied, tree.firstAppliedFrom(index)) { "first applied item from $index" }
     }
     var index = 0
     var prepare = 0

@@ -24,9 +24,10 @@ package com.intellij.openapi.editor.impl.experimental
  * which is usually a whole run. A step consumes as much of a run as the walk ranges hold. An item
  * splits only where an op needs a boundary inside it: a concurrent insert, a partial delete, or a
  * partial retreat or advance. Costs: the items sit in an [ItemTree], so a lookup costs O(log n) in
- * the items of the walked region, and a sequential run reuses a cached cursor. The Fugue scan and
- * the search for a right parent still step through the concurrent items one by one, as in the
- * reference. The run-length encoding keeps the item count small.
+ * the items of the walked region, and a sequential run reuses a cached cursor. The search for a
+ * right parent is a lookup too. The Fugue scan still visits the concurrent items before the place
+ * of the new item, as in the reference. An item there that shares the left origin and the right
+ * parent of the new item needs no index. The run-length encoding keeps the item count small.
  */
 internal object EgWalkerReplay {
 

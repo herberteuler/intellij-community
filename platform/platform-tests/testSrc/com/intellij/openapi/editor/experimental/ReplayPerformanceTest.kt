@@ -96,6 +96,28 @@ class ReplayPerformanceTest {
   }
 
   /**
+   * A full replay of concurrent inserts at one place: many agents type one short run each, at the
+   * same offset of one base. Each insert lands among the runs of every agent before it. So the
+   * Fugue scan steps through the runs before its place, and the replay costs the square of the
+   * agent count. A slow step per concurrent item shows here.
+   */
+  @Test
+  fun `a full replay of concurrent inserts at one place`() {
+    println("=== concurrent inserts at one place, by agent count ===")
+    println("  %-14s %10s %10s %8s".format("history", "units", "runs", "passes"))
+    for (agents in CONCURRENT_AGENTS) {
+      val graph = graphOfConcurrentInserts(agents)
+      assertEquals(textOfConcurrentInserts(agents), graph.replay().string())
+      val passes = CONCURRENT_PASSES_TIMES_SQUARE / (agents * agents)
+      val history = "$agents agents"
+      println("  %-14s %10d %10d %8d".format(history, graph.size(), graph.runCount(), passes))
+      benchmarkSubtest("concurrent inserts, $agents agents", passes) {
+        graph.replay().length()
+      }
+    }
+  }
+
+  /**
    * A merge of two concurrent pastes. This is the [DocTextOp] path through the batching sink, and
    * not the `StringBuilder` path, so it reports one op however many calls it takes to build.
    */
@@ -215,6 +237,32 @@ class ReplayPerformanceTest {
   }
 
   /**
+   * A base of "[]", then one run of [agents] agents each, all at the offset 1 and at the version
+   * of the base. A raw append builds it, because a merge of each fork would cost the cube of the
+   * agent count.
+   */
+  private fun graphOfConcurrentInserts(agents: Int): EventGraph {
+    val base = DocBranch.createBranch("[]", agent("base")).graph()
+    var graph = base
+    for (i in 0 until agents) {
+      graph = graph.append(Event.createInsert(agent("a$i"), 0, 1, "<$i>"), base.version())
+    }
+    return graph
+  }
+
+  /**
+   * The text of [graphOfConcurrentInserts]. The runs share the left origin and the right parent, so
+   * the tie-break sorts them by agent, and an agent name sorts as a string. The reference gives
+   * this text too.
+   */
+  private fun textOfConcurrentInserts(agents: Int): String {
+    val names = (0 until agents).map { "a$it" }.sorted()
+    return names.joinToString(separator = "", prefix = "[", postfix = "]") { name ->
+      "<" + name.substring(1) + ">"
+    }
+  }
+
+  /**
    * A text of [chars] characters, then a delete and an insert at every offset of it, in order.
    */
   private fun historyOfOvertype(chars: Int): DocBranch {
@@ -270,6 +318,13 @@ class ReplayPerformanceTest {
      */
     private val OVERTYPE_CHARS = intArrayOf(2_000, 4_000, 8_000, 16_000)
     private const val OVERTYPE_PASSES_TIMES_CHARS = 64_000
+
+    /**
+     * The agent counts of the concurrent inserts, and the passes of a row times the square of its
+     * agent count. The replay costs that square, so every row does about the same work.
+     */
+    private val CONCURRENT_AGENTS = intArrayOf(250, 500, 1_000, 2_000)
+    private const val CONCURRENT_PASSES_TIMES_SQUARE = 4_000_000
 
     /**
      * The passes of one attempt, per scenario. Each count keeps an attempt at about 20 ms or

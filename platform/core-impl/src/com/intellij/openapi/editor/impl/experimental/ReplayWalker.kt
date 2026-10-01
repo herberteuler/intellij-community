@@ -15,7 +15,8 @@ import java.util.BitSet
 internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount: Int) {
 
   /**
-   * Every item in document order, with the lookups by index, by prepare position and by unit.
+   * Every item in document order, with the lookups by index, by prepare position, by unit, and of
+   * the next applied item.
    */
   private val items = ItemTree()
 
@@ -341,7 +342,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       originLeft = originLeft,
       rightParent = rightParent,
     )
-    integrate(newItem, cursor)
+    integrate(newItem, cursor, run)
     items.add(cursor.itemIndex, newItem)
     // The span sits inside one run, so one slice of its fragment covers it. A silent phase
     // skips the slice, which is the only work the report costs.
@@ -374,15 +375,14 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * unconditionally.
    */
   private fun rightParentAt(index: Int, originLeft: LV): LV {
-    for (i in index until items.size()) {
-      val next = items.get(i)
-      if (next.appliedInPrepare) {
-        // A right parent always names the FIRST unit of a span, and a left origin always
-        // names the LAST unit of one. A split keeps both, so the two stay comparable.
-        return if (next.originLeft == originLeft) next.firstUnit else NO_UNIT
-      }
+    val next = items.firstAppliedFrom(index)
+    // A right parent always names the FIRST unit of a span, and a left origin always names the
+    // LAST unit of one. A split keeps both, so the two stay comparable.
+    return if (next != null && next.originLeft == originLeft) {
+      next.firstUnit
+    } else {
+      NO_UNIT
     }
-    return NO_UNIT
   }
 
   // ------------------------------------------------------------------------------------ the scan
@@ -390,9 +390,10 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   /**
    * Finds the place for a concurrent insertion among the not-yet-inserted items at the
    * cursor. A direct port of `integrate` from the reference implementation, which ports
-   * YjsMod / Fugue. The cursor moves to the found place.
+   * YjsMod / Fugue. The cursor moves to the found place. [newRun] is the run that holds the first
+   * unit of [newItem], for the tie-break.
    */
-  private fun integrate(newItem: Item, cursor: Cursor) {
+  private fun integrate(newItem: Item, cursor: Cursor, newRun: StoredRun) {
     // Without concurrency there is nothing to scan.
     if (!hasUnappliedItemAt(cursor.itemIndex)) {
       return
@@ -401,6 +402,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     var scanIdx = cursor.itemIndex
     var scanEffectPos = cursor.effectPos
     val leftIdx = cursor.itemIndex - 1
+    val leftItem = leftNeighbourOf(cursor)
     val rightIdx = indexOfBound(newItem.rightParent)
     while (scanIdx < items.size()) {
       val other = items.get(scanIdx)
@@ -410,17 +412,14 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       require(!other.contains(newItem.rightParent)) {
         "The scan reached the right parent of the new item"
       }
-      val otherLeftIdx = if (other.originLeft == NO_UNIT) {
-        -1
-      } else {
-        findItemIdx(other.originLeft)
-      }
-      if (otherLeftIdx < leftIdx) {
+      val leftOrder = leftOriginOrder(other.originLeft, leftIdx, leftItem)
+      if (leftOrder < 0) {
         break
       }
-      if (otherLeftIdx == leftIdx) {
-        val otherRightIdx = indexOfBound(other.rightParent)
-        if (otherRightIdx == rightIdx && graph.lvCmp(newItem.firstUnit, other.firstUnit) < 0) {
+      if (leftOrder == 0) {
+        val otherRightIdx = rightBoundOf(other, newItem, rightIdx)
+        val sameRight = otherRightIdx == rightIdx
+        if (sameRight && graph.lvCmp(newRun, newItem.firstUnit, other.firstUnit) < 0) {
           break
         }
         scanning = otherRightIdx < rightIdx
@@ -434,7 +433,35 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /**
-   * Whether an item at [index] exists that the prepare version has not reached: a concurrent one.
+   * Compares the index of the item that covers [originLeft] with [leftIdx], as the reference
+   * compares `oleftIdx` with `leftIdx`. The result is negative, zero, or positive. [leftItem] is
+   * the item at [leftIdx]. Concurrent items at one place mostly have it as their left origin, and
+   * then the answer needs no index.
+   */
+  private fun leftOriginOrder(originLeft: LV, leftIdx: Int, leftItem: Item?): Int {
+    if (originLeft == NO_UNIT) {
+      // The document start has the index -1.
+      return (-1).compareTo(leftIdx)
+    }
+    if (leftItem != null && leftItem.contains(originLeft)) {
+      return 0
+    }
+    return findItemIdx(originLeft).compareTo(leftIdx)
+  }
+
+  /**
+   * The scan bound of the right parent of [other], a scanned item. When it names the right parent
+   * of [newItem], it is [rightIdx], and no lookup is needed.
+   */
+  private fun rightBoundOf(other: Item, newItem: Item, rightIdx: Int): Int {
+    if (other.rightParent == newItem.rightParent) {
+      return rightIdx
+    }
+    return indexOfBound(other.rightParent)
+  }
+
+  /**
+   * Whether an item at [index] exists that the prepare version has not applied: a concurrent one.
    */
   private fun hasUnappliedItemAt(index: Int): Boolean {
     return index < items.size() && !items.get(index).appliedInPrepare

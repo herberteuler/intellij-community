@@ -14,7 +14,7 @@ Entry point: `RestrictedModuleActivationValidator` (`restrictedModuleActivationV
 The RD client modules use these declarations:
 
 - `CommunityModuleSets.rdCommon()` marks the `intellij.rd.client*` modules as restricted.
-- `rdClientActivation` requires `intellij.rd.client` and `intellij.rd.client.base`, and allows the other RD client modules.
+- `rdClientActivation` requires `intellij.rd.client` and `intellij.rd.client.baseline`, and allows the other RD client modules.
 - Rider and the JetBrains Client products grant `rdClientActivation`.
 - The generator config grants `rdClientActivation` to the Radler plugin. This covers CLion Nova and IDEA with the C++ plugin.
 - CLion declares the Classic and Radler plugins as exclusive plugins.

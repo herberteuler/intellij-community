@@ -36,7 +36,7 @@ internal class SplitModePredefinedModuleKindsSourceModeTest : BasePlatformTestCa
       )
       Assert.assertEquals(
         SplitModeApiRestrictionsService.ModuleKind.SHARED,
-        service.getPredefinedDependencyKind("intellij.rd.client.base"),
+        service.getPredefinedDependencyKind("intellij.rd.client.baseline"),
       )
       Assert.assertEquals(
         SplitModeApiRestrictionsService.ModuleKind.SHARED,

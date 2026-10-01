@@ -2,11 +2,13 @@
 
 package org.jetbrains.kotlin.idea
 
-import junit.framework.TestCase
 import org.jetbrains.kotlin.idea.base.projectStructure.forwardDeclarations.KotlinForwardDeclarationsFqNameExtractor
 import org.jetbrains.kotlin.name.FqName
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
-class ForwardDeclarationFqNameExtractorTest : TestCase() {
+class ForwardDeclarationFqNameExtractorTest {
+    @Test
     fun testPackageGrouping() {
         val declarationFqNames = listOf(
             FqName("cnames.structs.foo"),
@@ -34,6 +36,7 @@ class ForwardDeclarationFqNameExtractorTest : TestCase() {
         )
     }
 
+    @Test
     fun testTopLevelFqNamesAndRoot() {
         val declarationFqNames = listOf(
             FqName("Top1"),

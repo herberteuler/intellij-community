@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.experimental
 
+import com.intellij.openapi.editor.impl.experimental.DocMergeImpl
+
 /**
  * The result of [DocBranch.mergeWithOps]: the merged branch, plus the ops that turn the text of the
  * receiver into the text of that branch.
@@ -34,4 +36,20 @@ interface DocMerge {
    * two branches broke the agent contract, in a way that the id check of the merge did not sample.
    */
   fun ops(): List<DocTextOp>
+
+  companion object {
+    /**
+     * A merge with [ops] ready. The list must not change after this call.
+     */
+    fun ready(branch: DocBranch, ops: List<DocTextOp>): DocMerge {
+      return DocMergeImpl(branch, lazyOf(ops))
+    }
+
+    /**
+     * A merge whose ops [lazyOps] makes on the first call of [ops]. [lazyOps] must return a list that cannot change.
+     */
+    fun deferred(branch: DocBranch, lazyOps: () -> List<DocTextOp>): DocMerge {
+      return DocMergeImpl(branch, lazy(LazyThreadSafetyMode.PUBLICATION, lazyOps))
+    }
+  }
 }

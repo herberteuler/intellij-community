@@ -77,7 +77,7 @@ internal class DocBranchImpl private constructor(
     val result = graph.mergeFromImpl(otherImpl.graph)
     if (result.addsNothing()) {
       // The same kind of list as the other outcomes, so a caller sees one behaviour.
-      return DocMergeImpl.ready(this, Collections.emptyList())
+      return DocMerge.ready(this, Collections.emptyList())
     }
     val merged = result.graph()
     if (result.isFastForward()) {
@@ -86,14 +86,14 @@ internal class DocBranchImpl private constructor(
       // takes the text and not the other branch, so it does not keep the other graph alive.
       val text = otherImpl.docText
       val branch = DocBranchImpl(text, agent, merged)
-      return DocMergeImpl.deferred(branch) {
+      return DocMerge.deferred(branch) {
         opsOfFastForward(merged, text)
       }
     }
     // A partial replay: the walk covers only the region above the common ancestor. Only the new
     // units reach the sink, which joins them into ordinary ops over the text.
     val sink = replayOnto(merged, docText)
-    return DocMergeImpl.ready(DocBranchImpl(sink.result(), agent, merged), sink.ops())
+    return DocMerge.ready(DocBranchImpl(sink.result(), agent, merged), sink.ops())
   }
 
   private fun applyInsert(op: DocTextOp.Insert): DocBranch {

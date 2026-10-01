@@ -3,6 +3,7 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.DocBranch
+import com.intellij.openapi.editor.experimental.DocMerge
 import com.intellij.openapi.editor.experimental.DocTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
@@ -21,7 +22,7 @@ internal class DocMergeImplTest {
   @Test
   fun `ready ops come back as given`() {
     val ops = listOf(DocTextOp.insertOp(0, "x"))
-    val merge = DocMergeImpl.ready(BRANCH, ops)
+    val merge = DocMerge.ready(BRANCH, ops)
     assertSame(BRANCH, merge.branch())
     assertSame(ops, merge.ops())
     assertEquals("DocMerge($BRANCH, 1 ops)", merge.toString())
@@ -31,7 +32,7 @@ internal class DocMergeImplTest {
   fun `deferred ops wait for the first call and are built once`() {
     val builds = AtomicInteger()
     val ops = listOf(DocTextOp.deleteOp(0, 1))
-    val merge = DocMergeImpl.deferred(BRANCH) {
+    val merge = DocMerge.deferred(BRANCH) {
       builds.incrementAndGet()
       ops
     }
@@ -58,7 +59,7 @@ internal class DocMergeImplTest {
       repeat(ROUNDS) {
         val builds = AtomicInteger()
         val twoBuilds = CountDownLatch(2)
-        val merge = DocMergeImpl.deferred(BRANCH) {
+        val merge = DocMerge.deferred(BRANCH) {
           builds.incrementAndGet()
           twoBuilds.countDown()
           // A lock that allowed one build only would time out here, and still give one list.

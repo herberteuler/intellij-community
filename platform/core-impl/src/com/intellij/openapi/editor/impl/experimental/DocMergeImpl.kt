@@ -15,7 +15,7 @@ import com.intellij.openapi.editor.experimental.DocTextOp
  * so a second build gives an equal list. After the build the lazy value drops the computation, and
  * with it the values that only the computation needed.
  */
-internal class DocMergeImpl private constructor(
+internal class DocMergeImpl(
   private val branch: DocBranch,
   private val ops: Lazy<List<DocTextOp>>,
 ) : DocMerge {
@@ -34,21 +34,5 @@ internal class DocMergeImpl private constructor(
   override fun toString(): String {
     val opsText = if (ops.isInitialized()) "${ops.value.size} ops" else "ops deferred"
     return "DocMerge($branch, $opsText)"
-  }
-
-  companion object {
-    /**
-     * A merge with [ops] ready. The list must not change after this call.
-     */
-    fun ready(branch: DocBranch, ops: List<DocTextOp>): DocMergeImpl {
-      return DocMergeImpl(branch, lazyOf(ops))
-    }
-
-    /**
-     * A merge whose ops [build] makes on the first call of [ops]. [build] must return a list that cannot change.
-     */
-    fun deferred(branch: DocBranch, build: () -> List<DocTextOp>): DocMergeImpl {
-      return DocMergeImpl(branch, lazy(LazyThreadSafetyMode.PUBLICATION, build))
-    }
   }
 }

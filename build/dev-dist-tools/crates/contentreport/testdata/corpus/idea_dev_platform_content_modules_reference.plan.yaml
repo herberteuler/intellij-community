@@ -4399,14 +4399,14 @@
     label: '@@community+//platform/pluginManager/frontend:frontend.jar'
     module: intellij.platform.pluginManager.frontend
     filter: unkeyed
-- name: lib/intellij.platform.pluginManager.shared.base.jar
+- name: lib/intellij.platform.pluginManager.shared.baseline.jar
   modules:
-  - name: intellij.platform.pluginManager.shared.base
+  - name: intellij.platform.pluginManager.shared.baseline
   kind: jar
   sources:
   - kind: zip
-    label: '@@community+//platform/pluginManager/shared.base:shared.base.jar'
-    module: intellij.platform.pluginManager.shared.base
+    label: '@@community+//platform/pluginManager/shared.baseline:shared.base.jar'
+    module: intellij.platform.pluginManager.shared.baseline
     filter: unkeyed
 - name: lib/intellij.platform.pluginManager.shared.jar
   modules:
@@ -5235,14 +5235,14 @@
     label: '@@//plugins/profiler/ultimate/idea-async-profiler:idea-async-profiler.jar'
     module: intellij.profiler.ultimate.ideaAsyncProfiler
     filter: unkeyed
-- name: lib/intellij.rd.client.base.jar
+- name: lib/intellij.rd.client.baseline.jar
   modules:
-  - name: intellij.rd.client.base
+  - name: intellij.rd.client.baseline
   kind: jar
   sources:
   - kind: zip
-    label: '@@//remote-dev/rd-client/base:base.jar'
-    module: intellij.rd.client.base
+    label: '@@//remote-dev/rd-client/baseline:base.jar'
+    module: intellij.rd.client.baseline
     filter: unkeyed
 - name: lib/intellij.rd.client.debugger.jar
   modules:

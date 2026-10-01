@@ -259,7 +259,7 @@
             "module": "intellij.platform.remoteController"
         },
         {
-            "module": "intellij.platform.split.connection.base"
+            "module": "intellij.platform.split.connection.baseline"
         },
         {
             "module": "intellij.platform.undo.split"
@@ -274,7 +274,7 @@
             "module": "intellij.rd.eel.backend"
         },
         {
-            "module": "intellij.platform.frontend.split.base"
+            "module": "intellij.platform.frontend.split.baseline"
         },
         {
             "module": "intellij.platform.kernel.base.frontend.split"
@@ -295,7 +295,7 @@
             "module": "intellij.platform.searchEverywhere.frontend.split"
         },
         {
-            "module": "intellij.platform.plugins.frontend.split.base"
+            "module": "intellij.platform.plugins.frontend.split.baseline"
         },
         {
             "module": "intellij.platform.plugins.frontend.split"

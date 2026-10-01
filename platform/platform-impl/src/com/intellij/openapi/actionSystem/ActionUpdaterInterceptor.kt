@@ -57,7 +57,7 @@ interface ActionUpdaterInterceptor {
   companion object {
     val isDefaultImpl: Boolean =
       PluginManagerCore.getPlugin(PluginId.getId("com.intellij.jetbrains.rd.client")) == null &&
-      PluginManagerCore.getPluginSet().findEnabledModule(PluginModuleId.getId("intellij.platform.frontend.split.base", "jetbrains")) == null
+      PluginManagerCore.getPluginSet().findEnabledModule(PluginModuleId.getId("intellij.platform.frontend.split.baseline", "jetbrains")) == null
 
     fun treatDefaultActionGroupAsDynamic(): Boolean = when {
       isDefaultImpl -> false

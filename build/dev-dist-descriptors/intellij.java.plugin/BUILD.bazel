@@ -188,7 +188,7 @@ dev_dist_plugin_descriptor(
         ],
     },
     refused_content_modules = [
-        "intellij.java.frontend.split.base",
+        "intellij.java.frontend.split.baseline",
         "intellij.java.frontend.split",
         "intellij.java.backend.split",
         "intellij.java.ultimate.icons",

@@ -25,7 +25,7 @@ jvm_library(
     deps = [
         # do not sort,
         "@lib//:kotlin-stdlib",
-        "//platform/pluginManager/shared.base",
+        "//platform/pluginManager/shared.baseline",
         "//platform/kernel/rpc",
         "//platform/core-api:core",
         "//platform/kernel/shared:kernel",
@@ -53,7 +53,7 @@ jvm_library(
     runtime_deps = [
         # do not sort,
         ":shared",
-        "//platform/pluginManager/shared.base:shared.base_test_lib",
+        "//platform/pluginManager/shared.baseline:shared.baseline_test_lib",
         "//platform/kernel/rpc:rpc_test_lib",
         "//platform/core-api:core_test_lib",
         "//platform/kernel/shared:kernel_test_lib",

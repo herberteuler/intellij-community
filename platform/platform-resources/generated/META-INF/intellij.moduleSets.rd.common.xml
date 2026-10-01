@@ -10,7 +10,7 @@
     <module name="intellij.platform.split.protocol" loading="on-demand"/>
     <module name="intellij.rd.client" loading="on-demand"/>
     <module name="intellij.rd.client.debugger" loading="on-demand"/>
-    <module name="intellij.rd.client.base" loading="on-demand"/>
+    <module name="intellij.rd.client.baseline" loading="on-demand"/>
     <module name="intellij.rd.client.internal" loading="on-demand"/>
   </content>
 </idea-plugin>

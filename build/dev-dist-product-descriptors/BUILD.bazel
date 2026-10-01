@@ -99,7 +99,7 @@ dev_dist_product_descriptor(
         "intellij.platform.split.protocol",
         "intellij.rd.client",
         "intellij.rd.client.debugger",
-        "intellij.rd.client.base",
+        "intellij.rd.client.baseline",
         "intellij.rd.client.internal",
     ],
 )
@@ -189,7 +189,7 @@ dev_dist_product_descriptor(
         "intellij.platform.split.protocol",
         "intellij.rd.client",
         "intellij.rd.client.debugger",
-        "intellij.rd.client.base",
+        "intellij.rd.client.baseline",
         "intellij.rd.client.internal",
     ],
 )

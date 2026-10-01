@@ -1,13 +1,13 @@
 load("@rules_jvm//:jvm.bzl", "jvm_library")
 load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
 
-### auto-generated section `dev intellij.performanceTesting.frontend.base` start
-content_module_jar(module = ":frontend-base")
-### auto-generated section `dev intellij.performanceTesting.frontend.base` end
+### auto-generated section `dev intellij.performanceTesting.frontend.baseline` start
+content_module_jar(module = ":frontend-baseline")
+### auto-generated section `dev intellij.performanceTesting.frontend.baseline` end
 
-### auto-generated section `build intellij.performanceTesting.frontend.base` start
+### auto-generated section `build intellij.performanceTesting.frontend.baseline` start
 jvm_library(
-    name = "frontend-base",
+    name = "frontend-baseline",
     srcs = glob(
         [
             "src/**/*.kt",
@@ -16,7 +16,7 @@ jvm_library(
         ],
         allow_empty = True,
     ),
-    module_name = "intellij.performanceTesting.frontend.base",
+    module_name = "intellij.performanceTesting.frontend.baseline",
     resource_strip_prefix = "resources",
     resources = glob(
         ["resources/**/*"],
@@ -32,30 +32,30 @@ jvm_library(
 )
 
 jvm_library(
-    name = "frontend-base_test_lib",
+    name = "frontend-baseline_test_lib",
     testonly = True,
     srcs = glob(
         [],
         allow_empty = True,
     ),
-    module_name = "intellij.performanceTesting.frontend.base",
+    module_name = "intellij.performanceTesting.frontend.baseline",
     visibility = ["//visibility:public"],
     runtime_deps = [
         # do not sort,
-        ":frontend-base",
+        ":frontend-baseline",
         "//platform/platform-frontend:frontend_test_lib",
         "//platform/statistics:statistics_test_lib",
         "//platform/core-api:core_test_lib",
     ],
 )
-### auto-generated section `build intellij.performanceTesting.frontend.base` end
+### auto-generated section `build intellij.performanceTesting.frontend.baseline` end
 
-### auto-generated section `iml intellij.performanceTesting.frontend.base` start
+### auto-generated section `iml intellij.performanceTesting.frontend.baseline` start
 exports_files(
     [
-        "intellij.performanceTesting.frontend.base.iml",
-        "resources/intellij.performanceTesting.frontend.base.xml",
+        "intellij.performanceTesting.frontend.baseline.iml",
+        "resources/intellij.performanceTesting.frontend.baseline.xml",
     ],
     visibility = ["//visibility:public"],
 )
-### auto-generated section `iml intellij.performanceTesting.frontend.base` end
+### auto-generated section `iml intellij.performanceTesting.frontend.baseline` end

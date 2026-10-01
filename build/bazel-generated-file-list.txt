@@ -985,7 +985,7 @@ platform/platform-util-netty
 platform/pluginManager/backend
 platform/pluginManager/frontend
 platform/pluginManager/shared
-platform/pluginManager/shared.base
+platform/pluginManager/shared.baseline
 platform/pluginManager/testFramework
 platform/pluginSystem/parser/impl
 platform/pluginSystem/testFramework
@@ -1742,7 +1742,7 @@ plugins/performanceTesting/debugger
 plugins/performanceTesting/event-bus
 plugins/performanceTesting/freezes
 plugins/performanceTesting/frontend
-plugins/performanceTesting/frontend-base
+plugins/performanceTesting/frontend-baseline
 plugins/performanceTesting/problemsView
 plugins/performanceTesting/rdct
 plugins/performanceTesting/remote-driver

@@ -431,7 +431,7 @@
     <module name="intellij.platform.ide.socketConnection"/>
     <module name="intellij.platform.ide.filterField"/>
     <module name="intellij.platform.ide.migLayout"/>
-    <module name="intellij.platform.pluginManager.shared.base"/>
+    <module name="intellij.platform.pluginManager.shared.baseline"/>
     <module name="intellij.platform.pluginManager.shared"/>
     <module name="intellij.platform.pluginManager.backend"/>
     <module name="intellij.platform.pluginManager.frontend"/>

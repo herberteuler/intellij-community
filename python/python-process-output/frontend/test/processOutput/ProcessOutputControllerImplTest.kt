@@ -1,6 +1,8 @@
 package com.intellij.python.processOutput
 
 import com.intellij.python.junit5Tests.framework.applicationScope
+import com.intellij.python.processOutput.common.ExecErrorDto
+import com.intellij.python.processOutput.common.ExecErrorReasonDto
 import com.intellij.python.processOutput.common.ExecutableDto
 import com.intellij.python.processOutput.common.FrontendTopicListener
 import com.intellij.python.processOutput.common.LoggedProcessDto
@@ -22,17 +24,25 @@ import com.intellij.python.processOutput.frontend.ProcessOutputIconMappingData
 import com.intellij.python.processOutput.frontend.ProcessStatus
 import com.intellij.python.processOutput.frontend.ProcessTreeNode
 import com.intellij.python.processOutput.frontend.TreeFilter
+import com.intellij.python.processOutput.frontend.UiEvent
 import com.intellij.python.processOutput.frontend.childrenOf
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.common.waitUntil
 import com.intellij.testFramework.junit5.TestApplication
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -327,6 +337,65 @@ private class ProcessOutputControllerImplTest {
     }
   }
 
+  @Test
+  fun `ExecError event resolves the associated process from loggedProcessId and updates its exit message`() =
+    runOutputControllerImplTest(30.seconds) {
+      val process = addProcessAndAwait(0)
+      // Exited first on purpose: the handler only appends the message to a Done status, never to a Running one.
+      process.exit(1)
+      waitUntil { process.status.value is ProcessStatus.Done }
+
+      // Red when the id lookup in the ExecError branch is replaced by null — the revert this was checked against.
+      val displayed = awaitDisplayExecError {
+        sendExecError(
+          ExecErrorDto(
+            message = "unexpected termination",
+            command = "bin/exe",
+            reason = ExecErrorReasonDto.UnexpectedTermination(stdout = "", stderr = "boom", exitCode = 1),
+            loggedProcessId = process.data.id,
+            additionalMessageToUser = "boom happened",
+          )
+        )
+      }
+
+      assertEquals(process.data.id, displayed.associatedProcess?.data?.id)
+      val status = process.status.value as ProcessStatus.Done
+      assertEquals("boom happened", status.additionalMessageToUser)
+    }
+
+  @Test
+  fun `ExecError event with an unresolved loggedProcessId reports no associated process`() =
+    runOutputControllerImplTest(30.seconds) {
+      // A known process is registered on purpose: with none, a fallback to "the latest process" would be
+      // invisible. This case guards against that implementation rather than against a revert — there is no
+      // line to remove, so it stays green under the revert the case above names.
+      addProcessAndAwait(0)
+
+      val unknownProcessIdResult = awaitDisplayExecError {
+        sendExecError(
+          ExecErrorDto(
+            message = "could not start",
+            command = "bin/exe",
+            reason = ExecErrorReasonDto.CantStart(cantExecProcessError = "no such file"),
+            loggedProcessId = ProcessId(999_999),
+          )
+        )
+      }
+      assertNull(unknownProcessIdResult.associatedProcess)
+
+      val noProcessIdResult = awaitDisplayExecError {
+        sendExecError(
+          ExecErrorDto(
+            message = "could not start",
+            command = "bin/exe",
+            reason = ExecErrorReasonDto.CantStart(cantExecProcessError = "no such file"),
+            loggedProcessId = null,
+          )
+        )
+      }
+      assertNull(noProcessIdResult.associatedProcess)
+    }
+
   companion object {
     val testScope = applicationScope("ProcessOutputControllerImplTestScope")
 
@@ -431,6 +500,31 @@ private class ProcessOutputControllerImplTest {
 
       private suspend fun emitFeEvent(event: ProcessOutputEventDto) {
         testScope.get().async { eventsFlow.emit(event) }.await()
+      }
+
+      suspend fun sendExecError(execErrorDto: ExecErrorDto) {
+        emitFeEvent(ProcessOutputEventDto.ExecError(execErrorDto))
+      }
+
+      /**
+       * Subscribes to [ProcessOutputControllerImpl.uiEvents], then runs [sendError] and returns the first [UiEvent.DisplayExecError].
+       * `uiEvents` is `MutableSharedFlow()` with no replay: an emit with no subscriber is dropped, not held, so the
+       * subscription is awaited through `onSubscription` before anything is sent.
+       */
+      suspend fun awaitDisplayExecError(sendError: suspend () -> Unit): UiEvent.DisplayExecError {
+        val subscribed = CompletableDeferred<Unit>()
+        val received = testScope.get().async {
+          // Declared as Flow<UiEvent>; onSubscription exists only on SharedFlow, which the backing field is.
+          @Suppress("UNCHECKED_CAST")
+          (controller.uiEvents as SharedFlow<UiEvent>)
+            .onSubscription { subscribed.complete(Unit) }
+            .filterIsInstance<UiEvent.DisplayExecError>()
+            .first()
+        }
+
+        withTimeout(10.seconds) { subscribed.await() }
+        sendError()
+        return withTimeout(10.seconds) { received.await() }
       }
 
       private fun List<ProcessTreeNode>.recurse(callback: (ProcessTreeNode) -> Unit) {

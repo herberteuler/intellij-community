@@ -3,7 +3,6 @@ package com.intellij.refactoring.safeDelete;
 
 import com.intellij.ide.projectView.impl.NestingTreeStructureProvider;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
@@ -37,13 +36,12 @@ public final class RelatedFilesSafeDeleteProcessorDelegate implements SafeDelete
   }
 
   @Override
-  public Collection<PsiElement> getAdditionalElementsToDelete(final @NotNull PsiElement element,
-                                                              final @NotNull Collection<? extends PsiElement> allElementsToDelete,
-                                                              final boolean askUser) {
-    if (!askUser || !(element instanceof PsiFile)) return Collections.emptyList();
+  public @NotNull AdditionalElementsData getAdditionalElementsToDelete(final @NotNull PsiElement element,
+                                                                       final @NotNull Collection<? extends PsiElement> allElementsToDelete) {
+    if (!(element instanceof PsiFile f)) return AdditionalElementsData.NONE;
 
-    final VirtualFile file = ((PsiFile)element).getVirtualFile();
-    if (file == null) return Collections.emptyList();
+    final VirtualFile file = f.getVirtualFile();
+    if (file == null) return AdditionalElementsData.NONE;
 
     final Collection<NestingTreeStructureProvider.ChildFileInfo> relatedFileInfos =
       NestingTreeStructureProvider.getFilesShownAsChildrenInProjectView(element.getProject(), file);
@@ -61,14 +59,10 @@ public final class RelatedFilesSafeDeleteProcessorDelegate implements SafeDelete
                              ? RefactoringBundle.message("ask.to.delete.related.file", ((PsiFile)psiFiles.iterator().next()).getName())
                              : RefactoringBundle.message("ask.to.delete.related.files",
                                                          StringUtil.join(psiFiles, (psiFile) -> ((PsiFile)psiFile).getName(), ", "));
-      final int ok =
-        Messages.showYesNoDialog(element.getProject(), message, RefactoringBundle.message("delete.title"), Messages.getQuestionIcon());
-      if (ok == Messages.YES) {
-        return psiFiles;
-      }
+      return new AdditionalElementsData(psiFiles, new ConfirmationPolicy.Ask(message, false));
     }
 
-    return Collections.emptyList();
+    return AdditionalElementsData.NONE;
   }
 
   @Override

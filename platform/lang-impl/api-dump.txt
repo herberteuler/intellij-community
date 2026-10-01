@@ -5047,7 +5047,8 @@ com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate
 - findConflicts(com.intellij.psi.PsiElement,com.intellij.psi.PsiElement[]):java.util.Collection
 - findConflicts(com.intellij.psi.PsiElement,com.intellij.psi.PsiElement[],com.intellij.usageView.UsageInfo[],com.intellij.util.containers.MultiMap):V
 - a:findUsages(com.intellij.psi.PsiElement,com.intellij.psi.PsiElement[],java.util.List):com.intellij.refactoring.safeDelete.NonCodeUsageSearchInfo
-- a:getAdditionalElementsToDelete(com.intellij.psi.PsiElement,java.util.Collection,Z):java.util.Collection
+- getAdditionalElementsToDelete(com.intellij.psi.PsiElement,java.util.Collection):com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$AdditionalElementsData
+- F:getAdditionalElementsToDelete(com.intellij.psi.PsiElement,java.util.Collection,Z):java.util.Collection
 - a:getElementsToSearch(com.intellij.psi.PsiElement,java.util.Collection):java.util.Collection
 - a:handlesElement(com.intellij.psi.PsiElement):Z
 - a:isToSearchForTextOccurrences(com.intellij.psi.PsiElement):Z
@@ -5056,6 +5057,31 @@ com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate
 - a:preprocessUsages(com.intellij.openapi.project.Project,com.intellij.usageView.UsageInfo[]):com.intellij.usageView.UsageInfo[]
 - a:setToSearchForTextOccurrences(com.intellij.psi.PsiElement,Z):V
 - a:setToSearchInComments(com.intellij.psi.PsiElement,Z):V
+f:com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$AdditionalElementsData
+- java.lang.Record
+- sf:NONE:com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$AdditionalElementsData
+- <init>(java.util.Collection):V
+- <init>(java.util.Collection,com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$ConfirmationPolicy):V
+- elements():java.util.Collection
+- f:equals(java.lang.Object):Z
+- f:hashCode():I
+- policy():com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$ConfirmationPolicy
+com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$ConfirmationPolicy
+- sf:DONT_ASK:com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$ConfirmationPolicy$DontAsk
+f:com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$ConfirmationPolicy$Ask
+- java.lang.Record
+- com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$ConfirmationPolicy
+- <init>(java.lang.String,Z):V
+- deleteByDefault():Z
+- f:equals(java.lang.Object):Z
+- f:hashCode():I
+- message():java.lang.String
+f:com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$ConfirmationPolicy$DontAsk
+- java.lang.Record
+- com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate$ConfirmationPolicy
+- <init>():V
+- f:equals(java.lang.Object):Z
+- f:hashCode():I
 a:com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegateBase
 - com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegate
 - <init>():V

@@ -325,9 +325,8 @@ public class JavaSafeDeleteProcessor extends SafeDeleteProcessorDelegateBase {
   }
 
   @Override
-  public Collection<PsiElement> getAdditionalElementsToDelete(@NotNull PsiElement element,
-                                                              @NotNull Collection<? extends PsiElement> allElementsToDelete,
-                                                              boolean askUser) {
+  public @NotNull AdditionalElementsData getAdditionalElementsToDelete(@NotNull PsiElement element,
+                                                                       @NotNull Collection<? extends PsiElement> allElementsToDelete) {
     if (element instanceof PsiRecordComponent component) {
       PsiMethod method = JavaPsiRecordUtil.getAccessorForRecordComponent(component);
       List<PsiElement> additional = new ArrayList<>();
@@ -337,16 +336,16 @@ public class JavaSafeDeleteProcessor extends SafeDeleteProcessorDelegateBase {
       PsiClass recordClass = component.getContainingClass();
       assert recordClass != null;
       PsiMethod constructor = JavaPsiRecordUtil.findCanonicalConstructor(recordClass);
-      if (constructor == null || constructor instanceof SyntheticElement) return additional;
+      if (constructor == null || constructor instanceof SyntheticElement) return new AdditionalElementsData(additional);
       PsiRecordHeader header = recordClass.getRecordHeader();
       assert header != null;
       int index = ArrayUtil.indexOf(header.getRecordComponents(), component);
-      if (index < 0) return additional;
+      if (index < 0) return new AdditionalElementsData(additional);
       PsiParameter parameter = constructor.getParameterList().getParameter(index);
       if (parameter != null) {
         additional.add(parameter);
       }
-      return additional;
+      return new AdditionalElementsData(additional);
     }
     if (element instanceof PsiField field) {
       Project project = element.getProject();
@@ -370,24 +369,20 @@ public class JavaSafeDeleteProcessor extends SafeDeleteProcessorDelegateBase {
         if (setter != null && (allElementsToDelete.contains(setter) || !setter.isPhysical())) {
           setter = null;
         }
-        if (askUser && (getters != null || setter != null)) {
+        ConfirmationPolicy policy = ConfirmationPolicy.DONT_ASK;
+        if (getters != null || setter != null) {
           String title = RefactoringBundle.message("delete.title");
           String message =
             RefactoringMessageUtil.getGetterSetterMessage(field.getName(), title, getters != null ? getters[0] : null, setter);
-          if (!ApplicationManager.getApplication().isUnitTestMode() &&
-              Messages.showYesNoDialog(project, message, RefactoringBundle.message("safe.delete.title"),
-                                       Messages.getQuestionIcon()) != Messages.YES) {
-            getters = null;
-            setter = null;
-          }
+          policy = new ConfirmationPolicy.Ask(message, true);
         }
         List<PsiElement> elements = new ArrayList<>();
         if (setter != null) elements.add(setter);
         if (getters != null) Collections.addAll(elements, getters);
-        return elements;
+        return new AdditionalElementsData(elements, policy);
       }
     }
-    return null;
+    return AdditionalElementsData.NONE;
   }
 
   @Override

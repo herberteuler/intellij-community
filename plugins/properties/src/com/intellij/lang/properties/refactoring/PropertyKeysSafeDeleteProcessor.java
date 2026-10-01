@@ -40,17 +40,16 @@ final class PropertyKeysSafeDeleteProcessor extends SafeDeleteProcessorDelegateB
   }
 
   @Override
-  public @Nullable Collection<PsiElement> getAdditionalElementsToDelete(@NotNull PsiElement element,
-                                                                        @NotNull Collection<? extends PsiElement> allElementsToDelete,
-                                                                        boolean askUser) {
+  public @NotNull AdditionalElementsData getAdditionalElementsToDelete(@NotNull PsiElement element,
+                                                                       @NotNull Collection<? extends PsiElement> allElementsToDelete) {
     final IProperty property = (IProperty)element;
     final String key = property.getKey();
     if (key == null) {
-      return null;
+      return AdditionalElementsData.NONE;
     }
     final PropertiesFile file = property.getPropertiesFile();
     if (file == null) {
-      return null;
+      return AdditionalElementsData.NONE;
     }
 
     final List<PsiElement> result = new ArrayList<>();
@@ -62,7 +61,7 @@ final class PropertyKeysSafeDeleteProcessor extends SafeDeleteProcessorDelegateB
         }
       }
     }
-    return result;
+    return new AdditionalElementsData(result);
   }
 
   @Override

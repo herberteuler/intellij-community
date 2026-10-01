@@ -243,33 +243,39 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
     return loadPackagesImpl(isInit = false)
   }
 
-  private suspend fun loadPackagesImpl(isInit: Boolean): PyResult<List<PythonPackage>> = packageReloadMutex.withLock {
-    // Cancellable: external process call.
-    val packages = loadPackagesCommand().getOr { return it }
+  private suspend fun loadPackagesImpl(isInit: Boolean): PyResult<List<PythonPackage>> {
+    val packages = packageReloadMutex.withLock {
+      // Cancellable: external process call.
+      val packages = loadPackagesCommand().getOr { return it }
 
-    val changed = packages != installedPackages
-    if (!changed) return PyResult.success(listInstalledPackagesSnapshot())
+      val changed = packages != installedPackages
+      if (!changed) return PyResult.success(listInstalledPackagesSnapshot())
 
-    // Transactional commit: state mutation + listener notification + scheduled refresh
-    // must complete atomically even if the caller is cancelled.
-    withContext(NonCancellable) {
-      this@PythonPackageManager.installedPackages = packages
-      // Replaced before `packagesChanged`, so a listener that reads the metadata awaits the new package list.
-      installedPackagesMetadataLoad = managerScope.async(NON_INTERACTIVE_ROOT_TRACE_CONTEXT) {
-        // A load that a newer reload replaced must not overwrite the newer snapshot.
-        loadMetadata(packages).also { if (installedPackages === packages) installedPackagesMetadata = it }
+      // Transactional commit: state mutation + listener notification
+      // must complete atomically even if the caller is cancelled.
+      withContext(NonCancellable) {
+        this@PythonPackageManager.installedPackages = packages
+        // Replaced before `packagesChanged`, so a listener that reads the metadata awaits the new package list.
+        installedPackagesMetadataLoad = managerScope.async(NON_INTERACTIVE_ROOT_TRACE_CONTEXT) {
+          // A load that a newer reload replaced must not overwrite the newer snapshot.
+          loadMetadata(packages).also { if (installedPackages === packages) installedPackagesMetadata = it }
+        }
+
+        ApplicationManager.getApplication().messageBus.apply {
+          syncPublisher(PACKAGE_MANAGEMENT_TOPIC).packagesChanged(interpreter)
+          syncPublisher(PyPackageManager.PACKAGE_MANAGER_TOPIC).packagesRefreshed(sdk)
+        }
+
+        managerScope.launch(NON_INTERACTIVE_ROOT_TRACE_CONTEXT) {
+          reloadOutdatedPackages()
+        }
       }
+      packages
+    }
 
-      ApplicationManager.getApplication().messageBus.apply {
-        syncPublisher(PACKAGE_MANAGEMENT_TOPIC).packagesChanged(interpreter)
-        syncPublisher(PyPackageManager.PACKAGE_MANAGER_TOPIC).packagesRefreshed(sdk)
-      }
-
-      managerScope.launch(NON_INTERACTIVE_ROOT_TRACE_CONTEXT) {
-        reloadOutdatedPackages()
-      }
-
-      if (!isInit) {
+    // Outside the mutex: in a headless run the SDK update is synchronous, and the update it queues reloads the packages.
+    if (!isInit) {
+      withContext(NonCancellable) {
         refreshPaths(project, sdk)
       }
     }

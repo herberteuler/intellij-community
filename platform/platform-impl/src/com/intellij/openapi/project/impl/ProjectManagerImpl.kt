@@ -99,7 +99,6 @@ import com.intellij.openapi.vfs.impl.ZipHandler
 import com.intellij.openapi.vfs.impl.jar.TimedZipHandler
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.openapi.wm.WindowManager
-import com.intellij.openapi.wm.ex.WelcomeScreenProjectProvider
 import com.intellij.openapi.wm.ex.WindowManagerEx
 import com.intellij.openapi.wm.ex.isBackgroundActivitiesSuppressed
 import com.intellij.openapi.wm.impl.welcomeScreen.WelcomeFrame
@@ -1564,7 +1563,7 @@ private suspend fun runApprovedExtensions(project: Project, epName: String, esse
     if (!isCorePlugin(pluginDescriptor)
         // todo develar
         && !(pluginDescriptor.pluginId.idString == "org.jetbrains.bazel" && assignableToClassName == "org.jetbrains.bazel.flow.open.OpenBazelProjectAndSyncStartupActivity")
-        && !(pluginDescriptor.pluginId.idString == "com.jetbrains.remoteDevelopment" && assignableToClassName == "com.intellij.platform.frontend.split.base.core.ThinClientProjectExtensionsConfigurator")) {
+        && !(pluginDescriptor.pluginId.idString == "com.jetbrains.remoteDevelopment" && assignableToClassName == "com.intellij.platform.frontend.split.baseline.core.ThinClientProjectExtensionsConfigurator")) {
       LOG.error(PluginException("Plugin $pluginDescriptor is not approved to add ${ep.name}", pluginDescriptor.pluginId))
       continue
     }

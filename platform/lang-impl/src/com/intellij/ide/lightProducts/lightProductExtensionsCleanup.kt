@@ -32,7 +32,7 @@ private val logger = Logger.getInstance("#com.intellij.ide.lightProducts.LightPr
  * (the JetBrains Client frontend and JetBrains Light), and disables tips on startup.
  *
  * Product-specific deregistrations stay in the product configurators,
- * see `com.intellij.platform.frontend.split.base.core.ThinClientAppExtensionsConfigurator`
+ * see `com.intellij.platform.frontend.split.baseline.core.ThinClientAppExtensionsConfigurator`
  * and `com.intellij.idea.ultimate.light.customization.IjLightAppExtensionsConfigurator`.
  */
 @ApiStatus.Internal

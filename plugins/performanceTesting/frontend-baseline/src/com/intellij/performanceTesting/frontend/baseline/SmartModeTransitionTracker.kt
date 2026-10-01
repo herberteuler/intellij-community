@@ -1,5 +1,5 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.performanceTesting.frontend.base
+package com.intellij.performanceTesting.frontend.baseline
 
 import com.intellij.internal.statistic.SmartModeTransitionPhase
 import com.intellij.internal.statistic.SmartModeTransitionPhaseListener

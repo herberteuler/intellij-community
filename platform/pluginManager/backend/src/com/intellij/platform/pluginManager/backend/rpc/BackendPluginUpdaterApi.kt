@@ -8,8 +8,8 @@ import com.intellij.openapi.updateSettings.impl.PluginUpdateHandler
 import com.intellij.openapi.updateSettings.impl.PluginUpdateProgressSink
 import com.intellij.openapi.updateSettings.impl.PluginUpdatesModel
 import com.intellij.openapi.updateSettings.impl.withWholePercentDownloadProgress
-import com.intellij.platform.pluginManager.shared.base.rpc.PluginUpdaterApi
-import com.intellij.platform.pluginManager.shared.base.rpc.PluginUpdateRpcEvent
+import com.intellij.platform.pluginManager.shared.baseline.rpc.PluginUpdateRpcEvent
+import com.intellij.platform.pluginManager.shared.baseline.rpc.PluginUpdaterApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow

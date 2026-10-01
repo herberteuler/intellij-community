@@ -59,7 +59,7 @@ private interface VirtualFileManagerRef {
 
 private const val FILE_PROTOCOL_PREFIX = "file://"
 
-@Remote("com.intellij.platform.frontend.split.base.light.IjLightUpgradeService",
+@Remote("com.intellij.platform.frontend.split.baseline.light.IjLightUpgradeService",
         plugin = "com.jetbrains.remoteDevelopment/intellij.platform.frontend.split.baseline")
 private interface IjLightUpgradeService {
   fun lightProjectPath(project: Project): String?

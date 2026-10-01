@@ -8,7 +8,7 @@
   <!-- endregion -->
 
   <applicationListeners>
-    <listener class="com.intellij.performanceTesting.frontend.base.SmartModeTransitionTracker"
+    <listener class="com.intellij.performanceTesting.frontend.baseline.SmartModeTransitionTracker"
               topic="com.intellij.internal.statistic.SmartModeTransitionPhaseListener"/>
   </applicationListeners>
 </idea-plugin>

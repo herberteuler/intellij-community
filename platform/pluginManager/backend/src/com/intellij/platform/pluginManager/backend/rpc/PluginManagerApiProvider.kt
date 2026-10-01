@@ -1,7 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.pluginManager.backend.rpc
 
-import com.intellij.platform.pluginManager.shared.base.rpc.PluginUpdaterApi
+import com.intellij.platform.pluginManager.shared.baseline.rpc.PluginUpdaterApi
 import com.intellij.platform.pluginManager.shared.rpc.PluginErrorReporterApi
 import com.intellij.platform.pluginManager.shared.rpc.PluginInstallerApi
 import com.intellij.platform.pluginManager.shared.rpc.PluginManagerApi

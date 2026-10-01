@@ -101,6 +101,13 @@ internal class UvPipPackageManager internal constructor(
       message("python.uv.pip.install.requirements"),
     )
 
+  /** Runs `uv init --bare --no-project` in the working directory when it has no `pyproject.toml`. */
+  suspend fun initProjectIfNeeded(): PyResult<Unit> {
+    val workingDir = uvExecutionContextDeferred.await().workingDir
+    if (!UvMode.Project.needsInit(workingDir)) return PyResult.success(Unit)
+    return withUv { uv -> uv.initProject(version = null) }
+  }
+
   /** Runs `uv pip install -r` for [requirementsFile], then reloads. Adds what the file names and removes nothing. */
   suspend fun installRequirements(requirementsFile: VirtualFile): PyResult<Unit> =
     runAndReload { uv -> uv.installRequirements(requirementsFile.toNioPath()) }

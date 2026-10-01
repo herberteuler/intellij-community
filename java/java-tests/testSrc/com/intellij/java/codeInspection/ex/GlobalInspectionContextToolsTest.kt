@@ -1,5 +1,5 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.codeInspection.ex
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.codeInspection.ex
 
 import com.intellij.JavaTestUtil
 import com.intellij.analysis.AnalysisScope
@@ -10,6 +10,14 @@ import com.intellij.codeInspection.HTMLComposer
 import com.intellij.codeInspection.InspectionManager
 import com.intellij.codeInspection.InspectionProfileEntry
 import com.intellij.codeInspection.LocalInspectionTool
+import com.intellij.codeInspection.ex.GlobalInspectionContextBase
+import com.intellij.codeInspection.ex.InspectionManagerEx
+import com.intellij.codeInspection.ex.InspectionProfileImpl
+import com.intellij.codeInspection.ex.InspectionToolWrapper
+import com.intellij.codeInspection.ex.InspectionToolsSupplier
+import com.intellij.codeInspection.ex.LocalInspectionToolWrapper
+import com.intellij.codeInspection.ex.PairedUnfairLocalInspectionTool
+import com.intellij.codeInspection.ex.Tools
 import com.intellij.codeInspection.lang.GlobalInspectionContextExtension
 import com.intellij.codeInspection.lang.HTMLComposerExtension
 import com.intellij.codeInspection.lang.InspectionExtensionsFactory

@@ -1,10 +1,15 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.unscramble
+package com.intellij.java.unscramble
 
 import com.intellij.openapi.application.ex.PathManagerEx
 import com.intellij.testFramework.TestDataPath
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.threadDumpParser.ThreadState
+import com.intellij.unscramble.DumpItem
+import com.intellij.unscramble.ThreadDumpState
+import com.intellij.unscramble.parseIntelliJThreadDump
+import com.intellij.unscramble.serializeIntelliJThreadDump
+import com.intellij.unscramble.toDumpItems
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue

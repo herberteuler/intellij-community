@@ -1,9 +1,15 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.unscramble
+package com.intellij.java.unscramble
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.threadDumpParser.ThreadState
 import com.intellij.ui.SimpleTextAttributes
+import com.intellij.unscramble.CompoundDumpItem
+import com.intellij.unscramble.DumpItem
+import com.intellij.unscramble.JavaThreadContainerDesc
+import com.intellij.unscramble.MergeableDumpItem
+import com.intellij.unscramble.MergeableToken
+import com.intellij.unscramble.toDumpItems
 import com.intellij.util.ui.EmptyIcon
 import java.util.Objects
 import javax.swing.Icon

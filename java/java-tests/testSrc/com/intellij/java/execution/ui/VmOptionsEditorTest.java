@@ -1,7 +1,8 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.execution.ui;
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.execution.ui;
 
 import com.intellij.execution.application.ApplicationConfiguration;
+import com.intellij.execution.ui.VmOptionsEditor;
 import com.intellij.testFramework.LightPlatform4TestCase;
 import com.intellij.ui.EditorTextField;
 import org.junit.Test;

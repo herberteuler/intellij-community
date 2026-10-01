@@ -1,13 +1,16 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
-package com.intellij.execution.impl
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.execution.impl
 
 import com.intellij.execution.actions.ChooseRunConfigurationManager
 import com.intellij.execution.actions.ExecutorProvider
 import com.intellij.execution.application.ApplicationConfigurationType
+import com.intellij.execution.impl.ProjectRunConfigurationConfigurable
+import com.intellij.execution.impl.RunConfigurable
 import com.intellij.execution.impl.RunConfigurableNodeKind.CONFIGURATION
 import com.intellij.execution.impl.RunConfigurableNodeKind.CONFIGURATION_TYPE
 import com.intellij.execution.impl.RunConfigurableNodeKind.FOLDER
 import com.intellij.execution.impl.RunConfigurableNodeKind.TEMPORARY_CONFIGURATION
+import com.intellij.execution.impl.RunManagerImpl
 import com.intellij.execution.junit.JUnitConfigurationType
 import com.intellij.ide.DataManager
 import com.intellij.openapi.util.Disposer

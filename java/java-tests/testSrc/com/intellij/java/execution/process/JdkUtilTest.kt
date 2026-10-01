@@ -1,5 +1,5 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.execution.process
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.execution.process
 
 import com.intellij.execution.CommandLineWrapperUtil
 import com.intellij.execution.configurations.ParametersList
@@ -8,7 +8,6 @@ import com.intellij.execution.target.TargetProgressIndicator
 import com.intellij.execution.target.local.LocalTargetEnvironmentRequest
 import com.intellij.openapi.projectRoots.SimpleJavaSdkType
 import com.intellij.openapi.util.io.FileUtil
-import com.intellij.rt.execution.CommandLineWrapper
 import com.intellij.testFramework.fixtures.BareTestFixtureTestCase
 import com.intellij.util.SystemProperties
 import org.assertj.core.api.Assertions.assertThat
@@ -23,7 +22,7 @@ import kotlin.test.assertTrue
 class JdkUtilTest : BareTestFixtureTestCase() {
   companion object {
     private val jdk = lazy { SimpleJavaSdkType().createJdk("tmp", SystemProperties.getJavaHome()) }
-    private val wrapper = CommandLineWrapper::class.java.name
+    private const val WRAPPER_NAME = "com.intellij.rt.execution.CommandLineWrapper"
   }
 
   private val parameters = SimpleJavaParameters()
@@ -77,19 +76,19 @@ class JdkUtilTest : BareTestFixtureTestCase() {
     parameters.isUseClasspathJar = true
     parameters.setUseDynamicVMOptions(true)
     parameters.setUseDynamicParameters(true)
-    doTest("-Xmx256m", "-classpath", "#idea_rt#:#classpath.jar#", wrapper, "#classpath.jar#", "hello.Main")
+    doTest("-Xmx256m", "-classpath", "#idea_rt#:#classpath.jar#", WRAPPER_NAME, "#classpath.jar#", "hello.Main")
   }
 
   @Test fun dynamicClasspathWithWrapper() {
     parameters.isUseClasspathJar = false
-    doTest("-Xmx256m", "-Dan.option=1", "-classpath", "#idea_rt#", wrapper, "#classpath#", "hello.Main", "hello")
+    doTest("-Xmx256m", "-Dan.option=1", "-classpath", "#idea_rt#", WRAPPER_NAME, "#classpath#", "hello.Main", "hello")
   }
 
   @Test fun dynamicClasspathWithWrapperAndParameters() {
     parameters.isUseClasspathJar = false
     parameters.setUseDynamicVMOptions(true)
     parameters.setUseDynamicParameters(true)
-    doTest("-Xmx256m", "-classpath", "#idea_rt#", wrapper, "#classpath#", "@vm_params", "#vm_params#", "@app_params", "#app_params#", "hello.Main")
+    doTest("-Xmx256m", "-classpath", "#idea_rt#", WRAPPER_NAME, "#classpath#", "@vm_params", "#vm_params#", "@app_params", "#app_params#", "hello.Main")
   }
 
   @Test fun dynamicClasspathWithArgFile() {

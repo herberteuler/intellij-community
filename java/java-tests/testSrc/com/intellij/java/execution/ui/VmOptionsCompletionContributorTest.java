@@ -1,9 +1,10 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.execution.ui;
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.execution.ui;
 
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementPresentation;
 import com.intellij.execution.application.ApplicationConfiguration;
+import com.intellij.execution.ui.VmOptionsEditor;
 import com.intellij.execution.vmOptions.JdkOptionsData;
 import com.intellij.execution.vmOptions.VMOption;
 import com.intellij.execution.vmOptions.VMOptionKind;

@@ -19,6 +19,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.openapi.vfs.newvfs.monitoring.VfsUsageCollector
+import com.intellij.platform.ide.progress.BackgroundTaskOwner
 import com.intellij.platform.ide.progress.TaskCancellation
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.coroutines.childScope
@@ -35,6 +36,7 @@ import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -50,6 +52,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 @ApiStatus.Internal
@@ -174,7 +177,7 @@ class RefreshQueueImpl(coroutineScope: CoroutineScope) : RefreshQueue(), Disposa
   }
 
   private suspend fun collectEventsSuspending(session: RefreshSessionImpl, timeInQueue: Long): Collection<VFileEvent> {
-    return withBackgroundProgress(ProjectManager.getInstance().defaultProject, IdeCoreBundle.message("file.synchronize.progress"), TaskCancellation.nonCancellable()) {
+    return withBackgroundProgress(BackgroundTaskOwner.allFrames(), IdeCoreBundle.message("file.synchronize.progress"), TaskCancellation.nonCancellable()) {
       @OptIn(InternalCoroutinesApi::class)
       coroutineContext.job.invokeOnCompletion(onCancelling = true) { cause ->
         if (cause is CancellationException) {

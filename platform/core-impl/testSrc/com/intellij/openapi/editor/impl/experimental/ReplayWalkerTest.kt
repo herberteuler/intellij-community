@@ -5,6 +5,7 @@ import com.intellij.openapi.editor.experimental.Agent
 import com.intellij.openapi.editor.experimental.DocBranch
 import com.intellij.openapi.editor.experimental.DocTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Random
@@ -15,14 +16,35 @@ import java.util.Random
  *
  * The text of a branch comes from [DocText][com.intellij.openapi.editor.experimental.DocText] ops,
  * and not from a walk. So it is an oracle for a full replay of a history of one agent. A merge has
- * no such oracle, and its partial replay must give the text of a full replay.
+ * no such oracle, and its partial replay must give the text of a full replay. The tests also pin
+ * that the replay of a linear history never builds the unit index of the tree.
  */
 internal class ReplayWalkerTest {
 
   @Test
   fun `a history of edits at random places replays to its text`() {
     val branch = randomEdits(Random(20261001L), DocBranch.createBranch("", U), OPS)
-    assertTrue(replayInFull(branch) >= 2, "the item tree has fewer than two inner levels")
+    val walker = replayInFull(branch)
+    assertTrue(walker.itemTreeDepth() >= 2, "the item tree has fewer than two inner levels")
+    // A linear history never looks an item up by unit.
+    assertFalse(walker.hasUnitIndex())
+  }
+
+  @Test
+  fun `a past version of a long linear history replays to its text`() {
+    val random = Random(20261004L)
+    val half = randomEdits(random, DocBranch.createBranch("", U), OPS / 2)
+    val full = randomEdits(random, half, OPS / 2)
+    val graph = EventGraphImpl.implOf(full.graph())
+    val walker = ReplayWalker(graph, placeholderCount = 0)
+    val text = StringBuilder()
+    // The version of the earlier value names the same units in the later graph.
+    val pastVersion = EventGraphImpl.implOf(half.graph()).lvVersion()
+    walker.replayAt(pastVersion, TextSink(text))
+    assertEquals(half.text().string(), text.toString())
+    walker.checkItems()
+    // The past version holds a prefix of the history, so the walk never retreats.
+    assertFalse(walker.hasUnitIndex())
   }
 
   @Test
@@ -41,7 +63,9 @@ internal class ReplayWalkerTest {
         caret++
       }
     }
-    assertTrue(replayInFull(branch) >= 1, "the item tree has no inner level")
+    val walker = replayInFull(branch)
+    assertTrue(walker.itemTreeDepth() >= 1, "the item tree has no inner level")
+    assertFalse(walker.hasUnitIndex())
   }
 
   @Test
@@ -53,7 +77,9 @@ internal class ReplayWalkerTest {
       branch = branch.applyOp(DocTextOp.insertOp(offset, "x"))
     }
     assertEquals("x".repeat(OPS), branch.text().string())
-    assertTrue(replayInFull(branch) >= 2, "the item tree has fewer than two inner levels")
+    val walker = replayInFull(branch)
+    assertTrue(walker.itemTreeDepth() >= 2, "the item tree has fewer than two inner levels")
+    assertFalse(walker.hasUnitIndex())
   }
 
   @Test
@@ -65,21 +91,25 @@ internal class ReplayWalkerTest {
     val forward = left.merge(right)
     val backward = right.merge(left)
     assertEquals(forward.text().string(), backward.text().string())
-    assertTrue(replayInFull(forward) >= 2, "the item tree has fewer than two inner levels")
+    val walker = replayInFull(forward)
+    assertTrue(walker.itemTreeDepth() >= 2, "the item tree has fewer than two inner levels")
+    // The concurrent edits make the walk retreat and advance, which looks its items up by unit.
+    // The inserts and splits after that first lookup reach the index too, or the text would differ.
+    assertTrue(walker.hasUnitIndex())
   }
 
   /**
    * Replays the whole graph of [branch] with a fresh walker, checks its text against the text of
-   * [branch], checks the item tree, and returns the inner levels of the tree.
+   * [branch], checks the item tree, and returns the walker.
    */
-  private fun replayInFull(branch: DocBranch): Int {
+  private fun replayInFull(branch: DocBranch): ReplayWalker {
     val graph = EventGraphImpl.implOf(branch.graph())
     val walker = ReplayWalker(graph, placeholderCount = 0)
     val text = StringBuilder()
     walker.replayAt(graph.lvVersion(), TextSink(text))
     assertEquals(branch.text().string(), text.toString())
     walker.checkItems()
-    return walker.itemTreeDepth()
+    return walker
   }
 
   /**

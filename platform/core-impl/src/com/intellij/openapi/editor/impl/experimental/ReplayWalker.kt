@@ -230,7 +230,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   /**
    * Returns the item that covers exactly the [count] units from [target], and splits the
-   * containing item when it is wider. The whole-item case needs no index.
+   * containing item when it is wider. The whole-item case needs no [findItemIdx].
    */
   private fun isolate(target: LV, count: Int): Item {
     var item = items.itemCovering(target)
@@ -549,6 +549,14 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   @TestOnly
   fun itemTreeDepth(): Int {
     return items.depth()
+  }
+
+  /**
+   * Whether the walk looked an item up by unit. See [ItemTree.hasUnitIndex].
+   */
+  @TestOnly
+  fun hasUnitIndex(): Boolean {
+    return items.hasUnitIndex()
   }
 
   /**

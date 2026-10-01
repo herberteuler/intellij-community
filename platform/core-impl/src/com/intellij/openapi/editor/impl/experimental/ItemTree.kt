@@ -7,7 +7,8 @@ import java.util.TreeMap
 /**
  * The items of one [ReplayWalker] walk in document order, as an order-statistic B+tree. Every
  * node keeps three sums of its subtree: the items, the prepare width and the effect width. So a
- * lookup by index, by prepare position or by unit costs O(log n), and so does an insert or a split.
+ * lookup by index or by prepare position costs O(log n), and so does an insert or a split. A
+ * lookup by unit costs O(log n) too, after the first one builds the unit index in O(n log n).
  *
  * The tree only grows. An insert adds an item, a split adds the right piece, and nothing removes
  * an item. So no node ever merges, and every leaf sits at the same depth.
@@ -27,10 +28,14 @@ internal class ItemTree {
   private var root: Node = newLeaf()
 
   /**
-   * Every item, by the lv of its first unit. An item covers a range of units, and two ranges never
-   * overlap. So the floor entry of a unit names the only item that can cover it.
+   * Every item, by the lv of its first unit, or `null` before the first lookup by unit. An item
+   * covers a range of units, and two ranges never overlap. So the floor entry of a unit names the
+   * only item that can cover it.
+   *
+   * The first lookup by unit builds it from the leaves, and every later insert or split keeps it
+   * current. A walk that never looks an item up by unit never builds it.
    */
-  private val itemsByUnit = TreeMap<LV, Item>()
+  private var unitIndex: TreeMap<LV, Item>? = null
 
   /**
    * The leaf that the last lookup found, by index or by prepare position, and the index of its
@@ -67,12 +72,13 @@ internal class ItemTree {
   /**
    * Adds [item] at [index], so the items from [index] on move one place to the right. The item
    * must not be in a tree yet, and no item of this tree may start at its first unit. An add that
-   * fails changes nothing.
+   * fails changes nothing. Before the unit index exists, an add does not check the first unit, and
+   * the first lookup by unit fails instead.
    */
   fun add(index: Int, item: Item) {
     checkInsertIndex(index)
     checkUnfiled(item)
-    fileByUnit(item)
+    fileInBuiltIndex(item)
     val leaf = leafFor(index, isInsert = true)
     val slot = index - cachedLeafStart
     leaf.items.add(slot, item)
@@ -91,7 +97,7 @@ internal class ItemTree {
     val right = leaf.items[slot].splitAfter(units)
     leaf.items.add(slot + 1, right)
     right.fileUnderLeaf(leaf.number)
-    fileByUnit(right)
+    fileInBuiltIndex(right)
     // The two pieces share one state, so together they keep the widths of the item.
     addToSums(leaf, 1, 0, 0)
     splitIfFull(leaf, slot + 1)
@@ -101,7 +107,7 @@ internal class ItemTree {
    * The item that covers [unit].
    */
   fun itemCovering(unit: LV): Item {
-    val item = itemsByUnit.floorEntry(unit)?.value
+    val item = builtUnitIndex().floorEntry(unit)?.value
     return requireCovering(item, unit)
   }
 
@@ -373,11 +379,39 @@ internal class ItemTree {
   }
 
   /**
-   * Files [item] in the unit index, unless another item starts at its first unit. That item stays,
-   * and the index changes nothing.
+   * The unit index, which the first call builds from the leaves. A build that fails keeps no index.
    */
-  private fun fileByUnit(item: Item) {
-    val present = itemsByUnit.putIfAbsent(item.firstUnit, item)
+  private fun builtUnitIndex(): TreeMap<LV, Item> {
+    val built = unitIndex
+    if (built != null) {
+      return built
+    }
+    val index = TreeMap<LV, Item>()
+    for (leaf in leaves) {
+      for (item in leaf.items) {
+        fileByUnit(index, item)
+      }
+    }
+    unitIndex = index
+    return index
+  }
+
+  /**
+   * Files [item] in the unit index when the index exists. Before that, the build files it.
+   */
+  private fun fileInBuiltIndex(item: Item) {
+    val built = unitIndex
+    if (built != null) {
+      fileByUnit(built, item)
+    }
+  }
+
+  /**
+   * Files [item] in [into] under its first unit. It fails when another item starts at that unit,
+   * and [into] then does not change.
+   */
+  private fun fileByUnit(into: MutableMap<LV, Item>, item: Item) {
+    val present = into.putIfAbsent(item.firstUnit, item)
     checkFirstUnitFree(present, item)
   }
 
@@ -432,7 +466,8 @@ internal class ItemTree {
    * - the three sums of a node are the sums of its members;
    * - every leaf sits at the same depth, and the tree reaches every leaf it numbered;
    * - every item knows the number of its leaf;
-   * - the unit index holds every item, and only the items;
+   * - no two items start at one unit;
+   * - the unit index, once it exists, holds every item, and only the items;
    * - the cached leaf starts at the cached index.
    */
   @TestOnly
@@ -442,7 +477,7 @@ internal class ItemTree {
     require(reached.size == leaves.size) {
       "The tree reaches ${reached.size} of its ${leaves.size} leaves"
     }
-    var items = 0
+    val byFirstUnit = HashMap<LV, Item>()
     for (leaf in reached) {
       require(leaves[leaf.number] === leaf) {
         "The leaf ${leaf.number} is filed under another number"
@@ -451,14 +486,12 @@ internal class ItemTree {
         require(item.leafNumber() == leaf.number) {
           "The item $item does not know its leaf"
         }
-        require(itemsByUnit[item.firstUnit] === item) {
-          "The unit index does not hold $item"
-        }
-        items++
+        fileByUnit(byFirstUnit, item)
       }
     }
-    require(itemsByUnit.size == items) {
-      "The unit index holds ${itemsByUnit.size} items, but the tree holds $items"
+    val built = unitIndex
+    if (built != null) {
+      checkUnitIndex(built, byFirstUnit)
     }
     val cached = cachedLeaf
     require(cached == null || startOf(cached) == cachedLeafStart) {
@@ -467,11 +500,33 @@ internal class ItemTree {
   }
 
   /**
+   * Whether a lookup by unit built the unit index.
+   */
+  @TestOnly
+  fun hasUnitIndex(): Boolean {
+    return unitIndex != null
+  }
+
+  /**
    * The inner levels above the leaves. 0 means the root is a leaf.
    */
   @TestOnly
   fun depth(): Int {
     return depthOf(leaves[0])
+  }
+
+  /**
+   * Fails unless [built] holds exactly the items of [byFirstUnit], each under its first unit.
+   */
+  private fun checkUnitIndex(built: Map<LV, Item>, byFirstUnit: Map<LV, Item>) {
+    require(built.size == byFirstUnit.size) {
+      "The unit index holds ${built.size} items, but the tree holds ${byFirstUnit.size}"
+    }
+    for ((firstUnit, item) in byFirstUnit) {
+      require(built[firstUnit] === item) {
+        "The unit index does not hold $item"
+      }
+    }
   }
 
   private fun checkNode(

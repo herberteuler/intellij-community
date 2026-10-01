@@ -2,6 +2,7 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -71,12 +72,48 @@ internal class ItemTreeTest {
     first.add(0, item)
     val failure = assertThrows(IllegalArgumentException::class.java) { ItemTree().add(0, item) }
     assertTrue(failure.message.orEmpty().endsWith("is in a tree already"), failure.message)
-    // A second item at the same first unit fails, and the tree stays as it was.
+    // Once the unit index exists, a second item at the same first unit fails, and the tree stays
+    // as it was.
+    assertSame(item, first.itemCovering(0))
     val twin = item(firstUnit = 0, length = 1)
     assertThrows(IllegalArgumentException::class.java) { first.add(1, twin) }
     assertEquals(1, first.size())
-    assertSame(item, first.itemCovering(0))
     first.checkInvariants()
+  }
+
+  @Test
+  fun `the first lookup by unit fails on two items at one first unit`() {
+    val tree = ItemTree()
+    tree.add(0, item(firstUnit = 0, length = 1))
+    tree.add(1, item(firstUnit = 0, length = 1))
+    val failure = assertThrows(IllegalArgumentException::class.java) { tree.itemCovering(0) }
+    val message = failure.message.orEmpty()
+    assertTrue(message.endsWith("start at one unit"), message)
+    // The failed build keeps no index, so the next lookup fails the same way.
+    assertFalse(tree.hasUnitIndex())
+    val again = assertThrows(IllegalArgumentException::class.java) { tree.indexCovering(0) }
+    assertEquals(message, again.message)
+    assertEquals(2, tree.size())
+    val invariants = assertThrows(IllegalArgumentException::class.java) { tree.checkInvariants() }
+    assertEquals(message, invariants.message)
+  }
+
+  @Test
+  fun `the unit index waits for the first lookup by unit, then stays current`() {
+    val tree = ItemTree()
+    for (i in 0 until 100) {
+      tree.add(i, item(firstUnit = 4 * i, length = 4))
+    }
+    tree.splitAt(10, 2)
+    assertFalse(tree.hasUnitIndex())
+    assertEquals(11, tree.indexCovering(42))
+    assertTrue(tree.hasUnitIndex())
+    // Inserts and splits after the build reach the index too.
+    tree.add(0, item(firstUnit = 1000, length = 3))
+    tree.splitAt(0, 1)
+    assertEquals(1, tree.indexCovering(1002))
+    assertEquals(13, tree.indexCovering(42))
+    tree.checkInvariants()
   }
 
   @Test

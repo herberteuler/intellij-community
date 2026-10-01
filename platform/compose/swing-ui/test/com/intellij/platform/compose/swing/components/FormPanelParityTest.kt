@@ -417,6 +417,7 @@ class FormPanelParityTest {
     assertWasDrawn(reference)
     assertImagesPixelPerfect(reference, formPanel.captureToImage())
     dslPanel.removeNotify()
+    assertAccessibilityMatches(dslPanel, formPanel)
   }
 
   /**
@@ -443,23 +444,37 @@ class FormPanelParityTest {
    * were declared in.
    */
   private fun assertBoundsMatch(dslPanel: JComponent, formPanel: JComponent) {
+    forEachPair(dslPanel, formPanel) { expected, actual, name ->
+      assertEquals(expected.bounds, actual.bounds, "bounds of $name")
+    }
+  }
+
+  /**
+   * Compares what every component of the two panels answers assistive technology with: a labeled control is
+   * named by its label, and a commented one is described by its comment.
+   */
+  private fun assertAccessibilityMatches(dslPanel: JComponent, formPanel: JComponent) {
+    forEachPair(dslPanel, formPanel) { expected, actual, name ->
+      assertEquals(expected.accessibleContext?.accessibleName, actual.accessibleContext?.accessibleName, "accessible name of $name")
+      assertEquals(
+        expected.accessibleContext?.accessibleDescription,
+        actual.accessibleContext?.accessibleDescription,
+        "accessible description of $name",
+      )
+    }
+  }
+
+  /** Pairs the components of the two panels by kind and by the order they were declared in. */
+  private fun forEachPair(dslPanel: JComponent, formPanel: JComponent, check: (Component, Component, String) -> Unit) {
     val expected = dslPanel.components.groupBy(::kindOf)
-    // A row boundary is bookkeeping rather than a component of the form: it is given no cell, so it has no
-    // bounds to compare and the screenshot the two sides are also held to is what says it draws nothing.
-    val actual = formPanel.components
-      .filterNot { it is FormRowBoundaryComponent }
-      .groupBy(::kindOf)
+    val actual = formPanel.components.groupBy(::kindOf)
 
     assertEquals(expected.keys, actual.keys, "the two forms hold different kinds of component")
     for ((kind, expectedOfKind) in expected) {
       val actualOfKind = actual.getValue(kind)
       assertEquals(expectedOfKind.size, actualOfKind.size, "number of ${kind.simpleName}s")
       for ((index, component) in expectedOfKind.withIndex()) {
-        assertEquals(
-          component.bounds,
-          actualOfKind[index].bounds,
-          "bounds of ${kind.simpleName} #$index (${describe(component)})",
-        )
+        check(component, actualOfKind[index], "${kind.simpleName} #$index (${describe(component)})")
       }
     }
   }

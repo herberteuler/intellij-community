@@ -12,13 +12,16 @@ import com.intellij.ui.dsl.builder.MAX_LINE_LENGTH_WORD_WRAP
 import com.intellij.ui.dsl.gridLayout.GridLayout
 import com.intellij.util.ui.JBUI
 import org.jetbrains.annotations.ApiStatus
+import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
+import org.jetbrains.compose.swing.defaults.componentDefaultKeyOf
+import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.ParentDataModifier
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
-import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import com.intellij.ui.TitledSeparator as IdeaTitledSeparator
@@ -92,7 +95,8 @@ public fun FormPanel(
   SwingNode(
     factory = { JPanel(newFormLayout()) },
     modifier = modifier,
-    content = { scope.content() },
+    // A form nested in a row of another form holds rows of its own, not the outer row's controls.
+    content = { ProvideComponentDefaults(FormRowDefault provides null) { scope.content() } },
   )
 }
 
@@ -114,6 +118,10 @@ public sealed interface FormScope {
   /**
    * A row of the form: an optional [label], the controls [content] emits, and an optional [comment] under
    * them.
+   *
+   * [label] is given to the first control, when that control can take it, as `row("Label:") { }` gives it.
+   * [comment] goes under the first control and is its accessible description, as `cell(c).comment(...)` is for
+   * the control it is declared on.
    *
    * A row with a [label] lines that label up with the labels of the rows around it, and holds everything
    * after the label in a grid of its own - so a row holding three controls does not make three columns of
@@ -259,44 +267,54 @@ private fun newFormLayout(): GridLayout =
  */
 internal class FormGroupToken(val parent: FormGroupToken?, val indent: Int)
 
+/** The identity of a row, for as long as its [FormScope.FormRow] is composed. */
+internal class FormRowToken
+
 /**
- * What a component the form itself emits says about the row it opens or closes. It travels as the
- * component's parent data, so the form reads its structure back off the panel and the grid is rebuilt
- * whenever any of it changes.
- *
- * A control the caller emits carries a [FormCellMark] or nothing at all, and belongs to whichever row is
- * open where it stands - which is what makes the panel's own child order, the order the components were
- * composed in, the whole of what the form is read from.
+ * What a component says about the place it takes in its row. It travels as the component's parent data, so the
+ * form reads its structure back off the panel and the grid is rebuilt whenever any of it changes.
  */
 internal sealed interface FormMark
 
 /**
- * Opens a row. The component carrying it is the row's label when [labeled], and otherwise a
- * [FormRowBoundary] that marks where the row begins.
+ * A row, as every component composed in it carries it: [token] tells it from its neighbours, and the rest is
+ * what [FormScope.FormRow] was declared with. [comment] is here so that a change of it rebuilds the grid, which
+ * describes the row's first control with it. The component carrying it as its own mark is the row's label.
  */
 internal data class FormRowMark(
+  val token: FormRowToken,
   val group: FormGroupToken?,
-  val labeled: Boolean,
   val indent: Int,
   val resizable: Boolean,
   val topGap: FormGap?,
   val bottomGap: FormGap?,
+  val comment: String?,
 ) : FormMark
 
-/** The comment of the row that is open, which goes under what it holds rather than under its label. */
-internal data object FormCommentMark : FormMark
-
-/**
- * Closes the row that is open. Every row ends with one, so a component standing between two rows belongs to
- * neither and is reported rather than taken for a control of the row above it.
- */
-internal data object FormRowEndMark : FormMark
+/** The comment of [row], which goes under what it holds rather than under its label. */
+internal data class FormCommentMark(val row: FormRowMark) : FormMark
 
 /** What one control asks of its cell. */
 internal data class FormCellMark(
   val fillWidth: Boolean,
   val smallGapAfter: Boolean,
 ) : FormMark
+
+/**
+ * The row a control is composed in. [FormScope.FormRow] provides it to every component in its content as a
+ * component default, so a control needs no declaration of its own to take a cell of the row.
+ */
+internal data class FormRowElement(val row: FormRowMark) : ParentLayoutElement {
+  override val parentProtocol: ParentProtocol get() = FormParentProtocol
+
+  override val inheritable: Boolean get() = true
+
+  override val name: String get() = "formRow"
+
+  override val declaredValues: Map<String, Any?> get() = mapOf("row" to row)
+}
+
+private val FormRowDefault = componentDefaultKeyOf<FormRowMark>("FormRow") { this then FormRowElement(it) }
 
 /** The parents a [FormMark] is declared for: the panel of a [FormPanel], and no other. */
 private val FormParentProtocol: ParentProtocol = parentProtocolOf("FormPanel row") { it.layout is FormGridLayout }
@@ -327,18 +345,22 @@ private class FormScopeInstance(
     bottomGap: FormGap?,
     content: @Composable FormRowScope.() -> Unit,
   ) {
-    val mark = FormRowMark(group, label != null, indentLevel, resizable, topGap, bottomGap)
+    val token = remember { FormRowToken() }
+    val row = FormRowMark(token, group, indentLevel, resizable, topGap, bottomGap, comment)
 
-    FormRowStart(label, SwingModifier.formMark(mark))
-    FormRowScopeInstance.content()
+    if (label != null) {
+      FormRowStart(label, SwingModifier.formMark(row))
+    }
+    ProvideComponentDefaults(FormRowDefault provides row) {
+      FormRowScopeInstance.content()
+    }
     if (comment != null) {
       Comment(
         comment,
-        modifier = SwingModifier.formMark(FormCommentMark),
+        modifier = SwingModifier.formMark(FormCommentMark(row)),
         maxLineLength = DEFAULT_COMMENT_WIDTH,
       )
     }
-    FormRowBoundary(SwingModifier.formMark(FormRowEndMark))
   }
 
   @Composable
@@ -390,16 +412,9 @@ private object FormRowScopeInstance : FormRowScope {
 
 // --- The components a form supplies itself ------------------------------------------------------
 
-/**
- * The component that opens a row: its label, or - for a row that has no label to mark it - a
- * [FormRowBoundary].
- */
+/** The component that opens a row: its label. */
 @Composable
-private fun FormRowStart(text: @NlsContexts.Label String?, modifier: SwingModifier) {
-  if (text == null) {
-    FormRowBoundary(modifier)
-    return
-  }
+private fun FormRowStart(text: @NlsContexts.Label String, modifier: SwingModifier) {
   SwingNode(
     factory = {
       JLabel().apply {
@@ -415,18 +430,6 @@ private fun FormRowStart(text: @NlsContexts.Label String?, modifier: SwingModifi
     },
   )
 }
-
-/**
- * Where a row begins or ends. The form is read off its panel's children in the order they were composed in,
- * and a row is the span between its boundaries; a boundary is given no cell, so it has no size, paints
- * nothing and takes no focus.
- */
-@Composable
-private fun FormRowBoundary(modifier: SwingModifier) {
-  SwingNode(factory = { FormRowBoundaryComponent() }, modifier = modifier)
-}
-
-internal class FormRowBoundaryComponent : JComponent()
 
 @Composable
 private fun FormSeparatorComponent(modifier: SwingModifier) {

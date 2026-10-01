@@ -230,8 +230,7 @@ class McpServerSettingsConfigurable : ComposeSwingSearchableConfigurable() {
     }
     if (enabled) {
       FormGroup(McpServerBundle.message("mcp.server.global.configuration"), indent = true) {
-        FormRow {
-          Label(McpServerBundle.message("mcp.server.global.port.label"))
+        FormRow(McpServerBundle.message("mcp.server.global.port.label")) {
           TextField(
             value = port.toString(),
             onValueChange = { newVal ->

@@ -795,8 +795,13 @@ public final class ApplicationImpl extends ClientAwareComponentManager implement
     }
 
     myExitInProgress = true;
-    if (isDispatchThread()) {
-      doExit(flags, restart, beforeRestart, exitCode);
+    if (isDispatchThread() && !holdsReadLock()) {
+      try {
+        runIntendedWriteActionOnCurrentThread(() -> doExit(flags, restart, beforeRestart, exitCode));
+      }
+      finally {
+        myExitInProgress = false;
+      }
     }
     else {
       invokeLater(() -> doExit(flags, restart, beforeRestart, exitCode), ModalityState.nonModal());

@@ -10,9 +10,15 @@ import com.intellij.ide.lightEdit.LightEditServiceImpl
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.AccessToken
+import com.intellij.openapi.application.ApplicationListener
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.CoroutineSupport.UiDispatcherKind
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.ThreadingSupport
+import com.intellij.openapi.application.ex.ApplicationEx
+import com.intellij.openapi.application.ex.ApplicationManagerEx
+import com.intellij.openapi.application.ui
 import com.intellij.openapi.components.ComponentManager
 import com.intellij.openapi.components.ComponentManagerEx
 import com.intellij.openapi.components.StoragePathMacros
@@ -33,8 +39,10 @@ import com.intellij.testFramework.LoggedErrorProcessor
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
+import com.intellij.testFramework.junit5.TestDisposable
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.intellij.testFramework.replaceService
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,9 +51,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.io.IOException
 import kotlin.io.path.createDirectories
@@ -344,6 +354,112 @@ internal class ApplicationExitTest {
           PlatformTestUtil.forceCloseProjectWithoutSaving(lightEdit)
         }
       }
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource("false, false", "false, true", "true, false", "true, true")
+  fun `an EDT exit takes the write-intent lock before the veto`(
+    lockHeld: Boolean,
+    restart: Boolean,
+    @TestDisposable disposable: Disposable,
+  ): Unit = timeoutRunBlocking {
+    val app = ApplicationManagerEx.getApplicationEx()
+    var lockAcquiredAtVeto: Boolean? = null
+    app.addApplicationListener(object : ApplicationListener {
+      override fun canExitApplication(): Boolean {
+        lockAcquiredAtVeto = app.isWriteIntentLockAcquired
+        return false
+      }
+    }, disposable)
+
+    val dispatcher = if (lockHeld) Dispatchers.EDT else Dispatchers.ui(UiDispatcherKind.RELAX)
+    withContext(dispatcher) {
+      assertThat(app.isWriteIntentLockAcquired).isEqualTo(lockHeld)
+      requestExit(app, restart)
+      assertThat(app.isWriteIntentLockAcquired).isEqualTo(lockHeld)
+    }
+
+    assertThat(lockAcquiredAtVeto).isTrue()
+    assertThat(app.isExitInProgress).isFalse()
+    assertThat(app.isDisposed).isFalse()
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun `an EDT exit waits for the read action and suppresses duplicate requests`(
+    restart: Boolean,
+    @TestDisposable disposable: Disposable,
+  ): Unit = timeoutRunBlocking {
+    val app = ApplicationManagerEx.getApplicationEx()
+    val veto = CompletableDeferred<Unit>()
+    var vetoCount = 0
+    var lockAcquiredAtVeto = false
+    app.addApplicationListener(object : ApplicationListener {
+      override fun canExitApplication(): Boolean {
+        vetoCount++
+        lockAcquiredAtVeto = app.isWriteIntentLockAcquired
+        veto.complete(Unit)
+        return false
+      }
+    }, disposable)
+
+    withContext(Dispatchers.ui(UiDispatcherKind.RELAX)) {
+      app.runReadAction {
+        assertThat(app.holdsReadLock()).isTrue()
+        requestExit(app, restart)
+        requestExit(app, restart)
+        assertThat(app.isExitInProgress).isTrue()
+        assertThat(vetoCount).isZero()
+      }
+    }
+
+    veto.await()
+    withContext(Dispatchers.ui(UiDispatcherKind.RELAX)) {
+      assertThat(lockAcquiredAtVeto).isTrue()
+      assertThat(vetoCount).isEqualTo(1)
+      assertThat(app.isExitInProgress).isFalse()
+      requestExit(app, restart)
+      assertThat(vetoCount).isEqualTo(2)
+      assertThat(app.isExitInProgress).isFalse()
+      assertThat(app.isDisposed).isFalse()
+    }
+  }
+
+  @Test
+  fun `a failed exit lock acquisition permits another exit`(@TestDisposable disposable: Disposable): Unit = timeoutRunBlocking {
+    val app = ApplicationManagerEx.getApplicationEx()
+    var vetoCount = 0
+    app.addApplicationListener(object : ApplicationListener {
+      override fun canExitApplication(): Boolean {
+        vetoCount++
+        return false
+      }
+    }, disposable)
+
+    withContext(Dispatchers.ui(UiDispatcherKind.RELAX)) {
+      assertThatThrownBy {
+        app.withLocksProhibited("The test prohibits lock acquisition") {
+          requestExit(app, restart = false)
+        }
+      }.isInstanceOf(ThreadingSupport.LockAccessDisallowed::class.java)
+
+      assertThat(vetoCount).isZero()
+      assertThat(app.isExitInProgress).isFalse()
+      requestExit(app, restart = false)
+      assertThat(vetoCount).isEqualTo(1)
+      assertThat(app.isExitInProgress).isFalse()
+      assertThat(app.isDisposed).isFalse()
+    }
+  }
+
+  private fun requestExit(app: ApplicationEx, restart: Boolean) {
+    val flags = ApplicationEx.SAVE or ApplicationEx.EXIT_CONFIRMED
+    if (restart) {
+      app.restart(flags, emptyArray())
+    }
+    else {
+      app.exit(flags)
     }
   }
 

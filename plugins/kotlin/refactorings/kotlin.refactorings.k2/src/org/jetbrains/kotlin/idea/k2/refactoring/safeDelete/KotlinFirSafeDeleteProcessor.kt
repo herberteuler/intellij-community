@@ -392,14 +392,6 @@ class KotlinFirSafeDeleteProcessor : SafeDeleteProcessorDelegateBase() {
         }
     }
 
-    override fun getAdditionalElementsToDelete(
-        element: PsiElement,
-        allElementsToDelete: Collection<PsiElement>,
-        askUser: Boolean
-    ): Collection<PsiElement>? {
-        return null
-    }
-
     override fun findConflicts(
         element: PsiElement,
         allElementsToDelete: Array<out PsiElement>,

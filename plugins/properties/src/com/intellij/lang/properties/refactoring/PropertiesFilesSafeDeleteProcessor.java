@@ -46,12 +46,6 @@ public class PropertiesFilesSafeDeleteProcessor implements SafeDeleteProcessorDe
   }
 
   @Override
-  public Collection<PsiElement> getAdditionalElementsToDelete(final @NotNull PsiElement element, final @NotNull Collection<? extends PsiElement> allElementsToDelete,
-                                                              final boolean askUser) {
-    return null;
-  }
-
-  @Override
   public Collection<String> findConflicts(final @NotNull PsiElement element, final PsiElement @NotNull [] allElementsToDelete) {
     return null;
   }

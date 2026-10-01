@@ -30,11 +30,10 @@ import java.util.List;
 public final class RelatedFilesSafeDeleteProcessorDelegate implements SafeDeleteProcessorDelegate {
   @Override
   public boolean handlesElement(final PsiElement element) {
-    return element instanceof PsiFile &&
+    return element instanceof PsiFile file &&
            element.isValid() &&
-           ((PsiFile)element).getVirtualFile() != null &&
-           !NestingTreeStructureProvider.getFilesShownAsChildrenInProjectView(element.getProject(),
-                                                                              ((PsiFile)element).getVirtualFile()).isEmpty();
+           file.getVirtualFile() != null &&
+           !NestingTreeStructureProvider.getFilesShownAsChildrenInProjectView(element.getProject(), file.getVirtualFile()).isEmpty();
   }
 
   @Override

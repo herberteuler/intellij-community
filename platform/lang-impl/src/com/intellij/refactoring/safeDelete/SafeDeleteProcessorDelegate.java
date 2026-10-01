@@ -61,12 +61,17 @@ public interface SafeDeleteProcessorDelegate {
    * May show UI to ask the user if some additional elements should be deleted along with the
    * specified selected element.
    *
-   * @param element an element selected for deletion.
+   * @param element             an element selected for deletion.
    * @param allElementsToDelete all elements selected for deletion.
    * @return additional elements to search for usages, or null if no additional elements were chosen.
+   * Returning an empty list is equal to returning null.
    */
   @Nullable
-  Collection<PsiElement> getAdditionalElementsToDelete(@NotNull PsiElement element, @NotNull Collection<? extends PsiElement> allElementsToDelete, boolean askUser);
+  default Collection<PsiElement> getAdditionalElementsToDelete(@NotNull PsiElement element,
+                                                               @NotNull Collection<? extends PsiElement> allElementsToDelete,
+                                                               boolean askUser) {
+    return null;
+  }
 
   /**
    * Detects usages which are not safe to delete.

@@ -1,0 +1,18 @@
+<idea-plugin visibility="internal">
+  <!-- @skip-dependency-generation: a discovered test plugin gets no automatic dependency addition, so these are
+       declared by hand. They are what the lambdas touch inside the started IDE — the test module's compile
+       classpath is not the IDE's, and a module missing here surfaces as NoClassDefFoundError in the first
+       lambda, not as a compile error.
+
+       Only modules that load on BOTH sides of a split run may be listed. The test module is the same content
+       module in the backend and in the frontend, and a content module whose dependency is unavailable is excluded
+       silently: `intellij.python.processOutput.frontend` depends on `intellij.platform.frontend`, which is "not
+       available in 'backend' product mode", so declaring it here excluded this module from the backend and the
+       lambda host there failed with "Test plugin with test module ... is not found". Everything the test uses
+       (`ProcessOutputTopic`, `FrontendTopicService`, the DTOs) lives in `.common`. -->
+  <dependencies>
+    <module name="intellij.lambda.testFramework"/>
+    <module name="intellij.libraries.assertj.core"/>
+    <module name="intellij.python.processOutput.common"/>
+  </dependencies>
+</idea-plugin>

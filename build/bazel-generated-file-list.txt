@@ -1917,6 +1917,8 @@ python/python-poetry/common
 python/python-poetry/frontend
 python/python-process-output/common
 python/python-process-output/frontend
+python/python-process-output/lambdaTests
+python/python-process-output/lambdaTests/intellij.python.processOutput.lambdaTests.plugin
 python/python-psi-api
 python/python-psi-impl
 python/python-pyproject

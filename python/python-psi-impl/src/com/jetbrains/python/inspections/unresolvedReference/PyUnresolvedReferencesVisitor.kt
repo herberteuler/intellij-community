@@ -518,7 +518,7 @@ class PyUnresolvedReferencesVisitor(
   /** Class participates in some dynamic-attribute mechanism (`__getattr__`, property, `@DynamicAttrs`, etc.). */
   private fun isDynamicClass(type: PyClassType, reference: PsiReference, name: String): Boolean {
     val cls = type.pyClass
-    return overridesGetAttr(cls, myTypeEvalContext) ||
+    return overridesGetAttr(type, myTypeEvalContext, name) ||
            cls.findProperty(name, true, myTypeEvalContext) != null ||
            PyUtil.hasUnresolvedAncestors(cls, myTypeEvalContext) ||
            isDecoratedAsDynamic(cls) ||

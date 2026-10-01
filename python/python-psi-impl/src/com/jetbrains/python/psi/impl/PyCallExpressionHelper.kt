@@ -638,16 +638,20 @@ object PyCallExpressionHelper {
 
   @ApiStatus.Internal
   @JvmStatic
+  @JvmOverloads
   fun getSpecialMethodCallType(
     objectType: PyType?,
     methodName: String,
     arguments: List<PyCallableArgument>,
     context: TypeEvalContext,
+    onlyMatched: Boolean = false,
+    skipObject: Boolean = false,
   ): Ref<PyType?>? {
     if (objectType !is PyClassLikeType) return null
     val classType = if (objectType.isDefinition) {
       objectType.getMetaClassType(context, true) ?: return null
-    } else {
+    }
+    else {
       // An implicitly invoked special method is looked up on the type of the object. `resolveMember`
       // searches both the object and its type (the metaclass when `PyClassLikeType.isDefinition` is true).
       // To exclude metaclass attributes from the resolve result, we pass the instance and accept that
@@ -657,8 +661,16 @@ object PyCallExpressionHelper {
     val resolveContext = PyResolveContext.defaultContext(context)
     val resolveResults = classType.resolveMember(methodName, null, AccessDirection.READ, resolveContext)
     if (resolveResults.isNullOrEmpty()) return null
+    // TODO re-use resolveMemberSkippingClass
+    if (skipObject) {
+      val containingClass = PyTypeUtil.getContainingClass(resolveResults)
+      if (containingClass?.qualifiedName == PyNames.FQN.OBJECT) {
+        return null
+      }
+    }
     val memberType = PyTypeUtil.getTypeOfBoundMember(classType, resolveResults, context, selfType = objectType)
-    return Ref.create(getCallType(memberType, arguments, context))
+    val callType = doGetCallType(memberType, null, arguments, context)
+    return if (onlyMatched && !callType.matched) null else Ref(callType.type)
   }
 
   @ApiStatus.Internal

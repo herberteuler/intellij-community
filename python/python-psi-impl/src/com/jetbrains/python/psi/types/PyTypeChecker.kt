@@ -33,6 +33,7 @@ import com.jetbrains.python.psi.PyExpression
 import com.jetbrains.python.psi.PyFile
 import com.jetbrains.python.psi.PyFunction
 import com.jetbrains.python.psi.PyListLiteralExpression
+import com.jetbrains.python.psi.PyNamedParameter
 import com.jetbrains.python.psi.PySequenceExpression
 import com.jetbrains.python.psi.PyStarExpression
 import com.jetbrains.python.psi.PyTargetExpression
@@ -42,6 +43,7 @@ import com.jetbrains.python.psi.PyUtil
 import com.jetbrains.python.psi.impl.ParamHelper
 import com.jetbrains.python.psi.impl.PyBuiltinCache
 import com.jetbrains.python.psi.impl.PyCallExpressionHelper
+import com.jetbrains.python.psi.impl.PyCallExpressionHelper.getSpecialMethodCallType
 import com.jetbrains.python.psi.impl.PyPsiUtils
 import com.jetbrains.python.psi.impl.PyTargetExpressionImpl
 import com.jetbrains.python.psi.impl.PyTypeProvider
@@ -1426,7 +1428,7 @@ object PyTypeChecker {
   }
 
   private fun match(expected: PyStructuralType, actual: PyClassType, context: TypeEvalContext): Boolean {
-    if (overridesGetAttr(actual.pyClass, context)) {
+    if (overridesGetAttr(actual, context)) {
       return true
     }
     val actualAttributes = actual.getMemberNames(true, context)
@@ -2762,19 +2764,20 @@ object PyTypeChecker {
   }
 
   @JvmStatic
-  fun overridesGetAttr(cls: PyClass, context: TypeEvalContext): Boolean {
-    val type = context.getType(cls)
-    if (type != null) {
-      if (resolveTypeMember(type, PyNames.GETATTR, context) != null) {
-        return true
-      }
-      val method = resolveTypeMember(type, PyNames.GETATTRIBUTE, context)
-      if (method != null && !PyBuiltinCache.getInstance(cls).isBuiltin(method)) {
-        return true
-      }
-    }
-    return false
+  @JvmOverloads
+  fun overridesGetAttr(classType: PyClassType, context: TypeEvalContext, name: String? = null): Boolean {
+    return getGetAttrType(classType, context, name) != null
   }
+
+  private fun getGetAttrType(classType: PyClassType, context: TypeEvalContext, name: String? = null): Ref<PyType?>? {
+    val pyClass = classType.pyClass
+    val nameArg = if (name != null) PyLiteralType.stringLiteral(pyClass, name) else PyLiteralStringType.create(pyClass)
+    val arguments = listOf(PyCallableArgument(nameArg))
+    return getSpecialMethodCallType(classType, PyNames.GETATTR, arguments, context, onlyMatched = true) ?:
+           // For some reason __getattribute__ is declared directly on `builtins.object` returning `Any`
+           getSpecialMethodCallType(classType, PyNames.GETATTRIBUTE, arguments, context, onlyMatched = true, skipObject = true)
+  }
+
 
   private fun resolveTypeMember(type: PyType, name: String, context: TypeEvalContext): PsiElement? {
     val resolveContext = PyResolveContext.defaultContext(context)

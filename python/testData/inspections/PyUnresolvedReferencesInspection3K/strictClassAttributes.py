@@ -37,7 +37,7 @@ class WithGetattr:
         pass
 
 
-WithGetattr.whatever = 1
+WithGetattr.<warning descr="Unresolved attribute reference 'whatever' for class 'WithGetattr'">whatever</warning> = 1
 
 # Instance assignment — handled by strictInstanceAttributes (PY-87799)
 a = A()

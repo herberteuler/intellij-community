@@ -640,7 +640,7 @@ class PyAttributeAndDescriptorTypeTest : PyCodeInsightTestCase() {
       """.trimIndent())
 
     @Test
-    @TestFor(issues = ["PY-90894"])
+    @TestFor(issues = ["PY-90894", "PY-92999"])
     fun `dunder getattr overloaded by literal name`() = test("""
       from typing import Literal, overload
 
@@ -658,7 +658,26 @@ class PyAttributeAndDescriptorTypeTest : PyCodeInsightTestCase() {
           bar = c.bar
       #   └ TYPE str
           baz = c.baz
+      #   │       ^^^ WARNING Unresolved attribute reference 'baz' for class 'C'
       #   └ TYPE UnsafeUnion[int, str]
+      """.trimIndent())
+
+    @Test
+    @TestFor(issues = ["PY-92999"])
+    fun `dunder getattr with several literal names`() = test("""
+      from typing import Literal
+
+      class C:
+          def __getattr__(self, item: Literal["foo", "bar"]) -> str: ...
+
+      def f(c: C):
+          foo = c.foo
+      #   └ TYPE str
+          bar = c.bar
+      #   └ TYPE str
+          baz = c.baz
+      #   │       ^^^ WARNING Unresolved attribute reference 'baz' for class 'C'
+      #   └ TYPE str
       """.trimIndent())
 
     @Test
@@ -684,6 +703,7 @@ class PyAttributeAndDescriptorTypeTest : PyCodeInsightTestCase() {
           def __getattr__(self, item) -> int: ...
 
       expr = MyClass.attr
+      #│             ^^^^ WARNING Unresolved attribute reference 'attr' for class 'MyClass'
       #└ TYPE Unknown
       """.trimIndent())
 

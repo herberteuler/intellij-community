@@ -593,7 +593,7 @@ class EventGraphTest {
       .append(Event.createDelete(agent("v"), 0, 0, 5), Version.of(1))
     val failure = assertThrows(IllegalArgumentException::class.java) { graph.replay() }
     assertTrue(
-      failure.message.orEmpty().contains("reached the end of the item list"),
+      failure.message.orEmpty().contains("reaches past the end of the document"),
       "Unexpected message: ${failure.message}",
     )
   }

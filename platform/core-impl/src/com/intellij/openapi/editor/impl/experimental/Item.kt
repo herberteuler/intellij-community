@@ -2,8 +2,8 @@
 package com.intellij.openapi.editor.impl.experimental
 
 /**
- * A span of document characters that share one state: the replay's unit of work.
- * [ReplayWalker] holds them in document order.
+ * A span of document characters that share one state: the replay's unit of work. The
+ * [ItemTree] of a [ReplayWalker] holds them in document order.
  *
  * The span covers the lvs `[firstUnit, firstUnit + length)`, which always ascend. A real lv is at
  * or above 0. A placeholder span ends at -2, so every placeholder lv stays below 0, and [NO_UNIT]
@@ -48,6 +48,13 @@ internal class Item(
   var length: Int = length
     private set
 
+  /**
+   * The number of the [ItemTree] leaf that holds this item, or -1 before a tree files it. The tree
+   * keeps it, so a change of the item finds its leaf without a search, and a leaf split only
+   * rewrites this number.
+   */
+  private var leafNumber: Int = -1
+
   init {
     checkLength(length)
     checkStates(prepareState, effectState)
@@ -76,6 +83,24 @@ internal class Item(
   val prepareWidth: Int get() = if (inPrepare) length else 0
 
   val effectWidth: Int get() = if (inEffect) length else 0
+
+  fun leafNumber(): Int {
+    return leafNumber
+  }
+
+  /**
+   * Whether an [ItemTree] holds this item.
+   */
+  fun isFiled(): Boolean {
+    return leafNumber >= 0
+  }
+
+  /**
+   * Files this item under the leaf [number] of its [ItemTree]. Only the tree calls this.
+   */
+  fun fileUnderLeaf(number: Int) {
+    leafNumber = number
+  }
 
   /**
    * Whether the span stands in for the document at the common ancestor.
@@ -143,7 +168,7 @@ internal class Item(
 
   /**
    * Splits after [units] units. This item keeps the left part; the right part is
-   * returned, and the caller files it in the list and the unit index.
+   * returned, and [ItemTree.splitAt] files it.
    *
    * A placeholder piece keeps `originLeft = NO_UNIT`, because the reference gives that origin to
    * every placeholder unit. A real piece anchors on the unit before it and has no right parent.

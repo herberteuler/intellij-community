@@ -677,9 +677,9 @@ class DocBranchTest {
 
   @Test
   fun `an insert after a delete at one place stays before a concurrent insert there`() {
-    // The delete leaves an item of zero width at the place of "X". A walk from the cached cursor
-    // arrives after that item, and it must back up to where a walk from the head stops. The
-    // reference implementation gives "aXY" in both merge orders too.
+    // The delete leaves an item of zero width at the place of "X". The cached cursor sits after
+    // that item, so the insert must take the earliest boundary, before it. The reference
+    // implementation gives "aXY" in both merge orders too.
     val base = DocBranch.createBranch("ab", agent("base"))
     val a = base.fork(agent("a")).applyOp(deleteOp(1, 1)).applyOp(insertOp(1, "X"))
     val b = base.fork(agent("b")).applyOp(insertOp(1, "Y"))

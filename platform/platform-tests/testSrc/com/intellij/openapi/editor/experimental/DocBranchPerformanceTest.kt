@@ -33,8 +33,8 @@ class DocBranchPerformanceTest {
    * The concurrency varies: the sessions run with 1, 2, 3, 4, and 5 users editing at once. Every
    * user forks from the current base, edits, and merges back. The first merge of a session is a
    * fast-forward; every later one resolves real concurrency with a partial replay from the common
-   * ancestor over one lazily-split placeholder. Its remaining per-merge cost is the linear item
-   * scans over the region. The size ladder makes what remains visible.
+   * ancestor over one lazily-split placeholder. The size ladder shows how that cost grows with the
+   * document.
    *
    * One timed pass runs the whole scenario from a fresh base. A pass takes a few milliseconds, so
    * one attempt runs [COLLABORATIVE_PASSES] of them.

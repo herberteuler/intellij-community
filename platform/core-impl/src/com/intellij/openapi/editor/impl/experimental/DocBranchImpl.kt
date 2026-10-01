@@ -29,10 +29,6 @@ import java.util.Collections
  * Prototype limits, deliberate:
  * - A keystroke extends the newest run when it continues it (see [EventGraph.append]), but a
  *   backspace never does. Each backspace therefore still costs a run of its own.
- * - The replay scans its item list linearly. `findItemIdx` always begins at the list start, and
- *   `findByCurPos` goes back there when the target sits before the cached cursor. The list
- *   holds the walked region and not the document. So a merge stays cheap, and a FULL replay
- *   pays for the scans.
  */
 internal class DocBranchImpl private constructor(
   private val docText: DocText,

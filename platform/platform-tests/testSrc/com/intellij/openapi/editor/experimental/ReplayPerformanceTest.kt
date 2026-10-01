@@ -5,6 +5,7 @@ import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.util.Random
 
 /**
  * A benchmark, not a regression test: it measures what the replay pays to REPORT its output.
@@ -31,9 +32,8 @@ class ReplayPerformanceTest {
   /**
    * A full replay of a history that always inserts at the front.
    *
-   * The lookup stays cheap here: the position is 0, so it never walks the item list. Two costs
-   * remain. The report shifts the text, and each new item shifts the item list, because it lands
-   * at the index 0. So the row measures both, and an order-statistic tree would move it too.
+   * The lookup stays cheap here, because the position is 0. So the row measures the report, which
+   * shifts the text, and the insert of each new item at the index 0.
    */
   @Test
   fun `a full replay of a history that inserts at the front`() {
@@ -47,6 +47,52 @@ class ReplayPerformanceTest {
   @Test
   fun `a full replay of a history that appends`() {
     replaySweep("append", APPEND_PASSES_PER_RUN_UNIT) { length -> length }
+  }
+
+  /**
+   * A full replay of one user's history that edits at random places, over a growing history.
+   *
+   * This is the row for the item lookup. A random place sends every lookup into the middle of the
+   * items, and an edit there splits an item or adds one. A time per replay that grows by four for a
+   * doubled history says that the lookup walks the items one by one.
+   */
+  @Test
+  fun `a full replay of a history that edits at random places`() {
+    println("=== random places, by history size ===")
+    println("  %-14s %10s %10s %8s".format("history", "units", "runs", "passes"))
+    for (ops in RANDOM_EDIT_OPS) {
+      val branch = historyOfRandomEdits(ops)
+      val graph = branch.graph()
+      assertEquals(branch.text().string(), graph.replay().string())
+      val passes = RANDOM_EDIT_PASSES_TIMES_OPS / ops
+      println("  %-14s %10d %10d %8d".format("$ops ops", graph.size(), graph.runCount(), passes))
+      benchmarkSubtest("random places, $ops ops", passes) {
+        graph.replay().length()
+      }
+    }
+  }
+
+  /**
+   * A full replay of a history that overtypes: each pair of ops deletes the character at a moving
+   * offset and types a new one in its place, as a tool does that rewrites a text one character at
+   * a time. Every pair leaves one deleted item at the place of the next pair. So a walk that steps
+   * over the deleted items one by one pays four times as much per replay for a doubled history.
+   */
+  @Test
+  fun `a full replay of a history that overtypes`() {
+    println("=== overtype, by history size ===")
+    println("  %-14s %10s %10s %8s".format("history", "units", "runs", "passes"))
+    for (chars in OVERTYPE_CHARS) {
+      val branch = historyOfOvertype(chars)
+      val graph = branch.graph()
+      assertEquals(branch.text().string(), graph.replay().string())
+      val passes = OVERTYPE_PASSES_TIMES_CHARS / chars
+      val history = "$chars chars"
+      println("  %-14s %10d %10d %8d".format(history, graph.size(), graph.runCount(), passes))
+      benchmarkSubtest("overtype, $chars chars", passes) {
+        graph.replay().length()
+      }
+    }
   }
 
   /**
@@ -148,6 +194,39 @@ class ReplayPerformanceTest {
   }
 
   /**
+   * A history of [ops] edits at random places, from one seed. Seven of ten insert one or two
+   * characters, and the rest delete one.
+   */
+  private fun historyOfRandomEdits(ops: Int): DocBranch {
+    val random = Random(20261001L)
+    var branch = DocBranch.createBranch("", agent("u"))
+    repeat(ops) {
+      val length = branch.text().length()
+      val at = random.nextInt(length + 1)
+      branch = if (length > 0 && random.nextInt(10) < 3) {
+        val deleteAt = minOf(at, length - 1)
+        branch.applyOp(DocTextOp.deleteOp(deleteAt, 1))
+      } else {
+        val fragment = "ab".substring(0, 1 + random.nextInt(2))
+        branch.applyOp(DocTextOp.insertOp(at, fragment))
+      }
+    }
+    return branch
+  }
+
+  /**
+   * A text of [chars] characters, then a delete and an insert at every offset of it, in order.
+   */
+  private fun historyOfOvertype(chars: Int): DocBranch {
+    var branch = DocBranch.createBranch("o".repeat(chars), agent("u"))
+    for (offset in 0 until chars) {
+      branch = branch.applyOp(DocTextOp.deleteOp(offset, 1))
+      branch = branch.applyOp(DocTextOp.insertOp(offset, "x"))
+    }
+    return branch
+  }
+
+  /**
    * A history of [runs] runs of one character. Every op inserts at the front, so no op extends
    * the run before it.
    */
@@ -178,6 +257,19 @@ class ReplayPerformanceTest {
      * The history sizes that the one-op merge sweeps, in runs.
      */
     private val HISTORY_RUNS = intArrayOf(2_000, 8_000, 32_000, 128_000)
+
+    /**
+     * The history sizes of the random edits, in ops, and the passes of a row times its ops. So
+     * every row replays the same number of ops per attempt.
+     */
+    private val RANDOM_EDIT_OPS = intArrayOf(10_000, 20_000, 40_000, 80_000)
+    private const val RANDOM_EDIT_PASSES_TIMES_OPS = 320_000
+
+    /**
+     * The text lengths that the overtype rewrites, and the passes of a row times its length.
+     */
+    private val OVERTYPE_CHARS = intArrayOf(2_000, 4_000, 8_000, 16_000)
+    private const val OVERTYPE_PASSES_TIMES_CHARS = 64_000
 
     /**
      * The passes of one attempt, per scenario. Each count keeps an attempt at about 20 ms or

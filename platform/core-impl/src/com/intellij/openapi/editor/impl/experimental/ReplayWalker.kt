@@ -1,23 +1,23 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import org.jetbrains.annotations.TestOnly
 import java.util.BitSet
-import java.util.TreeMap
 
 /**
  * The engine behind [EgWalkerReplay]: the reference implementation's `EditContext`, plus the
  * walk that drives it. See [EgWalkerReplay] for the algorithm and the port conventions.
  *
- * The walker is temporary and single use: the caller runs one replay and discards it. The
- * item list, the item map and the delete targets hold only the units the walk touches, so the
- * state costs O(region), not O(graph).
+ * The walker is temporary and single use: the caller runs one replay and discards it. The item
+ * tree and the delete targets hold only the units the walk touches, so the state costs O(region),
+ * not O(graph).
  */
 internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount: Int) {
 
   /**
-   * Every item in document order. The list only grows: a split inserts, nothing removes.
+   * Every item in document order, with the lookups by index, by prepare position and by unit.
    */
-  private val items = ArrayList<Item>()
+  private val items = ItemTree()
 
   /**
    * For each delete unit, the lv of the unit it deleted.
@@ -25,21 +25,14 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   private val delTargets = DeleteTargets()
 
   /**
-   * Every item by the lv of its first unit. A span covers a range, so a lookup takes the floor
-   * entry and then checks that the item really covers the unit. Ranges never overlap, so
-   * the floor entry is the only candidate.
-   */
-  private val itemsByUnit = TreeMap<LV, Item>()
-
-  /**
    * The prepare version. The reference calls this `curVersion`.
    */
   private var curVersion: Frontier = IntArray(0)
 
   /**
-   * The last boundary a lookup produced, or that an apply advanced past. A sequential run
-   * lands at or after it, so the walk resumes there instead of rescanning from the head. A
-   * retreat or an advance changes prepare widths anywhere, which resets the cache.
+   * The last boundary that an apply advanced past. A sequential edit lands there, so it needs no
+   * lookup in the tree. A retreat or an advance changes prepare widths anywhere, which resets the
+   * cache.
    */
   private var cachedItemIndex = 0
   private var cachedPreparePos = 0
@@ -54,7 +47,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   init {
     if (placeholderCount > 0) {
       // One item for the whole ancestor document; the ops split it lazily.
-      addItem(
+      items.add(
         0,
         Item(
           firstUnit = -1 - placeholderCount,
@@ -201,11 +194,12 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   private fun advanceBatchFrom(lv: LV, end: LV): LV {
     val isDelete = graph.isDeleteAt(lv)
     val target = targetUnitOf(isDelete, lv)
-    var batchEnd = minOf(end, lv + (itemBy(target).lastUnit + 1 - target))
+    val itemEnd = lv + (items.itemCovering(target).lastUnit + 1 - target)
+    var batchEnd = minOf(end, itemEnd)
     if (isDelete) {
       batchEnd = minOf(batchEnd, delTargets.pieceEndOf(lv))
     }
-    isolate(target, batchEnd - lv).advance(isDelete)
+    items.advance(isolate(target, batchEnd - lv), isDelete)
     return batchEnd
   }
 
@@ -217,11 +211,13 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     val last = end - 1
     val isDelete = graph.isDeleteAt(last)
     val lastTarget = targetUnitOf(isDelete, last)
-    var batchStart = maxOf(start, last - (lastTarget - itemBy(lastTarget).firstUnit))
+    val itemStart = last - (lastTarget - items.itemCovering(lastTarget).firstUnit)
+    var batchStart = maxOf(start, itemStart)
     if (isDelete) {
       batchStart = maxOf(batchStart, delTargets.pieceStartOf(last))
     }
-    isolate(lastTarget - (last - batchStart), end - batchStart).retreat(isDelete)
+    val firstTarget = lastTarget - (last - batchStart)
+    items.retreat(isolate(firstTarget, end - batchStart), isDelete)
     return batchStart
   }
 
@@ -234,11 +230,10 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   /**
    * Returns the item that covers exactly the [count] units from [target], and splits the
-   * containing item when it is wider. The whole-item case needs no index, so it never scans
-   * the item list.
+   * containing item when it is wider. The whole-item case needs no index.
    */
   private fun isolate(target: LV, count: Int): Item {
-    var item = itemBy(target)
+    var item = items.itemCovering(target)
     // The batch rule keeps a range inside one item. Without this check a wider range would
     // change only the part that fits, and leave the rest silently unmoved.
     require(item.contains(target + count - 1)) {
@@ -249,13 +244,13 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     }
     var index = findItemIdx(target)
     if (item.startsBefore(target)) {
-      splitItem(index, target - item.firstUnit)
+      items.splitAt(index, target - item.firstUnit)
       index++
-      item = items[index]
+      item = items.get(index)
     }
     if (item.length > count) {
-      splitItem(index, count)
-      item = items[index]
+      items.splitAt(index, count)
+      item = items.get(index)
     }
     return item
   }
@@ -267,29 +262,29 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * delete run removes at the same offset, so the run eats the items there one after
    * another. An item that reaches past the run splits, so the deleted part stays exact.
    *
-   * One lookup carries the whole run, because a consumed item keeps no prepare width. A
-   * fresh lookup per item would first back up over everything the run already consumed, and
-   * then walk forward over it again.
+   * A consumed item keeps no prepare width, so the next unit of the run deletes at the same
+   * prepare position. When the item at the cursor has no prepare width, the tree finds the next one
+   * that has it. The items of no prepare width stay as they are, as in the reference, which steps
+   * over them one by one.
    */
   private fun applyDelete(lv: LV, count: Int, offset: Int) {
-    val cursor = findByCurPos(offset)
+    var cursor = findByCurPos(offset)
     var done = 0
     while (done < count) {
-      // Skip the items that the prepare version does not have.
-      while (!hasItemToDelete(cursor, lv)) {
-        cursor.advanceOver(items[cursor.itemIndex])
+      if (!hasItemToDelete(cursor)) {
+        cursor = nextItemToDelete(lv, offset)
       }
-      val taken = minOf(count - done, items[cursor.itemIndex].length)
-      if (items[cursor.itemIndex].length > taken) {
-        splitItem(cursor.itemIndex, taken)
+      val taken = minOf(count - done, items.get(cursor.itemIndex).length)
+      if (items.get(cursor.itemIndex).length > taken) {
+        items.splitAt(cursor.itemIndex, taken)
       }
-      val item = items[cursor.itemIndex]
+      val item = items.get(cursor.itemIndex)
       // A concurrent delete may have removed the characters from the effect version.
       if (item.inEffect) {
         // Every unit of the run removes at the same position, so one call carries them all.
         sink?.delete(cursor.effectPos, taken)
       }
-      item.deleteHere()
+      items.deleteHere(item)
       delTargets.add(lv + done, item.firstUnit, taken)
       // The item now has no width in either version, so only the index moves.
       cursor.advanceOver(item)
@@ -300,15 +295,24 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
 
   /**
    * Whether the prepare version has the item at the cursor, so the delete takes that one.
-   *
-   * This also bounds the skip loop of [applyDelete]. A run that deletes more units than the
-   * document at its own parents holds would otherwise walk off the end of the item list.
    */
-  private fun hasItemToDelete(cursor: Cursor, lv: LV): Boolean {
-    require(cursor.itemIndex < items.size) {
-      "The delete run at the lv $lv reached the end of the item list"
+  private fun hasItemToDelete(cursor: Cursor): Boolean {
+    return cursor.itemIndex < items.size() && items.get(cursor.itemIndex).inPrepare
+  }
+
+  /**
+   * The cursor before the first item at the prepare position [offset] that the prepare version
+   * has. It fails for a run that deletes more units than the document at its own parents holds.
+   */
+  private fun nextItemToDelete(lv: LV, offset: Int): Cursor {
+    checkDeleteInDocument(lv, offset)
+    return items.cursorBefore(offset)
+  }
+
+  private fun checkDeleteInDocument(lv: LV, offset: Int) {
+    require(offset < items.prepareWidth()) {
+      "The delete run at the lv $lv reaches past the end of the document"
     }
-    return items[cursor.itemIndex].inPrepare
   }
 
   /**
@@ -326,11 +330,10 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     offset: Int,
   ) {
     val cursor = findByCurPos(offset)
-    require(cursor.itemIndex == 0 || items[cursor.itemIndex - 1].inPrepare) {
-      "The item before the insert point is not inserted in the prepare version"
-    }
+    val left = leftNeighbourOf(cursor)
+    checkInsertedBefore(left)
     // The left origin is the last unit the left neighbour covers.
-    val originLeft = if (cursor.itemIndex == 0) NO_UNIT else items[cursor.itemIndex - 1].lastUnit
+    val originLeft = left?.lastUnit ?: NO_UNIT
     val rightParent = rightParentAt(cursor.itemIndex, originLeft)
     val newItem = Item(
       firstUnit = lv,
@@ -339,12 +342,28 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       rightParent = rightParent,
     )
     integrate(newItem, cursor)
-    addItem(cursor.itemIndex, newItem)
+    items.add(cursor.itemIndex, newItem)
     // The span sits inside one run, so one slice of its fragment covers it. A silent phase
     // skips the slice, which is the only work the report costs.
     sink?.insert(cursor.effectPos, run.fragmentFrom(lv, count))
     cursor.advanceOver(newItem)
     cacheCursor(cursor)
+  }
+
+  /**
+   * The item right before [cursor], or `null` at the document start.
+   */
+  private fun leftNeighbourOf(cursor: Cursor): Item? {
+    if (cursor.itemIndex == 0) {
+      return null
+    }
+    return items.get(cursor.itemIndex - 1)
+  }
+
+  private fun checkInsertedBefore(left: Item?) {
+    require(left == null || left.inPrepare) {
+      "The item before the insert point is not inserted in the prepare version"
+    }
   }
 
   /**
@@ -355,8 +374,8 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * unconditionally.
    */
   private fun rightParentAt(index: Int, originLeft: LV): LV {
-    for (i in index until items.size) {
-      val next = items[i]
+    for (i in index until items.size()) {
+      val next = items.get(i)
       if (next.appliedInPrepare) {
         // A right parent always names the FIRST unit of a span, and a left origin always
         // names the LAST unit of one. A split keeps both, so the two stay comparable.
@@ -375,7 +394,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    */
   private fun integrate(newItem: Item, cursor: Cursor) {
     // Without concurrency there is nothing to scan.
-    if (cursor.itemIndex >= items.size || items[cursor.itemIndex].appliedInPrepare) {
+    if (!hasUnappliedItemAt(cursor.itemIndex)) {
       return
     }
     var scanning = false
@@ -383,15 +402,19 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     var scanEffectPos = cursor.effectPos
     val leftIdx = cursor.itemIndex - 1
     val rightIdx = indexOfBound(newItem.rightParent)
-    while (scanIdx < items.size) {
-      val other = items[scanIdx]
+    while (scanIdx < items.size()) {
+      val other = items.get(scanIdx)
       if (other.appliedInPrepare) {
         break
       }
       require(!other.contains(newItem.rightParent)) {
         "The scan reached the right parent of the new item"
       }
-      val otherLeftIdx = if (other.originLeft == NO_UNIT) -1 else findItemIdx(other.originLeft)
+      val otherLeftIdx = if (other.originLeft == NO_UNIT) {
+        -1
+      } else {
+        findItemIdx(other.originLeft)
+      }
       if (otherLeftIdx < leftIdx) {
         break
       }
@@ -411,78 +434,80 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /**
-   * The scan bound that a right parent names. [NO_UNIT] means the end of the list.
+   * Whether an item at [index] exists that the prepare version has not reached: a concurrent one.
    */
-  private fun indexOfBound(rightParent: LV): Int {
-    return if (rightParent == NO_UNIT) items.size else findItemIdx(rightParent)
+  private fun hasUnappliedItemAt(index: Int): Boolean {
+    return index < items.size() && !items.get(index).appliedInPrepare
   }
 
   /**
-   * Finds the insert point for [targetPreparePos], walking from the cached cursor. The
+   * The scan bound that a right parent names. [NO_UNIT] means the end of the items.
+   */
+  private fun indexOfBound(rightParent: LV): Int {
+    return if (rightParent == NO_UNIT) {
+      items.size()
+    } else {
+      findItemIdx(rightParent)
+    }
+  }
+
+  /**
+   * The index of the item that covers [needleLv]. The reference calls this `findItemIdx`.
+   */
+  private fun findItemIdx(needleLv: LV): Int {
+    return items.indexCovering(needleLv)
+  }
+
+  /**
+   * Finds the insert point for [targetPreparePos]: the earliest boundary at that position. The
    * reference calls this `findByCurPos`, and its `curPos` is this port's prepare position.
+   *
+   * A sequential edit lands at the cached cursor. The cache answers it when the item before the
+   * cursor has prepare width, because the boundary is then the earliest one. Any other lookup
+   * goes to [boundaryAt]. The insert anchoring depends on the earliest boundary.
    */
   private fun findByCurPos(targetPreparePos: Int): Cursor {
-    val cursor = if (cachedPreparePos <= targetPreparePos) {
-      Cursor(cachedItemIndex, cachedPreparePos, cachedEffectPos)
-    } else {
-      Cursor(0, 0, 0)
+    if (targetPreparePos == cachedPreparePos && isEarliestBoundary(cachedItemIndex)) {
+      return Cursor(cachedItemIndex, cachedPreparePos, cachedEffectPos)
     }
-    while (cursor.preparePos < targetPreparePos) {
-      require(cursor.itemIndex < items.size) {
-        "The document is not long enough for the prepare position $targetPreparePos"
-      }
-      val item = items[cursor.itemIndex]
-      if (cursor.preparePos + item.prepareWidth > targetPreparePos) {
-        // The boundary falls inside this span: split it, then retry the left piece.
-        splitItem(cursor.itemIndex, targetPreparePos - cursor.preparePos)
-        continue
-      }
-      cursor.advanceOver(item)
+    return boundaryAt(targetPreparePos)
+  }
+
+  /**
+   * Whether the boundary before [itemIndex] is the earliest one at its prepare position.
+   */
+  private fun isEarliestBoundary(itemIndex: Int): Boolean {
+    return itemIndex == 0 || items.get(itemIndex - 1).prepareWidth > 0
+  }
+
+  /**
+   * The earliest boundary at [preparePos]: right after the item that covers the position before
+   * it. When [preparePos] falls inside that item, the item splits there.
+   */
+  private fun boundaryAt(preparePos: Int): Cursor {
+    checkInDocument(preparePos)
+    if (preparePos == 0) {
+      return Cursor(0, 0, 0)
     }
-    // A cached start can sit after zero-width items at this position. Back up to the
-    // earliest boundary: that is where a head-to-target walk stops, and the insert
-    // anchoring depends on it.
-    while (cursor.itemIndex > 0 && items[cursor.itemIndex - 1].prepareWidth == 0) {
-      cursor.retreatOver(items[cursor.itemIndex - 1])
+    val cursor = items.cursorBefore(preparePos - 1)
+    val units = preparePos - cursor.preparePos
+    if (items.get(cursor.itemIndex).length > units) {
+      items.splitAt(cursor.itemIndex, units)
     }
+    cursor.advanceOver(items.get(cursor.itemIndex))
     return cursor
   }
 
-  /**
-   * Finds the item that covers [needleLv]: an exact item, or the containing span.
-   */
-  private fun findItemIdx(needleLv: LV): Int {
-    val index = items.indexOfFirst { it.contains(needleLv) }
-    require(index >= 0) {
-      "No item covers the lv $needleLv"
+  private fun checkInDocument(preparePos: Int) {
+    require(preparePos >= 0) {
+      "The prepare position $preparePos is negative"
     }
-    return index
-  }
-
-  // ------------------------------------------------------------------------- the item bookkeeping
-
-  /**
-   * Splits the span at [itemIndex] after [units] units and files the new right piece.
-   */
-  private fun splitItem(itemIndex: Int, units: Int) {
-    addItem(itemIndex + 1, items[itemIndex].splitAfter(units))
-  }
-
-  /**
-   * Adds [item] to the list at [itemIndex] and to the unit index. The two must stay in step.
-   */
-  private fun addItem(itemIndex: Int, item: Item) {
-    items.add(itemIndex, item)
-    itemsByUnit[item.firstUnit] = item
-  }
-
-  private fun itemBy(unit: LV): Item {
-    val item = itemsByUnit.floorEntry(unit)?.value
-    require(item != null && item.contains(unit)) {
-      "No item covers the unit $unit"
+    require(preparePos <= items.prepareWidth()) {
+      "The document is not long enough for the prepare position $preparePos"
     }
-    return item
   }
+
+  // ------------------------------------------------------------------------ the cursor cache
 
   private fun cacheCursor(cursor: Cursor) {
     cacheCursor(cursor.itemIndex, cursor.preparePos, cursor.effectPos)
@@ -495,7 +520,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /**
-   * Sends the next lookup to the start of the item list. The start is valid for any widths.
+   * Sets the cached boundary to the start of the document, which is valid for any widths.
    */
   private fun resetCursorCache() {
     cacheCursor(0, 0, 0)
@@ -511,12 +536,28 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
   }
 
   /**
-   * The walk state, by size and not by content. The item list holds one entry per span of
+   * Fails when an invariant of the item tree does not hold. See [ItemTree.checkInvariants].
+   */
+  @TestOnly
+  fun checkItems() {
+    items.checkInvariants()
+  }
+
+  /**
+   * The inner levels of the item tree. See [ItemTree.depth].
+   */
+  @TestOnly
+  fun itemTreeDepth(): Int {
+    return items.depth()
+  }
+
+  /**
+   * The walk state, by size and not by content. The item tree holds one entry per span of
    * the walked region, so printing it would print the region.
    */
   override fun toString(): String {
     val cached = Cursor(cachedItemIndex, cachedPreparePos, cachedEffectPos)
-    return "ReplayWalker(items=${items.size}, delTargets=${delTargets.size()}, " +
+    return "ReplayWalker(items=${items.size()}, delTargets=${delTargets.size()}, " +
            "prepare=v${curVersion.listedForMessage()}, cached=$cached, reporting=${sink != null})"
   }
 }

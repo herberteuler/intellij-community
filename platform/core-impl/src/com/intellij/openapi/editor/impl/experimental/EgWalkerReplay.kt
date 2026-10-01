@@ -23,9 +23,10 @@ package com.intellij.openapi.editor.impl.experimental
  * The walk is run-length encoded on both sides. One item covers the units that one step applies,
  * which is usually a whole run. A step consumes as much of a run as the walk ranges hold. An item
  * splits only where an op needs a boundary inside it: a concurrent insert, a partial delete, or a
- * partial retreat or advance. Costs: the item list is scanned linearly, but from a cached cursor,
- * so a sequential run advances in place. The worst case stays quadratic in the NUMBER OF ITEMS of
- * the walked region, which is what the run-length encoding shrinks.
+ * partial retreat or advance. Costs: the items sit in an [ItemTree], so a lookup costs O(log n) in
+ * the items of the walked region, and a sequential run reuses a cached cursor. The Fugue scan and
+ * the search for a right parent still step through the concurrent items one by one, as in the
+ * reference. The run-length encoding keeps the item count small.
  */
 internal object EgWalkerReplay {
 

@@ -1,11 +1,11 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.fileEditor.impl
 
-import com.intellij.openapi.editor.experimental.DocBranch
-import com.intellij.openapi.editor.experimental.DocTextOp
-import com.intellij.openapi.editor.experimental.DocText
-import com.intellij.openapi.editor.experimental.agent
-import com.intellij.openapi.editor.experimental.string
+import com.intellij.openapi.editor.ex.experimental.DocBranch
+import com.intellij.openapi.editor.ex.experimental.DocTextOp
+import com.intellij.openapi.editor.ex.experimental.DocText
+import com.intellij.openapi.editor.ex.experimental.agent
+import com.intellij.openapi.editor.ex.experimental.string
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 

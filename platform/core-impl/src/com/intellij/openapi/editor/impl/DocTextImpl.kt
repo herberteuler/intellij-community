@@ -2,8 +2,8 @@
 package com.intellij.openapi.editor.impl
 
 import com.intellij.openapi.editor.ex.LineIterator
-import com.intellij.openapi.editor.experimental.DocTextOp
-import com.intellij.openapi.editor.experimental.DocText
+import com.intellij.openapi.editor.ex.experimental.DocTextOp
+import com.intellij.openapi.editor.ex.experimental.DocText
 import com.intellij.openapi.util.TextRange
 import com.intellij.util.text.CharArrayUtil
 import com.intellij.util.text.ImmutableCharSequence

@@ -2,9 +2,9 @@
 package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.editor.experimental.DocTextOp
-import com.intellij.openapi.editor.experimental.DocText
-import com.intellij.openapi.editor.experimental.assertSameText
+import com.intellij.openapi.editor.ex.experimental.DocTextOp
+import com.intellij.openapi.editor.ex.experimental.DocText
+import com.intellij.openapi.editor.ex.experimental.assertSameText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

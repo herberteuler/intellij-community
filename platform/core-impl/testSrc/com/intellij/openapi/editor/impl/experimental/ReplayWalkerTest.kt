@@ -1,9 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.DocBranch
-import com.intellij.openapi.editor.experimental.DocTextOp
+import com.intellij.openapi.editor.ex.experimental.Agent
+import com.intellij.openapi.editor.ex.experimental.DocBranch
+import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,7 +14,7 @@ import java.util.Random
  * Tests [ReplayWalker] over histories long enough that its [ItemTree] grows inner levels. The other
  * replay tests walk a few items, so their tree stays one leaf.
  *
- * The text of a branch comes from [DocText][com.intellij.openapi.editor.experimental.DocText] ops,
+ * The text of a branch comes from [DocText][com.intellij.openapi.editor.ex.experimental.DocText] ops,
  * and not from a walk. So it is an oracle for a full replay of a history of one agent. A merge has
  * no such oracle, and its partial replay must give the text of a full replay. The tests also pin
  * that the replay of a linear history never builds the unit index of the tree.

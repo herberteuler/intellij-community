@@ -1,14 +1,14 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.Agent
+import com.intellij.openapi.editor.ex.experimental.Agent
 
 /**
  * What one graph value knows, by agent. The reference implementation calls this a
  * `VersionSummary`, and builds it with `summarizeVersion`.
  *
  * One integer per agent is enough. The per-agent seqs of a graph ascend and leave no gap, which
- * [com.intellij.openapi.editor.experimental.EventGraph.append] enforces. So a graph holds exactly
+ * [com.intellij.openapi.editor.ex.experimental.EventGraph.append] enforces. So a graph holds exactly
  * the seqs `[0, endSeq(agent))` of every agent it knows.
  *
  * That is what makes a delta merge possible. A summary costs one entry per AGENT, so two

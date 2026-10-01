@@ -1,8 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.DocTextOp
-import com.intellij.openapi.editor.experimental.DocText
+import com.intellij.openapi.editor.ex.experimental.DocTextOp
+import com.intellij.openapi.editor.ex.experimental.DocText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows

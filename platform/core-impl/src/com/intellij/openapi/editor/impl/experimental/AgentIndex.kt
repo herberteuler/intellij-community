@@ -1,7 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.Agent
+import com.intellij.openapi.editor.ex.experimental.Agent
 
 /**
  * The closed runs of one graph value, by agent: a [RunTree] per agent, keyed by the seq of each run.

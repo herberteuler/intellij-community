@@ -1,8 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.Version
+import com.intellij.openapi.editor.ex.experimental.Agent
+import com.intellij.openapi.editor.ex.experimental.Version
 
 /**
  * See [Version]. The heads are event ids, sorted by agent and then by seq. So two versions with the

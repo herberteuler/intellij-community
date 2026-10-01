@@ -2,9 +2,9 @@
 package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.editor.experimental.DocTextOp
-import com.intellij.openapi.editor.experimental.DocText
-import com.intellij.openapi.editor.experimental.benchmarkSubtest
+import com.intellij.openapi.editor.ex.experimental.DocTextOp
+import com.intellij.openapi.editor.ex.experimental.DocText
+import com.intellij.openapi.editor.ex.experimental.benchmarkSubtest
 import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -19,7 +19,7 @@ import java.nio.file.Path
  * Each scenario reports four numbers.
  * - The time of the diff, and the time to apply its script to the base. [benchmarkSubtest] measures
  *   both with the platform benchmark framework. Divide a time by the passes in its subtest name.
- * - The op count. Every op becomes an [com.intellij.openapi.editor.experimental.Event] that the
+ * - The op count. Every op becomes an [com.intellij.openapi.editor.ex.experimental.Event] that the
  *   graph keeps forever, so this is the per-event memory.
  * - The unit count, which is the number of characters that the ops insert or delete. A unit is what
  *   a merge walks and what the graph stores per character, so this is the number that decides

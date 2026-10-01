@@ -24,7 +24,7 @@ internal const val NO_UNIT: LV = -1
  * sorted ascending, holds no duplicate, and is transitively reduced, so no entry is an
  * ancestor of another. [LvVersion] is the same thing as a real type. It enforces the order
  * and the uniqueness, but not the reduction: that needs the graph, and
- * [com.intellij.openapi.editor.experimental.EventGraph.append] states it as a precondition.
+ * [com.intellij.openapi.editor.ex.experimental.EventGraph.append] states it as a precondition.
  *
  * A frontier names a document state. Contrast [LvRanges], which names every unit of a region.
  */

@@ -7,8 +7,8 @@ import com.intellij.diff.comparison.DiffTooBigException
 import com.intellij.diff.comparison.expand
 import com.intellij.diff.comparison.iterables.DiffIterableUtil
 import com.intellij.diff.util.Range
-import com.intellij.openapi.editor.experimental.DocTextOp
-import com.intellij.openapi.editor.experimental.DocText
+import com.intellij.openapi.editor.ex.experimental.DocTextOp
+import com.intellij.openapi.editor.ex.experimental.DocText
 import com.intellij.util.text.CharSequenceSubSequence
 
 /**

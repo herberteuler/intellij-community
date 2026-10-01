@@ -1,7 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.Version
+import com.intellij.openapi.editor.ex.experimental.Version
 
 /**
  * A version from [Version.of], which names its heads by lv. Only a test that builds the graph

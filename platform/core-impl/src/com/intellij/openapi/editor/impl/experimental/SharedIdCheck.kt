@@ -1,14 +1,14 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.experimental.Agent
-import com.intellij.openapi.editor.experimental.EventIdClashException
+import com.intellij.openapi.editor.ex.experimental.Agent
+import com.intellij.openapi.editor.ex.experimental.EventIdClashException
 
 /**
  * Fails when the two graphs of a merge disagree about an id they both hold.
  *
  * One (agent, seq) pair names one operation forever. A difference means two branches minted the
- * same id, which the agent contract of [com.intellij.openapi.editor.experimental.DocBranch] forbids:
+ * same id, which the agent contract of [com.intellij.openapi.editor.ex.experimental.DocBranch] forbids:
  * a branch that edits concurrently must come from `fork(agent)`. Without this check the merge keeps
  * one operation, drops the other, and reports nothing. The two branches then disagree, and a merge
  * stops giving the same text in both directions.

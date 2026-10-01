@@ -80,7 +80,7 @@
     <module name="intellij.performanceTesting.vcs"/>
     <module name="intellij.performanceTesting.debugger"/>
     <module name="intellij.performanceTesting.frontend"/>
-    <module name="intellij.performanceTesting.frontend.base"/>
+    <module name="intellij.performanceTesting.frontend.baseline"/>
     <module name="intellij.performanceTesting.problemsView"/>
     <module name="intellij.performanceTesting.structureView"/>
     <module name="intellij.performanceTesting.backend"/>

@@ -80,7 +80,7 @@
 
   {kind: "moduleId", id: "intellij.cwm.connection", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.cwm.plugin.common", moduleKind: "shared"},
-  {kind: "moduleId", id: "intellij.rd.client.base", moduleKind: "shared"},
+  {kind: "moduleId", id: "intellij.rd.client.baseline", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.rd.client", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.driver.client", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.driver.impl", moduleKind: "shared"},
@@ -215,6 +215,6 @@
   {kind: "xmlDescriptorFile", moduleName: "intellij.platform.resources", descriptorRelativePath: "src/intellij.platform.project.xml", moduleKind: "shared"},
   {kind: "xmlDescriptorFile", moduleName: "intellij.platform.resources", descriptorRelativePath: "src/intellij.platform.ide.progress.xml", moduleKind: "shared"},
   {kind: "xmlDescriptorFile", moduleName: "intellij.platform.resources", descriptorRelativePath: "src/intellij.platform.experiment.xml", moduleKind: "shared"},
-  {kind: "xmlDescriptorFile", moduleName: "intellij.rd.client.base", descriptorRelativePath: "resources/intellij.rd.client.base.xml", moduleKind: "shared"},
+  {kind: "xmlDescriptorFile", moduleName: "intellij.rd.client.baseline", descriptorRelativePath: "resources/intellij.rd.client.baseline.xml", moduleKind: "shared"},
   {kind: "xmlDescriptorFile", moduleName: "intellij.rd.client", descriptorRelativePath: "resources/intellij.rd.client.xml", moduleKind: "shared"},
 ]

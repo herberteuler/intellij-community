@@ -93,15 +93,18 @@ class PyreflyLspClientDescriptor(
 
   override val usesExcludedRoots: Boolean = true
 
+  val runsBundledPyrefly: Boolean
+    get() = PyreflyPyTool.getInstance().isSelectedAsTypeEngine(project) && PyreflyPyTool.isBundledPyreflyEnabled()
+
   override fun hasExecutable(): Boolean {
-    if (!PyreflyPyTool.getInstance().isSelectedAsTypeEngine(project) || !PyreflyPyTool.isBundledPyreflyEnabled()) {
+    if (!runsBundledPyrefly) {
       return super.hasExecutable()
     }
     return PyreflyExecutableProvider.executableExists()
   }
 
   override suspend fun resolveCommandLine(): GeneralCommandLine {
-    if (!PyreflyPyTool.getInstance().isSelectedAsTypeEngine(project) || !PyreflyPyTool.isBundledPyreflyEnabled()) {
+    if (!runsBundledPyrefly) {
       return super.resolveCommandLine()
     }
 

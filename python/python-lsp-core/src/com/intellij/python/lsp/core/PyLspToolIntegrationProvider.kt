@@ -171,7 +171,7 @@ abstract class PyLspToolIntegrationProvider : LspIntegrationProvider {
     }
   }
 
-  override fun createWidgetItem(lspClient: LspClient, currentFile: VirtualFile?): LspClientWidgetItem =
+  override fun createWidgetItem(lspClient: LspClient, currentFile: VirtualFile?): LspClientWidgetItem? =
     object : LspClientWidgetItem(lspClient, currentFile, icon = getIcon(lspClient)) {
       override val itemLabel: @NlsSafe String
         get() = presentableName(lspClient) + versionPostfix + rootPostfix

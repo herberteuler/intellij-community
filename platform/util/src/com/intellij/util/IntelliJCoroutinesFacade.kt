@@ -20,14 +20,14 @@ private val LOG: Logger
  */
 @ApiStatus.Internal
 object IntelliJCoroutinesFacade {
-  val canUseIntelliJCoroutines: Boolean = System.getProperty("ide.can.use.coroutines.fork", "true").toBoolean()
+  private val canUseIntelliJCoroutines: Boolean = System.getProperty("ide.can.use.coroutines.fork", "true").toBoolean()
 
   fun currentThreadCoroutineContext(): CoroutineContext? {
     return if (canUseIntelliJCoroutines) {
       @OptIn(InternalCoroutinesApi::class)
       kotlinx.coroutines.internal.intellij.IntellijCoroutines.currentThreadCoroutineContext()
     } else {
-      return null
+      null
     }
   }
 
@@ -45,6 +45,7 @@ object IntelliJCoroutinesFacade {
     }
   }
 
+  @JvmName("runAndCompensateParallelism")
   fun <T> runAndCompensateParallelism(timeout: Duration, action: () -> T): T {
     return if (canUseIntelliJCoroutines) {
       @OptIn(InternalCoroutinesApi::class)
@@ -63,7 +64,7 @@ object IntelliJCoroutinesFacade {
    * code that requested it).
    *
    * This extension can only be used on [Dispatchers.Default][kotlinx.coroutines.Dispatchers.Default],
-   * [Dispatchers.IO][kotlinx.coroutines.Dispatchers.IO], and on what [softLimitedParallelism] has returned.
+   * [Dispatchers.IO][kotlinx.coroutines.Dispatchers.IO], and on what [kotlinx.coroutines.internal.SoftLimitedParallelism.softLimitedParallelism] has returned.
    * If [canUseIntelliJCoroutines] is false, [block] just runs with no parallelism granted.
    */
   fun CoroutineDispatcher.withGrantedParallelism(block: (Boolean) -> Unit) {

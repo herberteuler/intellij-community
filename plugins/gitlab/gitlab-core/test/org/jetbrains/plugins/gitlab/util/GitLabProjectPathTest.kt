@@ -2,6 +2,7 @@
 package org.jetbrains.plugins.gitlab.util
 
 import org.assertj.core.api.Assertions.assertThat
+import org.jetbrains.plugins.gitlab.api.GitLabServerPath
 import org.junit.jupiter.api.Test
 
 class GitLabProjectPathTest {
@@ -82,5 +83,57 @@ class GitLabProjectPathTest {
     assertThat(result).isNotNull
     assertThat(result?.owner).isEqualTo("owner-name")
     assertThat(result?.name).isEqualTo("project.name")
+  }
+
+  @Test
+  fun `create with an HTTP remote of a server without a web path`() {
+    val result = GitLabProjectPath.create(GitLabServerPath.DEFAULT_SERVER, "https://gitlab.com/group/subgroup/project.git")
+    assertThat(result).isEqualTo(GitLabProjectPath("group/subgroup", "project"))
+  }
+
+  @Test
+  fun `create with an SSH remote of a server without a web path`() {
+    val result = GitLabProjectPath.create(GitLabServerPath.DEFAULT_SERVER, "git@gitlab.com:group/project.git")
+    assertThat(result).isEqualTo(GitLabProjectPath("group", "project"))
+  }
+
+  @Test
+  fun `create with an HTTP remote of a server with a web path`() {
+    val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "http://git.example.com:8080/gitlab/group/project.git")
+    assertThat(result).isEqualTo(GitLabProjectPath("group", "project"))
+  }
+
+  @Test
+  fun `create with an SSH remote that contains the web path`() {
+    val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "ssh://git@git.example.com/gitlab/group/project.git")
+    assertThat(result).isEqualTo(GitLabProjectPath("group", "project"))
+  }
+
+  @Test
+  fun `create with an SCP-style SSH remote that contains the web path`() {
+    val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "git@git.example.com:gitlab/group/project.git")
+    assertThat(result).isEqualTo(GitLabProjectPath("group", "project"))
+  }
+
+  @Test
+  fun `create with an SSH remote without the web path`() {
+    val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "git@git.example.com:group/subgroup/project.git")
+    assertThat(result).isEqualTo(GitLabProjectPath("group/subgroup", "project"))
+  }
+
+  @Test
+  fun `create with an SSH URL remote without the web path`() {
+    val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "ssh://git@git.example.com:2222/group/project.git")
+    assertThat(result).isEqualTo(GitLabProjectPath("group", "project"))
+  }
+
+  @Test
+  fun `create with an HTTP remote outside the web path returns null`() {
+    val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "http://git.example.com:8080/other/group/project.git")
+    assertThat(result).isNull()
+  }
+
+  companion object {
+    private val SERVER_WITH_WEB_PATH = GitLabServerPath("http://git.example.com:8080/gitlab")
   }
 }

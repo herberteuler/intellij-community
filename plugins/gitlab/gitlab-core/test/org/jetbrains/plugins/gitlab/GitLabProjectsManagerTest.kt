@@ -249,6 +249,31 @@ internal class GitLabProjectsManagerTest {
     )
   }
 
+  @Test
+  fun `SSH alias without the web path maps to a server with a web path`() = timeoutRunBlockingWithBackgroundScope { bg ->
+    setAliases("legacy=http://git.example.com:8080/gitlab")
+    registerRemotes(gitRemote("origin", "git@legacy:group/subgroup/repo.git"))
+
+    val repositories = GitLabProjectsManagerImpl(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
+
+    assertThat(repositories.map { it.repository }).containsExactly(
+      GitLabProjectCoordinates(GitLabServerPath("http://git.example.com:8080/gitlab"), GitLabProjectPath("group/subgroup", "repo")),
+    )
+  }
+
+  @Test
+  fun `SSH alias maps to the account server with a web path`() = timeoutRunBlockingWithBackgroundScope { bg ->
+    val accountServer = GitLabServerPath("https://git.example.com/gitlab")
+    accounts.value = setOf(GitLabAccount(name = "user", server = accountServer))
+    setAliases("legacy=git.example.com")
+    registerRemotes(gitRemote("origin", "git@legacy:group/repo.git"))
+
+    val repositories = GitLabProjectsManagerImpl(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
+
+    assertThat(repositories.map { it.repository })
+      .containsExactly(GitLabProjectCoordinates(accountServer, GitLabProjectPath("group", "repo")))
+  }
+
   private fun setAliases(value: String) {
     (AdvancedSettings.getInstance() as AdvancedSettingsImpl).setSetting(ALIASES_SETTING_ID, value, disposable)
   }

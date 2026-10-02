@@ -15,8 +15,6 @@ import com.intellij.openapi.fileChooser.ex.FileChooserDialogImpl;
 import com.intellij.openapi.fileChooser.ex.FileSaverDialogImpl;
 import com.intellij.openapi.fileChooser.ex.FileTextFieldImpl;
 import com.intellij.openapi.fileChooser.ex.LocalFsFinder;
-import com.intellij.openapi.fileChooser.universal.UniversalFileChooser;
-import com.intellij.openapi.fileChooser.universal.UniversalFileSaver;
 import com.intellij.openapi.options.advanced.AdvancedSettings;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.SystemInfo;
@@ -41,9 +39,10 @@ public class LocalFileChooserFactory implements ClientFileChooserFactory {
     @Nullable Component parent
   ) {
     var chooser = createNativePathChooserIfEnabled(descriptor, project, parent);
+    var universal = getUniversalFactory(project);
     return chooser != null ? (FileChooserDialog)chooser :
            useNewChooser(descriptor) ? new NewFileChooserDialogImpl(descriptor, parent, project) :
-           UniversalFileChooser.canUseIn(project) ? UniversalFileChooser.create(project, parent, descriptor) :
+           universal != null ? universal.createFileChooser(project, parent, descriptor) :
            parent != null ? new FileChooserDialogImpl(descriptor, parent, project) :
            new FileChooserDialogImpl(descriptor, project);
   }
@@ -55,9 +54,10 @@ public class LocalFileChooserFactory implements ClientFileChooserFactory {
     @Nullable Component parent
   ) {
     var chooser = createNativePathChooserIfEnabled(descriptor, project, parent);
+    var universal = getUniversalFactory(project);
     return chooser != null ? chooser :
            useNewChooser(descriptor) ? new NewFileChooserDialogImpl(descriptor, parent, project) :
-           UniversalFileChooser.canUseIn(project) ? UniversalFileChooser.create(project, parent, descriptor) :
+           universal != null ? universal.createPathChooser(project, parent, descriptor) :
            parent != null ? new FileChooserDialogImpl(descriptor, parent, project) :
            new FileChooserDialogImpl(descriptor, project);
   }
@@ -84,16 +84,23 @@ public class LocalFileChooserFactory implements ClientFileChooserFactory {
 
   @Override
   public @NotNull FileSaverDialog createSaveFileDialog(@NotNull FileSaverDescriptor descriptor, @Nullable Project project) {
+    var universal = getUniversalFactory(project);
     return canUseNativeDialog(descriptor, project) ? new NativeFileSaverDialogImpl(descriptor, project) :
-           UniversalFileChooser.canUseIn(project) ? UniversalFileSaver.create(project, null, descriptor) :
+           universal != null ? universal.createFileSaver(project, null, descriptor) :
            new FileSaverDialogImpl(descriptor, project);
   }
 
   @Override
   public @NotNull FileSaverDialog createSaveFileDialog(@NotNull FileSaverDescriptor descriptor, @NotNull Component parent) {
+    var universal = getUniversalFactory(null);
     return canUseNativeDialog(descriptor, null) ? new NativeFileSaverDialogImpl(descriptor, parent) :
-           UniversalFileChooser.canUseIn(null) ? UniversalFileSaver.create(null, parent, descriptor) :
+           universal != null ? universal.createFileSaver(null, parent, descriptor) :
            new FileSaverDialogImpl(descriptor, parent);
+  }
+
+  private static @Nullable UniversalFileChooserFactory getUniversalFactory(@Nullable Project project) {
+    var factory = UniversalFileChooserFactory.getInstanceOrNull();
+    return factory != null && factory.canUseIn(project) ? factory : null;
   }
 
   static @Nullable PathChooserDialog createNativePathChooserIfEnabled(

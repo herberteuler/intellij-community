@@ -1,0 +1,2 @@
+f:com.intellij.openapi.fileChooser.universal.FileBrowser
+- sf:INSTANCE:com.intellij.openapi.fileChooser.universal.FileBrowser

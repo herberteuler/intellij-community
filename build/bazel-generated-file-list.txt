@@ -942,6 +942,7 @@ platform/platform-impl/designer
 platform/platform-impl/dnd
 platform/platform-impl/eel
 platform/platform-impl/error-tree-view
+platform/platform-impl/file-chooser-universal
 platform/platform-impl/filter-field
 platform/platform-impl/hprof
 platform/platform-impl/initial-config-import

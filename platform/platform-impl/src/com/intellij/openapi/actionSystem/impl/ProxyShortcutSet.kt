@@ -7,7 +7,7 @@ import com.intellij.openapi.keymap.KeymapManager
 import org.jetbrains.annotations.ApiStatus.Internal
 
 @Internal
-class ProxyShortcutSet internal constructor(val actionId: String) : ShortcutSet {
+class ProxyShortcutSet(val actionId: String) : ShortcutSet {
   override fun getShortcuts(): Array<Shortcut> {
     return KeymapManager.getInstance()?.getActiveKeymap()?.getShortcuts(actionId) ?: Shortcut.EMPTY_ARRAY
   }

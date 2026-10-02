@@ -479,6 +479,7 @@ private val contentModulesExtractedInCorePluginWhichCanBeUsedFromExternalPlugins
   "intellij.platform.ide.filterField",
   "intellij.platform.ide.learnIde",
   "intellij.platform.ide.playback",
+  "intellij.platform.ide.fileChooser.universal",
   "intellij.platform.lsp",
   "intellij.platform.lsp.impl",
   "intellij.platform.externalSystem",

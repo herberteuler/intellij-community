@@ -316,6 +316,8 @@ object CoreModuleSets {
     // keeps the Learn tab in every product with ide.impl
     module("intellij.platform.ide.learnIde")
     module("intellij.platform.ide.playback")
+    // intellij.platform.ide.impl creates the universal file chooser through the service of this module
+    module("intellij.platform.ide.fileChooser.universal")
     module("intellij.platform.threadDumpParser")
     module("intellij.platform.ide.favoritesTreeView")
     // todo not used by platform - move to plugin

@@ -38,6 +38,7 @@
       serviceInterface="com.intellij.ide.projectView.actions.SelectFileActionService"
       serviceImplementation="com.intellij.platform.projectView.actions.SelectFileActionServiceImpl"
     />
+    <rdct.remoteSettingProvider implementation="com.intellij.platform.projectView.settings.ProjectViewPaneRemoteSettingsProvider"/>
   </extensions>
   <actions>
     <group id="ProjectView.ToolWindow.SecondaryActions">

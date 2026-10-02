@@ -4,7 +4,6 @@ package com.intellij.platform.projectView.frontend.impl
 import com.intellij.diagnostic.rethrowControlFlowException
 import com.intellij.ide.DefaultTreeExpander
 import com.intellij.ide.SelectInTarget
-import com.intellij.ide.ui.UISettings
 import com.intellij.ide.util.treeView.TreeState
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataSink
@@ -210,9 +209,6 @@ internal class TreeBasedFrontendProjectViewPane(
     coroutineScope {
       launch(CoroutineName("paneTreeModel management")) {
         paneTreeModel.manage()
-      }
-      launch(CoroutineName("autoscrollToSourceHandler")) {
-        autoscrollToSourceHandler.manage()
       }
       launch(CoroutineName("single-click toggle") + Dispatchers.UI) {
         paneTreeModel.getOptionSupport().getActionStateFlow()
@@ -483,16 +479,6 @@ private class MyAutoscrollToSourceHandler(private val project: Project) : AutoSc
 
   private fun ProjectViewPaneOptionDTO.isOn(): Boolean =
     ProjectViewActionSupport.getInstance(project).getActionState()?.optionStates?.get(this)?.isSelected == true
-
-  suspend fun manage() {
-    // sync the setting from the backend, because it's used on the frontend
-    ProjectViewActionSupport.getInstance(project).getActionStateFlow().map {
-      it?.optionStates?.get(ProjectViewPaneOptionDTO.OPEN_IN_PREVIEW_TAB)?.isSelected == true
-    }.distinctUntilChanged()
-      .collectLatest {
-        UISettings.getInstance().openInPreviewTabIfPossible = it
-      }
-  }
 }
 
 private class MyTreeUpdater(

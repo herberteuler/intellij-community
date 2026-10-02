@@ -1,13 +1,16 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.remoteDev.util
+@file:ApiStatus.Internal
+
+package com.intellij.openapi.application
 
 import com.intellij.openapi.util.BuildNumber
+import org.jetbrains.annotations.ApiStatus
 
 /**
  * Returns the prefix for [com.intellij.openapi.application.PathManager.getPathsSelector] used by a product with the specified [productCode].
  * 
- * The major part of the version number (e.g., 2024.1) will be appended to the prefix to obtain default names of the directories to
- * store settings, caches, custom plugins, and logs.
+ * The caller appends the major version, for example 2024.1, to the prefix.
+ * The result is the default name of the settings, caches, plugins and logs directories.
  */
 fun getPathSelectorPrefixByProductCode(productCode: String): String? {
   return PRODUCT_CODES_TO_PREFIXES[productCode]
@@ -16,13 +19,13 @@ fun getPathSelectorPrefixByProductCode(productCode: String): String? {
 /**
  * Returns the [com.intellij.openapi.application.PathManager.getPathsSelector] used by a product with the specified [buildNumber].
  * 
- * The function assumes that the product uses the default naming scheme: the major part of the version number (e.g., 2024.1) is appended to 
- * the product-specific prefix.
+ * The function assumes the default naming scheme.
+ * In this scheme, the product-specific prefix comes before the major version, for example 2024.1.
  */
 fun getPathSelectorByBuildNumber(buildNumber: BuildNumber): String? {
   val prefix = PRODUCT_CODES_TO_PREFIXES[buildNumber.productCode] ?: return null
   val baseline = buildNumber.baselineVersion
-  //242.* builds correspond to 2024.2 version
+  // A 242.* build corresponds to the 2024.2 version.
   val majorVersionNumber = "20${baseline / 10}.${baseline % 10}"
   return "$prefix$majorVersionNumber"
 }

@@ -66,8 +66,8 @@ object CommunityModuleSets {
     moduleSet(ideInternal())
     moduleSet(builtInServer())
 
-    embeddedModule("intellij.libraries.download.pgp.verifier")
-    embeddedModule("intellij.remoteDev.util")
+    module("intellij.libraries.download.pgp.verifier")
+    module("intellij.remoteDev.util")
     embeddedModule("intellij.platform.markdown.utils")
 
     module("intellij.platform.buildScripts.downloader")

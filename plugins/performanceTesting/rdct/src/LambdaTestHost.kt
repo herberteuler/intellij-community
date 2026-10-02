@@ -335,7 +335,7 @@ open class LambdaTestHost(private val coroutineScope: CoroutineScope) : Applicat
           withContext(scopeToUse.coroutineContext + Dispatchers.Default + CoroutineName("Lambda task: ${lambda.stepName}") + clientIdContextToRunLambda()) {
             runLogged(lambda.stepName, 10.minutes) {
               val urls = lambda.classPath.map { Path(it).toUri().toURL() }
-              URLClassLoader(urls.toTypedArray(), testModuleDescriptor?.pluginClassLoader ?: this::class.java.classLoader).use { cl ->
+              URLClassLoader(urls.toTypedArray(), testModuleDescriptor?.pluginClassLoader ?: LambdaTestHost::class.java.classLoader).use { cl ->
                 SerializedLambdaWithIdeContextHelper().let { loader ->
                   // Decoded as `Serializable`, which is what both `runInFrontend(parameters)` and
                   // `runSerializedLambda(parameters)` declare. Asking for `String` here did not reject anything —

@@ -406,8 +406,8 @@
     <!-- endregion -->
 
     <!-- region direct modules -->
-    <module name="intellij.libraries.download.pgp.verifier" loading="embedded"/>
-    <module name="intellij.remoteDev.util" loading="embedded"/>
+    <module name="intellij.libraries.download.pgp.verifier"/>
+    <module name="intellij.remoteDev.util"/>
     <module name="intellij.platform.markdown.utils" loading="embedded"/>
     <module name="intellij.platform.buildScripts.downloader"/>
     <module name="intellij.platform.indexing.impl.backend"/>

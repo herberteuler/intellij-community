@@ -1,12 +1,11 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.remoteDev.pluginSync
+package com.intellij.ide.plugins
 
 import org.jetbrains.annotations.ApiStatus
 
 @ApiStatus.Internal
 object PluginManagerConstants {
-  @Suppress("SpellCheckingInspection")
-  val externalIdsToImport = setOf(
+  val externalIdsToImport: Set<String> = setOf(
     "com.intellij.tests.plugin",
     "IdeaVIM",
     "com.intellij.ml.llm",

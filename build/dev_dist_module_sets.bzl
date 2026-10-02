@@ -634,9 +634,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.moduleSets.builtInServer",
         ],
         loading = {
-            "intellij.libraries.download.pgp.verifier": "embedded",
             "intellij.platform.markdown.utils": "embedded",
-            "intellij.remoteDev.util": "embedded",
         },
         packed = {
             "intellij.libraries.download.pgp.verifier": "//libraries/download-pgp-verifier:download-pgp-verifier_content_module_jar",
@@ -662,6 +660,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.remoteDev.util": "//platform/remoteDev-util:remoteDev-util_content_module_jar",
         },
         module_system_loaded = [
+            "intellij.libraries.download.pgp.verifier",
             "intellij.platform.buildScripts.downloader",
             "intellij.platform.completion.backend",
             "intellij.platform.completion.common",
@@ -680,6 +679,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.pluginManager.frontend",
             "intellij.platform.pluginManager.shared",
             "intellij.platform.pluginManager.shared.base",
+            "intellij.remoteDev.util",
         ],
         mode_refused = {
             "frontend": [

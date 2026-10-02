@@ -68,6 +68,7 @@ private val LOG = logger<ProjectRootManagerComponent>()
 private val LOG_CACHES_UPDATE by lazy(LazyThreadSafetyMode.NONE) {
   ApplicationManager.getApplication().isInternal && !ApplicationManager.getApplication().isUnitTestMode
 }
+@Suppress("SSBasedInspection")
 private val WATCH_ROOTS_LOG = Logger.getInstance("#com.intellij.openapi.vfs.WatchRoots")
 private val WATCHED_ROOTS_PROVIDER_EP_NAME = ExtensionPointName<WatchedRootsProvider>("com.intellij.roots.watchedRootsProvider")
 
@@ -235,7 +236,7 @@ open class ProjectRootManagerComponent(
           // remote IJent VFPs may throw on deploy - don't fail project open (IJPL-245202)
           try {
             val watchRoots = readAction { collectWatchRoots(newDisposable) }
-            postCollect(newDisposable = newDisposable, oldDisposable = oldDisposable, watchRoots = watchRoots)
+            postCollect(newDisposable, oldDisposable, watchRoots)
           }
           catch (e: Throwable) {
             rethrowControlFlowException(e)

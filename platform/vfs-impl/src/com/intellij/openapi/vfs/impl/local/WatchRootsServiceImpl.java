@@ -7,7 +7,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.diagnostic.ThrottledLogger;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.Ref;
-import com.intellij.openapi.util.SystemInfoRt;
+import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.JarFileSystem;
 import com.intellij.openapi.vfs.LocalFileSystem.WatchRequest;
@@ -47,10 +47,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 /// The obsolete [com.intellij.openapi.vfs.LocalFileSystem] watch methods reach the same state through [LocalFileSystemImpl].
 /// Unless stated otherwise, all paths are [`@SystemIndependent`][SystemIndependent].
 @ApiStatus.Internal
-@SuppressWarnings("SplitModeApiUsage")
 public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
   private static final Logger LOG = Logger.getInstance(WatchRootsServiceImpl.class);
   private static final ThrottledLogger THROTTLED_LOG = new ThrottledLogger(LOG, SECONDS.toMillis(1));
+  @SuppressWarnings("SSBasedInspection")
   private static final Logger WATCH_ROOTS_LOG = Logger.getInstance("#com.intellij.openapi.vfs.WatchRoots");
   private static final Token NO_OP = () -> { };
 
@@ -60,8 +60,7 @@ public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
 
   private final NavigableMap<String, SymlinkData> mySymlinksByPath = WatchRootsUtil.createFileNavigableMap();
   private final Int2ObjectMap<SymlinkData> mySymlinksById = new Int2ObjectOpenHashMap<>();
-  // set of [symlink.targetPath, symlink.path] pairs
-  private final NavigableSet<Pair<String, String>> myPathMappings = WatchRootsUtil.createMappingsNavigableSet();
+  private final NavigableSet<Pair<String, String>> myPathMappings = WatchRootsUtil.createMappingsNavigableSet();  // (targetPath, symlink)
   @SuppressWarnings({"IO_FILE_USAGE", "UnnecessaryFullyQualifiedName"})
   private final boolean myConvertPaths = java.io.File.separatorChar == '\\';
 
@@ -218,7 +217,7 @@ public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
   ) {
     //TODO RC: How inconsistency could arise:
     //         1) seems like one of the reasons is case-sensitivity: in this class we assume that local file-system
-    //            case-sensitivity is constant (=SystemInfoRt.isFileSystemCaseSensitive) but it is not always true:
+    //            case-sensitivity is constant (=SystemInfo.isFileSystemCaseSensitive) but it is not always true:
     //            Windows/macOS allows to override default case-sensitivity on per-directory or per-partition basis.
     //            Which lead to conflicts here, since VFS treats files as different, while WatchRootsServiceImpl as the same.
     //         2) another reason seems to be the move/rename operations, that currently do NOT update symlink
@@ -236,7 +235,7 @@ public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
                oldDataByOldPath + "\n" +
                "incoming symlink: \n" +
                "{#" + fileId + ", " + linkPath + " -> " + linkTarget + "}, " +
-               "default caseSensitivity: " + SystemInfoRt.isFileSystemCaseSensitive;
+               "default caseSensitivity: " + SystemInfo.isFileSystemCaseSensitive;
       }
       else { // oldDataById.path == linkPath
         //This is a bit strange branch, because (oldDataById.path == linkPath) => (oldDataByNewPath==null && oldDataByOldPath==null),
@@ -251,7 +250,7 @@ public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
                "existing symlink data by old path[" + oldDataById.path + "]: {null}\n" +
                "incoming symlink: \n" +
                "{#" + fileId + ", " + linkPath + " -> " + linkTarget + "}, " +
-               "default caseSensitivity: " + SystemInfoRt.isFileSystemCaseSensitive;
+               "default caseSensitivity: " + SystemInfo.isFileSystemCaseSensitive;
       }
     }
     else if (oldDataById != oldDataByNewPath) {
@@ -263,7 +262,7 @@ public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
                oldDataByOldPath + "\n" +
                "incoming symlink: \n" +
                "{#" + fileId + ", " + linkPath + " -> " + linkTarget + "}, " +
-               "default caseSensitivity: " + SystemInfoRt.isFileSystemCaseSensitive;
+               "default caseSensitivity: " + SystemInfo.isFileSystemCaseSensitive;
       }
       else {
         return "Symlink update is inconsistent. Existing symlink data by id: \n" +
@@ -274,7 +273,7 @@ public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
                oldDataByOldPath + "\n" +
                "incoming symlink: \n" +
                "{#" + fileId + ", " + linkPath + " -> " + linkTarget + "}, " +
-               "default caseSensitivity: " + SystemInfoRt.isFileSystemCaseSensitive;
+               "default caseSensitivity: " + SystemInfo.isFileSystemCaseSensitive;
       }
     }
     else if (oldDataByNewPath != null && !FileUtil.pathsEqual(oldDataByNewPath.path, linkPath)) {
@@ -287,7 +286,7 @@ public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
              oldDataByOldPath + "\n" +
              "incoming symlink: \n" +
              "{#" + fileId + ", " + linkPath + " -> " + linkTarget + "}, " +
-             "default caseSensitivity: " + SystemInfoRt.isFileSystemCaseSensitive;
+             "default caseSensitivity: " + SystemInfo.isFileSystemCaseSensitive;
     }
     return null;
   }
@@ -329,7 +328,7 @@ public final class WatchRootsServiceImpl implements WatchRoots, Disposable {
     boolean convertToForwardSlashes
   ) {
     var optimizedRecursiveWatchRootsCopy = WatchRootsUtil.createFileNavigableSet();
-    List<Pair<@SystemDependent String, @SystemDependent String>> initialMappings = new ArrayList<>(pathMappings.size());
+    var initialMappings = new ArrayList<Pair<@SystemDependent String, @SystemDependent String>>(pathMappings.size());
 
     // Ensure paths are system-dependent
     if (!convertToForwardSlashes) {

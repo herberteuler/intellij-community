@@ -4,7 +4,7 @@ package com.intellij.openapi.vfs;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.openapi.util.io.FileUtil;
+import kotlin.io.path.PathsKt;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.SystemIndependent;
@@ -39,7 +39,7 @@ public interface WatchRoots {
 
   /// Starts watching `root`. See [#watch(String, boolean)].
   default @NotNull Token watch(@NotNull Path root, boolean recursive) {
-    return watch(FileUtil.toSystemIndependentName(root.toString()), recursive);
+    return watch(PathsKt.getInvariantSeparatorsPathString(root), recursive);
   }
 
   /// Starts watching `rootPath` and stops when `parent` is disposed. See [#watch(String, boolean)].

@@ -1,0 +1,7 @@
+com/google/gson/Gson
+com/google/gson/JsonParseException
+com/google/gson/TypeAdapter
+com/google/gson/TypeAdapterFactory
+com/google/gson/reflect/TypeToken
+com/google/gson/stream/JsonToken
+io/netty/buffer/ByteBuf

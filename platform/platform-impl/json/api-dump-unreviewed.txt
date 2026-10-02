@@ -1,0 +1,35 @@
+f:org.jetbrains.io.JsonReaderEx
+- <init>(java.lang.CharSequence,I):V
+- getSourceSequence():java.lang.CharSequence
+- isLenient():Z
+- lenient(Z):org.jetbrains.io.JsonReaderEx
+- nextAsString():java.lang.String
+- nextCharSequence():java.lang.CharSequence
+- nextCharSequence(Z):java.lang.CharSequence
+- nextDouble():D
+- nextInt():I
+- nextLong():J
+- nextName():java.lang.String
+- nextNameAsCharSequence():java.lang.CharSequence
+- nextNull():V
+- nextNullableString():java.lang.String
+- nextString(Z):java.lang.String
+- peek():com.google.gson.stream.JsonToken
+- setLenient(Z):V
+- skipValues():V
+- subReader():org.jetbrains.io.JsonReaderEx
+f:org.jetbrains.io.JsonUtil
+- <init>():V
+- s:escape(java.lang.CharSequence,io.netty.buffer.ByteBuf):V
+- s:escape(java.lang.CharSequence,java.lang.StringBuilder):V
+- s:nextAny(org.jetbrains.io.JsonReaderEx):java.lang.Object
+- s:nextList(org.jetbrains.io.JsonReaderEx):java.util.List
+- s:nextStringList(org.jetbrains.io.JsonReaderEx):java.util.List
+- s:nextStringOrSkip(org.jetbrains.io.JsonReaderEx):java.lang.String
+- s:readListBody(org.jetbrains.io.JsonReaderEx,java.util.List):V
+f:org.jetbrains.io.LocalFileFinder
+- s:windowsDriveExists(java.lang.String):Z
+f:org.jetbrains.io.mandatory.NullCheckingFactory
+- sf:INSTANCE:org.jetbrains.io.mandatory.NullCheckingFactory
+- <init>():V
+- create(com.google.gson.Gson,com.google.gson.reflect.TypeToken):com.google.gson.TypeAdapter

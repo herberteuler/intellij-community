@@ -1,12 +1,5 @@
-com/google/gson/Gson
-com/google/gson/JsonParseException
-com/google/gson/TypeAdapter
-com/google/gson/TypeAdapterFactory
-com/google/gson/reflect/TypeToken
-com/google/gson/stream/JsonToken
 com/intellij/util/ui/MenuItemLayoutHelper
 com/intellij/util/ui/MenuItemLayoutHelper$LayoutResult
-io/netty/buffer/ByteBuf
 kotlin/jvm/internal/DefaultConstructorMarker
 kotlinx/serialization/descriptors/SerialDescriptor
 kotlinx/serialization/encoding/Decoder

@@ -1,0 +1,67 @@
+load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
+
+### auto-generated section `dev intellij.platform.ide.json` start
+content_module_jar(module = ":json")
+### auto-generated section `dev intellij.platform.ide.json` end
+
+### auto-generated section `build intellij.platform.ide.json` start
+jvm_library(
+    name = "json",
+    srcs = glob(
+        [
+            "src/**/*.kt",
+            "src/**/*.java",
+            "src/**/*.form",
+        ],
+        allow_empty = True,
+    ),
+    module_name = "intellij.platform.ide.json",
+    resource_strip_prefix = "resources",
+    resources = glob(
+        ["resources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        # do not sort,
+        "@lib//:kotlin-stdlib",
+        "//libraries/caffeine",
+        "//libraries/gson",
+        "//libraries/jetbrains/annotations",
+        "//libraries/netty/buffer",
+        "//platform/core-api:core",
+        "//platform/util",
+    ],
+)
+
+jvm_library(
+    name = "json_test_lib",
+    testonly = True,
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.platform.ide.json",
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        # do not sort,
+        ":json",
+        "//libraries/caffeine:caffeine_test_lib",
+        "//libraries/gson:gson_test_lib",
+        "//libraries/jetbrains/annotations:annotations_test_lib",
+        "//libraries/netty/buffer:buffer_test_lib",
+        "//platform/core-api:core_test_lib",
+        "//platform/util:util_test_lib",
+    ],
+)
+### auto-generated section `build intellij.platform.ide.json` end
+
+### auto-generated section `iml intellij.platform.ide.json` start
+exports_files(
+    [
+        "intellij.platform.ide.json.iml",
+        "resources/intellij.platform.ide.json.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.platform.ide.json` end

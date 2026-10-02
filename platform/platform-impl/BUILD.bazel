@@ -67,6 +67,7 @@ jvm_library(
         "//platform/undo",
         "//platform/ui.tree",
         "//platform/vfs-impl",
+        "//platform/platform-impl/json",
     ],
     runtime_deps = [
         # do not sort,
@@ -98,6 +99,7 @@ jvm_library(
         "//platform/undo",
         "//platform/ui.tree",
         "//platform/vfs-impl",
+        "//platform/platform-impl/json",
         "//platform/icons",
         "//platform/welcome-screen",
         "//platform/welcome-screen-impl:welcomeScreen-impl",
@@ -240,6 +242,8 @@ jvm_library(
         "//platform/ui.tree:ui.tree_test_lib",
         "//platform/vfs-impl",
         "//platform/vfs-impl:vfs-impl_test_lib",
+        "//platform/platform-impl/json",
+        "//platform/platform-impl/json:json_test_lib",
     ],
     runtime_deps = [
         # do not sort,
@@ -254,6 +258,7 @@ jvm_library(
         "//platform/undo:undo_test_lib",
         "//platform/ui.tree:ui.tree_test_lib",
         "//platform/vfs-impl:vfs-impl_test_lib",
+        "//platform/platform-impl/json:json_test_lib",
         "//platform/icons:icons_test_lib",
         "//platform/welcome-screen:welcome-screen_test_lib",
         "//platform/welcome-screen-impl:welcomeScreen-impl_test_lib",

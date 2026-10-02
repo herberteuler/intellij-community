@@ -23,7 +23,7 @@ data class ProblemsViewSubTabPresentation(
 )
 
 @ApiStatus.Internal
-interface ProblemsViewSubTab : Disposable {
+interface ProblemsViewSubTab {
   @get:NonNls
   val id: String
 
@@ -36,9 +36,6 @@ interface ProblemsViewSubTab : Disposable {
     get() = null
 
   fun selectionChangedTo(selected: Boolean) {
-  }
-
-  override fun dispose() {
   }
 }
 
@@ -55,7 +52,8 @@ interface ProblemsViewSubTabProvider {
   /**
    * Returns `null` when this provider contributes no sub-tab to [project].
    *
-   * @param scope the scope of the sub-tab. The host tab cancels it. It dispatches on the event dispatch thread.
+   * @param scope the scope of the sub-tab. The host tab cancels it.
+   * @param parentDisposable the parent of the sub-tab resources.
    */
-  fun createSubTab(project: Project, scope: CoroutineScope): ProblemsViewSubTab?
+  fun createSubTab(project: Project, scope: CoroutineScope, parentDisposable: Disposable): ProblemsViewSubTab?
 }

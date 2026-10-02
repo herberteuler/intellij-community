@@ -8,7 +8,6 @@ import org.jetbrains.annotations.NonNls
 @ApiStatus.Internal
 interface ProblemsViewSubTabHost {
 
-  @get:NonNls
   val hostTabId: String
 
   val shownSubTabId: StateFlow<String?>

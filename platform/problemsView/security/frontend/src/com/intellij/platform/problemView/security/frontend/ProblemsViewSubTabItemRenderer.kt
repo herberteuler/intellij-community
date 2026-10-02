@@ -16,7 +16,6 @@ import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.ListCellRenderer
 
-@Suppress("DialogTitleCapitalization")
 internal class ProblemsViewSubTabItemRenderer : ListCellRenderer<ProblemsViewSubTabItem> {
 
   private val titleLabel: JBLabel = JBLabel()
@@ -36,6 +35,8 @@ internal class ProblemsViewSubTabItemRenderer : ListCellRenderer<ProblemsViewSub
     cellHasFocus: Boolean,
   ): Component {
     val presentation = value.presentation
+    // the row shows the title of a sub-tab, so it keeps the title capitalization
+    @Suppress("DialogTitleCapitalization")
     titleLabel.text = presentation.title
     val count = presentation.problemCount ?: 0
 

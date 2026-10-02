@@ -11,7 +11,6 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.util.text.HtmlChunk.body
 import com.intellij.openapi.util.text.HtmlChunk.html
@@ -41,7 +40,7 @@ import org.jetbrains.annotations.NonNls
 @ApiStatus.Internal
 open class SubTabbedProblemsViewTab(
   final override val project: Project,
-  @param:NonNls final override val hostTabId: String,
+  final override val hostTabId: String,
   @param:NlsContexts.TabTitle private val tabTitle: String,
   final override val usagesTabId: String,
 ) : ProblemsViewTabWithMetrics(), ProblemsViewSubTabHost, Disposable {
@@ -49,7 +48,7 @@ open class SubTabbedProblemsViewTab(
   private val scope: CoroutineScope =
     project.service<ProblemsViewSubTabScopeService>().scope.childScope("SubTabbedProblemsViewTab($hostTabId)")
   private val entries: List<ProblemsViewSubTab> = subTabProviders(hostTabId).mapNotNull {
-    it.createSubTab(project, scope.childScope(it.javaClass.name, Dispatchers.EDT))
+    it.createSubTab(project, scope.childScope(it.javaClass.name), this)
   }
   private val selector: ProblemsViewSubTabSelector = ProblemsViewSubTabSelector(scope, entries)
   private val subTabPanel: JPanel = JPanel(BorderLayout())
@@ -106,7 +105,6 @@ open class SubTabbedProblemsViewTab(
 
   override fun dispose() {
     scope.cancel()
-    entries.forEach(Disposer::dispose)
   }
 
   /** Ignores an unknown [subTabId]. */

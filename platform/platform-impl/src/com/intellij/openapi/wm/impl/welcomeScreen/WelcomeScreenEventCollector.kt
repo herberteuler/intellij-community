@@ -13,7 +13,8 @@ import org.jetbrains.annotations.ApiStatus
 
 @ApiStatus.Internal
 object WelcomeScreenEventCollector : CounterUsagesCollector() {
-  internal enum class TabType { TabNavProject, TabNavCustomize, TabNavPlugins, TabNavTutorials, TabNavOther }
+  @ApiStatus.Internal
+  enum class TabType { TabNavProject, TabNavCustomize, TabNavPlugins, TabNavTutorials, TabNavOther }
 
   override fun getGroup(): EventLogGroup = GROUP
 

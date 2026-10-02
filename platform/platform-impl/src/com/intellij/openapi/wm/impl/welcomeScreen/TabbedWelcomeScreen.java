@@ -273,7 +273,8 @@ public class TabbedWelcomeScreen extends AbstractWelcomeScreen {
       this(tabName, icon, WelcomeScreenEventCollector.TabType.TabNavOther);
     }
 
-    DefaultWelcomeScreenTab(@NotNull @Nls String tabName, @NotNull WelcomeScreenEventCollector.TabType tabType) {
+    @ApiStatus.Internal
+    public DefaultWelcomeScreenTab(@NotNull @Nls String tabName, @NotNull WelcomeScreenEventCollector.TabType tabType) {
       this(tabName, null, tabType);
     }
 

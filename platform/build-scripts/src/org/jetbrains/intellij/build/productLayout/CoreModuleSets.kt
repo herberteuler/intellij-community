@@ -313,6 +313,8 @@ object CoreModuleSets {
     module("intellij.platform.ide.hprof")
     // intellij.platform.execution.impl creates the error tree view through the service of this module
     module("intellij.platform.ide.errorTreeView")
+    // keeps the Learn tab in every product with ide.impl
+    module("intellij.platform.ide.learnIde")
     module("intellij.platform.threadDumpParser")
     module("intellij.platform.ide.favoritesTreeView")
     // todo not used by platform - move to plugin

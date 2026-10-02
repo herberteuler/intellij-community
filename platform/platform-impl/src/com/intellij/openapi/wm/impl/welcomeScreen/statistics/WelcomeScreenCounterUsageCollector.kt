@@ -4,8 +4,10 @@ package com.intellij.openapi.wm.impl.welcomeScreen.statistics
 import com.intellij.internal.statistic.eventLog.EventLogGroup
 import com.intellij.internal.statistic.eventLog.events.EventFields
 import com.intellij.internal.statistic.service.fus.collectors.CounterUsagesCollector
+import org.jetbrains.annotations.ApiStatus
 
-internal object WelcomeScreenCounterUsageCollector : CounterUsagesCollector() {
+@ApiStatus.Internal
+object WelcomeScreenCounterUsageCollector : CounterUsagesCollector() {
   private val GROUP = EventLogGroup("welcome.screen", 4)
 
   private val WELCOME_SCREEN_SHOWN = GROUP.registerEvent(

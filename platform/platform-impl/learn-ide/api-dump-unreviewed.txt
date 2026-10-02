@@ -1,0 +1,3 @@
+c:com.intellij.openapi.wm.impl.welcomeScreen.learnIde.coursesInProgress.CourseInfo
+- getIcon():javax.swing.Icon
+- setIcon(javax.swing.Icon):V

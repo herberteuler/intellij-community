@@ -950,6 +950,7 @@ platform/platform-impl/internal/ide.internal.backend
 platform/platform-impl/internal/jcef
 platform/platform-impl/jcef
 platform/platform-impl/json
+platform/platform-impl/learn-ide
 platform/platform-impl/os-certificates
 platform/platform-impl/plugin-signature-verifier
 platform/platform-impl/presentation-assistant

@@ -5133,9 +5133,6 @@ f:com.intellij.openapi.wm.impl.welcomeScreen.cloneableProjects.CloneableProjects
 f:com.intellij.openapi.wm.impl.welcomeScreen.cloneableProjects.CloneableProjectsService$Companion
 - f:getInstance():com.intellij.openapi.wm.impl.welcomeScreen.cloneableProjects.CloneableProjectsService
 - f:getTOPIC():com.intellij.util.messages.Topic
-c:com.intellij.openapi.wm.impl.welcomeScreen.learnIde.coursesInProgress.CourseInfo
-- getIcon():javax.swing.Icon
-- setIcon(javax.swing.Icon):V
 a:com.intellij.packageDependencies.ui.TreeExpansionMonitor
 - p:<init>(javax.swing.JTree):V
 - pa:findPathByNode(java.lang.Object):javax.swing.tree.TreePath

@@ -253,7 +253,6 @@
     <extensionPoint qualifiedName="com.intellij.toolWindow.splitContentProvider" beanClass="com.intellij.toolWindow.ToolWindowSplitContentProviderBean" dynamic="true">
       <with attribute="implementationClass" implements="com.intellij.toolWindow.ToolWindowSplitContentProvider"/>
     </extensionPoint>
-    <extensionPoint qualifiedName="com.intellij.coursesStorageProvider" interface="com.intellij.openapi.wm.impl.welcomeScreen.learnIde.coursesInProgress.CoursesStorageProvider" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.statistic.eventLog.ideShutdownSessionTypeProvider"
                     interface="com.intellij.featureStatistics.fusCollectors.IdeShutdownSessionTypeProvider"
                     dynamic="true"/>
@@ -972,8 +971,6 @@
                        order="after ProjectsWelcomeTab"/>
     <welcomeTabFactory id="PluginsWelcomeTab" implementation="com.intellij.openapi.wm.impl.welcomeScreen.PluginsTabFactory"
                        order="after CustomizeWelcomeTab"/>
-    <welcomeTabFactory id="LearnIdeWelcomeTab" implementation="com.intellij.openapi.wm.impl.welcomeScreen.LearnIdeTabFactory"
-                       order="after PluginsWelcomeTab"/>
     <welcomeScreenCustomization id="defaultCustomization"
                                 implementation="com.intellij.openapi.wm.impl.welcomeScreen.WelcomeScreenDefaultCustomization"/>
     <startPagePromoter implementation="com.intellij.openapi.wm.impl.welcomeScreen.TechInsightsLabPromoter"/>
@@ -1613,8 +1610,6 @@
                         serviceImplementation="com.intellij.openapi.wm.impl.headertoolbar.DefaultOpenProjectSelectionPredicateSupplier"/>
     <multiverseEnabler implementation="com.intellij.codeInsight.multiverse.RegistryFlagMultiverseEnabler"/>
     <actionPromoter implementation="com.intellij.ide.actions.speedSearch.SpeedSearchActionPromoter"/>
-    <fileEditorProvider id="learnIde" implementation="com.intellij.openapi.wm.impl.welcomeScreen.learnIde.editorTab.LearnIdeFileEditorProvider"/>
-    <interactiveCourseFactory implementation="com.intellij.openapi.wm.impl.welcomeScreen.learnIde.jbAcademy.JBAcademyInteractiveCourse"/>
     <cachesInvalidator implementation="com.intellij.ide.ui.IconCacheInvalidator"/>
     <cachesInvalidator implementation="com.intellij.openapi.editor.impl.zombie.NecropolisDestroyer$InvalidationRequest"/>
     <diagnostic.freezeListener implementation="com.intellij.diagnostic.FusFreezeReporter"/>

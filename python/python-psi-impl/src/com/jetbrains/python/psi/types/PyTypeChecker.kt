@@ -34,7 +34,6 @@ import com.jetbrains.python.psi.PyExpression
 import com.jetbrains.python.psi.PyFile
 import com.jetbrains.python.psi.PyFunction
 import com.jetbrains.python.psi.PyListLiteralExpression
-import com.jetbrains.python.psi.PyNamedParameter
 import com.jetbrains.python.psi.PySequenceExpression
 import com.jetbrains.python.psi.PyStarExpression
 import com.jetbrains.python.psi.PyTargetExpression
@@ -55,6 +54,7 @@ import com.jetbrains.python.psi.types.PyLiteralStringType.Companion.match
 import com.jetbrains.python.psi.types.PyLiteralType.Companion.match
 import com.jetbrains.python.psi.types.PyRecursiveTypeVisitor.PyTypeTraverser
 import com.jetbrains.python.psi.types.PyTypeChecker.convertToType
+import com.jetbrains.python.psi.types.PyTypeChecker.expandTupleTypeParameters
 import com.jetbrains.python.psi.types.PyTypeChecker.match
 import com.jetbrains.python.psi.types.PyTypeChecker.recordFrame
 import com.jetbrains.python.psi.types.PyTypeChecker.recordLeaf
@@ -67,8 +67,6 @@ import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import org.jetbrains.annotations.ApiStatus
 import java.util.Collections
 import java.util.Optional
-import kotlin.collections.component1
-import kotlin.collections.component2
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 import kotlin.jvm.optionals.getOrDefault
@@ -1240,8 +1238,10 @@ object PyTypeChecker {
 
   /** The subclass member's element type as compared against the protocol: `self` bound to [actual] and dropped, then
    *  the subclass's own type substitutions applied. */
-  private fun subclassElementType(expected: PyClassType, actual: PyClassType, subclassElementMember: PyTypeMember,
-                                  actualSubstitutions: GenericSubstitutions, protocolContext: MatchContext): PyType? {
+  private fun subclassElementType(
+    expected: PyClassType, actual: PyClassType, subclassElementMember: PyTypeMember,
+    actualSubstitutions: GenericSubstitutions, protocolContext: MatchContext,
+  ): PyType? {
     val context = protocolContext.context
     var subclassElementType = substituteSelfInProtocolMember(actual, subclassElementMember.type, context)
     subclassElementType = dropSelfInProtocolMember(expected, subclassElementType, context)

@@ -2563,7 +2563,6 @@ c:com.intellij.ide.actions.searcheverywhere.SearchEverywhereFoundElementInfo
 - getContributor():com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
 - getElement():java.lang.Object
 com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager
-- a:getCurrentlyShownUI():com.intellij.ide.actions.searcheverywhere.SearchEverywhereUI
 - s:getInstance(com.intellij.openapi.project.Project):com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager
 - a:getSelectedTabID():java.lang.String
 - a:isEverywhere():Z

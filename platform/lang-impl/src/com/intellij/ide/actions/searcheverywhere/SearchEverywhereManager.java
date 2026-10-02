@@ -35,13 +35,6 @@ public interface SearchEverywhereManager {
   @ApiStatus.Internal
   SearchEverywherePopupInstance getCurrentlyShownPopupInstance();
 
-  /**
-   * @deprecated This functionality is obsolete.
-   */
-  @Deprecated(forRemoval = true)
-  @NotNull
-  SearchEverywhereUI getCurrentlyShownUI();
-
   void show(@NotNull String contributorID, @Nullable String searchText, @NotNull AnActionEvent initEvent);
 
   @NotNull

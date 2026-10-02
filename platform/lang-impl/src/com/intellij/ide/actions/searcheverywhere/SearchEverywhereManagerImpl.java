@@ -215,12 +215,6 @@ public final class SearchEverywhereManagerImpl implements SearchEverywhereManage
     }, 0);
   }
 
-  @Override
-  public @NotNull SearchEverywhereUI getCurrentlyShownUI() {
-    checkIsShown();
-    return mySearchEverywhereUI;
-  }
-
   private WindowStateService getStateService() {
     return myProject != null ? WindowStateService.getInstance(myProject) : WindowStateService.getInstance();
   }
@@ -376,7 +370,8 @@ public final class SearchEverywhereManagerImpl implements SearchEverywhereManage
   @ApiStatus.Internal
   @Override
   public SearchEverywherePopupInstance getCurrentlyShownPopupInstance() {
-    return getCurrentlyShownUI();
+    checkIsShown();
+    return mySearchEverywhereUI;
   }
 
   private @NotNull SearchEverywhereUI createView(Project project, List<SearchEverywhereContributor<?>> contributors,

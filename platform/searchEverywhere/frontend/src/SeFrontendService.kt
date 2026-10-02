@@ -9,7 +9,6 @@ import com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereManagerImpl
 import com.intellij.ide.actions.searcheverywhere.SearchEverywherePopupInstance
 import com.intellij.ide.actions.searcheverywhere.SearchEverywhereToolbarField
-import com.intellij.ide.actions.searcheverywhere.SearchEverywhereUI
 import com.intellij.ide.actions.searcheverywhere.SearchHistoryList
 import com.intellij.ide.actions.searcheverywhere.statistics.SearchEverywhereUsageTriggerCollector
 import com.intellij.ide.rpc.rpcId
@@ -591,11 +590,6 @@ class SeFrontendService(val project: Project?, private val coroutineScope: Corou
   }
 
   override fun isShown(): Boolean = popupInstanceFuture != null
-
-  @Deprecated("Deprecated in the interface")
-  override fun getCurrentlyShownUI(): SearchEverywhereUI {
-    throw UnsupportedOperationException("The method is deprecated. Please use getCurrentlyShownPopupInstance() instead.")
-  }
 
   override fun getCurrentlyShownPopupInstance(): SearchEverywherePopupInstance? = popupInstance
 

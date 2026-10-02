@@ -260,12 +260,15 @@ object CommunityModuleSets {
   }
 
   /**
-   * Language Server Protocol (LSP) support modules.
+   * Language Server Protocol (LSP) support: the API, the implementation and the structure view.
+   * Each direct module of this set loads in its own class loader.
+   * The lsp4j wrappers of [librariesLsp4j] stay embedded.
+   * [ideCommon] nests this set, and the JetBrains Client adds it.
    */
   fun lsp(): ModuleSet = moduleSet("lsp") {
     moduleSet(librariesLsp4j())
-    embeddedModule("intellij.platform.lsp")
-    embeddedModule("intellij.platform.lsp.impl")
+    module("intellij.platform.lsp")
+    module("intellij.platform.lsp.impl")
     module("intellij.platform.lsp.impl.structureView")
   }
 

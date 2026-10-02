@@ -1494,16 +1494,14 @@ DEV_DIST_MODULE_SETS = {
         nested = [
             "intellij.moduleSets.libraries.lsp4j",
         ],
-        loading = {
-            "intellij.platform.lsp": "embedded",
-            "intellij.platform.lsp.impl": "embedded",
-        },
         packed = {
             "intellij.platform.lsp": "//platform/lsp:lsp_content_module_jar",
             "intellij.platform.lsp.impl": "//platform/lsp-impl:lsp-impl_content_module_jar",
             "intellij.platform.lsp.impl.structureView": "//platform/lsp-impl/structureView:structureView_content_module_jar",
         },
         module_system_loaded = [
+            "intellij.platform.lsp",
+            "intellij.platform.lsp.impl",
             "intellij.platform.lsp.impl.structureView",
         ],
     ),

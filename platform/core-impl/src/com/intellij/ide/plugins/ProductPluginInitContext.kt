@@ -268,6 +268,11 @@ class ProductPluginInitContext(
                 yieldIfResolves(DependencyRef.of(moduleId))
               }
             }
+            if (doesDependOnPluginAlias(descriptor, PluginManagerCore.ULTIMATE_PLUGIN_ID)) {
+              for (moduleId in LSP_MODULE_IDS) {
+                yieldIfResolves(DependencyRef.of(moduleId))
+              }
+            }
             yieldIfResolves(DependencyRef.of(COLLABORATION_TOOLS_MODULE_ID))
           }
 
@@ -408,6 +413,10 @@ private val GIT4IDEA_MODULE_IDS = listOf(
   PluginModuleId("intellij.vcs.git.backend", PluginModuleId.JETBRAINS_NAMESPACE),
   PluginModuleId("intellij.vcs.git.shared", PluginModuleId.JETBRAINS_NAMESPACE),
 )
+private val LSP_MODULE_IDS = listOf(
+  PluginModuleId("intellij.platform.lsp", PluginModuleId.JETBRAINS_NAMESPACE),
+  PluginModuleId("intellij.platform.lsp.impl", PluginModuleId.JETBRAINS_NAMESPACE),
+)
 private val externalNonBundledPluginCompatibilityDependencies = listOf(
   "intellij.libraries.groovy",
   "intellij.platform.structureView",
@@ -467,6 +476,8 @@ private val contentModulesExtractedInCorePluginWhichCanBeUsedFromExternalPlugins
   "intellij.platform.ide.colorPicker",
   "intellij.platform.ide.hprof",
   "intellij.platform.ide.errorTreeView",
+  "intellij.platform.lsp",
+  "intellij.platform.lsp.impl",
   "intellij.platform.externalSystem",
   "intellij.platform.externalSystem.impl",
   "intellij.platform.tasks",

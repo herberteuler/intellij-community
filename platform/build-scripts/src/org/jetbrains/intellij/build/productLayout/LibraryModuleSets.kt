@@ -205,7 +205,8 @@ object LibraryModuleSets {
    * Eclipse LSP4J library wrapper modules used by LSP and DAP support.
    *
    * Kept separate from `librariesPlatform()` because LSP4J is not a universal platform dependency.
-   * Kept embedded because LSP support modules are embedded.
+   * The wrappers stay embedded.
+   * The LSP modules of [CommunityModuleSets.lsp] load in their own class loaders and depend on them.
    */
   fun librariesLsp4j(): ModuleSet = moduleSet("libraries.lsp4j", outputModule = "intellij.platform.lsp") {
     embeddedModule("intellij.libraries.eclipse.lsp4j")

@@ -504,8 +504,8 @@
     <!-- endregion -->
 
     <!-- region direct modules -->
-    <module name="intellij.platform.lsp" loading="embedded"/>
-    <module name="intellij.platform.lsp.impl" loading="embedded"/>
+    <module name="intellij.platform.lsp"/>
+    <module name="intellij.platform.lsp.impl"/>
     <module name="intellij.platform.lsp.impl.structureView"/>
     <!-- endregion -->
     <!-- endregion -->

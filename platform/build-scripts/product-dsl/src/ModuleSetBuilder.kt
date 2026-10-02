@@ -195,8 +195,8 @@ class ModuleSetBuilder {
  * Example:
  * ```
  * fun lsp() = moduleSet("lsp") {
- *   embeddedModule("intellij.platform.lsp")
- *   embeddedModule("intellij.platform.lsp.impl")
+ *   module("intellij.platform.lsp")
+ *   module("intellij.platform.lsp.impl")
  *   module("intellij.platform.lsp.impl.structureView")
  * }
  *

@@ -7,8 +7,8 @@ import org.jetbrains.intellij.build.impl.BazelTargetsInfo
 import org.junit.jupiter.api.Test
 
 /**
- * The labels of `build/dev_dist_reference_inputs.bzl`: the generator resolves the payload names through the targets
- * JSON, and the file states the labels that every product shares once.
+ * The labels of `build/dev_dist_reference_inputs.bzl`: the generator resolves the runtime classpath seeds through the
+ * targets JSON, and it refuses a name that the reference macro cannot resolve at load time.
  */
 class DevDistReferenceInputsTest {
   private fun module(name: String, vararg moduleLibraryJars: String): Pair<String, BazelTargetsInfo.TargetsFileModuleDescription> {
@@ -32,8 +32,6 @@ class DevDistReferenceInputsTest {
     modules = mapOf(
       module("build"),
       module("core", "@lib//:core-lib.jar"),
-      module("member"),
-      module("nested"),
       module("seed"),
       module("dependency"),
       module("frontend.root"),
@@ -47,64 +45,41 @@ class DevDistReferenceInputsTest {
 
   private val model = DevDistReferenceInputModel(
     targets = targets,
-    moduleDependencies = { name -> if (name == "seed") listOf("dependency") else emptyList() },
-    projectLibraryReferences = { name -> if (name == "core") listOf("guava") else emptyList() },
+    moduleDependencies = { name -> if (name == "seed") listOf("dependency", "core") else emptyList() },
+    projectLibraryReferences = { name -> if (name == "core" || name == "frontend.core") listOf("guava") else emptyList() },
   )
 
-  private val moduleSets = mapOf(
-    "top" to ModuleSetData(name = "top", modules = listOf("member"), nested = listOf("inner")),
-    "inner" to ModuleSetData(name = "inner", modules = listOf("nested"), nested = emptyList()),
-  )
-
-  private fun payload(modules: List<String> = emptyList(), moduleSets: List<String> = emptyList(), runtimeClasspathModules: List<String> = emptyList()) =
-    DevDistReferencePayload(modules = modules, projectLibraries = emptyList(), moduleSets = moduleSets, runtimeClasspathModules = runtimeClasspathModules)
+  private fun payload(modules: List<String> = emptyList(), projectLibraries: List<String> = emptyList(), moduleSets: List<String> = emptyList()) =
+    DevDistReferencePayload(modules = modules, projectLibraries = projectLibraries, moduleSets = moduleSets)
 
   @Test
-  fun `a runtime module repository reference reads the platform of its product and of the embedded frontend`() {
+  fun `the runtime classpath is the closure of the seeds with the libraries of each module`() {
     val inputs = resolveDevDistReferenceInputs(
       products = listOf(
         DevDistReferenceProduct(
           platformPrefix = "ide",
           buildModules = listOf("build", "core"),
-          embeddedFrontend = "frontend",
-          platformLib = payload(modules = listOf("core"), moduleSets = listOf("top"), runtimeClasspathModules = listOf("seed")),
+          runtimeClasspathModules = emptyList(),
           runtimeModuleRepository = payload(modules = listOf("frontend.root")),
-        ),
-        DevDistReferenceProduct(
-          platformPrefix = "frontend",
-          buildModules = emptyList(),
-          embeddedFrontend = null,
-          platformLib = payload(modules = listOf("frontend.core")),
-          runtimeModuleRepository = null,
         ),
         DevDistReferenceProduct(
           platformPrefix = "server",
           buildModules = listOf("build"),
-          embeddedFrontend = null,
-          platformLib = payload(modules = listOf("core")),
+          runtimeClasspathModules = listOf("seed"),
           runtimeModuleRepository = null,
         ),
       ),
-      moduleSets = moduleSets,
       model = model,
     )
-    assertThat(inputs.getValue("ide")).isEqualTo(DevDistReferenceInputs(
-      // A build module declares its output and no library.
-      buildModules = listOf("//build:build.jar", "//core:core.jar"),
-      runtimeClasspath = listOf("//dependency:dependency.jar", "//seed:seed.jar"),
-      platformLib = listOf(
-        "//core:core.jar",
-        "//dependency:dependency.jar",
-        "//member:member.jar",
-        "//nested:nested.jar",
-        "//seed:seed.jar",
-        "@lib//:core-lib.jar",
-        "@lib//:guava.jar",
-      ),
-      runtimeModuleRepository = listOf("//frontend.root:frontend.root.jar"),
-    ))
-    assertThat(inputs.getValue("frontend").platformLib).containsExactly("//frontend.core:frontend.core.jar")
-    assertThat(inputs.getValue("server").platformLib).describedAs("no runtime module repository reference lays out this platform").isNull()
+    // The reference macro resolves the build modules and the repository root, so the generator states no label of them.
+    assertThat(inputs.getValue("ide")).isEqualTo(DevDistReferenceInputs(runtimeClasspath = emptyList()))
+    assertThat(inputs.getValue("server").runtimeClasspath).containsExactly(
+      "//core:core.jar",
+      "//dependency:dependency.jar",
+      "//seed:seed.jar",
+      "@lib//:core-lib.jar",
+      "@lib//:guava.jar",
+    )
   }
 
   @Test
@@ -114,44 +89,78 @@ class DevDistReferenceInputsTest {
         products = listOf(DevDistReferenceProduct(
           platformPrefix = "ide",
           buildModules = listOf("removed.build"),
-          embeddedFrontend = null,
-          platformLib = payload(moduleSets = listOf("removed.set")),
-          runtimeModuleRepository = payload(),
+          runtimeClasspathModules = listOf("removed.seed"),
+          runtimeModuleRepository = payload(modules = listOf("removed.root")),
         )),
-        moduleSets = moduleSets,
         model = model,
       )
     }
       .hasMessageContaining("product 'ide', build modules: unknown module 'removed.build'")
-      .hasMessageContaining("product 'ide', payload 'platform_lib': unknown module set 'removed.set'")
+      .hasMessageContaining("product 'ide', payload 'platform_lib', runtime classpath: unknown module 'removed.seed'")
+      .hasMessageContaining("product 'ide', payload 'platform_runtime_module_repository': unknown module 'removed.root'")
   }
 
   @Test
-  fun `the labels that every product states are one constant`() {
+  fun `a repository payload that names a module set or a project library fails the run`() {
+    assertThatThrownBy {
+      resolveDevDistReferenceInputs(
+        products = listOf(DevDistReferenceProduct(
+          platformPrefix = "ide",
+          buildModules = emptyList(),
+          runtimeClasspathModules = emptyList(),
+          runtimeModuleRepository = payload(modules = listOf("frontend.root"), projectLibraries = listOf("guava"), moduleSets = listOf("top")),
+        )),
+        model = model,
+      )
+    }
+      .hasMessageContaining("The reference macro resolves a module name only")
+      .hasMessageContaining("product 'ide', payload 'platform_runtime_module_repository': module set 'top'")
+      .hasMessageContaining("product 'ide', payload 'platform_runtime_module_repository': project library 'guava'")
+  }
+
+  @Test
+  fun `a repository payload module with libraries fails the run`() {
+    assertThatThrownBy {
+      resolveDevDistReferenceInputs(
+        products = listOf(DevDistReferenceProduct(
+          platformPrefix = "ide",
+          buildModules = emptyList(),
+          runtimeClasspathModules = emptyList(),
+          runtimeModuleRepository = payload(modules = listOf("core", "frontend.core", "frontend.root")),
+        )),
+        model = model,
+      )
+    }
+      .hasMessageContaining("The reference macro resolves a module name only")
+      .hasMessageContaining("product 'ide', payload 'platform_runtime_module_repository': module 'core' has libraries")
+      .hasMessageContaining("product 'ide', payload 'platform_runtime_module_repository': module 'frontend.core' has libraries")
+      .hasMessageNotContaining("'frontend.root'")
+  }
+
+  @Test
+  fun `the labels that every row states are one constant and a product without a runtime classpath has no row`() {
     val text = renderDevDistReferenceInputs(
       inputs = linkedMapOf(
-        "a" to DevDistReferenceInputs(buildModules = listOf("//x:x.jar", "//y:y.jar"), runtimeClasspath = emptyList(), platformLib = null, runtimeModuleRepository = null),
-        "b" to DevDistReferenceInputs(buildModules = listOf("//x:x.jar"), runtimeClasspath = listOf("//r:r.jar"), platformLib = null, runtimeModuleRepository = null),
+        "a" to DevDistReferenceInputs(runtimeClasspath = listOf("//x:x.jar", "//y:y.jar")),
+        "b" to DevDistReferenceInputs(runtimeClasspath = listOf("//x:x.jar")),
+        "c" to DevDistReferenceInputs(runtimeClasspath = emptyList()),
       ),
       generatedByHeader = "# header\n",
     )
     // The body after the comment block of the header.
     assertThat(text.substringAfter("has no meaning.\n")).isEqualTo("""
-      |_BUILD_MODULES = [
+      |_RUNTIME_CLASSPATH = [
       |    "//x:x.jar",
       |]
       |
       |DEV_DIST_REFERENCE_INPUTS = {
       |    "a": struct(
-      |        build_modules = _BUILD_MODULES + [
+      |        runtime_classpath = _RUNTIME_CLASSPATH + [
       |            "//y:y.jar",
       |        ],
       |    ),
       |    "b": struct(
-      |        build_modules = _BUILD_MODULES,
-      |        runtime_classpath = [
-      |            "//r:r.jar",
-      |        ],
+      |        runtime_classpath = _RUNTIME_CLASSPATH,
       |    ),
       |}
       |""".trimMargin())

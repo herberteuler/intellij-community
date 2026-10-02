@@ -68,8 +68,8 @@ def _dev_build_inputs_impl(ctx):
             fail("%s: %s must provide exactly one file, got %s" % (ctx.label, target.label, files))
         _add_input_entry(ctx, entries, origins, str(target.label), (files[0],), target.label, "raw")
 
-    if ctx.attr.content:
-        content = ctx.attr.content[DevDistContentInfo]
+    for target in ctx.attr.content:
+        content = target[DevDistContentInfo]
 
         # The keys must be byte-identical to the ones the generated name table produced, because `DevDistMain` asks
         # for exactly those strings through `BazelBuildInputs.resolve` and an unknown key is a hard error there.
@@ -132,8 +132,9 @@ intellij_dev_build_inputs = rule(
         # which are files a generator names one by one and no provider can aggregate.
         "inputs": attr.label_list(allow_files = True),
         # The jars, aggregated from the graph instead of from a generated name list. Both halves land in one manifest
-        # under the same key convention, so nothing on the Kotlin side can tell where an entry came from.
-        "content": attr.label(providers = [DevDistContentInfo]),
+        # under the same key convention, so nothing on the Kotlin side can tell where an entry came from. Two targets
+        # can state the same key with the same files, and the manifest then states it once.
+        "content": attr.label_list(providers = [DevDistContentInfo]),
     },
 )
 

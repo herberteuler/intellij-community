@@ -451,7 +451,6 @@ internal fun computeDevDistPlan(
         val referenceInputs = buildSpan("dev-distribution plan: resolve reference inputs") {
           resolveDevDistReferenceInputs(
             products = sortedProducts.map(::referenceProduct),
-            moduleSets = collected.moduleSets.associateBy(ModuleSetData::name),
             model = referenceInputModel(targets, outputProvider),
           )
         }
@@ -3385,23 +3384,16 @@ private fun renderReferencePlanFields(product: ProductFragmentPlan, indent: Stri
   appendNameList("platform_asset_archives", product.platformAssets.archives, indent = indent)
 }
 
-/** The names of [product] that the reference inputs resolve, see [resolveDevDistReferenceInputs]. */
+/** The names of [product] that the generator resolves or checks for the references, see [resolveDevDistReferenceInputs]. */
 private fun referenceProduct(product: ProductFragmentPlan): DevDistReferenceProduct {
-  fun payload(name: String): DevDistReferencePayload? {
-    val payload = product.payloads.singleOrNull { it.name == name } ?: return null
-    return DevDistReferencePayload(
-      modules = payload.modules,
-      projectLibraries = payload.projectLibraries,
-      moduleSets = payload.moduleSets,
-      runtimeClasspathModules = payload.runtimeClasspathModules,
-    )
-  }
+  val runtimeModuleRepository = product.payloads.singleOrNull { it.name == PLATFORM_RUNTIME_MODULE_REPOSITORY_FRAGMENT }
   return DevDistReferenceProduct(
     platformPrefix = product.platformPrefix,
     buildModules = product.buildModules,
-    embeddedFrontend = product.embeddedFrontend,
-    platformLib = payload(PLATFORM_LIB_FRAGMENT),
-    runtimeModuleRepository = payload(PLATFORM_RUNTIME_MODULE_REPOSITORY_FRAGMENT),
+    runtimeClasspathModules = product.payloads.singleOrNull { it.name == PLATFORM_LIB_FRAGMENT }?.runtimeClasspathModules.orEmpty(),
+    runtimeModuleRepository = runtimeModuleRepository?.let {
+      DevDistReferencePayload(modules = it.modules, projectLibraries = it.projectLibraries, moduleSets = it.moduleSets)
+    },
   )
 }
 
@@ -3530,8 +3522,8 @@ private fun renderFragmentInputs(products: List<ProductFragmentPlan>, half: DevD
   append("# `modules`, `project_libraries`, `module_sets` and `runtime_classpath_modules` are names. The binder reads this\n")
   append("# file at load time, and no module extension loads it.")
   if (DevDistCapability.REFERENCE_PLAN in half.capabilities) {
-    append(" The generator resolves the names to the labels of\n")
-    append("# `dev_dist_reference_inputs.bzl`, which only the reference fragments read.")
+    append(" The reference macro resolves the repository root\n")
+    append("# through the module target index at load time.")
   }
   append("\n")
   append("# `packed_content_module_jars` is labels: whether a module packs a `lib/` jar is a target of its own, and only the\n")

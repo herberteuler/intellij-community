@@ -809,7 +809,7 @@ def dev_dist_content_test_suite(name):
     inputs = name + "_inputs"
     intellij_dev_build_inputs(
         name = inputs,
-        content = ":" + payload,
+        content = [":" + payload],
     )
     tests.append(inputs + "_test")
     _build_inputs_test(

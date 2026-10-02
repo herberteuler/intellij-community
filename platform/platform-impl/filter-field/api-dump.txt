@@ -1,0 +1,13 @@
+f:com.intellij.ui.filterField.FilterAllAction
+- com.intellij.openapi.actionSystem.AnAction
+a:com.intellij.ui.filterField.FilterField
+- javax.swing.JPanel
+- <init>(java.lang.String):V
+f:com.intellij.ui.filterField.FilterFieldAction
+- com.intellij.openapi.actionSystem.AnAction
+- com.intellij.openapi.actionSystem.ex.CustomComponentAction
+- <init>(kotlin.jvm.functions.Function0):V
+f:com.intellij.ui.filterField.FilterMultiSelectAction
+- com.intellij.openapi.actionSystem.AnAction
+f:com.intellij.ui.filterField.FilterValueAction
+- com.intellij.openapi.actionSystem.AnAction

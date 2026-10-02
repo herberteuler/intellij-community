@@ -33,6 +33,7 @@ import com.intellij.terminal.actions.TerminalActionUtil
 import com.intellij.terminal.frontend.fus.TerminalCommandCompletionStatistics
 import com.intellij.terminal.frontend.fus.TerminalFusCursorPainterListener
 import com.intellij.terminal.frontend.fus.TerminalFusFirstOutputListener
+import com.intellij.terminal.frontend.fus.TerminalShortcutsPressStatistics
 import com.intellij.terminal.frontend.fus.installTypingLatencyTracker
 import com.intellij.terminal.frontend.view.TerminalKeyEvent
 import com.intellij.terminal.frontend.view.TerminalKeyEventsListener
@@ -412,6 +413,7 @@ class TerminalViewImpl(
       )
     }
 
+    addKeyEventsListener(coroutineScope.asDisposable(), TerminalShortcutsPressStatistics(project, this))
     installDropHandler()
   }
 

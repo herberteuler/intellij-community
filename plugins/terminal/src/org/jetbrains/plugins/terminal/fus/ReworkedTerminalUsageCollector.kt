@@ -18,6 +18,7 @@ import org.jetbrains.plugins.terminal.fus.TerminalCommandUsageStatistics.UNKNOWN
 import org.jetbrains.plugins.terminal.fus.TerminalCommandUsageStatistics.getKnownCommandValuesList
 import org.jetbrains.plugins.terminal.fus.TerminalShellInfoStatistics.KNOWN_SHELLS
 import org.jetbrains.plugins.terminal.fus.TerminalShellInfoStatistics.getShellNameForStat
+import java.awt.event.KeyEvent
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 
@@ -27,7 +28,7 @@ private const val GROUP_ID = "terminal"
 object ReworkedTerminalUsageCollector : CounterUsagesCollector() {
   override fun getGroup(): EventLogGroup = GROUP
 
-  private val GROUP = EventLogGroup(GROUP_ID, 23)
+  private val GROUP = EventLogGroup(GROUP_ID, 24)
 
   private val OS_VERSION_FIELD = EventFields.StringValidatedByRegexpReference("os-version", "version")
   private val SHELL_STR_FIELD = EventFields.String("shell", KNOWN_SHELLS.toList())
@@ -119,6 +120,8 @@ object ReworkedTerminalUsageCollector : CounterUsagesCollector() {
     INSERTED_CONTENT_SOURCE,
     PROCESS_EXECUTABLE,
   )
+
+  private val shortcutPressedEvent = GROUP.registerEvent("shortcut.pressed", EventFields.InputEventByKeyEvent, PROCESS_EXECUTABLE)
 
   private val osVersion: String by lazy {
     Version.parseVersion(OS.CURRENT.version())?.toCompactString() ?: "unknown"
@@ -296,6 +299,10 @@ object ReworkedTerminalUsageCollector : CounterUsagesCollector() {
       INSERTED_CONTENT_SOURCE with fileSource,
       PROCESS_EXECUTABLE with processExecutable,
     )
+  }
+
+  fun logShortcutPressed(project: Project, keyEvent: KeyEvent, processExecutable: String?) {
+    shortcutPressedEvent.log(project, keyEvent, processExecutable)
   }
 
   fun logStartupCursorShowingLatency(openingWay: TerminalTabOpeningWay, duration: Duration) {

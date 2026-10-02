@@ -2,6 +2,7 @@ package com.jetbrains.lsp.implementation
 
 import com.jetbrains.lsp.protocol.ErrorCodes
 import com.jetbrains.lsp.protocol.RequestType
+import kotlinx.serialization.json.JsonElement
 
 /**
  * A failed request: as [LspResponseErrorException], the peer answered with an error ([errorCode], the error `data`
@@ -50,6 +51,22 @@ fun <E> throwLspError(
     requestType: RequestType<*, *, E>,
     message: String,
     data: E,
+    code: Int,
+    cause: Throwable? = null,
+): Nothing =
+    throw LspResponseErrorException(
+        message = message,
+        errorCode = code,
+        payload = data,
+        cause = cause,
+    )
+
+/**
+ * Throws an error whose [data] goes to the client as it is, whatever error type the request declares.
+ */
+fun throwLspError(
+    message: String,
+    data: JsonElement,
     code: Int,
     cause: Throwable? = null,
 ): Nothing =

@@ -33,6 +33,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationStrategy
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.incrementAndFetch
@@ -367,7 +368,7 @@ private suspend fun withLspSession(
                                                     ResponseError(
                                                         code = x.errorCode,
                                                         message = x.message ?: x::class.simpleName ?: "unknown error",
-                                                        data = runCatching {
+                                                        data = x.payload as? JsonElement ?: runCatching {
                                                             @Suppress("UNCHECKED_CAST")
                                                             val errorSerializer = requireNotNull(maybeHandler) {
                                                                 "we could not have caught LspException if we didn't find the handler"

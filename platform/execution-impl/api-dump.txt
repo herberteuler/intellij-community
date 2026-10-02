@@ -234,6 +234,19 @@ com.intellij.execution.configuration.PersistentAwareRunConfiguration
 - a:readPersistent(org.jdom.Element):V
 - a:setTemplate(Z):V
 - a:writePersistent(org.jdom.Element):V
+c:com.intellij.execution.console.ConsoleViewWrapperBase
+- com.intellij.execution.ui.ConsoleView
+- com.intellij.execution.ui.ExecutionConsoleEx
+- <init>(com.intellij.execution.ui.ConsoleView):V
+- addMessageFilter(com.intellij.execution.filters.Filter):V
+- attachToProcess(com.intellij.execution.process.ProcessHandler):V
+- buildUi(com.intellij.execution.ui.RunnerLayoutUi):V
+- clear():V
+- createConsoleActions():com.intellij.openapi.actionSystem.AnAction[]
+- dispose():V
+- getComponent():javax.swing.JComponent
+- getDelegate():com.intellij.execution.ui.ConsoleView
+- scrollTo(I):V
 a:com.intellij.execution.filters.AbstractFileHyperlinkFilter
 - com.intellij.execution.filters.Filter
 com.intellij.execution.filters.HyperlinkWithHoverInfo

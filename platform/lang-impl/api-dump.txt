@@ -1858,19 +1858,6 @@ f:com.intellij.execution.console.ConsolePromptDecorator
 - f:update():V
 a:com.intellij.execution.console.ConsoleRootType
 - com.intellij.ide.scratch.RootType
-c:com.intellij.execution.console.ConsoleViewWrapperBase
-- com.intellij.execution.ui.ConsoleView
-- com.intellij.execution.ui.ExecutionConsoleEx
-- <init>(com.intellij.execution.ui.ConsoleView):V
-- addMessageFilter(com.intellij.execution.filters.Filter):V
-- attachToProcess(com.intellij.execution.process.ProcessHandler):V
-- buildUi(com.intellij.execution.ui.RunnerLayoutUi):V
-- clear():V
-- createConsoleActions():com.intellij.openapi.actionSystem.AnAction[]
-- dispose():V
-- getComponent():javax.swing.JComponent
-- getDelegate():com.intellij.execution.ui.ConsoleView
-- scrollTo(I):V
 c:com.intellij.execution.console.DuplexConsoleView
 - javax.swing.JPanel
 - com.intellij.execution.ui.ConsoleView

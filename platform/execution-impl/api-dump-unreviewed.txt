@@ -345,6 +345,21 @@ c:com.intellij.execution.configuration.EnvironmentVariablesTextFieldWithBrowseBu
 - removeChangeListener(javax.swing.event.ChangeListener):V
 - removeEnvFilePathsChangeListener(javax.swing.event.ChangeListener):V
 - p:stringifyEnvs(com.intellij.execution.configuration.EnvironmentVariablesData):java.lang.String
+c:com.intellij.execution.console.ConsoleViewWrapperBase
+- sf:CONSOLE_VIEW_WRAPPER_VIEW_ID_PREFIX:java.lang.String
+- allowHeavyFilters():V
+- canPause():Z
+- getContentSize():I
+- getExecutionConsoleId():java.lang.String
+- getPreferredFocusableComponent():javax.swing.JComponent
+- hasDeferredOutput():Z
+- isOutputPaused():Z
+- performWhenNoDeferredOutput(java.lang.Runnable):V
+- print(java.lang.String,com.intellij.execution.ui.ConsoleViewContentType):V
+- printHyperlink(java.lang.String,com.intellij.execution.filters.HyperlinkInfo):V
+- requestScrollingToEnd():V
+- setHelpId(java.lang.String):V
+- setOutputPaused(Z):V
 f:com.intellij.execution.envFile.EnvFileParserKt
 - sf:parseEnvFile(java.lang.String):java.util.Map
 a:com.intellij.execution.filters.AbstractFileHyperlinkFilter

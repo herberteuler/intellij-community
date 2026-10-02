@@ -115,6 +115,20 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
 
   public static final String ID = "reference.settingsdialog.IDE.editor.colors";
 
+  /**
+   * Returns the id of the settings tree node of one colour page.
+   * <p>
+   * Three readers join on this string, and two of them run in another process. The settings tree builds the child
+   * node with it, {@code BackendConfigurablesStorage.filterConfigurables} removes it from the list that a remote
+   * development host sends to its client, and the client keeps the node of the host only when the two agree. So
+   * the rule lives here, and no caller builds the string itself.
+   *
+   * @param pageId the id of the page, which is {@link ColorSettingsPageEntry#getId()}
+   */
+  public static @NotNull String getPageConfigurableId(@NotNull String pageId) {
+    return ID + "." + pageId;
+  }
+
   private final ColorAndFontOptionsModel myModel = ColorAndFontOptionsModel.getInstance();
   ColorAndFontOptionsModelListener modelListener = new ColorAndFontOptionsModelListener() {
     @Override
@@ -1852,7 +1866,7 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
 
     @Override
     public @NotNull String getId() {
-      return ColorAndFontOptions.this.getId() + "." + myFactory.getConfigurableId();
+      return getPageConfigurableId(myFactory.getConfigurableId());
     }
 
     @Override

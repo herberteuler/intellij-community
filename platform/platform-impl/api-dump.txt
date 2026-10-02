@@ -38,6 +38,7 @@ c:com.intellij.application.options.colors.ColorAndFontOptions
 - findSubConfigurable(java.lang.String):com.intellij.openapi.options.SearchableConfigurable
 - getCurrentDescriptions():com.intellij.openapi.editor.colors.EditorSchemeAttributeDescriptor[]
 - s:getFontConfigurableName():java.lang.String
+- s:getPageConfigurableId(java.lang.String):java.lang.String
 - s:getScopesGroup():java.lang.String
 - getSelectedScheme():com.intellij.openapi.editor.colors.EditorColorsScheme
 - reset():V

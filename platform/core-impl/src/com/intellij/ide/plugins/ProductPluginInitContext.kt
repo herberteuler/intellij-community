@@ -502,6 +502,7 @@ private val contentModulesExtractedInCorePluginWhichCanBeUsedFromExternalPlugins
   "intellij.xml.parser",
   "intellij.xml.psi",
   "intellij.xml.psi.impl",
+  "intellij.regexp",
   "intellij.xml.syntax",
   "intellij.xml.ui.common",
   "intellij.platform.webide",

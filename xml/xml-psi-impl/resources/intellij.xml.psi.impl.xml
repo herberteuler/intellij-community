@@ -26,7 +26,6 @@
     <module name="intellij.platform.projectModel.impl"/>
     <module name="intellij.platform.syntax.psi"/>
     <module name="intellij.platform.util.ui"/>
-    <module name="intellij.regexp"/>
     <module name="intellij.xml.parser"/>
     <module name="intellij.xml.psi"/>
     <module name="intellij.xml.syntax"/>
@@ -97,8 +96,6 @@
     <lang.ast.factory language="HTML" implementationClass="com.intellij.lang.xml.XmlASTFactory"/>
     <lang.ast.factory language="XHTML" implementationClass="com.intellij.lang.xml.XmlASTFactory"/>
     <lang.ast.factory language="JAVA_HOLDER_METHOD_TREE" implementationClass="com.intellij.lang.xml.XmlASTFactory"/>
-
-    <lang.parserDefinition language="XsdRegExp" implementationClass="com.intellij.psi.impl.source.resolve.reference.impl.providers.XsdRegExpParserDefinition"/>
 
     <readWriteAccessDetector implementation="com.intellij.codeInsight.highlighting.XmlReadWriteAccessDetector"/>
 

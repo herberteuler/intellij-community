@@ -1,0 +1,20 @@
+<idea-plugin>
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.libraries.jetbrains.annotations"/>
+    <module name="intellij.platform.backend"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.impl"/>
+    <module name="intellij.regexp"/>
+    <module name="intellij.xml.psi"/>
+    <module name="intellij.xml.psi.impl"/>
+  </dependencies>
+  <!-- endregion -->
+
+  <extensions defaultExtensionNs="com.intellij">
+    <lang.parserDefinition language="XsdRegExp" implementationClass="com.intellij.xml.psi.impl.regexp.XsdRegExpParserDefinition"/>
+    <multiHostInjector implementation="com.intellij.xml.psi.impl.regexp.XsdRegExpInjector"/>
+    <regExpLanguageHost forClass="com.intellij.psi.impl.source.xml.XmlAttributeValueImpl"
+                        implementationClass="com.intellij.xml.psi.impl.regexp.XmlAttributeValueRegExpHost"/>
+  </extensions>
+</idea-plugin>

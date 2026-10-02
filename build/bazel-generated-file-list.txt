@@ -2038,6 +2038,7 @@ xml/xml-analysis-impl
 xml/xml-parser
 xml/xml-psi-api
 xml/xml-psi-impl
+xml/xml-psi-impl/regexp
 xml/xml-structure-view-api
 xml/xml-structure-view-impl
 xml/xml-syntax

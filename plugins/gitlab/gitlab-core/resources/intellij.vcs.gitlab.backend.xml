@@ -82,7 +82,8 @@
                     serviceImplementation="org.jetbrains.plugins.gitlab.mergerequest.ui.GitLabConnectedProjectViewModelFactoryImpl"/>
 
     <!--suppress PluginXmlI18n - intentionally suppress the inspection to avoid translating `GitLab` technology name-->
-    <projectConfigurable parentId="project.propVCSSupport.Mappings" groupWeight="-500"
+    <projectConfigurable id="org.jetbrains.plugins.gitlab.GitLabSettingsConfigurable"
+                         parentId="project.propVCSSupport.Mappings" groupWeight="-500"
                          instance="org.jetbrains.plugins.gitlab.GitLabSettingsConfigurable"
                          displayName="GitLab"/>
 

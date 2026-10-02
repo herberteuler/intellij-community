@@ -1081,6 +1081,7 @@
     <applicationService serviceInterface="com.intellij.openapi.actionSystem.AbbreviationManager"
                         serviceImplementation="com.intellij.openapi.actionSystem.impl.AbbreviationManagerImpl"/>
     <applicationConfigurable
+      id="editor.preferences.fonts.default"
       groupId="editor"
       groupWeight="188"
       bundle="messages.IdeBundle"
@@ -1088,6 +1089,7 @@
       instance="com.intellij.application.options.editor.fonts.AppEditorFontConfigurable"
     />
     <applicationConfigurable
+      id="app.console.font"
       groupId="editor"
       groupWeight="188"
       bundle="messages.IdeBundle"

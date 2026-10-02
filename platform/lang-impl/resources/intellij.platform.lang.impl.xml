@@ -1169,7 +1169,8 @@
                            key="tab.editor.settings.appearance" newOptions="true"/>
     <editorAppearanceInlineDocHandler instance="com.intellij.application.options.editor.EditorAppearanceConfigurable$DefaultInlineDocAdditionalConfigurable"
                                       id="default"/>
-    <editorOptionsProvider instance="com.intellij.application.options.editor.GutterIconsConfigurable" id="editor.preferences.gutterIcons"/>
+    <editorOptionsProvider instance="com.intellij.application.options.editor.GutterIconsConfigurable" id="editor.preferences.gutterIcons"
+                           key="configurable.GutterIconsConfigurable.display.name" bundle="messages.IdeBundle"/>
     <search.optionContributor implementation="com.intellij.application.options.editor.GutterIconsSearchableOptionContributor"/>
     <!-- Code Lens -->
     <codeVisionPainterProvider forClass="com.intellij.codeInsight.codeVision.ui.model.CounterCodeVisionEntry"
@@ -1192,7 +1193,8 @@
                         serviceImplementation="com.intellij.codeInsight.codeVision.ui.renderers.DefaultCodeVisionListPainterFactory"/>
     <optionsApplicabilityFilter implementation="com.intellij.application.options.GlobalOptionsApplicabilityFilter" order="last"
                                 id="global"/>
-    <editorOptionsProvider instance="com.intellij.application.options.editor.EditorTabsConfigurable" id="editor.preferences.tabs"/>
+    <editorOptionsProvider instance="com.intellij.application.options.editor.EditorTabsConfigurable" id="editor.preferences.tabs"
+                           key="configurable.editor.tabs.display.name" bundle="messages.ApplicationBundle"/>
     <search.topHitProvider implementation="com.intellij.application.options.editor.CodeFoldingOptionsTopHitProvider"/>
     <editorOptionsProvider instance="com.intellij.application.options.editor.CodeFoldingConfigurable" id="editor.preferences.folding"
                            key="group.code.folding" bundle="messages.ApplicationBundle"/>
@@ -1202,10 +1204,12 @@
     <editorCompletionConfigurable
       instance="com.intellij.application.options.CodeCompletionConfigurable"
       id="editor.preferences.completion.popup"
+      key="title.code.completion.popup" bundle="messages.ApplicationBundle"
     />
     <editorCompletionConfigurable
       instance="com.intellij.codeInsight.inline.completion.options.InlineCompletionConfigurable"
-      id="editor.preferences.completion.inline"/>
+      id="editor.preferences.completion.inline"
+      key="title.code.completion.inline" bundle="messages.ApplicationBundle"/>
     <projectConfigurable instance="com.intellij.application.options.editor.AutoImportOptionsConfigurable"
                          id="editor.preferences.import"
                          parentId="preferences.editor"

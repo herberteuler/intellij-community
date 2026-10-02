@@ -435,7 +435,8 @@
     <library.type implementation="com.intellij.externalSystem.ImportedLibraryType"/>
     <postStartupActivity implementation="com.intellij.codeInsight.daemon.impl.IdeaLibDependencyNotifier"/>
     <postStartupActivity implementation="com.intellij.jarRepository.RepositoryLibrarySynchronizer"/>
-    <projectConfigurable groupId="build" instance="com.intellij.jarRepository.settings.RemoteRepositoriesConfigurable"
+    <projectConfigurable id="com.intellij.jarRepository.settings.RemoteRepositoriesConfigurable"
+                         groupId="build" instance="com.intellij.jarRepository.settings.RemoteRepositoriesConfigurable"
                          key="configurable.RemoteRepositoriesConfigurable.display.name" bundle="messages.JavaUiBundle"
                          order="last"/>
 

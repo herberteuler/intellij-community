@@ -1,5 +1,5 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.psi.versioning
+package com.intellij.java.psi.versioning
 
 import com.intellij.extapi.psi.StubBasedPsiElementBase
 import com.intellij.openapi.application.readAction
@@ -45,7 +45,7 @@ internal class VersionedGreenStubTest {
     private const val STUB_BRANCH = "stub"
     private const val AST_BRANCH = "ast"
 
-    /** Reports which of the two processors [PsiFileImpl.withGreenStubOrAst] picked, without inspecting the payload. */
+    /** Reports which of the two processors [withGreenStubOrAst] picked, without inspecting the payload. */
     private fun PsiFileImpl.branchTakenByWithGreenStubOrAst(): String =
       withGreenStubOrAst({ STUB_BRANCH }, { AST_BRANCH })
 

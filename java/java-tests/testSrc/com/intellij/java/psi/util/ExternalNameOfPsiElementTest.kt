@@ -1,12 +1,13 @@
-// Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
-package com.intellij.psi.util
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.psi.util
 
 import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.util.PsiFormatUtil
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase
 
 /**
  * Tests our expectations on which string presentation of PSI elements
- * is returned by method [PsiFormatUtil.getExternalName].
+ * is returned by method [com.intellij.psi.util.PsiFormatUtil.getExternalName].
  *
  * This format is used in external annotations files, "annotations.xml", to specify item names:
  * `<item name="org.jetbrains.some.Class void func()">...</item>`

@@ -1,5 +1,5 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.psi.versioning
+package com.intellij.java.psi.versioning
 
 import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.Disposable
@@ -69,6 +69,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @TestApplication
@@ -421,7 +422,7 @@ internal class FileViewProviderVersioningConsistencyTest {
       }
     }
     val document = readActionBlocking {
-      kotlin.test.assertNotNull(FileDocumentManager.getInstance().getDocument(file.viewProvider.virtualFile))
+      assertNotNull(FileDocumentManager.getInstance().getDocument(file.viewProvider.virtualFile))
     }
 
     readActionBlocking {

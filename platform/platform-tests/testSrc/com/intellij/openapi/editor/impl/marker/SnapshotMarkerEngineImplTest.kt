@@ -158,55 +158,6 @@ class SnapshotMarkerEngineImplTest {
   }
 
   @Test
-  @Timeout(30)
-  fun `marker created after child root capture is propagated only to future children`() {
-    val fixture = Fixture("abcdef")
-    val rootCaptured = CountDownLatch(1)
-    val markerCreated = CountDownLatch(1)
-    val sputnik = object : DocumentSputnik {
-      override fun applyOp(before: DocumentSnapshot, after: DocumentSnapshot, op: DocumentOp): DocumentSputnik {
-        check(op is DocumentTextPatch)
-        rootCaptured.countDown()
-        check(markerCreated.await(10, TimeUnit.SECONDS)) { "Marker creation did not finish" }
-        return this
-      }
-    }
-    val sputnikKey = Key.create<DocumentSputnik>("test.marker.root.capture")
-    val parent = fixture.applyOp(fixture.initialSnapshot, DocumentNewOps.getInstance().createSetSputnikOp(sputnikKey, sputnik))
-    val childFuture = CompletableFuture<DocumentSnapshot>()
-    val childThread = thread(start = true, isDaemon = true, name = "snapshot-child-creator") {
-      try {
-        childFuture.complete(fixture.edit(parent, startOffset = 0, endOffset = 0, newFragment = "X"))
-      }
-      catch (t: Throwable) {
-        childFuture.completeExceptionally(t)
-      }
-    }
-
-    try {
-      assertTrue(rootCaptured.await(10, TimeUnit.SECONDS))
-      val marker = SnapshotMarkerEngineImpl.createRangeMarker(
-        document = fixture.document,
-        snapshot = parent,
-        startOffset = 2,
-        endOffset = 4,
-        spec = nonGreedySpec(),
-      )
-      markerCreated.countDown()
-      val child = childFuture.get(10, TimeUnit.SECONDS)
-      val futureChild = fixture.edit(parent, startOffset = 0, endOffset = 0, newFragment = "YY")
-
-      assertRange(marker, parent, startOffset = 2, endOffset = 4)
-      assertAbsent(marker, child, startOffset = 2, endOffset = 4)
-      assertRange(marker, futureChild, startOffset = 4, endOffset = 6)
-    }
-    finally {
-      markerCreated.countDown()
-      childThread.join(10_000)
-    }
-  }
-
-  @Test
   fun `engine removal disposes marker across snapshots`() {
     val fixture = Fixture("abcdef")
     val initialSnapshot = fixture.initialSnapshot

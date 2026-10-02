@@ -14,12 +14,10 @@ import com.intellij.openapi.editor.ex.DocumentMutator
 import com.intellij.openapi.editor.ex.DocumentNewOps
 import com.intellij.openapi.editor.ex.DocumentSettings
 import com.intellij.openapi.editor.ex.DocumentSnapshot
-import com.intellij.openapi.editor.ex.DocumentSputnik
 import com.intellij.openapi.editor.ex.DocumentTextPatch
 import com.intellij.openapi.editor.impl.event.DocumentEventImpl
 import com.intellij.openapi.editor.impl.marker.SnapshotMarkerStores
 import com.intellij.openapi.fileEditor.FileDocumentManager
-import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.ProperTextRange
 import com.intellij.util.text.ImmutableCharSequence
 import java.util.function.UnaryOperator
@@ -45,14 +43,6 @@ internal abstract class DocumentMutatorImpl(
     val newOps = DocumentNewOps.getInstance()
     val op = newOps.createUnmodifiedLinesOp(startLine, endLine, exceptLines)
     updateAndGet { snapshotMarkerStores.applyOp(it, op) }
-  }
-
-  override fun <S : DocumentSputnik> setSputnik(key: Key<S>, sputnik: (DocumentSnapshot) -> S?): DocumentSnapshot {
-    val newOps = DocumentNewOps.getInstance()
-    return updateAndGet { snapshot ->
-      val op = newOps.createSetSputnikOp(key, sputnik.invoke(snapshot))
-      snapshotMarkerStores.applyOp(snapshot, op)
-    }
   }
 
   override fun insertString(

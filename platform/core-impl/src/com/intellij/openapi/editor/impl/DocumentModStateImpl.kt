@@ -38,7 +38,6 @@ internal class DocumentModStateImpl private constructor(
       is DocumentTextPatch -> applyTextPatch(before, after, op)
       is DocumentOp.ModStamp -> applyModStamp(op)
       is DocumentOp.UnmodifiedLines -> applyUnmodifiedLines(before, op)
-      is DocumentOp.SetSputnik -> this
     }
   }
 

@@ -2557,19 +2557,6 @@ f:com.intellij.ide.actions.searcheverywhere.SEResultsEqualityProvider$SEEqualEle
 - com.intellij.ide.actions.searcheverywhere.SEResultsEqualityProvider$SEEqualElementsActionType
 c:com.intellij.ide.actions.searcheverywhere.SearchEverywhereFiltersAction
 - com.intellij.ide.actions.bigPopup.ShowFilterAction
-c:com.intellij.ide.actions.searcheverywhere.SearchEverywhereFoundElementInfo
-- <init>(java.lang.Object,I,com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor,com.intellij.ide.actions.searcheverywhere.SearchEverywhereSpellCheckResult):V
-- <init>(java.lang.String,java.lang.Object,I,com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor):V
-- getContributor():com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
-- getElement():java.lang.Object
-com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager
-- s:getInstance(com.intellij.openapi.project.Project):com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager
-- a:getSelectedTabID():java.lang.String
-- a:isEverywhere():Z
-- a:isShown():Z
-- a:setSelectedTabID(java.lang.String):V
-- a:show(java.lang.String,java.lang.String,com.intellij.openapi.actionSystem.AnActionEvent):V
-- a:toggleEverywhereFilter():V
 f:com.intellij.ide.actions.searcheverywhere.SearchEverywhereManagerImpl
 - com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager
 com.intellij.ide.actions.searcheverywhere.SearchEverywherePreviewProvider
@@ -3592,11 +3579,6 @@ f:com.intellij.ide.util.scopeChooser.ScopeChooserConfigurable
 - com.intellij.openapi.ui.MasterDetailsComponent
 - com.intellij.openapi.options.SearchableConfigurable
 - <init>(com.intellij.openapi.project.Project):V
-c:com.intellij.ide.util.scopeChooser.ScopeDescriptor
-- com.intellij.openapi.util.ColoredItem
-- <init>(com.intellij.psi.search.SearchScope):V
-- getDisplayName():java.lang.String
-- getScope():com.intellij.psi.search.SearchScope
 com.intellij.ide.util.scopeChooser.ScopeDescriptorProvider
 - sf:Companion:com.intellij.ide.util.scopeChooser.ScopeDescriptorProvider$Companion
 - sf:EMPTY:com.intellij.ide.util.scopeChooser.ScopeDescriptor[]

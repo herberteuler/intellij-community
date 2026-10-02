@@ -121,6 +121,7 @@
     <extensionPoint qualifiedName="com.intellij.searchEverywhereSpellingCorrector" interface="com.intellij.ide.actions.searcheverywhere.SearchEverywhereSpellingCorrectorFactory" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.searchEverywhereEssentialContributorsMarker" interface="com.intellij.ide.actions.searcheverywhere.SearchEverywhereEssentialContributorMarker" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.searchEverywhereRemoteConverter" interface="com.intellij.ide.actions.searcheverywhere.remote.RemoteSearchEverywhereConverterSupplier" dynamic="true"/>
+    <extensionPoint qualifiedName="com.intellij.searchEverywhere.manager" interface="com.intellij.ide.actions.SearchEverywhereManagerFactory" dynamic="true" />
     <extensionPoint qualifiedName="com.intellij.roots.watchedRootsProvider" interface="com.intellij.openapi.roots.WatchedRootsProvider" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.librarySettingsProvider" interface="com.intellij.openapi.roots.ui.configuration.LibrarySettingsProvider" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.fileTemplateGroup" interface="com.intellij.ide.fileTemplates.FileTemplateGroupDescriptorFactory" dynamic="true"/>

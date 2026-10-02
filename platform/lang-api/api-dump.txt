@@ -758,6 +758,19 @@ com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
 com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributorFactory
 - a:createContributor(com.intellij.openapi.actionSystem.AnActionEvent):com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
 - isAvailable(com.intellij.openapi.project.Project):Z
+c:com.intellij.ide.actions.searcheverywhere.SearchEverywhereFoundElementInfo
+- <init>(java.lang.Object,I,com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor,com.intellij.ide.actions.searcheverywhere.SearchEverywhereSpellCheckResult):V
+- <init>(java.lang.String,java.lang.Object,I,com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor):V
+- getContributor():com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
+- getElement():java.lang.Object
+com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager
+- s:getInstance(com.intellij.openapi.project.Project):com.intellij.ide.actions.searcheverywhere.SearchEverywhereManager
+- a:getSelectedTabID():java.lang.String
+- a:isEverywhere():Z
+- a:isShown():Z
+- a:setSelectedTabID(java.lang.String):V
+- a:show(java.lang.String,java.lang.String,com.intellij.openapi.actionSystem.AnActionEvent):V
+- a:toggleEverywhereFilter():V
 com.intellij.ide.actions.searcheverywhere.WeightedSearchEverywhereContributor
 - com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
 - fetchElements(java.lang.String,com.intellij.openapi.progress.ProgressIndicator,com.intellij.util.Processor):V
@@ -978,6 +991,11 @@ a:com.intellij.ide.util.gotoByName.ChooseByNamePopupComponent$MultiElementsCallb
 c:com.intellij.ide.util.projectWizard.EmptyModuleBuilder
 - com.intellij.ide.util.projectWizard.ModuleBuilder
 - <init>():V
+c:com.intellij.ide.util.scopeChooser.ScopeDescriptor
+- com.intellij.openapi.util.ColoredItem
+- <init>(com.intellij.psi.search.SearchScope):V
+- getDisplayName():java.lang.String
+- getScope():com.intellij.psi.search.SearchScope
 c:com.intellij.lang.DefaultWordCompletionFilter
 - com.intellij.lang.WordCompletionElementFilter
 - <init>():V

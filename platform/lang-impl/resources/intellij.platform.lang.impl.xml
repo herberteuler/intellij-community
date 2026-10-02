@@ -239,7 +239,6 @@
     <extensionPoint qualifiedName="com.intellij.searchEverywhereMlContributorReplacement" interface="com.intellij.ide.actions.searcheverywhere.SearchEverywhereMlContributorReplacement" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.searchEverywhereReorderingService" interface="com.intellij.ide.actions.searcheverywhere.SearchEverywhereReorderingService" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.searchEverywherePreviewPrimaryUsageFinder" interface="com.intellij.ide.actions.searcheverywhere.SearchEverywherePreviewPrimaryUsageFinder" dynamic="true" />
-    <extensionPoint qualifiedName="com.intellij.searchEverywhere.manager" interface="com.intellij.ide.actions.SearchEverywhereManagerFactory" dynamic="true" />
     <extensionPoint qualifiedName="com.intellij.elementSignatureProvider" interface="com.intellij.codeInsight.folding.impl.ElementSignatureProvider" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.highlightUsagesHandlerFactory" interface="com.intellij.codeInsight.highlighting.HighlightUsagesHandlerFactory" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.heavyBracesHighlighter" interface="com.intellij.codeInsight.highlighting.HeavyBraceHighlighter"/>

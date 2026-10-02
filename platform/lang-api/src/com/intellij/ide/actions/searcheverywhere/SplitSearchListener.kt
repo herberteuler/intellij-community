@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.ide.actions.searcheverywhere
 
 import org.jetbrains.annotations.ApiStatus
@@ -27,7 +27,7 @@ interface SplitSearchListener {
 
     override fun searchStarted(pattern: String, contributors: Collection<SearchEverywhereContributor<*>>) {
       searchStarted(pattern,
-                    if (contributors.size > 1) SearchEverywhereManagerImpl.ALL_CONTRIBUTORS_GROUP_ID
+                    if (contributors.size > 1) SearchEverywhereManager.ALL_CONTRIBUTORS_GROUP_ID
                     else contributors.firstOrNull()?.searchProviderId ?: "")
     }
 

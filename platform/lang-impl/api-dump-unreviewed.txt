@@ -3728,14 +3728,6 @@ c:com.intellij.ide.actions.searcheverywhere.SearchEverywhereFiltersAction
 - getFilter():com.intellij.ide.actions.searcheverywhere.PersistentSearchEverywhereContributorFilter
 - isActive():Z
 - isEnabled():Z
-c:com.intellij.ide.actions.searcheverywhere.SearchEverywhereFoundElementInfo
-- sf:COMPARATOR:java.util.Comparator
-- f:contributor:com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
-- f:element:java.lang.Object
-- f:priority:I
-- <init>(java.lang.Object,I,com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor):V
-- getDescription():java.lang.String
-- getPriority():I
 f:com.intellij.ide.actions.searcheverywhere.SearchEverywhereManagerImpl
 - sf:ALL_CONTRIBUTORS_GROUP_ID:java.lang.String
 - sf:IS_SELECT_SEARCH_TEXT:com.intellij.openapi.actionSystem.DataKey
@@ -3777,15 +3769,6 @@ f:com.intellij.ide.actions.searcheverywhere.SearchEverywhereUI
 - toggleEverywhereFilter():V
 - uiDataSnapshot(com.intellij.openapi.actionSystem.DataSink):V
 - unregisterHint():V
-com.intellij.ide.actions.searcheverywhere.SearchListener
-- s:combine(java.util.Collection):com.intellij.ide.actions.searcheverywhere.SearchListener
-- s:combine(com.intellij.ide.actions.searcheverywhere.SearchListener[]):com.intellij.ide.actions.searcheverywhere.SearchListener
-- a:contributorFinished(com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor,Z):V
-- a:contributorWaits(com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor):V
-- a:elementsAdded(java.util.List):V
-- a:elementsRemoved(java.util.List):V
-- a:searchFinished(java.util.Map):V
-- a:searchStarted(java.lang.String,java.util.Collection):V
 c:com.intellij.ide.actions.searcheverywhere.SymbolSearchEverywhereContributor
 - createExtendedInfo():com.intellij.ide.actions.searcheverywhere.ExtendedInfo
 - p:createModel(com.intellij.openapi.project.Project):com.intellij.ide.util.gotoByName.FilteringGotoByModel
@@ -5367,10 +5350,6 @@ f:com.intellij.ide.util.scopeChooser.ScopeChooserConfigurable
 - getId():java.lang.String
 - isModified():Z
 - reset():V
-c:com.intellij.ide.util.scopeChooser.ScopeDescriptor
-- getColor():java.awt.Color
-- getIcon():javax.swing.Icon
-- scopeEquals(com.intellij.psi.search.SearchScope):Z
 f:com.intellij.ide.util.scopeChooser.ScopeDescriptorProvider$Companion
 f:com.intellij.internal.ImageDuplicateResultsDialog
 - <init>(com.intellij.openapi.project.Project,java.util.List,java.util.Map):V

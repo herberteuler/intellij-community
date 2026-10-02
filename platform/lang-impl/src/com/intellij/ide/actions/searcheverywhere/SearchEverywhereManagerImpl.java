@@ -65,7 +65,7 @@ import static com.intellij.ide.actions.searcheverywhere.statistics.SearchEverywh
  */
 @Deprecated
 public final class SearchEverywhereManagerImpl implements SearchEverywhereManager {
-  public static final String ALL_CONTRIBUTORS_GROUP_ID = "SearchEverywhereContributor.All";
+  public static final String ALL_CONTRIBUTORS_GROUP_ID = SearchEverywhereManager.ALL_CONTRIBUTORS_GROUP_ID;
   public static final String LOCATION_SETTINGS_KEY = "search.everywhere.popup";
 
   public static final DataKey<Boolean> IS_SELECT_SEARCH_TEXT = DataKey.create("search.everywhere.is.select.search.text");

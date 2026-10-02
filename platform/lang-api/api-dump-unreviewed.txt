@@ -1196,11 +1196,28 @@ f:com.intellij.ide.actions.searcheverywhere.SearchEverywhereCommandInfo
 - getDefinition():java.lang.String
 com.intellij.ide.actions.searcheverywhere.SearchEverywhereExtendedInfoProvider
 - createExtendedInfo():com.intellij.ide.actions.searcheverywhere.ExtendedInfo
+c:com.intellij.ide.actions.searcheverywhere.SearchEverywhereFoundElementInfo
+- sf:COMPARATOR:java.util.Comparator
+- f:contributor:com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor
+- f:element:java.lang.Object
+- f:priority:I
+- <init>(java.lang.Object,I,com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor):V
+- getDescription():java.lang.String
+- getPriority():I
 com.intellij.ide.actions.searcheverywhere.SearchEverywhereToggleAction
 - a:canToggleEverywhere():Z
 - a:isEverywhere():Z
 - a:setEverywhere(Z):V
 - setScopeIsDefaultAndAutoSet(Z):V
+com.intellij.ide.actions.searcheverywhere.SearchListener
+- s:combine(java.util.Collection):com.intellij.ide.actions.searcheverywhere.SearchListener
+- s:combine(com.intellij.ide.actions.searcheverywhere.SearchListener[]):com.intellij.ide.actions.searcheverywhere.SearchListener
+- a:contributorFinished(com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor,Z):V
+- a:contributorWaits(com.intellij.ide.actions.searcheverywhere.SearchEverywhereContributor):V
+- a:elementsAdded(java.util.List):V
+- a:elementsRemoved(java.util.List):V
+- a:searchFinished(java.util.Map):V
+- a:searchStarted(java.lang.String,java.util.Collection):V
 com.intellij.ide.actions.searcheverywhere.remote.RemoteSearchEverywhereConverter
 - a:convertToItem(com.intellij.ide.actions.searcheverywhere.remote.RemoteSearchEverywherePresentation):java.lang.Object
 - a:convertToPresentation(java.lang.Object):com.intellij.ide.actions.searcheverywhere.remote.RemoteSearchEverywherePresentation
@@ -1418,6 +1435,10 @@ c:com.intellij.ide.util.projectWizard.EmptyModuleBuilder
 - getPresentableName():java.lang.String
 - isOpenProjectSettingsAfter():Z
 - isTemplateBased():Z
+c:com.intellij.ide.util.scopeChooser.ScopeDescriptor
+- getColor():java.awt.Color
+- getIcon():javax.swing.Icon
+- scopeEquals(com.intellij.psi.search.SearchScope):Z
 f:com.intellij.lang.CodeInsightActions
 - sf:DELEGATE_METHODS:com.intellij.lang.LanguageExtension
 - sf:GOTO_SUPER:com.intellij.lang.LanguageExtension

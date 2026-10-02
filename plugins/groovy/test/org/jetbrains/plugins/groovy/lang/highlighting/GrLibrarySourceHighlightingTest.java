@@ -34,7 +34,7 @@ public class GrLibrarySourceHighlightingTest extends GrHighlightingTestBase {
     return new DefaultLightProjectDescriptor() {
       @Override
       public void configureModule(@NotNull Module module, @NotNull ModifiableRootModel model, @NotNull ContentEntry contentEntry) {
-        final String absoluteBasePath = TestUtils.getAbsoluteTestDataPath() + getBasePath();
+        final String absoluteBasePath = getTestDataPath();
         final VirtualFile lib = JarFileSystem.getInstance().refreshAndFindFileByPath(absoluteBasePath + "/some-library.jar!/");
         final VirtualFile src = StandardFileSystems.local().refreshAndFindFileByPath(absoluteBasePath + "/src/");
 
@@ -47,7 +47,7 @@ public class GrLibrarySourceHighlightingTest extends GrHighlightingTestBase {
   }
 
   @Override
-  public final String getBasePath() {
-    return "highlighting/librarySources";
+  public final String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "highlighting/librarySources";
   }
 }

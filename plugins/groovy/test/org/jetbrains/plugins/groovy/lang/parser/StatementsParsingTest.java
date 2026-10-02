@@ -350,7 +350,7 @@ public class StatementsParsingTest extends GroovyParsingTestCase {
   public void testRecoveryMissingSeparator() { doTest(); }
 
   @Override
-  public final String getBasePath() {
-    return super.getBasePath() + "statements";
+  public final String getTestDataPath() {
+    return super.getTestDataPath() + "statements";
   }
 }

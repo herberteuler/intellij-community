@@ -34,8 +34,8 @@ import java.util.List;
 public class GroovyMoveScriptTest extends LightJavaCodeInsightFixtureTestCase {
 
   @Override
-  protected String getBasePath() {
-    return TestUtils.getTestDataPath() + "refactoring/move/moveScript/";
+  protected String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "refactoring/move/moveScript/";
   }
 
   public void testMoveScriptBasic() {

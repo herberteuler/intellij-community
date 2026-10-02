@@ -32,8 +32,8 @@ import java.util.List;
  */
 public class GroovyLineMarkerTest extends LightJavaCodeInsightFixtureTestCase {
   @Override
-  protected String getBasePath() {
-    return TestUtils.getTestDataPath() + "lineMarker/";
+  protected String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "lineMarker/";
   }
 
   public void testInterface() {

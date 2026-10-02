@@ -401,7 +401,7 @@ public class GroovyOptimizeImportsTest extends LightGroovyTestCase {
   }
 
   @Override
-  public final String getBasePath() {
-    return TestUtils.getTestDataPath() + "optimizeImports/";
+  public final String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "optimizeImports/";
   }
 }

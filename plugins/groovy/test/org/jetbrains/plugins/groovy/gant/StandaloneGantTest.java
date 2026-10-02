@@ -18,8 +18,8 @@ public class StandaloneGantTest extends LightJavaCodeInsightFixtureTestCase {
   }
 
   @Override
-  protected String getBasePath() {
-    return TestUtils.getTestDataPath() + "gant/completion";
+  protected String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "gant/completion";
   }
 
   @Override

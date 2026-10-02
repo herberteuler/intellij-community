@@ -38,8 +38,8 @@ import java.util.Iterator;
 
 public class GroovyFindUsagesTest extends LightGroovyTestCase {
   @Override
-  protected String getBasePath() {
-    return TestUtils.getTestDataPath() + "findUsages/" + getTestName(true) + "/";
+  protected String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "findUsages/" + getTestName(true) + "/";
   }
 
   private void doConstructorTest(String filePath, int expectedCount) {

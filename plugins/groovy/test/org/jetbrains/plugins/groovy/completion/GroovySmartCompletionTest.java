@@ -12,8 +12,8 @@ import java.util.List;
 
 public class GroovySmartCompletionTest extends GroovyCompletionTestBase {
   @Override
-  protected String getBasePath() {
-    return TestUtils.getTestDataPath() + "groovy/completion/smart";
+  protected String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "groovy/completion/smart";
   }
 
   public void testSmartCompletionAfterNewInDeclaration() {

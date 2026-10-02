@@ -2,6 +2,32 @@ load("@community//build:tests-options.bzl", "jps_test")
 load("@jps_dynamic_deps_community//:targets.bzl", "dev_dist_plugin")
 load("@rules_jvm//:jvm.bzl", "jvm_library")
 
+filegroup(
+    name = "testdata",
+    srcs = glob(["testdata/**"]),
+    visibility = ["//visibility:public"],
+)
+
+jps_test(
+    name = "groovy-tests_test",
+    data = [
+        ":testdata",
+        "@community//plugins/groovy/groovy-psi:dev_dist_resources",
+    ],
+    env = {
+        "JB_TEST_JUNIT5_FILTERS": ";".join([
+            "exclude-classname=org\\.jetbrains\\.plugins\\.groovy\\.AllGroovyTestSuite",
+            "exclude-classname=org\\.jetbrains\\.plugins\\.groovy\\.FastGroovyTestSuite",
+            "exclude-classname=org\\.jetbrains\\.plugins\\.groovy\\.GroovyGinqTestSuite",
+            "exclude-classname=org\\.jetbrains\\.plugins\\.groovy\\.GroovyParserTestSuite",
+            "exclude-classname=org\\.jetbrains\\.plugins\\.groovy\\.SlowGroovyTestSuite",
+        ]),
+    },
+    tags = ["groovy-tests"],
+    runtime_deps = [":groovy-tests_test_lib"],
+)
+### skip generation section `test intellij.groovy.tests`
+
 ### auto-generated section `dev intellij.groovy` start
 exports_files(
     ["hotswap/gragent.jar"],
@@ -372,6 +398,8 @@ jvm_library(
         "//spellchecker:spellchecker_test_lib",
         "//plugins/grazie/src:core",
         "//plugins/grazie/src:core_test_lib",
+        "//plugins/grazie",
+        "//plugins/grazie:grazie_test_lib",
         "//plugins/junit",
         "//plugins/junit:junit_test_lib",
         "//plugins/junit_rt:junit-rt",
@@ -419,6 +447,8 @@ jvm_library(
         "//libraries/junit6-jupiter:junit6-jupiter_test_lib",
         "//platform/testFramework",
         "//platform/testFramework:testFramework_test_lib",
+        "//platform/bazel-runfiles",
+        "//platform/bazel-runfiles:bazel-runfiles_test_lib",
         "//platform/workspace/jps",
         "//platform/workspace/jps:jps_test_lib",
         "//platform/backend/workspace",
@@ -439,6 +469,8 @@ jvm_library(
         "//libraries/kotlinx/collections-immutable:libraries-kotlinx-collections-immutable_test_lib",
         "//plugins/groovy/testFramework",
         "//plugins/groovy/testFramework:testFramework_test_lib",
+        "//plugins/groovy/ant",
+        "//plugins/groovy/ant:ant_test_lib",
         "//plugins/groovy-scripting",
         "//plugins/groovy-scripting:groovy-scripting_test_lib",
         "//plugins/groovy-live-templates",
@@ -461,13 +493,6 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 ### auto-generated section `iml intellij.groovy.tests` end
-
-### auto-generated section `test intellij.groovy.tests` start
-jps_test(
-    name = "groovy-tests_test",
-    runtime_deps = [":groovy-tests_test_lib"],
-)
-### auto-generated section `test intellij.groovy.tests` end
 
 ### auto-generated section `build intellij.groovy.tests.main` start
 jvm_library(

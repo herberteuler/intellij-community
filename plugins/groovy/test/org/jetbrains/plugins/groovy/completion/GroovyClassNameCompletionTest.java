@@ -19,8 +19,8 @@ import org.jetbrains.plugins.groovy.util.TestUtils;
  */
 public class GroovyClassNameCompletionTest extends LightJavaCodeInsightFixtureTestCase {
   @Override
-  protected String getBasePath() {
-    return TestUtils.getTestDataPath() + "groovy/completion/classNameCompletion";
+  protected String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "groovy/completion/classNameCompletion";
   }
 
   private void doTest() {

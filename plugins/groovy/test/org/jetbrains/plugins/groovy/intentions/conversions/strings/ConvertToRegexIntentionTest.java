@@ -16,7 +16,7 @@ public final class ConvertToRegexIntentionTest extends GrIntentionTestCase {
   public void testStringEndsWithBackslash() { doTest(true); }
 
   @Override
-  public String getBasePath() {
-    return TestUtils.getTestDataPath() + "intentions/convertToRegex/";
+  public String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "intentions/convertToRegex/";
   }
 }

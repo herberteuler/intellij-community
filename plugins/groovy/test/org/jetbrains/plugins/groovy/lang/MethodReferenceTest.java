@@ -140,8 +140,8 @@ public class MethodReferenceTest extends LightGroovyTestCase implements TypingTe
   }
 
   @Override
-  public final String getBasePath() {
-    return TestUtils.getTestDataPath() + "lang/methodReferences/";
+  public final String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "lang/methodReferences/";
   }
 
   @Override

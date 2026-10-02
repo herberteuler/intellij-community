@@ -16,7 +16,7 @@ public final class ReplaceAbstractClassInstanceByMapIntentionTest extends GrInte
   public void testUnresolved() { doTest(true); }
 
   @Override
-  public String getBasePath() {
-    return TestUtils.getTestDataPath() + "intentions/changeToDynamicInstantiation/";
+  public String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "intentions/changeToDynamicInstantiation/";
   }
 }

@@ -3,9 +3,11 @@ package org.jetbrains.plugins.groovy.dsl;
 
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.platform.bazel.runfiles.BazelLabel;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.testFramework.common.BazelTestUtil;
 import org.jetbrains.plugins.groovy.LightGroovyTestCase;
 import org.jetbrains.plugins.groovy.codeInspection.untypedUnresolvedAccess.GrUnresolvedAccessInspection;
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.GrNewExpression;
@@ -173,7 +175,11 @@ public class DsldTest extends LightGroovyTestCase {
   }
 
   public void testMeta() throws IOException {
-    String content = Files.readString(Path.of(PathManager.getCommunityHomePath(), "plugins/groovy/groovy-psi/standardDsls/metaDsl.gdsl"));
+    var path = BazelTestUtil.isUnderBazelTest()
+               ? BazelTestUtil.getFileFromBazelRuntime(
+                 BazelLabel.Companion.fromString("@community//plugins/groovy/groovy-psi:standardDsls/metaDsl.gdsl"))
+               : Path.of(PathManager.getCommunityHomePath(), "plugins/groovy/groovy-psi/standardDsls/metaDsl.gdsl");
+    String content = Files.readString(path);
     VirtualFile dslVirtualFile = myFixture.createFile("metaDsl.gdsl", content);
     myFixture.configureFromExistingVirtualFile(dslVirtualFile);
     GroovyDslFileIndex.activate(dslVirtualFile);

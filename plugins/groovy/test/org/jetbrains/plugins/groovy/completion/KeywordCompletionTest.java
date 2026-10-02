@@ -149,7 +149,7 @@ public class KeywordCompletionTest extends LightJavaCodeInsightFixtureTestCase {
   }
 
   @Override
-  public String getBasePath() {
-    return TestUtils.getTestDataPath() + "groovy/oldCompletion/keyword";
+  public String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "groovy/oldCompletion/keyword";
   }
 }

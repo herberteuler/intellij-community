@@ -26,8 +26,8 @@ import java.util.Collection;
  */
 public class FindOverridingMethodsAndClassesTest extends LightJavaCodeInsightFixtureTestCase {
   @Override
-  protected String getBasePath() {
-    return TestUtils.getTestDataPath() + "overriding/findOverridingMethodsAndClasses";
+  protected String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "overriding/findOverridingMethodsAndClasses";
   }
 
   public void testSimpleCase() {

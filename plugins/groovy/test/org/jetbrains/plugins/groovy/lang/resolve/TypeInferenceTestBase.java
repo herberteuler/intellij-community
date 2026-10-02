@@ -23,7 +23,7 @@ import static com.intellij.psi.util.PsiTreeUtil.getParentOfType;
 public abstract class TypeInferenceTestBase extends GroovyResolveTestCase {
 
   @NotNull
-  private final String basePath = TestUtils.getTestDataPath() + "resolve/inference/";
+  private final String basePath = TestUtils.getAbsoluteTestDataPath() + "resolve/inference/";
 
   @Override
   public void setUp() throws Exception {
@@ -72,7 +72,7 @@ public abstract class TypeInferenceTestBase extends GroovyResolveTestCase {
   }
 
   @Override
-  public final @NotNull String getBasePath() {
+  public final @NotNull String getTestDataPath() {
     return basePath;
   }
 }

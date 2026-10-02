@@ -138,11 +138,11 @@ public class GroovyMoveMembersTest extends LightJavaCodeInsightFixtureTestCase {
   }
 
   @Override
-  public final String getBasePath() {
+  public final String getTestDataPath() {
     return basePath;
   }
 
-  private final String basePath = TestUtils.getTestDataPath() + "refactoring/move/moveMembers/";
+  private final String basePath = TestUtils.getAbsoluteTestDataPath() + "refactoring/move/moveMembers/";
 
   private static class MockMoveMembersOptions implements MoveMembersOptions {
     private final PsiMember[] selectedMembers;

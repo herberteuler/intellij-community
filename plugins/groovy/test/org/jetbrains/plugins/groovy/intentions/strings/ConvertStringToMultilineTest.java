@@ -100,7 +100,7 @@ public class ConvertStringToMultilineTest extends GrIntentionTestCase {
   }
 
   @Override
-  public final String getBasePath() {
-    return TestUtils.getTestDataPath() + "intentions/convertToMultiline/";
+  public final String getTestDataPath() {
+    return TestUtils.getAbsoluteTestDataPath() + "intentions/convertToMultiline/";
   }
 }

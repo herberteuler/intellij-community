@@ -48,6 +48,7 @@ import com.intellij.openapi.options.colors.ColorSettingsPage;
 import com.intellij.openapi.options.colors.ColorSettingsPages;
 import com.intellij.openapi.options.colors.RainbowColorSettingsPage;
 import com.intellij.openapi.options.ex.Settings;
+import com.intellij.openapi.options.newEditor.BetaConfigurable;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
@@ -559,9 +560,7 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
 
     mySubPanelFactories = new LinkedHashMap<>(panelFactories.size());
     for (ColorAndFontPanelFactory panelFactory : panelFactories) {
-      mySubPanelFactories.put(panelFactory, isBeta(panelFactory)
-                                            ? new BetaInnerSearchableConfigurable(panelFactory)
-                                            : new InnerSearchableConfigurable(panelFactory));
+      mySubPanelFactories.put(panelFactory, new InnerSearchableConfigurable(panelFactory));
     }
 
     return mySubPanelFactories.values().toArray(new Configurable[0]);
@@ -638,7 +637,7 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
       return myEntry.getPageClass();
     }
 
-    /** Answers the beta badge of the page, and loads no class. */
+    /** Answers the beta badge of the page from the declaration, and loads no class. */
     private boolean isBeta() {
       return myEntry.isBeta();
     }
@@ -1749,24 +1748,18 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
     return child == null ? null : child.createPanel();
   }
 
+  /**
+   * Answers the beta badge of one child, and creates no page.
+   * A child of a {@link CatalogPanelFactory} reads the declaration of its page, and every other child states none,
+   * because a panel factory carries no declaration.
+   */
   private static boolean isBeta(@NotNull ColorAndFontPanelFactory factory) {
-    // A catalog factory answers from its entry, because getOriginalClass() loads the page class of a declaration,
-    // and this method runs for every child on every settings tree build.
-    if (factory instanceof CatalogPanelFactory catalog) {
-      return catalog.isBeta();
-    }
-    return factory instanceof Configurable.Beta ||
-           factory instanceof ColorAndFontPanelFactoryEx ex && Configurable.Beta.class.isAssignableFrom(ex.getOriginalClass());
+    return factory instanceof CatalogPanelFactory catalog && catalog.isBeta();
   }
 
-  private final class BetaInnerSearchableConfigurable extends InnerSearchableConfigurable implements Configurable.Beta {
-    private BetaInnerSearchableConfigurable(@NotNull ColorAndFontPanelFactory factory) {
-      super(factory);
-    }
-  }
-
-  private class InnerSearchableConfigurable
-    implements SearchableConfigurable, OptionsContainingConfigurable, NoScroll, InnerWithModifiableParent {
+  private final class InnerSearchableConfigurable
+    implements SearchableConfigurable, OptionsContainingConfigurable, NoScroll, InnerWithModifiableParent,
+               BetaConfigurable {
     private NewColorAndFontPanel mySubPanel;
     private boolean mySubInitInvoked = false;
     private final @NotNull ColorAndFontPanelFactory myFactory;
@@ -1778,6 +1771,11 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
     @Override
     public @NotNull @NlsContexts.ConfigurableName String getDisplayName() {
       return myFactory.getPanelDisplayName();
+    }
+
+    @Override
+    public boolean isBeta() {
+      return ColorAndFontOptions.isBeta(myFactory);
     }
 
     public NewColorAndFontPanel getSubPanelIfInitialized() {

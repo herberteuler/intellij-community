@@ -11,6 +11,7 @@ import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.options.colors.AttributesDescriptor
 import com.intellij.openapi.options.colors.ColorDescriptor
 import com.intellij.openapi.options.colors.ColorSettingsPage
+import com.intellij.openapi.options.newEditor.BetaConfigurable
 import com.intellij.psi.codeStyle.DisplayPriority
 import com.intellij.testFramework.ExtensionTestUtil
 import com.intellij.testFramework.LoggedErrorProcessor
@@ -168,12 +169,42 @@ internal class ColorSettingsPageCatalogTest {
     }
   }
 
+  /**
+   * The settings tree paints the beta badge of a colour child from the declaration, through
+   * [com.intellij.openapi.options.newEditor.BetaConfigurable], so it creates no page and loads no class.
+   * A page of the old point states no badge, because that declaration carries no attribute for it.
+   */
+  @Test
+  fun `a child states the beta badge of its declaration`() {
+    val absentClass = "com.intellij.application.options.colors.AbsentBetaColourPage"
+    ExtensionTestUtil.maskExtensions(ColorAndFontPanelFactory.EP_NAME, emptyList(), disposable)
+    ExtensionTestUtil.maskExtensions(ColorSettingsPage.EP_NAME, listOf(TestPage("legacy-id", "A legacy page")), disposable)
+    ExtensionTestUtil.maskExtensions(
+      ColorSettingsPageEP.EP_NAME,
+      listOf(declaration(absentClass, id = "beta-id", displayName = "A beta page", beta = true)),
+      disposable,
+    )
+
+    val options = ColorAndFontOptions()
+    try {
+      val beta = options.configurables.associate { (it as SearchableConfigurable).id to (it as BetaConfigurable).isBeta }
+
+      assertThat(beta[ColorAndFontOptions.getPageConfigurableId("beta-id")]).isTrue()
+      assertThat(beta[ColorAndFontOptions.getPageConfigurableId("legacy-id")]).isFalse()
+      assertThat(beta[ColorAndFontOptions.getPageConfigurableId("ConsoleFont")]).isFalse()
+    }
+    finally {
+      options.disposeUIResources()
+    }
+  }
+
   private fun declaration(
     implementationClass: String,
     id: String? = null,
     displayName: String? = null,
     priority: DisplayPriority = DisplayPriority.LANGUAGE_SETTINGS,
     groupWeight: Int = 0,
+    beta: Boolean = false,
   ): ColorSettingsPageEP {
     val ep = ColorSettingsPageEP()
     ep.implementationClass = implementationClass
@@ -181,6 +212,7 @@ internal class ColorSettingsPageCatalogTest {
     ep.displayName = displayName
     ep.declaredPriority = priority
     ep.groupWeight = groupWeight
+    ep.beta = beta
     ep.pluginDescriptor = DefaultPluginDescriptor(PluginId.getId("com.intellij.colorSettings.test"),
                                                   javaClass.classLoader)
     return ep

@@ -931,9 +931,13 @@ public class SettingsTreeView extends JComponent implements Accessible, Disposab
   /**
    * The declaration is the only source of the badge, so the answer costs no class load and no construction.
    * A configurable component that carries {@code Configurable.Beta} and declares no attribute shows no badge.
+   * A child that a parent page builds itself has no wrapper, so it answers through {@link BetaConfigurable}.
    */
   private static boolean isBeta(@Nullable Configurable c) {
-    return c instanceof ConfigurableWrapper wrapper && wrapper.getExtensionPoint().beta;
+    if (c instanceof ConfigurableWrapper wrapper) {
+      return wrapper.getExtensionPoint().beta;
+    }
+    return c instanceof BetaConfigurable beta && beta.isBeta();
   }
 
   /**

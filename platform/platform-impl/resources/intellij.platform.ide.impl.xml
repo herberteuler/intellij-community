@@ -446,6 +446,9 @@
     </extensionPoint>
     <extensionPoint qualifiedName="com.intellij.navbar" interface="com.intellij.ide.navigationToolbar.NavBarModelExtension" dynamic="true"/>
     <extensionPoint dynamic="true" qualifiedName="com.intellij.colorAndFontPanelFactory" interface="com.intellij.application.options.colors.ColorAndFontPanelFactory"/>
+    <extensionPoint dynamic="true" qualifiedName="com.intellij.colorSettings" beanClass="com.intellij.application.options.colors.ColorSettingsPageEP">
+      <with attribute="implementation" implements="com.intellij.openapi.options.colors.ColorSettingsPage"/>
+    </extensionPoint>
     <extensionPoint qualifiedName="com.intellij.commandLineInspectionProjectConfigurator" interface="com.intellij.ide.CommandLineInspectionProjectConfigurator" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.marketplaceLocalRanker" dynamic="true"
                     interface="com.intellij.ide.plugins.marketplace.ranking.MarketplaceLocalRanker"/>

@@ -48,7 +48,6 @@ import com.intellij.openapi.options.colors.ColorSettingsPage;
 import com.intellij.openapi.options.colors.ColorSettingsPages;
 import com.intellij.openapi.options.colors.RainbowColorSettingsPage;
 import com.intellij.openapi.options.ex.Settings;
-import com.intellij.openapi.options.newEditor.CustomizedSettingsProvider;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
@@ -164,6 +163,7 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
 
   @Override
   public boolean isModified() {
+    ensureSchemesInitialized();
     boolean listModified = isSchemeListModified();
     boolean schemeModified = isSomeSchemeModified();
 
@@ -216,6 +216,7 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
   }
 
   public EditorColorsScheme selectScheme(@NotNull String name) {
+    ensureSchemesInitialized();
     MyColorScheme schemeToSelect = getMyScheme(name);
     if (schemeToSelect != null) {
       myModel.setSelectedScheme(schemeToSelect, this);
@@ -228,10 +229,12 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
   }
 
   public EditorColorsScheme getSelectedScheme() {
+    ensureSchemesInitialized();
     return myModel.getSelectedScheme();
   }
 
   public EditorSchemeAttributeDescriptor[] getCurrentDescriptions() {
+    ensureSchemesInitialized();
     MyColorScheme selectedScheme = getMySelectedScheme();
     if (selectedScheme != null) return selectedScheme.getDescriptors();
     return new EditorSchemeAttributeDescriptor[0];
@@ -318,10 +321,12 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
   }
 
   public @NotNull Groups<EditorColorsScheme> getOrderedSchemes() {
+    ensureSchemesInitialized();
     return myModel.getOrderedSchemes();
   }
 
   public @NotNull Collection<EditorColorsScheme> getSchemes() {
+    ensureSchemesInitialized();
     return new ArrayList<>(myModel.allSchemes());
   }
 
@@ -491,6 +496,7 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
 
   @ApiStatus.Internal
   public JComponent createComponent(boolean comboBoxOnly) {
+    ensureSchemesInitialized();
     if (myRootSchemesPanel == null) {
       ensureSchemesPanel();
     }
@@ -530,14 +536,10 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
   @Override
   public @NotNull Configurable @NotNull [] buildConfigurables() {
     myDisposeCompleted = false;
-    // Skip initAll() if the shared model already contains MyColorScheme objects from another active
-    // ColorAndFontOptions instance (e.g. an open non-modal Settings dialog).  Calling initAll() would
-    // wipe unsaved edits via dropSchemes().  This path is hit when Search Everywhere or other code
-    // enumerates configurables and triggers buildConfigurables() on a throwaway instance.
-    if (!hasMyColorSchemesInModel()) {
-      initAll();
-    }
-
+    // The children state their name, their id and their order from a declaration or from a panel factory, and none
+    // of the three reads a scheme.  So this method initializes no scheme, and every member that needs one calls
+    // ensureSchemesInitialized().  A settings tree build reaches this method for every product, so a scheme copy
+    // here costs one MyColorScheme per scheme of the install, on the EDT, for a node that nobody opened.
     List<ColorAndFontPanelFactory> panelFactories = createPanelFactories();
 
     mySubPanelFactories = new LinkedHashMap<>(panelFactories.size());
@@ -685,6 +687,19 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
       if (scheme instanceof MyColorScheme) return true;
     }
     return false;
+  }
+
+  /**
+   * Copies every editor colour scheme into the shared model, once.
+   * <p>
+   * The copy is skipped when the shared model already holds a copy of another live {@link ColorAndFontOptions}
+   * instance, for example of an open non-modal Settings dialog. {@link #initAll()} starts with
+   * {@link ColorAndFontOptionsModel#dropSchemes}, so an unconditional call wipes the unsaved edits of that dialog.
+   */
+  private void ensureSchemesInitialized() {
+    if (!hasMyColorSchemesInModel()) {
+      initAll();
+    }
   }
 
   private void initAll() {
@@ -1719,8 +1734,7 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
   }
 
   private class InnerSearchableConfigurable
-    implements SearchableConfigurable, OptionsContainingConfigurable, NoScroll, InnerWithModifiableParent,
-               CustomizedSettingsProvider {
+    implements SearchableConfigurable, OptionsContainingConfigurable, NoScroll, InnerWithModifiableParent {
     private NewColorAndFontPanel mySubPanel;
     private boolean mySubInitInvoked = false;
     private final @NotNull ColorAndFontPanelFactory myFactory;
@@ -1740,6 +1754,9 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
 
     private NewColorAndFontPanel createPanel() {
       if (mySubPanel == null) {
+        // SimpleEditorPreview reads the selected scheme in its constructor, and a caller may reach this method with
+        // no reset behind it. ColorAndFontOptions.edit and findSubConfigurable(Class) are two such callers.
+        ensureSchemesInitialized();
         mySubPanel = myFactory.createPanel(ColorAndFontOptions.this);
         mySubPanel.reset(this);
         mySubPanel.addSchemesListener(new ColorAndFontSettingsListener.Abstract(){
@@ -1805,23 +1822,6 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
 
       return false;
 
-    }
-
-    @Override
-    public boolean hasCustomizedSettings() {
-      // intentionally avoids createPanel(): this is called while painting the settings tree,
-      // descriptors are enough to answer and are shared with the page anyway
-      MyColorScheme scheme = getMySelectedScheme();
-      if (scheme == null) return false;
-      String group = getDisplayName();
-      for (EditorSchemeAttributeDescriptor descriptor : scheme.getDescriptors()) {
-        if (group.equals(descriptor.getGroup()) &&
-            descriptor instanceof ColorAndFontDescription description &&
-            description.isModifiedFromBaseline()) {
-          return true;
-        }
-      }
-      return false;
     }
 
     @Override

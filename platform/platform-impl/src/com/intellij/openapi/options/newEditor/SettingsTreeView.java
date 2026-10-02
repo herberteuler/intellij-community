@@ -769,7 +769,7 @@ public class SettingsTreeView extends JComponent implements Accessible, Disposab
         if (myFilter.context.getErrors().containsKey(configurable)) {
           myTextLabel.setForeground(WRONG_CONTENT);
         }
-        else if (myFilter.context.getModified().contains(configurable) || hasCustomizedSettings(configurable)) {
+        else if (myFilter.context.getModified().contains(configurable)) {
           myTextLabel.setForeground(MODIFIED_CONTENT);
         }
       }
@@ -934,15 +934,6 @@ public class SettingsTreeView extends JComponent implements Accessible, Disposab
    */
   private static boolean isBeta(@Nullable Configurable c) {
     return c instanceof ConfigurableWrapper wrapper && wrapper.getExtensionPoint().beta;
-  }
-
-  private static boolean hasCustomizedSettings(@Nullable Configurable configurable) {
-    // Ask a page that exists already. The only implementor is a child that its parent composite built,
-    // so the answer stays the same, and an unbuilt page is never constructed here.
-    CustomizedSettingsProvider provider = configurable instanceof CustomizedSettingsProvider c
-                                          ? c
-                                          : ConfigurableWrapper.castIfCreated(CustomizedSettingsProvider.class, configurable);
-    return provider != null && provider.hasCustomizedSettings();
   }
 
   /**

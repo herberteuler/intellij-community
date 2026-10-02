@@ -16,9 +16,9 @@ import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver.UnknownSdk
 import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
 import com.intellij.util.lang.JavaVersion
 
-abstract class TestUnknownSdkResolver(
-  private val javaSdkType: SdkType
-) : UnknownSdkResolver {
+abstract class TestUnknownSdkResolver : UnknownSdkResolver {
+  abstract val javaSdkType: SdkType
+
   lateinit var unknownSdkFixMode: TestUnknownSdkFixMode
 
   override fun supportsResolution(sdkTypeId: SdkTypeId): Boolean {

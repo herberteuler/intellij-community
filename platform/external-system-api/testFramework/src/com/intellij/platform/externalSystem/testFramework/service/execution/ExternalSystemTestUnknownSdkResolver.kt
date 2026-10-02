@@ -2,8 +2,9 @@
 package com.intellij.platform.externalSystem.testFramework.service.execution
 
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkProvider
+import com.intellij.openapi.projectRoots.SdkType
 import com.intellij.testFramework.roots.ui.configuration.TestUnknownSdkResolver
 
-object ExternalSystemTestUnknownSdkResolver : TestUnknownSdkResolver(
-  javaSdkType = ExternalSystemJdkProvider.getInstance().javaSdkType
-)
+object ExternalSystemTestUnknownSdkResolver : TestUnknownSdkResolver() {
+  override val javaSdkType: SdkType get() = ExternalSystemJdkProvider.getInstance().javaSdkType
+}

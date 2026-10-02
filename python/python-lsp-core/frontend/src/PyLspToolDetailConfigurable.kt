@@ -17,8 +17,10 @@ import com.intellij.python.pytools.common.PyToolRequest
 import com.intellij.python.pytools.common.PyToolSetConfigurationRequest
 import com.intellij.python.pytools.common.getConfiguration
 import com.intellij.python.pytools.frontend.ui.PyToolsUiBundle
+import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 
 internal fun createLspToolConfigurable(project: Project, tool: LspPyToolFrontend): UnnamedConfigurable =
   PyLspToolDetailConfigurable(project, tool)
@@ -55,6 +57,14 @@ private class PyLspToolDetailConfigurable(
     settings.fixOnSave?.let {
       row("") {
         checkBox(requireNotNull(tool.fixOnSaveLabel)).bindSelected(settings::fixOnSave.toSafeProperty())
+      }
+    }
+    val modes = tool.typeCheckingModes
+    if (settings.typeCheckingMode != null && modes.isNotEmpty()) {
+      row(PyToolsUiBundle.message("label.type.checking.mode")) {
+        val mode = comboBox(modes.keys, textListCellRenderer { modes[it] })
+          .bindItem(settings::typeCheckingMode)
+        tool.typeCheckingModeComment?.let { mode.comment(it) }
       }
     }
   }

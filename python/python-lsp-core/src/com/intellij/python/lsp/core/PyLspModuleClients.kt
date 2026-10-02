@@ -288,7 +288,8 @@ private class PyLspServeKeyCache(private val project: Project, private val cs: C
     val interpreters = project.evoPyProjects().associate { it.pyProject.residesOnModule to it.interpreter }
     return model.associate { (module, workspaceRoot) ->
       val interpreter = interpreters[module]
-      module to PyLspServeKey(workspaceRoot, interpreter?.let { pyLspToolVersionOf(it, project, pyTool) })
+      val version = interpreter?.let { pyLspToolVersionOf(it, project, pyTool) }
+      module to PyLspServeKey(workspaceRoot, version, interpreter?.let { pyLspServeInterpreterOf(it, pyTool) })
     }
   }
 }
@@ -296,10 +297,19 @@ private class PyLspServeKeyCache(private val project: Project, private val cs: C
 /**
  * What decides which server a module belongs to.
  *
- * Two modules share a server only when they share a workspace and run the same binary.
+ * Two modules share a server only when they share a workspace and run the same binary. For a tool that
+ * sets [PyLspTool.serverNeedsOneInterpreter], they must also share the [interpreter]. Every other tool
+ * leaves [interpreter] `null`, so the interpreter does not split its modules.
  */
 @ApiStatus.Internal
-data class PyLspServeKey(val workspaceRoot: String?, val toolVersion: String?)
+data class PyLspServeKey(val workspaceRoot: String?, val toolVersion: String?, val interpreter: String? = null)
+
+/**
+ * The [PyLspServeKey.interpreter] of [interpreter] for [pyTool], or `null` when [pyTool] does not group
+ * its modules by interpreter.
+ */
+private fun pyLspServeInterpreterOf(interpreter: PythonInterpreter, pyTool: PyTool): String? =
+  if ((pyTool as? PyLspTool<*>)?.serverNeedsOneInterpreter == true) interpreter.pythonBinaryPath?.toString() else null
 
 /**
  * The [PyLspServeKey] of [pyProject] for [pyTool], with the interpreter from the current snapshot.
@@ -309,16 +319,18 @@ data class PyLspServeKey(val workspaceRoot: String?, val toolVersion: String?)
 @ApiStatus.Internal
 suspend fun pyLspServeKeyOf(pyProject: PyProject, pyTool: PyTool): PyLspServeKey {
   val workspaceRoot = readAction { pyLspWorkspaceRootOf(pyProject.residesOnModule) }
-  val version = pyProject.getInterpreter()?.let { pyLspToolVersionOf(it, pyProject.project, pyTool) }
-  return PyLspServeKey(workspaceRoot, version)
+  val interpreter = pyProject.getInterpreter()
+  val version = interpreter?.let { pyLspToolVersionOf(it, pyProject.project, pyTool) }
+  return PyLspServeKey(workspaceRoot, version, interpreter?.let { pyLspServeInterpreterOf(it, pyTool) })
 }
 
 /**
  * The [PyLspServeKey] of a module the serve-key snapshot does not name yet.
  *
- * It states the workspace, which the project model alone decides, and no version. A module without a
- * version joins the version of its own workspace, see [pyLspServeGroupOf], so an unknown module
- * lands with the rest of its workspace instead of getting a server of its own.
+ * It states the workspace, which the project model alone decides, and no version and no interpreter.
+ * A module without a version joins the version of its own workspace, and a module without an
+ * interpreter joins its interpreter, see [pyLspServeGroupOf]. So an unknown module lands with the rest
+ * of its workspace instead of getting a server of its own.
  */
 @ApiStatus.Internal
 fun pyLspServeKeyWithoutVersion(module: Module): PyLspServeKey = PyLspServeKey(pyLspWorkspaceRootOf(module), null)
@@ -352,9 +364,11 @@ fun pyLspExecutableCandidates(live: List<Module>, view: PyLspServeKeysView): Lis
  * The rule alone, so a test can state it without a project on disk and without an environment. Every
  * module of [served] lands in exactly one group, and the group keeps the order of [served].
  *
- * The workspace decides first. A module without its own copy of the tool states no version, so it
- * takes the version of the first module of **its own** workspace that states one. A global fallback
- * would give a module of an attached project the version of the main project.
+ * The workspace decides first, then the [PyLspServeKey.interpreter], then the version. A module without
+ * its own copy of the tool states no version, so it takes the version of the first module of **its
+ * own** group that states one. A global fallback would give a module of an attached project the
+ * version of the main project. A module whose interpreter is not known yet takes the interpreter of the
+ * first module of its workspace in the same way.
  */
 @VisibleForTesting
 @ApiStatus.Internal
@@ -364,10 +378,18 @@ fun pyLspServeGroupOf(module: Module, served: List<Module>, keyOf: (Module) -> P
   val keys = served.associateWith(keyOf)
   val mine = keys.getValue(module)
   val sameWorkspace = served.filter { keys.getValue(it).workspaceRoot == mine.workspaceRoot }
-  // The version a module without its own copy of the tool runs.
-  val fallback = sameWorkspace.firstNotNullOfOrNull { keys.getValue(it).toolVersion }
-  val wanted = mine.toolVersion ?: fallback
-  return sameWorkspace.filter { (keys.getValue(it).toolVersion ?: fallback) == wanted }
+  val sameInterpreter = sameWorkspace.withFallback(module) { keys.getValue(it).interpreter }
+  return sameInterpreter.withFallback(module) { keys.getValue(it).toolVersion }
+}
+
+/**
+ * The modules of [this] whose [value] equals the one of [module]. A module without a value takes the
+ * value of the first module that has one, so every module lands in exactly one group.
+ */
+private fun List<Module>.withFallback(module: Module, value: (Module) -> String?): List<Module> {
+  val fallback = firstNotNullOfOrNull(value)
+  val wanted = value(module) ?: fallback
+  return filter { (value(it) ?: fallback) == wanted }
 }
 
 /**

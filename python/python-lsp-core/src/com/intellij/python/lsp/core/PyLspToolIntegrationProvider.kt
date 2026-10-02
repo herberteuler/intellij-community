@@ -201,10 +201,11 @@ abstract class PyLspToolIntegrationProvider : LspIntegrationProvider {
    * Whether one server of this tool holds every served module.
    *
    * Only a tool whose server keeps one workspace for each folder may set this. The server must give
-   * each folder its own interpreter, as ty and pyrefly do, or need no interpreter, as Ruff does.
-   * [getDescriptor] of such a tool builds its descriptor from [pyLspModulesToServeWith]. A tool that
-   * gives every folder the same interpreter keeps `false` and runs one server for each module, and
-   * its servers never need a restart for a change of the folder set.
+   * each folder its own interpreter, as ty and pyrefly do, or need no interpreter, as Ruff does. A
+   * server that gives every folder the same interpreter, as Zuban does, may set it too, when its tool
+   * sets [PyLspTool.serverNeedsOneInterpreter]. [getDescriptor] of such a tool builds its descriptor
+   * from [pyLspModulesToServeWith]. Any other tool keeps `false` and runs one server for each module,
+   * and its servers never need a restart for a change of the folder set.
    */
   open val servesEveryModule: Boolean get() = false
 

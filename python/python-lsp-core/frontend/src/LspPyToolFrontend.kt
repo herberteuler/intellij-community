@@ -32,4 +32,13 @@ interface LspPyToolFrontend : ProjectLevelPyToolFrontend<PyLspToolConfigurationD
 
   /** The localized label for code fixes on save, or null when the tool does not support them. */
   val fixOnSaveLabel: @Nls String? get() = null
+
+  /**
+   * The type checking modes that the tool offers, in display order, with their localized labels. The keys
+   * are the values of [PyLspToolConfigurationDto.typeCheckingMode]. Empty when the tool has no mode.
+   */
+  val typeCheckingModes: Map<String, @Nls String> get() = emptyMap()
+
+  /** A localized comment below the type checking mode, or null for none. */
+  val typeCheckingModeComment: @Nls String? get() = null
 }

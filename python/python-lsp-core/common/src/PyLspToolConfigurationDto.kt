@@ -19,6 +19,8 @@ data class PyLspToolConfigurationDto(
   var sortImports: Boolean? = null,
   var formatSortImports: Boolean? = null,
   var fixOnSave: Boolean? = null,
+  /** The type checking mode, as the tool names it, or `null` when the tool offers no mode. */
+  var typeCheckingMode: String? = null,
 ) : PyToolConfigurationDto
 
 class PyLspToolConfigurationSerializerProvider :

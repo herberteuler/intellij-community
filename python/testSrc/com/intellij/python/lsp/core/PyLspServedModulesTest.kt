@@ -19,6 +19,7 @@ import com.jetbrains.python.psi.LanguageLevel
 import com.jetbrains.python.tools.sdkTools.PythonMockSdk
 import com.intellij.python.ty.TyLspClientDescriptor
 import com.intellij.python.ty.TyPyTool
+import com.intellij.python.zuban.zubanPyTool
 import org.eclipse.lsp4j.ConfigurationItem
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -352,6 +353,80 @@ internal class PyLspServedModulesTest {
 
       assertEquals(served.size, groups.sumOf { it.size })
       assertEquals(served.toSet(), groups.flatten().toSet())
+    }
+  }
+
+  /**
+   * Zuban takes one interpreter for all the folders of a server, so a tool that sets
+   * [PyLspTool.serverNeedsOneInterpreter] splits the modules of a workspace by interpreter. A module whose
+   * interpreter is not known yet joins the interpreter of the first module of its workspace.
+   */
+  @Nested
+  @TestFor(issues = ["PY-85009"])
+  inner class InterpreterGroups {
+    private val firstPath = projectPath.subdirectoryFixture("aaa_root")
+    private val secondPath = projectPath.subdirectoryFixture("mmm_root")
+    private val thirdPath = projectPath.subdirectoryFixture("zzz_root")
+    private val first = projectFixture.pyModuleFixture(firstPath, addPathToSourceRoot = true)
+    private val second = projectFixture.pyModuleFixture(secondPath, addPathToSourceRoot = true)
+    private val third = projectFixture.pyModuleFixture(thirdPath, addPathToSourceRoot = true)
+
+    private fun served() = listOf(first.get(), second.get(), third.get())
+
+    private fun key(interpreter: String?, version: String? = "0.10.0") =
+      PyLspServeKey(projectPath.get().toString(), version, interpreter)
+
+    @Test
+    fun `modules with one interpreter share one server`() {
+      val served = served()
+
+      for (module in served) {
+        assertEquals(served, pyLspServeGroupOf(module, served) { key("/venv/bin/python") })
+      }
+    }
+
+    @Test
+    fun `a module with another interpreter gets a server of its own`() {
+      val served = served()
+      val interpreters = mapOf(served[0] to "/a/bin/python", served[1] to "/b/bin/python", served[2] to "/a/bin/python")
+
+      assertEquals(listOf(served[0], served[2]), pyLspServeGroupOf(served[0], served) { key(interpreters[it]) })
+      assertEquals(listOf(served[1]), pyLspServeGroupOf(served[1], served) { key(interpreters[it]) })
+    }
+
+    @Test
+    fun `a module with an unknown interpreter joins the interpreter of the lowest root`() {
+      val served = served()
+      val interpreters = mapOf(served[0] to "/a/bin/python", served[2] to "/b/bin/python")
+
+      assertEquals(listOf(served[0], served[1]), pyLspServeGroupOf(served[1], served) { key(interpreters[it]) })
+      assertEquals(listOf(served[2]), pyLspServeGroupOf(served[2], served) { key(interpreters[it]) })
+    }
+
+    @Test
+    fun `the version splits the modules of one interpreter`() {
+      val served = served()
+      val versions = mapOf(served[0] to "0.10.0", served[1] to "0.9.0", served[2] to "0.10.0")
+
+      assertEquals(listOf(served[0], served[2]), pyLspServeGroupOf(served[0], served) { key("/a/bin/python", versions[it]) })
+      assertEquals(listOf(served[1]), pyLspServeGroupOf(served[1], served) { key("/a/bin/python", versions[it]) })
+    }
+
+    @Test
+    fun `each served module lands in exactly one group`() {
+      val served = served()
+      val interpreters = mapOf(served[0] to "/a/bin/python", served[2] to "/b/bin/python")
+
+      val groups = served.map { pyLspServeGroupOf(it, served) { m -> key(interpreters[m]) } }.distinct()
+
+      assertEquals(served.size, groups.sumOf { it.size })
+      assertEquals(served.toSet(), groups.flatten().toSet())
+    }
+
+    @Test
+    fun `only zuban groups by interpreter`() {
+      assertTrue(zubanPyTool().serverNeedsOneInterpreter)
+      assertFalse(tyTool.serverNeedsOneInterpreter)
     }
   }
 

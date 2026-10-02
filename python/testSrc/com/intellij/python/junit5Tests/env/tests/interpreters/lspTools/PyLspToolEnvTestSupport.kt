@@ -47,8 +47,8 @@ import kotlin.time.Duration.Companion.seconds
 private val LSP_EVENT_WAIT_LIMIT = 5.seconds
 
 /**
- * Wait until the LSP client of [providerClass] has at least one diagnostic of [DiagnosticSeverity.Error]
- * severity for [file], then return all such error diagnostics.
+ * Wait until the error diagnostics of the LSP client of [providerClass] for [file] satisfy [until], then
+ * return all diagnostics of [DiagnosticSeverity.Error] severity. By default, one error is enough.
  *
  * The diagnostics come straight from the LSP client cache, not from the IDE daemon.
  * Thus a daemon restart, for example after `workspace/inlayHint/refresh`, has no effect on the check.
@@ -65,10 +65,11 @@ internal suspend fun awaitLspErrorDiagnostics(
   project: Project,
   file: VirtualFile,
   providerClass: Class<out LspIntegrationProvider>,
+  until: (List<Diagnostic>) -> Boolean = { it.isNotEmpty() },
 ): List<Diagnostic> =
   withTimeout(2.minutes) {
     var errors = readLspErrorDiagnostics(project, file, providerClass)
-    while (errors.isEmpty()) {
+    while (!until(errors)) {
       try {
         withTimeoutOrNull(LSP_EVENT_WAIT_LIMIT) { awaitDiagnosticsFromLspServer(project, file) }
       }

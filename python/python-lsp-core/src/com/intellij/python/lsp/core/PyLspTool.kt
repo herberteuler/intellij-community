@@ -33,6 +33,15 @@ abstract class PyLspTool<C : PyLspToolConfiguration<*>> : ProjectLevelPyTool<PyL
   /** Per-project settings service backing this tool — the single source of its configuration. */
   abstract fun configuration(project: Project): C
 
+  /**
+   * Whether one server of this tool must serve modules of one interpreter only.
+   *
+   * A tool whose server takes one interpreter for all its folders sets this. A provider with
+   * [PyLspToolIntegrationProvider.servesEveryModule] then splits the modules of a workspace by their
+   * interpreter, see [PyLspServeKey.interpreter], so the modules that share an interpreter share a server.
+   */
+  open val serverNeedsOneInterpreter: Boolean get() = false
+
   override fun migrateLegacyState(project: Project): PyToolsState.ToolEntry =
     PyToolsState.ToolEntry(configuration(project).migrateToPyToolState())
 

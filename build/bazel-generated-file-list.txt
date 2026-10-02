@@ -1943,6 +1943,9 @@ python/python-uv/tests
 python/python-venv
 python/python-venv/common
 python/python-venv/frontend
+python/python-zuban
+python/python-zuban/common
+python/python-zuban/frontend
 python/services/internal-impl
 python/services/shared
 python/services/system-python

@@ -237,14 +237,14 @@ internal class GitLabProjectsManagerTest {
   }
 
   @Test
-  fun `SSH alias maps to a server with a web path`() = timeoutRunBlockingWithBackgroundScope { bg ->
+  fun `SSH alias keeps the namespace when it starts with the server web path`() = timeoutRunBlockingWithBackgroundScope { bg ->
     setAliases("legacy=http://git.example.com:8080/gitlab")
     registerRemotes(gitRemote("origin", "git@legacy:gitlab/group/repo.git"), gitRemote("upstream", GITLAB_COM_URL))
 
     val repositories = GitLabProjectsManagerImpl(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
 
     assertThat(repositories.map { it.repository }).containsExactlyInAnyOrder(
-      GitLabProjectCoordinates(GitLabServerPath("http://git.example.com:8080/gitlab"), GitLabProjectPath("group", "repo")),
+      GitLabProjectCoordinates(GitLabServerPath("http://git.example.com:8080/gitlab"), GitLabProjectPath("gitlab/group", "repo")),
       defaultServerProject("upstream"),
     )
   }

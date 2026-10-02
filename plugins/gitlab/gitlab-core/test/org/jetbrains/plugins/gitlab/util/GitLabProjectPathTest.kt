@@ -104,15 +104,15 @@ class GitLabProjectPathTest {
   }
 
   @Test
-  fun `create with an SSH remote that contains the web path`() {
+  fun `create keeps an SSH namespace that starts with the server web path`() {
     val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "ssh://git@git.example.com/gitlab/group/project.git")
-    assertThat(result).isEqualTo(GitLabProjectPath("group", "project"))
+    assertThat(result).isEqualTo(GitLabProjectPath("gitlab/group", "project"))
   }
 
   @Test
-  fun `create with an SCP-style SSH remote that contains the web path`() {
+  fun `create keeps an SCP-style SSH namespace that starts with the server web path`() {
     val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "git@git.example.com:gitlab/group/project.git")
-    assertThat(result).isEqualTo(GitLabProjectPath("group", "project"))
+    assertThat(result).isEqualTo(GitLabProjectPath("gitlab/group", "project"))
   }
 
   @Test
@@ -125,6 +125,20 @@ class GitLabProjectPathTest {
   fun `create with an SSH URL remote without the web path`() {
     val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "ssh://git@git.example.com:2222/group/project.git")
     assertThat(result).isEqualTo(GitLabProjectPath("group", "project"))
+  }
+
+  @Test
+  fun `create keeps an SSH alias namespace that starts with the server web path`() {
+    val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "git@work:gitlab/team/project.git")
+
+    assertThat(result).isEqualTo(GitLabProjectPath("gitlab/team", "project"))
+  }
+
+  @Test
+  fun `create keeps an SSH URL namespace that equals the server web path`() {
+    val result = GitLabProjectPath.create(SERVER_WITH_WEB_PATH, "ssh://git@work:2222/gitlab/project.git")
+
+    assertThat(result).isEqualTo(GitLabProjectPath("gitlab", "project"))
   }
 
   @Test

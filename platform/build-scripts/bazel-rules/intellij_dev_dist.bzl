@@ -148,6 +148,20 @@ IntellijDevFragmentInfo = provider(
     },
 )
 
+DevDistPlacementInfo = provider(
+    doc = """Where a component places its files in a home, known at analysis.
+
+    A launcher that starts `java` directly links its home from these paths in its runfiles tree, because Bazel writes a
+    runfiles tree only from paths that analysis knows. Every destination is in slash form, relative to the home. The
+    composer checks the placement against the component manifest, see `placement.rs` of the composer.""",
+    fields = {
+        "files": "Dictionary from a file destination to its `File`.",
+        "trees": "Dictionary from a directory destination to a directory `File` that holds every entry below it at the same relative path.",
+        "homes": "Dictionary from a directory destination to the component home of the component, a directory `File`.",
+        "executables": "The file destinations that need the executable bit.",
+    },
+)
+
 IntellijDevReferenceInfo = provider(
     doc = "A reference fragment, the second producer of a gate. No distribution composes it.",
     fields = {
@@ -163,6 +177,9 @@ IntellijDevDistInfo = provider(
         "home": "The self-contained home or the local launch metadata directory.",
         "ide_config": "The config file used by PreBuiltDevMain.",
         "runtime_files": "Component artifacts used directly by a local launch.",
+        "placement": "The merged `DevDistPlacementInfo` of a local launch as `struct(files, trees, homes, executables)`, where `homes` maps a destination to `struct(tree, kind)`. None for a full distribution or a component without a placement.",
+        "core_classpath": "The `core-classpath.txt` of a local launch as a file of its own, or None.",
+        "plugin_classpath": "The `plugins/plugin-classpath.txt` of a local launch as a file of its own, or None.",
     },
 )
 
@@ -525,7 +542,7 @@ _COLLECTOR_ATTRS = {
     "target_platform": attr.string(default = ""),
 } | _TRACE_SPANS_ATTR
 
-def _collect_component(ctx, files, collection_args, inputs, mnemonic, progress_message, plugin_classpath_prefix = None, main_class = ""):
+def _collect_component(ctx, files, collection_args, inputs, mnemonic, progress_message, placement, plugin_classpath_prefix = None, main_class = ""):
     component_manifest = ctx.actions.declare_file(ctx.label.name + ".component.json")
     args = ctx.actions.args()
     args.add("--component-manifest=" + component_manifest.path)
@@ -558,6 +575,7 @@ def _collect_component(ctx, files, collection_args, inputs, mnemonic, progress_m
             plugin_classpath_part = None,
             plugin_classpath_prefix = plugin_classpath_prefix,
         ),
+        placement,
     ]
 
 def _packed_sources(record):
@@ -624,7 +642,14 @@ def _packed_jars_component_impl(ctx):
         trees = [record.native_tree for record in records if record.native_tree]
         catalogue = _metadata_catalogue(ctx, records)
         jar_list = ctx.actions.declare_file(ctx.label.name + ".jars.json")
-        ctx.actions.write(jar_list, json.encode(_jar_destinations(ctx, records)))
+        destinations = _jar_destinations(ctx, records)
+        ctx.actions.write(jar_list, json.encode(destinations))
+        files_by_path = {file.path: file for file in jars + trees}
+        placed_files = {}
+        placed_trees = {}
+        for entry in destinations:
+            placed = placed_trees if entry.get("tree") else placed_files
+            placed["lib/" + entry["relativePath"]] = files_by_path[entry["source"]]
         args = ctx.actions.args()
         args.add("--metadata-catalogue=" + catalogue.path)
         args.add("--jars-file=" + jar_list.path)
@@ -637,6 +662,7 @@ def _packed_jars_component_impl(ctx):
             inputs = [catalogue, jar_list] + [source.metadata for record in records for source in _packed_sources(record)],
             mnemonic = "IntellijDevPackedJars",
             progress_message = "Naming %d packed %s jars and %d native trees for %%{label}" % (len(jars), ctx.attr.platform_prefix, len(trees)),
+            placement = DevDistPlacementInfo(files = placed_files, trees = placed_trees, homes = {}, executables = []),
             plugin_classpath_prefix = ctx.file.plugin_classpath_prefix,
             main_class = ctx.attr.main_class,
         )
@@ -646,6 +672,7 @@ def _packed_jars_component_impl(ctx):
     files = []
     records = []
     destinations = {}
+    executables = []
     for placed, executable in [(ctx.attr.files, False), (ctx.attr.executable_files, True)]:
         for target, relative_path in placed.items():
             outputs = target[DefaultInfo].files.to_list()
@@ -653,7 +680,9 @@ def _packed_jars_component_impl(ctx):
                 fail("%s: %s must provide exactly one ordinary file" % (ctx.label, target.label))
             if relative_path in destinations:
                 fail("%s: duplicate destination: %s" % (ctx.label, relative_path))
-            destinations[relative_path] = True
+            destinations[relative_path] = outputs[0]
+            if executable:
+                executables.append(relative_path)
             files.append(outputs[0])
             records.append({
                 "source": outputs[0].path,
@@ -671,6 +700,7 @@ def _packed_jars_component_impl(ctx):
         inputs = [metadata] + files,
         mnemonic = "IntellijDevFiles",
         progress_message = "Naming distribution files for %{label}",
+        placement = DevDistPlacementInfo(files = destinations, trees = {}, homes = {}, executables = executables),
         main_class = ctx.attr.main_class,
     )
 
@@ -731,6 +761,45 @@ def _binding_relative_path(source, anchor):
         common += 1
     return "/".join([".."] * (len(anchor_parts) - common) + source_parts[common:])
 
+def _parents(path):
+    """Every directory that holds `path`, the deepest first."""
+    parts = path.split("/")
+    return ["/".join(parts[:index]) for index in range(len(parts) - 1, 0, -1)]
+
+def _merge_placements(ctx, fragment_targets):
+    """The merged placement of every component, or None when a component states none.
+
+    A destination belongs to one component. No file and no directory lies below a tree or a component home, because a
+    runfiles tree cannot write into a linked directory.
+    """
+    files = {}
+    trees = {}
+    homes = {}
+    executables = []
+    owners = {}
+    for target in fragment_targets:
+        if DevDistPlacementInfo not in target:
+            return None
+        placement = target[DevDistPlacementInfo]
+        kind = target[IntellijDevFragmentInfo].name
+        for into, entries in [(files, placement.files), (trees, placement.trees)]:
+            for destination, file in entries.items():
+                if destination in owners:
+                    fail("%s: '%s' is placed by both %s and %s" % (ctx.label, destination, owners[destination], kind))
+                owners[destination] = kind
+                into[destination] = file
+        for destination, home in placement.homes.items():
+            if destination in owners:
+                fail("%s: '%s' is placed by both %s and %s" % (ctx.label, destination, owners[destination], kind))
+            owners[destination] = kind
+            homes[destination] = struct(tree = home, kind = kind)
+        executables.extend(placement.executables)
+    for destination in owners:
+        for parent in _parents(destination):
+            if parent in trees or parent in homes:
+                fail("%s: '%s' of %s is below '%s', which %s links as a whole" % (ctx.label, destination, owners[destination], parent, owners[parent]))
+    return struct(files = files, trees = trees, homes = homes, executables = executables)
+
 def _compose(ctx, fragment_targets):
     local_launch = ctx.attr.local_launch
     home = ctx.actions.declare_directory(ctx.label.name + (".metadata" if local_launch else ".dist"))
@@ -744,6 +813,12 @@ def _compose(ctx, fragment_targets):
     parts = [fragment.plugin_classpath_part for fragment in fragments if fragment.plugin_classpath_part]
     if parts and len(prefixes) != 1:
         fail("%s: exactly one component must provide the plugin-classpath prefix, got %d" % (ctx.label, len(prefixes)))
+
+    # A local launch also writes the two metadata files as files of their own, and checks the placement of a launcher
+    # that links its home in the runfiles tree.
+    placement = _merge_placements(ctx, fragment_targets) if local_launch else None
+    core_classpath = ctx.actions.declare_file(ctx.label.name + ".core-classpath.txt") if local_launch else None
+    plugin_classpath = ctx.actions.declare_file(ctx.label.name + ".plugin-classpath.txt") if local_launch and parts else None
 
     source_bindings = None
     if not local_launch:
@@ -773,6 +848,12 @@ def _compose(ctx, fragment_targets):
             "sourceRunfiles": {file.path: _runfile_path(ctx, file) for file in runtime_files.to_list()} if local_launch else None,
             "sourceDirectoryRunfiles": {file.path: _runfile_path(ctx, file) for file in component_files.to_list() if file.is_directory},
             "sourceBindings": source_bindings.path if source_bindings else None,
+            "placement": {
+                "files": {destination: file.path for destination, file in placement.files.items()},
+                "trees": {destination: tree.path for destination, tree in placement.trees.items()},
+                "homes": {destination: home.kind for destination, home in placement.homes.items()},
+                "executables": placement.executables,
+            } if placement else None,
         }),
     )
 
@@ -781,6 +862,11 @@ def _compose(ctx, fragment_targets):
     args.add("--output-dir=" + home.path)
     args.add("--ide-config=" + ide_config.path)
     args.add("--fingerprint=" + fingerprint.path)
+    metadata_files = [file for file in [core_classpath, plugin_classpath] if file]
+    if core_classpath:
+        args.add("--core-classpath-file=" + core_classpath.path)
+    if plugin_classpath:
+        args.add("--plugin-classpath-file=" + plugin_classpath.path)
     spans = _declare_spans(ctx, args, ctx.label.name)
     ctx.actions.run(
         inputs = depset(
@@ -788,7 +874,7 @@ def _compose(ctx, fragment_targets):
                      [fragment.manifest for fragment in fragments] + parts + prefixes,
             transitive = [fragment.payload for fragment in fragments if fragment.payload] if not local_launch else [],
         ),
-        outputs = [home, ide_config, fingerprint] + ([spans] if spans else []),
+        outputs = [home, ide_config, fingerprint] + metadata_files + ([spans] if spans else []),
         executable = ctx.executable.composer,
         arguments = [args],
         # Composed distributions are large and intended for local consumption. Until a producer and delivery policy
@@ -808,6 +894,9 @@ def _compose(ctx, fragment_targets):
             ide_config = ide_config,
             fingerprint = fingerprint,
             runtime_files = runtime_files,
+            placement = placement,
+            core_classpath = core_classpath,
+            plugin_classpath = plugin_classpath,
         ),
         # Read by `intellij_dev_dist_config`, which needs the single-file label `$(rlocationpath ...)` takes - which a
         # dist target, with three outputs, is not. Not reachable through `IntellijDevDistInfo`: the consumers are

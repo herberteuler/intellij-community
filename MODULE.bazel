@@ -172,6 +172,9 @@ use_repo(
     "dev_launch_restarter_extracted",
 )
 
+dev_launch_paths = use_extension("@community//build:dev_launch_paths.bzl", "dev_launch_paths")
+use_repo(dev_launch_paths, "dev_launch_paths")
+
 [use_repo(
     dev_launch_deps_community,
     "dev_launch_%s_%s" % (platform, group),

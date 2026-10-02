@@ -9,7 +9,7 @@ load(":dev_dist_content.bzl", "DevDistContentInfo")
 load(":dev_dist_plugin_descriptor.bzl", "DevDistPluginDescriptorInfo", "DevDistProductInfo", "dev_dist_neutral_product_transition")
 load(":dev_plugin.bzl", "DevDistRuntimeLayoutInfo", "dev_dist_plugin_directory")
 load(":dev_plugin_source_tree.bzl", "source_tree_entries", "source_tree_prefix")
-load(":intellij_dev_dist.bzl", "IntellijDevFragmentInfo")
+load(":intellij_dev_dist.bzl", "DevDistPlacementInfo", "IntellijDevFragmentInfo")
 
 def _graph_info_init(**_kwargs):
     fail("DevPluginGraphInfo must come from dev_plugin_file_graph")
@@ -889,6 +889,29 @@ def _dev_plugin_component_impl(ctx):
         execution_requirements = {"block-network": "1", "no-remote-cache": "1", "no-remote-exec": "1"},
         progress_message = "Collecting plugin component metadata %{label}",
     )
+
+    # A remainder without a reused jar is the whole plugin directory, so a home links it as it is. Any other plugin
+    # directory merges several artifacts, and a runfiles tree cannot merge them. Then the component home clones the
+    # entries of the manifest into one directory artifact, which a launch builds only when it links the home.
+    if len(payload) == 1:
+        placement = DevDistPlacementInfo(files = {}, trees = {ctx.attr.plugin_directory: remainder.directory}, homes = {}, executables = [])
+    else:
+        home = ctx.actions.declare_directory(ctx.label.name + ".home")
+        home_arguments = ctx.actions.args()
+        home_arguments.add("component-home")
+        home_arguments.add(manifest, format = "--component-manifest=%s")
+        home_arguments.add(ctx.attr.plugin_directory, format = "--plugin-directory=%s")
+        home_arguments.add(home.path, format = "--output-dir=%s")
+        ctx.actions.run(
+            mnemonic = "DevPluginComponentHome",
+            executable = ctx.executable._composer,
+            inputs = depset([manifest] + payload),
+            outputs = [home],
+            arguments = [home_arguments],
+            execution_requirements = {"block-network": "1", "no-remote-cache": "1", "no-remote-exec": "1"},
+            progress_message = "Cloning the plugin directory of %{label}",
+        )
+        placement = DevDistPlacementInfo(files = {}, trees = {}, homes = {ctx.attr.plugin_directory: home}, executables = [])
     payload = depset(payload)
     return [
         DefaultInfo(files = depset([manifest, classpath]), runfiles = ctx.runfiles(transitive_files = payload)),
@@ -902,6 +925,7 @@ def _dev_plugin_component_impl(ctx):
             plugin_classpath_part = classpath,
             plugin_classpath_prefix = None,
         ),
+        placement,
         OutputGroupInfo(
             dev_dist_plugin_outputs = depset([manifest, classpath], transitive = [payload]),
             dev_dist_plugin_assets = depset([remainder.assets]),
@@ -932,6 +956,7 @@ remainder use.""",
         ),
         "_trace_spans": attr.label(default = "//platform/build-scripts/bazel-rules:trace_spans", providers = [BuildSettingInfo]),
         "_collector": attr.label(default = "//platform/build-scripts/bazel-rules:dev_dist_collector", executable = True, cfg = "exec"),
+        "_composer": attr.label(default = "//platform/build-scripts/bazel-rules:dev_dist_composer", executable = True, cfg = "exec"),
         "_allowlist_function_transition": attr.label(default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist")),
     },
 )

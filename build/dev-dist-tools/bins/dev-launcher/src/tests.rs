@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use indexmap::IndexMap;
 use serde_json::json;
 
 use super::*;
-use crate::properties::parse_properties;
+use crate::properties::{custom_command, parse_properties};
 
 #[test]
 fn java_properties_follow_properties_load() {
@@ -326,13 +327,18 @@ fn prepare_adds_the_runtime_module_repository_of_the_home() {
 #[test]
 fn the_distribution_states_the_runtime_module_repository_first() {
     let directory = tempfile::tempdir().unwrap();
-    let home = directory.path().display().to_string();
     write_file(&directory.path().join("modules").join("module-descriptors.dat"), "");
     let mut distribution = IndexMap::from([(
         properties::RUNTIME_MODULE_REPOSITORY_PROPERTY.to_owned(),
         "/product-info.dat".to_owned(),
     )]);
-    add_runtime_module_repository(&mut distribution, &home, &IndexMap::new());
+    let file = directory
+        .path()
+        .join("modules")
+        .join("module-descriptors.dat")
+        .display()
+        .to_string();
+    jvm_args::add_runtime_module_repository(&mut distribution, &file, &IndexMap::new());
     assert_eq!(
         distribution.get(properties::RUNTIME_MODULE_REPOSITORY_PROPERTY).map(String::as_str),
         Some("/product-info.dat")

@@ -30,8 +30,12 @@ struct CustomCommand {
 
 impl ProductInfo {
     pub(crate) fn read(home: &Path) -> anyhow::Result<Self> {
-        let file = home.join("bin").join("product-info.json");
-        let data = std::fs::read(&file).with_context(|| format!("read {}", file.display()))?;
+        Self::read_file(&home.join("bin").join("product-info.json"))
+    }
+
+    /// Reads a `product-info.json` file at any path.
+    pub(crate) fn read_file(file: &Path) -> anyhow::Result<Self> {
+        let data = std::fs::read(file).with_context(|| format!("read {}", file.display()))?;
         serde_json::from_slice(&data).context("read product-info.json")
     }
 }
@@ -76,10 +80,6 @@ pub(crate) fn put_system_property(properties: &mut IndexMap<String, String>, arg
 /// the bytes 0x80 to 0x9F. Every file that the launcher reads is ASCII, so the difference has no effect.
 pub(crate) fn distribution_properties(home: &str, info: &ProductInfo) -> anyhow::Result<IndexMap<String, String>> {
     let bin = Path::new(home).join("bin");
-    let file = bin.join("idea.properties");
-    let data = std::fs::read(&file).with_context(|| format!("read {}", file.display()))?;
-    let mut result = parse_properties(&data).with_context(|| file.display().to_string())?;
-
     let mut vm_options_files = Vec::new();
     for entry in std::fs::read_dir(&bin).with_context(|| format!("read {}", bin.display()))? {
         let entry = entry.with_context(|| format!("read {}", bin.display()))?;
@@ -92,10 +92,30 @@ pub(crate) fn distribution_properties(home: &str, info: &ProductInfo) -> anyhow:
         let names: Vec<String> = vm_options_files.iter().map(|file| file.display().to_string()).collect();
         bail!("no single *.vmoptions file in {}: [{}]", bin.display(), names.join(" "));
     };
+    properties_of_files(
+        &bin.join("idea.properties"),
+        vm_options_file,
+        &vm_options_file.display().to_string(),
+        home,
+        info,
+    )
+}
+
+/// The system properties of [`distribution_properties`] from files at any path. `vm_options_path` is the value of
+/// `jb.vmOptionsFile`: the path of the vmoptions file in the home that the IDE starts from.
+pub(crate) fn properties_of_files(
+    idea_properties: &Path,
+    vm_options_file: &Path,
+    vm_options_path: &str,
+    home: &str,
+    info: &ProductInfo,
+) -> anyhow::Result<IndexMap<String, String>> {
+    let data = std::fs::read(idea_properties).with_context(|| format!("read {}", idea_properties.display()))?;
+    let mut result = parse_properties(&data).with_context(|| idea_properties.display().to_string())?;
     for line in read_lines(vm_options_file)? {
         put_system_property(&mut result, &line);
     }
-    result.insert("jb.vmOptionsFile".to_owned(), vm_options_file.display().to_string());
+    result.insert("jb.vmOptionsFile".to_owned(), vm_options_path.to_owned());
     if let Some(launch) = info.launch.first() {
         for argument in &launch.additional_jvm_arguments {
             put_system_property(&mut result, &resolve_ide_home_macro(argument, home));
@@ -106,25 +126,6 @@ pub(crate) fn distribution_properties(home: &str, info: &ProductInfo) -> anyhow:
 
 /// The system property that names the runtime module repository of the IDE.
 pub(crate) const RUNTIME_MODULE_REPOSITORY_PROPERTY: &str = "intellij.platform.runtime.repository.path";
-
-/// Adds the runtime module repository of the home to `properties`, as `PreBuiltDevMain.addRuntimeModuleRepository` does.
-///
-/// The distribution states the property through `product-info.json` when its launch model asks. A row that composes the
-/// repository component gets it from the home. So the launcher adds `<home>/modules/module-descriptors.dat` only when the
-/// home has that file and neither `properties` nor `caller_properties` state the property.
-pub(crate) fn add_runtime_module_repository(
-    properties: &mut IndexMap<String, String>,
-    home: &str,
-    caller_properties: &IndexMap<String, String>,
-) {
-    if properties.contains_key(RUNTIME_MODULE_REPOSITORY_PROPERTY) || caller_properties.contains_key(RUNTIME_MODULE_REPOSITORY_PROPERTY) {
-        return;
-    }
-    let file = Path::new(home).join("modules").join("module-descriptors.dat");
-    if file.is_file() {
-        properties.insert(RUNTIME_MODULE_REPOSITORY_PROPERTY.to_owned(), file.display().to_string());
-    }
-}
 
 /// The main class and the system properties of the custom command of the distribution that handles `command`. This
 /// is `readCustomCommandLaunch` of `DevLaunchProperties.kt`.

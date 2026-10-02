@@ -15,7 +15,7 @@ load("//platform/build-scripts/bazel-rules:dev_dist_product_files.bzl", "dev_dis
 load("//platform/build-scripts/bazel-rules:dev_dist_runtime_module_repository.bzl", "dev_dist_runtime_layout_parts", "dev_dist_runtime_module_repository")
 load("//platform/build-scripts/bazel-rules:intellij_dev_dist.bzl", "intellij_dev_fragments_dist", "intellij_dev_packed_jars_component")
 load(":dev_launch_dependencies.bzl", "HOST_PLATFORMS", "platform_parts")
-load(":intellij_dev.bzl", "intellij_dev_dist_config", "intellij_dev_launcher_binary")
+load(":intellij_dev.bzl", "intellij_dev_dist_config", "intellij_dev_java_launcher_binary", "intellij_dev_launcher_binary")
 
 def _plugin_component_entries(platform_prefix, tier, entries):
     """Reads one tier of the generated component map as `struct(main_module, label, labels)` entries.
@@ -664,6 +664,10 @@ def _before_run(tables, name, jvm_flags, compile_clion_backend_before_run):
         fail("%s: compile_clion_backend_before_run needs the before_run hook, and the tables of this half have none" % name)
     return struct(before_run_main_class = "", before_run_runtime_deps = [])
 
+# The rows that start `java` itself, `intellij_dev_java_launcher` (ADR 0056). Each also keeps the launcher of ADR 0014
+# as `<row>_launcher`, over the same distribution and the same dev data, so the two launches can be compared.
+_JAVA_LAUNCH_ROWS = ["idea"]
+
 def _declare_run_launcher(
         tables,
         name,
@@ -693,10 +697,24 @@ def _declare_run_launcher(
     if tables.launcher_jvm_flags != None:
         jvm_flags = tables.launcher_jvm_flags(product, additional_modules, jvm_flags)
 
+    if name in _JAVA_LAUNCH_ROWS:
+        if before_run.before_run_main_class:
+            fail("%s: a java launcher runs no before-run step" % name)
+        intellij_dev_java_launcher_binary(
+            name = name,
+            visibility = visibility,
+            dist = "//%s:%s_dist_launch" % (native.package_name(), distribution),
+            jvm_flags = jvm_flags,
+            env = env,
+            data = data,
+            program_args = program_args,
+        )
+
     # The distribution states its prefix: the launcher reads `-Didea.platform.prefix` from `product-info.json`, as a
     # production launcher does, and a caller's value would win over it.
     intellij_dev_launcher_binary(
-        name = name,
+        name = name + "_launcher" if name in _JAVA_LAUNCH_ROWS else name,
+        data_name = name,
         visibility = visibility,
         dist = "//%s:%s_distribution" % (native.package_name(), distribution),
         ide_config = "//%s:%s_ide_config" % (native.package_name(), distribution),

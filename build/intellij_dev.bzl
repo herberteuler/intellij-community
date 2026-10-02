@@ -1,7 +1,9 @@
 """Macros for IntelliJ-based IDE development builds."""
 
+load("@dev_launch_paths//:paths.bzl", "HOME", "OUTPUT_BASE", "WORKSPACE_ROOT")
 load("@intellij_add_opens//:intellij_add_opens.bzl", "INTELLIJ_ADD_OPENS")
 load("@rules_java//java:defs.bzl", "java_binary")
+load("//platform/build-scripts/bazel-rules:intellij_dev_dist.bzl", "IntellijDevDistInfo")
 
 # Names the prepared distribution for whoever consumes one - `PreBuiltDevMain` when it is a launcher, the IDE Starter's
 # prebuilt dev-build runner when it is a test. Keep in sync with `DevIdeConfig.CONFIG_PATH_PROPERTY`, which is where the
@@ -40,7 +42,7 @@ DEFAULT_JVM_FLAGS = [
 # The data directories of the IDE. `_runtime_jvm_flags` owns them, and a flag that states one would lose to its defaults.
 _LAUNCHER_DATA_PROPERTIES = ["idea.config.path", "idea.system.path", "idea.log.path"]
 
-def _runtime_jvm_flags(name, jvm_flags, platform_prefix, config_path, system_path):
+def _runtime_jvm_flags(name, jvm_flags, platform_prefix, config_path, system_path, data_name = None):
     """The flags an IDE needs to run, independent of how it was assembled.
 
     `$${...}` is a literal `${...}` the java stub expands at launch; `BUILD_WORKSPACE_DIRECTORY` is set by `bazel run`,
@@ -56,8 +58,9 @@ def _runtime_jvm_flags(name, jvm_flags, platform_prefix, config_path, system_pat
                 fail("%s: `%s` states a data directory, which the launcher owns; use `config_path` or `system_path`" % (name, flag))
 
     # Use provided paths or defaults based on target name
-    effective_config_path = config_path if config_path else "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + name + "/config"
-    effective_system_path = system_path if system_path else "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + name + "/system"
+    data_name = data_name or name
+    effective_config_path = config_path if config_path else "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + data_name + "/config"
+    effective_system_path = system_path if system_path else "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + data_name + "/system"
 
     all_jvm_flags = DEFAULT_JVM_FLAGS + [
         "-Didea.plugins.path=" + effective_config_path + "/plugins",
@@ -209,14 +212,17 @@ def intellij_dev_launcher_binary(
         data = [],
         before_run_main_class = "",
         before_run_runtime_deps = [],
+        data_name = None,
         visibility = None):
     """The launcher of a composed dev distribution, with the flags `intellij_dev_prebuilt_binary` gives its java stub.
 
     `dist` and `ide_config` are the distribution and its `intellij_dev_dist_config`. The home is linked under
     `out/dev-data/<name>/homes`, one directory per launch, beside the launcher's config and system directories. On macOS
     `out/dev-data` is a link to a directory outside the workspace. With `before_run_main_class`, a `java_binary`
-    `<name>_before_run` runs that class over `before_run_runtime_deps` first.
+    `<name>_before_run` runs that class over `before_run_runtime_deps` first. `data_name` replaces `<name>` in the
+    dev data directories, so two launchers of one row can share them.
     """
+    data_name = data_name or name
     tags = ["manual"]
     before_run = None
     if before_run_main_class:
@@ -236,7 +242,7 @@ def intellij_dev_launcher_binary(
         ide_config = ide_config,
         before_run = before_run,
         # The IDE starts in the workspace, so a relative path in a flag resolves as it does for the run configuration.
-        jvm_flags = _runtime_jvm_flags(name, jvm_flags, platform_prefix = None, config_path = None, system_path = None) + [
+        jvm_flags = _runtime_jvm_flags(name, jvm_flags, platform_prefix = None, config_path = None, system_path = None, data_name = data_name) + [
             # Not a build-time input: `AppMode.getDevIdeaProjectDir` and the webview native bridge read it at runtime,
             # and a dev launch has it only because `DevMainImpl` sets it from the project root it just built against.
             "-Didea.dev.project.root=$${BUILD_WORKSPACE_DIRECTORY}",
@@ -245,5 +251,194 @@ def intellij_dev_launcher_binary(
         env = env,
         args = program_args,
         data = data,
-        home = "out/dev-data/%s/homes" % name,
+        home = "out/dev-data/%s/homes" % data_name,
+    )
+
+# The directory of the runfiles tree that holds the home of a `java` launcher.
+_JAVA_LAUNCH_HOME = "ide_home"
+
+# The variables that a flag of a `java` launcher can name. `java` expands none, so the rule resolves them at analysis.
+_JAVA_LAUNCH_VARIABLES = {
+    "BUILD_WORKSPACE_DIRECTORY": WORKSPACE_ROOT,
+    "HOME": HOME,
+}
+
+def _resolve_variables(label, flag):
+    """`flag` with each `${NAME}` of `_JAVA_LAUNCH_VARIABLES` replaced. Any other `${NAME}` fails."""
+    result = flag
+    for name, value in _JAVA_LAUNCH_VARIABLES.items():
+        result = result.replace("${%s}" % name, value)
+    if "${" in result:
+        fail("%s: `%s` names a variable that a java launcher cannot expand; it knows only %s" % (label, flag, sorted(_JAVA_LAUNCH_VARIABLES.keys())))
+    return result
+
+def _runfiles_directory(ctx):
+    """The absolute path of the runfiles tree of this executable, where `bazel run` starts it."""
+    package = ctx.label.package
+    if ctx.label.workspace_root:
+        package = ctx.label.workspace_root + "/" + package
+    return "%s/execroot/%s/%s/%s/%s.runfiles" % (OUTPUT_BASE, ctx.workspace_name, ctx.bin_dir.path, package, ctx.label.name)
+
+def _java_file(ctx, java_runtime):
+    for file in java_runtime.files.to_list():
+        if file.path == java_runtime.java_executable_exec_path:
+            return file
+    fail("%s: the Java runtime has no file %s" % (ctx.label, java_runtime.java_executable_exec_path))
+
+def _intellij_dev_java_launcher_impl(ctx):
+    if ctx.target_platform_has_constraint(ctx.attr._windows[platform_common.ConstraintValueInfo]):
+        fail("%s: a java launcher needs a runfiles tree, which Windows does not build. Use the `intellij_dev_launcher` of the row" % ctx.label)
+    dist = ctx.attr.dist[IntellijDevDistInfo]
+    placement = dist.placement
+    if placement == None or dist.core_classpath == None:
+        fail("%s: %s is no local launch with a placement for every component" % (ctx.label, ctx.attr.dist.label))
+
+    java_runtime = ctx.toolchains["@bazel_tools//tools/jdk:runtime_toolchain_type"].java_runtime
+    executable = ctx.actions.declare_file(ctx.label.name)
+    ctx.actions.symlink(output = executable, target_file = _java_file(ctx, java_runtime), is_executable = True)
+
+    # The home. Analysis cannot see the mode of a source file, so an executable source file gets a copy, which Bazel
+    # leaves executable.
+    home = {}
+    executables = {destination: True for destination in placement.executables}
+    for destination, file in placement.files.items():
+        if destination in executables and file.is_source:
+            copy = ctx.actions.declare_file("%s.executables/%s" % (ctx.label.name, destination))
+            ctx.actions.run_shell(
+                outputs = [copy],
+                inputs = [file],
+                command = 'cp "$1" "$2"',
+                arguments = [file.path, copy.path],
+                mnemonic = "DevLaunchExecutableCopy",
+                progress_message = "Copying the executable %s of %%{label}" % destination,
+            )
+            file = copy
+        home[destination] = file
+    home.update(placement.trees)
+    home.update({destination: entry.tree for destination, entry in placement.homes.items()})
+    home["fingerprint.txt"] = dist.fingerprint
+    if dist.plugin_classpath:
+        home["plugins/plugin-classpath.txt"] = dist.plugin_classpath
+
+    vm_options = [destination for destination in placement.files if destination.startswith("bin/") and destination.endswith(".vmoptions")]
+    if len(vm_options) != 1:
+        fail("%s: the home has no single bin/*.vmoptions file: %s" % (ctx.label, vm_options))
+    for destination in ["bin/idea.properties", "bin/product-info.json"]:
+        if destination not in placement.files:
+            fail("%s: the home has no %s" % (ctx.label, destination))
+
+    # `$$` is a literal `$` in the macro, so a flag reaches the rule as `${NAME}`.
+    targets = ctx.attr.data + [ctx.attr.dist]
+    flags = ctx.fragments.java.default_jvm_opts + [
+        ctx.expand_make_variables("jvm_flags", ctx.expand_location(flag, targets), {})
+        for flag in ctx.attr.jvm_flags
+    ] + ["--add-opens=%s=ALL-UNNAMED" % package for package in ctx.attr.add_opens]
+    flags_file = ctx.actions.declare_file(ctx.label.name + ".jvm-flags.txt")
+    ctx.actions.write(flags_file, "".join([_resolve_variables(ctx.label, flag) + "\n" for flag in flags]))
+
+    runfiles_directory = _runfiles_directory(ctx)
+    argfile = ctx.actions.declare_file(ctx.label.name + ".jvm.args")
+    arguments = ctx.actions.args()
+    arguments.add("jvm-args")
+    arguments.add(dist.ide_config, format = "--ide-config=%s")
+    arguments.add(runfiles_directory + "/" + _JAVA_LAUNCH_HOME, format = "--home=%s")
+    arguments.add(placement.files["bin/idea.properties"], format = "--idea-properties=%s")
+    arguments.add(placement.files[vm_options[0]], format = "--vm-options=%s")
+    arguments.add(vm_options[0], format = "--vm-options-destination=%s")
+    arguments.add(placement.files["bin/product-info.json"], format = "--product-info=%s")
+    arguments.add(dist.core_classpath, format = "--core-classpath=%s")
+    arguments.add(flags_file, format = "--flags-file=%s")
+    if ctx.attr.program_args:
+        arguments.add(ctx.attr.program_args[0], format = "--command=%s")
+    if "modules/module-descriptors.dat" in placement.files:
+        arguments.add("--runtime-module-repository")
+    arguments.add(argfile, format = "--output=%s")
+    ctx.actions.run(
+        executable = ctx.executable._jvm_args_tool,
+        arguments = [arguments],
+        inputs = [
+            dist.ide_config,
+            placement.files["bin/idea.properties"],
+            placement.files[vm_options[0]],
+            placement.files["bin/product-info.json"],
+            dist.core_classpath,
+            flags_file,
+        ],
+        outputs = [argfile],
+        # The file holds absolute local paths, so no shared cache may keep it.
+        execution_requirements = {"no-remote-cache": "1", "no-remote-exec": "1"},
+        mnemonic = "DevLaunchJvmArgs",
+        progress_message = "Writing the JVM arguments of %{label}",
+    )
+
+    runfiles = ctx.runfiles(
+        files = [executable],
+        transitive_files = java_runtime.files,
+        symlinks = {ctx.label.name + ".jvm.args": argfile},
+        root_symlinks = {_JAVA_LAUNCH_HOME + "/" + destination: file for destination, file in home.items()},
+    )
+    for target in ctx.attr.data:
+        runfiles = runfiles.merge(ctx.runfiles(transitive_files = target[DefaultInfo].files)).merge(target[DefaultInfo].default_runfiles)
+
+    # The launcher of ADR 0014 gives these two to the IDE, as the java stub does.
+    environment = dict(ctx.attr.env)
+    environment.update({"JAVA_RUNFILES": runfiles_directory, "RUNFILES_DIR": runfiles_directory})
+    return [
+        DefaultInfo(executable = executable, files = depset([executable, argfile]), runfiles = runfiles),
+        RunEnvironmentInfo(environment = environment),
+    ]
+
+intellij_dev_java_launcher = rule(
+    doc = """Starts a composed dev distribution with `java` itself, `bazel run //<package>:<name>`.
+
+The executable is a link to the `java` of the Java runtime. Its `args` start with `@<name>.jvm.args`, the argument
+file that `dev-launcher jvm-args` writes at build time. The home is `<name>.runfiles/ide_home`, which Bazel links from
+the placement of the components. So no process runs before the JVM, and a launch writes no file. `bazel run` starts
+the executable in `<name>.runfiles/_main`, so every path of the argument file is absolute. A caller adds JVM flags
+through `JDK_JAVA_OPTIONS`, and `java` reads them before the argument file. Windows uses `intellij_dev_launcher`.""",
+    implementation = _intellij_dev_java_launcher_impl,
+    executable = True,
+    fragments = ["java"],
+    toolchains = ["@bazel_tools//tools/jdk:runtime_toolchain_type"],
+    attrs = {
+        "dist": attr.label(mandatory = True, providers = [IntellijDevDistInfo], doc = "The local launch of the distribution, the `_dist_launch` target."),
+        "jvm_flags": attr.string_list(doc = "JVM flags; `$(location)` and make variables expand, and `${BUILD_WORKSPACE_DIRECTORY}` and `${HOME}` resolve at analysis."),
+        "add_opens": attr.string_list(doc = "Packages opened to the unnamed module, as `java_binary.add_opens`."),
+        "env": attr.string_dict(doc = "Environment variables `bazel run` sets for the IDE."),
+        "data": attr.label_list(allow_files = True, doc = "Extra runfiles of the launcher."),
+        "program_args": attr.string_list(doc = "The program arguments of the row, which `args` also states. The first one names a custom command."),
+        "_jvm_args_tool": attr.label(default = Label("//build/dev-dist-tools/bins/dev-launcher:dev-launcher_opt"), executable = True, cfg = "exec"),
+        "_windows": attr.label(default = Label("@platforms//os:windows")),
+    },
+)
+
+def intellij_dev_java_launcher_binary(
+        name,
+        dist,
+        jvm_flags = [],
+        env = {},
+        program_args = [],
+        data = [],
+        visibility = None):
+    """The `java` launcher of a composed dev distribution, with the flags of `intellij_dev_launcher_binary`.
+
+    `dist` is the `_dist_launch` target of the distribution. The config and system directories are the ones of
+    `intellij_dev_launcher_binary`, as absolute paths.
+    """
+    intellij_dev_java_launcher(
+        name = name,
+        visibility = visibility,
+        tags = ["manual"],
+        dist = dist,
+        jvm_flags = _runtime_jvm_flags(name, jvm_flags, platform_prefix = None, config_path = None, system_path = None) + [
+            # Not a build-time input: `AppMode.getDevIdeaProjectDir` and the webview native bridge read it at runtime,
+            # and a dev launch has it only because `DevMainImpl` sets it from the project root it just built against.
+            "-Didea.dev.project.root=$${BUILD_WORKSPACE_DIRECTORY}",
+        ],
+        add_opens = INTELLIJ_ADD_OPENS,
+        env = env,
+        # `bazel run` starts the executable in `<name>.runfiles/_main`, which holds the argument file.
+        args = ["@%s.jvm.args" % name] + program_args,
+        program_args = program_args,
+        data = data,
     )

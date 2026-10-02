@@ -11,6 +11,8 @@ use anyhow::{Context as _, Result, bail};
 use component::{json, paths};
 use serde::Deserialize;
 
+use crate::placement::Placement;
+
 /// The only composition spec version that the composer accepts.
 pub(crate) const COMPOSITION_SPEC_VERSION: i32 = 1;
 
@@ -36,6 +38,9 @@ pub(crate) struct CompositionSpec {
     pub(crate) source_runfiles: Option<BTreeMap<String, String>>,
     pub(crate) source_directory_runfiles: BTreeMap<String, String>,
     pub(crate) source_bindings: Option<String>,
+    /// The home placement that the Starlark rules state at analysis, or `None`. [`crate::placement`] checks it.
+    #[serde(default)]
+    pub(crate) placement: Option<Placement>,
 }
 
 /// Reads a spec, then checks its version and that it has components.

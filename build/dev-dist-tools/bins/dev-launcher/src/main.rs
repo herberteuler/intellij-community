@@ -9,8 +9,11 @@
 //!
 //! The command `local-home --layout=<file> --output-dir=<directory>` links the local home of `PreBuiltDevMain`
 //! (`build/BUILD.bazel`, `local_home_tool`) by the same rules, and exits.
+//!
+//! The command `jvm-args` writes the same JVM arguments as a `java` argument file at build time, see [`jvm_args`].
 
 mod devdata;
+mod jvm_args;
 mod local_home;
 mod process;
 mod properties;
@@ -24,12 +27,10 @@ use component::paths::from_slash;
 use std::process::Command;
 
 use anyhow::{Context, anyhow, bail};
-use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::properties::{
-    ProductInfo, add_runtime_module_repository, custom_command, distribution_properties, put_system_property, read_lines,
-};
+use crate::jvm_args::{Distribution, java_arguments, read_class_path};
+use crate::properties::{ProductInfo, distribution_properties};
 use crate::runfiles::Runfiles;
 
 /// The class path separator of the JVM on the host.
@@ -65,6 +66,9 @@ struct Launch {
 
 fn main() {
     let args: Vec<OsString> = std::env::args_os().collect();
+    if args.get(1).is_some_and(|arg| arg == "jvm-args") {
+        std::process::exit(i32::from(jvm_args::run_jvm_args(&args[2..], &mut std::io::stderr())));
+    }
     if args.get(1).is_some_and(|arg| arg == "local-home") {
         std::process::exit(i32::from(run_local_home(
             &args[2..],
@@ -143,7 +147,7 @@ fn prepare(args: &[String], getenv: &dyn Fn(&str) -> String, warnings: &mut dyn 
     }
 
     let config_file = files.rlocation(&manifest.ide_config)?;
-    let (distribution_home, mut main_class) = read_ide_config(&config_file)?;
+    let (distribution_home, main_class) = read_ide_config(&config_file)?;
     let layout = Path::new(&distribution_home).join(component::layout::LOCAL_LAYOUT_FILE);
     let home = if layout.exists() {
         link_local_home(&files, &manifest, &layout, &workspace, warnings)?
@@ -152,41 +156,27 @@ fn prepare(args: &[String], getenv: &dyn Fn(&str) -> String, warnings: &mut dyn 
     };
 
     let info = ProductInfo::read(Path::new(&home))?;
-    let mut properties = distribution_properties(&home, &info)?;
-    let mut caller_properties = IndexMap::new();
-    for flag in &command_line {
-        put_system_property(&mut caller_properties, flag);
-    }
-    if caller_properties
-        .get("idea.dev.mode.custom.command")
-        .is_some_and(|value| value.eq_ignore_ascii_case("true"))
-    {
-        let Some(command) = program_args.first() else {
-            bail!("-Didea.dev.mode.custom.command=true needs the command as the first program argument");
-        };
-        let (command_main_class, command_properties) = custom_command(&home, &info, command)?;
-        main_class = command_main_class;
-        properties.extend(command_properties);
-    }
-    add_runtime_module_repository(&mut properties, &home, &caller_properties);
-
-    let class_path = read_class_path(&home)?;
+    let properties = distribution_properties(&home, &info)?;
+    let repository = Path::new(&home).join("modules").join("module-descriptors.dat");
+    let distribution = Distribution {
+        class_path: read_class_path(&Path::new(&home).join("core-classpath.txt"), &home)?,
+        runtime_module_repository: if repository.is_file() {
+            Some(path_string(repository)?)
+        } else {
+            None
+        },
+        home,
+        info,
+        properties,
+        main_class,
+    };
     let java = files.rlocation(&manifest.java)?;
     let mut argv = vec![java.clone()];
-    argv.extend(command_line);
-    // `PreBuiltDevMain` sets these three before the properties of the distribution, which can override them.
-    argv.extend([
-        "-Didea.vendor.name=JetBrains".to_owned(),
-        "-Didea.use.dev.build.server=true".to_owned(),
-        format!("-Didea.home.path={home}"),
-    ]);
-    for (key, value) in &properties {
-        if caller_properties.contains_key(key) && is_caller_owned_property(key) {
-            continue;
-        }
-        argv.push(format!("-D{key}={value}"));
-    }
-    argv.extend(["-cp".to_owned(), class_path.join(PATH_LIST_SEPARATOR), main_class]);
+    argv.extend(java_arguments(
+        command_line,
+        distribution,
+        program_args.first().map(String::as_str),
+    )?);
     argv.extend(program_args);
 
     let env = files.environment();
@@ -229,22 +219,6 @@ fn read_ide_config(file: &str) -> anyhow::Result<(String, String)> {
         path_string(Path::new(file).parent().unwrap_or(Path::new(file)).join(from_slash(home).as_ref()))?
     };
     Ok((home, main_class.clone()))
-}
-
-fn read_class_path(home: &str) -> anyhow::Result<Vec<String>> {
-    let lines = read_lines(&Path::new(home).join("core-classpath.txt"))?;
-    lines
-        .iter()
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty())
-        .map(|line| {
-            if Path::new(line).is_absolute() {
-                Ok(line.to_owned())
-            } else {
-                path_string(Path::new(home).join(from_slash(line).as_ref()))
-            }
-        })
-        .collect()
 }
 
 /// The properties that the command line of a launcher keeps against the properties of the distribution, as

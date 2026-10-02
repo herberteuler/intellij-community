@@ -1666,6 +1666,7 @@
       <module fileurl="file://$PROJECT_DIR$/platform/ide-core-impl/intellij.platform.ide.core.impl.iml" filepath="$PROJECT_DIR$/platform/ide-core-impl/intellij.platform.ide.core.impl.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/ide-core/plugins/intellij.platform.ide.core.plugins.iml" filepath="$PROJECT_DIR$/platform/ide-core/plugins/intellij.platform.ide.core.plugins.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/designer/intellij.platform.ide.designer.iml" filepath="$PROJECT_DIR$/platform/platform-impl/designer/intellij.platform.ide.designer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/dnd/intellij.platform.ide.dnd.iml" filepath="$PROJECT_DIR$/platform/platform-impl/dnd/intellij.platform.ide.dnd.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/error-tree-view/intellij.platform.ide.errorTreeView.iml" filepath="$PROJECT_DIR$/platform/platform-impl/error-tree-view/intellij.platform.ide.errorTreeView.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/favoritesTreeView/intellij.platform.ide.favoritesTreeView.iml" filepath="$PROJECT_DIR$/platform/favoritesTreeView/intellij.platform.ide.favoritesTreeView.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/filter-field/intellij.platform.ide.filterField.iml" filepath="$PROJECT_DIR$/platform/platform-impl/filter-field/intellij.platform.ide.filterField.iml" />

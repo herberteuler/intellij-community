@@ -289,6 +289,7 @@ object CoreModuleSets {
     embeddedModule("intellij.platform.ui.tree")
     embeddedModule("intellij.platform.vfs.impl")
     embeddedModule("intellij.platform.ide.json")
+    embeddedModule("intellij.platform.ide.dnd")
     embeddedModule("intellij.platform.ide.codeinsight.inline")
     embeddedModule("intellij.platform.pasta")
     embeddedModule("intellij.platform.diagnostic.startUpPerformanceReporter")

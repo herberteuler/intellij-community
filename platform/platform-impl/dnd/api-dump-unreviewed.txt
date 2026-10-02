@@ -1,0 +1,35 @@
+f:com.intellij.ide.dnd.DnDManagerImpl
+- getDropTargetListener():java.awt.dnd.DropTargetListener
+- getLastDropHandler():java.awt.Component
+- registerSource(com.intellij.ide.dnd.AdvancedDnDSource):V
+- registerSource(com.intellij.ide.dnd.DnDSource,javax.swing.JComponent):V
+- registerSource(com.intellij.ide.dnd.DnDSource,javax.swing.JComponent,com.intellij.openapi.Disposable):V
+- registerTarget(com.intellij.ide.dnd.DnDTarget,javax.swing.JComponent):V
+- registerTarget(com.intellij.ide.dnd.DnDTarget,javax.swing.JComponent,com.intellij.openapi.Disposable):V
+- setLastDropHandler(java.awt.Component):V
+- unregisterSource(com.intellij.ide.dnd.AdvancedDnDSource):V
+- unregisterSource(com.intellij.ide.dnd.DnDSource,javax.swing.JComponent):V
+- unregisterTarget(com.intellij.ide.dnd.DnDTarget,javax.swing.JComponent):V
+- updateCurrentEvent():V
+f:com.intellij.ide.dnd.FileCopyPasteUtil
+- s:createDataFlavor(java.lang.String):java.awt.datatransfer.DataFlavor
+- s:createDataFlavor(java.lang.String,java.lang.Class):java.awt.datatransfer.DataFlavor
+- s:createDataFlavor(java.lang.String,java.lang.Class,Z):java.awt.datatransfer.DataFlavor
+- s:createJvmDataFlavor(java.lang.Class):java.awt.datatransfer.DataFlavor
+- s:getVirtualFileListFromAttachedObject(java.lang.Object):java.util.List
+a:com.intellij.ide.dnd.TransferableList
+- <init>(java.util.List):V
+- p:getHTML(java.util.List,Z):java.lang.String
+- p:getText(java.util.List):java.lang.String
+- getTransferData(java.awt.datatransfer.DataFlavor):java.lang.Object
+- getTransferDataFlavors():java.awt.datatransfer.DataFlavor[]
+- isDataFlavorSupported(java.awt.datatransfer.DataFlavor):Z
+- p:toHTML(java.lang.Object):java.lang.String
+- pa:toString(java.lang.Object):java.lang.String
+c:com.intellij.ide.dnd.aware.DnDAwareTree
+- dropSelectionButUnderPoint(java.awt.Point):V
+- f:getComponent():javax.swing.JComponent
+- s:getDragImage(com.intellij.ui.treeStructure.Tree,java.lang.String,java.awt.Point):com.intellij.openapi.util.Pair
+- s:getDragImage(com.intellij.ui.treeStructure.Tree,javax.swing.tree.TreePath,java.awt.Point):com.intellij.openapi.util.Pair
+- f:isOverSelection(java.awt.Point):Z
+- p:processMouseMotionEvent(java.awt.event.MouseEvent):V

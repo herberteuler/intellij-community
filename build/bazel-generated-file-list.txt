@@ -939,6 +939,7 @@ platform/platform-impl/codeinsight-inline
 platform/platform-impl/color-picker
 platform/platform-impl/concurrency
 platform/platform-impl/designer
+platform/platform-impl/dnd
 platform/platform-impl/eel
 platform/platform-impl/error-tree-view
 platform/platform-impl/filter-field

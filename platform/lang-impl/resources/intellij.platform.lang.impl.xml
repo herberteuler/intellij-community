@@ -946,9 +946,12 @@
     <!-- Extension resources -->
     <applicationService serviceImplementation="com.intellij.ide.extensionResources.ResourceVersions"/>
     <scratch.rootType implementation="com.intellij.ide.extensionResources.ExtensionsRootType"/>
-    <colorSettingsPage implementation="com.intellij.openapi.options.colors.pages.DefaultLanguageColorsPage" id="defaultLanguage"/>
-    <colorSettingsPage implementation="com.intellij.openapi.options.colors.pages.ANSIColoredConsoleColorsPage" id="ansi"/>
-    <colorSettingsPage implementation="com.intellij.openapi.options.colors.pages.CustomColorsPage" id="custom"/>
+    <colorSettings implementation="com.intellij.openapi.options.colors.pages.DefaultLanguageColorsPage"
+                   bundle="messages.OptionsBundle" key="options.language.defaults.display.name" priority="GENERAL_SETTINGS" id="defaultLanguage"/>
+    <colorSettings implementation="com.intellij.openapi.options.colors.pages.ANSIColoredConsoleColorsPage"
+                   bundle="messages.OptionsBundle" key="color.settings.console.name" priority="COMMON_SETTINGS" id="ansi"/>
+    <colorSettings implementation="com.intellij.openapi.options.colors.pages.CustomColorsPage"
+                   bundle="messages.OptionsBundle" key="options.custom.display.name" priority="COMMON_SETTINGS" id="custom"/>
     <colorAndFontPanelFactory implementation="com.intellij.application.options.colors.ScopeColorsPageFactory"/>
     <elementDescriptionProvider implementation="com.intellij.psi.impl.DefaultPomTargetDescriptionProvider" order="last" id="pomDefault"/>
     <applicationService serviceImplementation="com.intellij.codeInspection.ex.AppInspectionProfilesVisibleTreeState"/>

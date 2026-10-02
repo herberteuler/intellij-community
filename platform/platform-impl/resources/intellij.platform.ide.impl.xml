@@ -1774,7 +1774,8 @@
       </description>
     </experimentalFeature>
     <advancedSetting id="project.view.show.scratches.and.consoles" groupKey="group.advanced.settings.project.view" default="true"/>
-    <colorSettingsPage implementation="com.intellij.openapi.options.colors.pages.GeneralColorsPage" id="general"/>
+    <colorSettings implementation="com.intellij.openapi.options.colors.pages.GeneralColorsPage"
+                   bundle="messages.OptionsBundle" key="options.general.display.name" priority="GENERAL_SETTINGS" id="general"/>
     <customScopesProvider implementation="com.intellij.openapi.fileEditor.impl.OpenFilesScope$Provider" order="last"/>
     <navbar implementation="com.intellij.ide.navigationToolbar.DefaultNavBarExtension" id="defaultNavbar" order="last"/>
     <!-- Colors & Fonts-->

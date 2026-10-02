@@ -313,7 +313,8 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
 
   @Override
   public @NotNull Collection<BaseExtensionPointName<?>> getDependencies() {
-    return List.of(ColorSettingsPage.EP_NAME, ColorAndFontPanelFactory.EP_NAME, ColorAndFontDescriptorsProvider.EP_NAME);
+    return List.of(ColorSettingsPage.EP_NAME, ColorSettingsPageEP.EP_NAME,
+                   ColorAndFontPanelFactory.EP_NAME, ColorAndFontDescriptorsProvider.EP_NAME);
   }
 
   @ApiStatus.Internal
@@ -583,52 +584,64 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
     List<ColorAndFontPanelFactory> extensions = new ArrayList<>();
     extensions.add(new FontConfigurableFactory());
     extensions.add(new ConsoleFontConfigurableFactory());
-    ColorSettingsPage[] pages = ColorSettingsPages.getInstance().getRegisteredPages();
-    for (final ColorSettingsPage page : pages) {
-      extensions.add(new ColorAndFontPanelFactoryEx() {
-        @Override
-        public @NotNull NewColorAndFontPanel createPanel(@NotNull ColorAndFontOptions options) {
-          final SimpleEditorPreview preview = new SimpleEditorPreview(options, page);
-          return NewColorAndFontPanel.create(preview, page.getDisplayName(), options, null, page);
-        }
-
-        @Override
-        public @NotNull String getPanelDisplayName() {
-          return page.getDisplayName();
-        }
-
-        @Override
-        public @NotNull @NonNls String getConfigurableId() {
-          return page.getId();
-        }
-
-        @Override
-        public DisplayPriority getPriority() {
-          if (page instanceof DisplayPrioritySortable) {
-            return ((DisplayPrioritySortable)page).getPriority();
-          }
-          return DisplayPriority.LANGUAGE_SETTINGS;
-        }
-
-        @Override
-        public int getWeight() {
-          if (page instanceof DisplayPrioritySortable) {
-            return ((DisplayPrioritySortable)page).getWeight();
-          }
-          return ColorAndFontPanelFactoryEx.super.getWeight();
-        }
-
-        @Override
-        public @NotNull Class<?> getOriginalClass() {
-          return page.getClass();
-        }
-      });
+    for (ColorSettingsPageEntry entry : ColorSettingsPageCatalog.getEntries()) {
+      extensions.add(new CatalogPanelFactory(entry));
     }
     extensions.addAll(ColorAndFontPanelFactory.EP_NAME.getExtensionList());
     extensions.sort(
       (f1, f2) -> DisplayPrioritySortable.compare(f1, f2, factory -> factory.getPanelDisplayName())
     );
     return new ArrayList<>(extensions);
+  }
+
+  /**
+   * Builds the panel of one {@link ColorSettingsPageEntry}, and asks the entry for the id, the name and the order.
+   * An entry of a {@link ColorSettingsPageEP} declaration answers those three from the declaration, so the settings
+   * tree builds the node and loads no page class. {@link #createPanel} is the first member that needs the page.
+   */
+  private static final class CatalogPanelFactory implements ColorAndFontPanelFactoryEx {
+    private final @NotNull ColorSettingsPageEntry myEntry;
+
+    private CatalogPanelFactory(@NotNull ColorSettingsPageEntry entry) {
+      myEntry = entry;
+    }
+
+    @Override
+    public @NotNull NewColorAndFontPanel createPanel(@NotNull ColorAndFontOptions options) {
+      ColorSettingsPage page = myEntry.getPage();
+      SimpleEditorPreview preview = new SimpleEditorPreview(options, page);
+      return NewColorAndFontPanel.create(preview, page.getDisplayName(), options, null, page);
+    }
+
+    @Override
+    public @NotNull String getPanelDisplayName() {
+      return myEntry.getDisplayName();
+    }
+
+    @Override
+    public @NotNull @NonNls String getConfigurableId() {
+      return myEntry.getId();
+    }
+
+    @Override
+    public DisplayPriority getPriority() {
+      return myEntry.getPriority();
+    }
+
+    @Override
+    public int getWeight() {
+      return myEntry.getWeight();
+    }
+
+    @Override
+    public @NotNull Class<?> getOriginalClass() {
+      return myEntry.getPageClass();
+    }
+
+    /** Answers the beta badge of the page, and loads no class. */
+    private boolean isBeta() {
+      return myEntry.isBeta();
+    }
   }
 
   public static @NlsContexts.ConfigurableName String getFontConfigurableName() {
@@ -1737,6 +1750,11 @@ public class ColorAndFontOptions extends SearchableConfigurable.Parent.Abstract
   }
 
   private static boolean isBeta(@NotNull ColorAndFontPanelFactory factory) {
+    // A catalog factory answers from its entry, because getOriginalClass() loads the page class of a declaration,
+    // and this method runs for every child on every settings tree build.
+    if (factory instanceof CatalogPanelFactory catalog) {
+      return catalog.isBeta();
+    }
     return factory instanceof Configurable.Beta ||
            factory instanceof ColorAndFontPanelFactoryEx ex && Configurable.Beta.class.isAssignableFrom(ex.getOriginalClass());
   }

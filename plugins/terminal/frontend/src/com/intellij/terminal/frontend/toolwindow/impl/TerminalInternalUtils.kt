@@ -17,6 +17,8 @@ import org.jetbrains.plugins.terminal.TerminalEngine
 import org.jetbrains.plugins.terminal.TerminalOptionsProvider
 import org.jetbrains.plugins.terminal.TerminalTabState
 import org.jetbrains.plugins.terminal.TerminalToolWindowManager
+import org.jetbrains.plugins.terminal.fus.ReworkedTerminalUsageCollector
+import org.jetbrains.plugins.terminal.fus.TerminalCommandUsageStatistics
 import org.jetbrains.plugins.terminal.fus.TerminalStartupFusInfo
 import org.jetbrains.plugins.terminal.startup.TerminalProcessType
 import org.jetbrains.plugins.terminal.util.getNow
@@ -66,17 +68,24 @@ fun shouldUseReworkedTerminal(): Boolean {
   return ExperimentalUI.isNewUI() && engine == TerminalEngine.REWORKED && !isCodeWithMe
 }
 
-internal fun TerminalView.getRunningProcessCommandLine(): String? {
-  val startupOptions = startupOptionsDeferred.getNow() ?: return null
-  return if (startupOptions.processType == TerminalProcessType.NON_SHELL) {
+/**
+ * Returns the executable of the running process in the form that FUS accepts.
+ * Returns null if the shell runs no command.
+ * Returns [TerminalCommandUsageStatistics.UNKNOWN_EXECUTABLE] if the process is not started yet,
+ * or the shell integration is not available.
+ */
+internal fun TerminalView.getRunningProcessExecutableForFus(): String? {
+  val startupOptions = startupOptionsDeferred.getNow() ?: return TerminalCommandUsageStatistics.UNKNOWN_EXECUTABLE
+  val commandLine = if (startupOptions.processType == TerminalProcessType.NON_SHELL) {
     ParametersListUtil.join(startupOptions.shellCommand)
   }
   else {
     // If it is a shell process, we need to get the current running command via shell integration
-    val shellIntegration = shellIntegrationDeferred.getNow() ?: return null
+    val shellIntegration = shellIntegrationDeferred.getNow() ?: return TerminalCommandUsageStatistics.UNKNOWN_EXECUTABLE
     val currentBlock = shellIntegration.blocksModel.activeBlock as? TerminalCommandBlock ?: return null
     currentBlock.executedCommand ?: return null
   }
+  return TerminalCommandUsageStatistics.getLoggableCommandData(commandLine, expandAbsoluteOrRelativePath = true).command
 }
 
 @RequiresEdt(generateAssertion = false /* IJPL-115548 */)

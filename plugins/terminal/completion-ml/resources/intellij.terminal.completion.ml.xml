@@ -1,0 +1,15 @@
+<idea-plugin>
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <plugin id="com.intellij.completion.ml.ranking"/>
+    <plugin id="org.jetbrains.plugins.terminal"/>
+    <module name="intellij.libraries.completion.ranking.sh"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.ide.internal"/>
+  </dependencies>
+  <!-- endregion -->
+
+  <extensions defaultExtensionNs="com.intellij">
+    <completion.ml.model implementation="com.intellij.terminal.completion.ml.ShMLRankingProvider"/>
+  </extensions>
+</idea-plugin>

@@ -72,7 +72,6 @@
     <module name="intellij.platform.ide.core"/>
     <module name="intellij.platform.ide.core.impl"/>
     <module name="intellij.platform.ide.impl"/>
-    <module name="intellij.platform.ide.internal"/>
     <module name="intellij.platform.ide.observable"/>
     <module name="intellij.platform.ide.progress"/>
     <module name="intellij.platform.ide.ui"/>
@@ -105,10 +104,11 @@
     <module name="intellij.terminal.frontend.split"/>
     <module name="intellij.terminal.cloud"/>
     <module name="intellij.terminal.sh"/>
+    <module name="intellij.terminal.completion.ml"/>
     <module name="intellij.terminal.agentsProvider"/>
   </content>
   <content>
-    <module name="intellij.libraries.completion.ranking.sh" loading="embedded"/>
+    <module name="intellij.libraries.completion.ranking.sh"/>
     <module name="intellij.terminal.libraries.completionDbWithExtensions" loading="embedded"/>
   </content>
 

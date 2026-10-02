@@ -44,6 +44,7 @@
     <orderEntry type="module" module-name="intellij.platform.ide.codeinsight.inline" scope="TEST" />
     <orderEntry type="module" module-name="intellij.terminal.completion" />
     <orderEntry type="module" module-name="intellij.terminal.sh" />
+    <orderEntry type="module" module-name="intellij.terminal.completion.ml" />
     <orderEntry type="module" module-name="intellij.terminal.emulator" />
     <orderEntry type="module" module-name="intellij.platform.core" />
     <orderEntry type="module" module-name="intellij.platform.editor.ui" />

@@ -1,0 +1,67 @@
+load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
+
+### auto-generated section `dev intellij.terminal.completion.ml` start
+content_module_jar(module = ":completion-ml")
+### auto-generated section `dev intellij.terminal.completion.ml` end
+
+### auto-generated section `build intellij.terminal.completion.ml` start
+jvm_library(
+    name = "completion-ml",
+    srcs = glob(
+        [
+            "src/**/*.kt",
+            "src/**/*.java",
+            "src/**/*.form",
+        ],
+        allow_empty = True,
+    ),
+    module_name = "intellij.terminal.completion.ml",
+    resource_strip_prefix = "resources",
+    resources = glob(
+        ["resources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        # do not sort,
+        "@lib//:kotlin-stdlib",
+        "//platform/core-api:core",
+        "//platform/util",
+        "//plugins/terminal",
+        "//plugins/completion-ml-ranking",
+        "//platform/platform-impl/internal",
+        "//libraries/completion-ranking-sh",
+    ],
+)
+
+jvm_library(
+    name = "completion-ml_test_lib",
+    testonly = True,
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.terminal.completion.ml",
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        # do not sort,
+        ":completion-ml",
+        "//platform/core-api:core_test_lib",
+        "//platform/util:util_test_lib",
+        "//plugins/terminal:terminal_test_lib",
+        "//plugins/completion-ml-ranking:completion-ml-ranking_test_lib",
+        "//platform/platform-impl/internal:internal_test_lib",
+        "//libraries/completion-ranking-sh:completion-ranking-sh_test_lib",
+    ],
+)
+### auto-generated section `build intellij.terminal.completion.ml` end
+
+### auto-generated section `iml intellij.terminal.completion.ml` start
+exports_files(
+    [
+        "intellij.terminal.completion.ml.iml",
+        "resources/intellij.terminal.completion.ml.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.terminal.completion.ml` end

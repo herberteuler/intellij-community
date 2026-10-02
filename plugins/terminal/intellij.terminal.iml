@@ -65,11 +65,9 @@
     <orderEntry type="module" module-name="intellij.terminal.libraries.completionDbWithExtensions" />
     <orderEntry type="module" module-name="intellij.platform.util.coroutines" />
     <orderEntry type="module" module-name="intellij.platform.util.text.matching" />
-    <orderEntry type="module" module-name="intellij.libraries.completion.ranking.sh" />
     <orderEntry type="module" module-name="intellij.platform.feedback" />
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.datetime" />
     <orderEntry type="module" module-name="intellij.platform.diagnostic.telemetry" />
-    <orderEntry type="module" module-name="intellij.platform.ide.internal" />
     <orderEntry type="module" module-name="intellij.libraries.opentelemetry" scope="PROVIDED" />
     <orderEntry type="module" module-name="intellij.libraries.opentelemetry.semconv" scope="PROVIDED" />
     <orderEntry type="module" module-name="intellij.libraries.opentelemetry.extension.kotlin" scope="PROVIDED" />

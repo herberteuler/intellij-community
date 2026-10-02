@@ -68,9 +68,6 @@
     <applicationService serviceInterface="com.intellij.ide.StatisticsNotificationManager"
                         serviceImplementation="com.intellij.internal.statistic.notification.StatisticsNotificationManagerImpl"/>
 
-    <applicationService serviceInterface="com.intellij.internal.statistic.eventLog.StatisticsRegionSettingsService"
-                        serviceImplementation="com.intellij.internal.statistic.StatisticsRegionSettingsServiceImpl"/>
-
     <statistics.validation.customValidationRule
       implementation="com.intellij.internal.statistic.collectors.fus.FacetTypeUsageCollector$FacetTypeUtilValidator"/>
     <statistics.validation.customValidationRule
@@ -167,14 +164,8 @@
   </actions>
 
   <applicationListeners>
-    <listener class="com.intellij.internal.statistic.EventLogApplicationLifecycleListener"
-              topic="com.intellij.ide.AppLifecycleListener"
-              activeInHeadlessMode="true"
-              activeInTestMode="false"/>
     <listener class="com.intellij.internal.performance.LatenciometerListener"
               topic="com.intellij.openapi.editor.actionSystem.LatencyListener"/>
-    <listener topic="com.intellij.ide.RegionSettings$RegionSettingsListener"
-              class="com.intellij.internal.statistic.StatisticsRegionSettingsListener"/>
   </applicationListeners>
 
   <projectListeners>

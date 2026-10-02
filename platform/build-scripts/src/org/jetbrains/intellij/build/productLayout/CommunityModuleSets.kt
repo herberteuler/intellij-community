@@ -216,7 +216,7 @@ object CommunityModuleSets {
    * The internal IDE services and actions, and their backend.
    * The module registers the platform implementations of `StatisticsNotificationManager` and `LatencyRecorder`.
    *
-   * [essential] nests this set. A lean product such as Draft adds the set itself.
+   * [essential] nests this set. A lean product can leave the set out. The platform callers of these services are null-safe.
    */
   fun ideInternal(): ModuleSet = moduleSet("ide.internal") {
     module("intellij.platform.ide.internal")

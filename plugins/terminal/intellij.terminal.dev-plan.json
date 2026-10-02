@@ -19,7 +19,10 @@
             "module": "intellij.terminal.sh"
         },
         {
-            "destination": "lib/intellij.libraries.completion.ranking.sh.jar",
+            "module": "intellij.terminal.completion.ml"
+        },
+        {
+            "destination": "lib/modules/intellij.libraries.completion.ranking.sh.jar",
             "recipe": {
                 "sources": [
                     {

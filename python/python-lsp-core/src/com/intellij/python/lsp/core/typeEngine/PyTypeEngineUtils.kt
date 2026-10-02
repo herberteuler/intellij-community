@@ -56,8 +56,15 @@ object PyTypeEngineUtils {
    */
   fun localNonReadOnlySdk(module: Module): Sdk? {
     val pythonSdk = module.pythonSdk ?: return null
+    return pythonSdk.takeIf { !it.isReadOnly && isLocalSdk(it) }
+  }
+
+  /**
+   * Whether [sdk] runs on this machine. A read-only system interpreter counts, so use this for a tool
+   * that only reads the environment.
+   */
+  fun isLocalSdk(sdk: Sdk): Boolean {
     @OptIn(PyInternalExecApi::class) // TODO: Do not use executionType, it is for the statistics only
-    val supported = !pythonSdk.isReadOnly && pythonSdk.executionType == InterpreterTarget.LOCAL
-    return pythonSdk.takeIf { supported }
+    return sdk.executionType == InterpreterTarget.LOCAL
   }
 }

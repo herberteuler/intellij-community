@@ -8,6 +8,7 @@ internal class ProjectViewPaneRemoteSettingsProvider : RemoteSettingInfoProvider
   override fun getRemoteSettingsInfo(): Map<String, RemoteSettingInfo> {
     return mapOf(
       "UISettings.OPEN_IN_PREVIEW_TAB_IF_POSSIBLE" to RemoteSettingInfo(RemoteSettingInfo.Direction.InitialFromFrontend),
+      "ProjectViewState" to RemoteSettingInfo(RemoteSettingInfo.Direction.InitialFromBackend),
     )
   }
 }

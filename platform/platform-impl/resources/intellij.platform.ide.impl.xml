@@ -580,7 +580,6 @@
     <pluginUpdatesProvider implementation="com.intellij.ide.plugins.newui.DefaultPluginUpdatesProvider"/>
     <projectSettings service="com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.UnknownFeaturesCollector"/>
     <projectSettings service="com.intellij.ui.RecentsManager"/>
-    <projectSettings service="com.intellij.ide.errorTreeView.impl.ErrorTreeViewConfiguration"/>
     <applicationSettings service="com.intellij.execution.wsl.WSLDistributionService"/>
     <applicationSettings service="com.intellij.util.singleProduct.MigrationToSingleProductSettings"/>
     <projectSettings service="com.intellij.openapi.project.impl.ProjectRootPersistentStateComponent"/>

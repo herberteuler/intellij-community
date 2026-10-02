@@ -15,6 +15,7 @@
     <module name="intellij.platform.diff.impl"/>
     <module name="intellij.platform.editor.ui"/>
     <module name="intellij.platform.ide.core"/>
+    <module name="intellij.platform.ide.errorTreeView"/>
     <module name="intellij.platform.ide.impl"/>
     <module name="intellij.platform.ide.rpc"/>
     <module name="intellij.platform.kernel"/>

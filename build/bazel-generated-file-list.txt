@@ -940,6 +940,7 @@ platform/platform-impl/color-picker
 platform/platform-impl/concurrency
 platform/platform-impl/designer
 platform/platform-impl/eel
+platform/platform-impl/error-tree-view
 platform/platform-impl/hprof
 platform/platform-impl/initial-config-import
 platform/platform-impl/internal

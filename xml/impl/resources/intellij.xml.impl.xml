@@ -22,6 +22,7 @@
     <module name="intellij.platform.icons"/>
     <module name="intellij.platform.ide.core"/>
     <module name="intellij.platform.ide.core.impl"/>
+    <module name="intellij.platform.ide.errorTreeView"/>
     <module name="intellij.platform.ide.impl"/>
     <module name="intellij.platform.ide.util.io.impl"/>
     <module name="intellij.platform.indexing"/>

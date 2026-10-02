@@ -13,7 +13,7 @@ import com.intellij.execution.process.ProcessOutput;
 import com.intellij.execution.process.ProcessOutputType;
 import com.intellij.execution.ui.RunContentDescriptor;
 import com.intellij.execution.ui.RunContentManager;
-import com.intellij.ide.errorTreeView.NewErrorTreeViewPanel;
+import com.intellij.ide.ErrorTreeViewFactory;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ReadAction;
@@ -44,6 +44,7 @@ import com.intellij.util.Consumer;
 import com.intellij.util.NotNullFunction;
 import com.intellij.util.SmartList;
 import com.intellij.util.concurrency.Semaphore;
+import com.intellij.util.ui.ErrorTreeView;
 import com.intellij.util.ui.MessageCategory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -93,7 +94,8 @@ public final class ExecutionHelper {
         return;
       }
 
-      final ErrorViewPanel errorTreeView = new ErrorViewPanel(myProject);
+      final ErrorTreeView errorTreeView = createErrorTreeView(myProject);
+      if (errorTreeView == null) return;
       try {
         openMessagesView(errorTreeView, myProject, tabDisplayName);
       }
@@ -134,7 +136,7 @@ public final class ExecutionHelper {
   private static void addMessages(
     final int messageCategory,
     final @NotNull List<? extends Exception> exceptions,
-    @NotNull ErrorViewPanel errorTreeView,
+    @NotNull ErrorTreeView errorTreeView,
     final @Nullable VirtualFile file,
     final @NotNull String defaultMessage) {
     for (final Exception exception : exceptions) {
@@ -164,7 +166,8 @@ public final class ExecutionHelper {
 
       final String stdOutTitle = "[Stdout]:";
       final String stderrTitle = "[Stderr]:";
-      final ErrorViewPanel errorTreeView = new ErrorViewPanel(myProject);
+      final ErrorTreeView errorTreeView = createErrorTreeView(myProject);
+      if (errorTreeView == null) return;
       try {
         openMessagesView(errorTreeView, myProject, tabDisplayName);
       }
@@ -219,14 +222,14 @@ public final class ExecutionHelper {
     });
   }
 
-  private static void openMessagesView(final @NotNull ErrorViewPanel errorTreeView,
+  private static void openMessagesView(final @NotNull ErrorTreeView errorTreeView,
                                        final @NotNull Project myProject,
                                        final @NotNull @NlsContexts.TabTitle String tabDisplayName) {
     CommandProcessor commandProcessor = CommandProcessor.getInstance();
     commandProcessor.executeCommand(myProject, () -> {
       final MessageView messageView = MessageView.getInstance(myProject);
       messageView.runWhenInitialized(() -> {
-        final Content content = ContentFactory.getInstance().createContent(errorTreeView, tabDisplayName, true);
+        final Content content = ContentFactory.getInstance().createContent(errorTreeView.getComponent(), tabDisplayName, true);
         messageView.getContentManager().addContent(content);
         Disposer.register(content, errorTreeView);
         messageView.getContentManager().setSelectedContent(content);
@@ -317,16 +320,15 @@ public final class ExecutionHelper {
     }, project.getDisposed());
   }
 
-  static final class ErrorViewPanel extends NewErrorTreeViewPanel {
-    ErrorViewPanel(@NotNull Project project) {
-      super(project, "reference.toolWindows.messages");
-      Disposer.register(project, this);
+  private static @Nullable ErrorTreeView createErrorTreeView(@NotNull Project project) {
+    ErrorTreeViewFactory factory = ErrorTreeViewFactory.getInstanceOrNull();
+    if (factory == null) {
+      LOG.warn("Cannot show the messages: no error tree view is available");
+      return null;
     }
-
-    @Override
-    protected boolean canHideWarnings() {
-      return false;
-    }
+    ErrorTreeView errorTreeView = factory.createErrorTreeView(project, "reference.toolWindows.messages", false);
+    Disposer.register(project, errorTreeView);
+    return errorTreeView;
   }
 
 

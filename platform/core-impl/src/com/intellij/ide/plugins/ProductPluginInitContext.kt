@@ -466,6 +466,7 @@ private val contentModulesExtractedInCorePluginWhichCanBeUsedFromExternalPlugins
   "intellij.platform.ide.socketConnection",
   "intellij.platform.ide.colorPicker",
   "intellij.platform.ide.hprof",
+  "intellij.platform.ide.errorTreeView",
   "intellij.platform.externalSystem",
   "intellij.platform.externalSystem.impl",
   "intellij.platform.tasks",

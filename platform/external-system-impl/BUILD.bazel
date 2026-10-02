@@ -38,6 +38,7 @@ jvm_library(
         exclude = ["resources/**/icon-robots.txt"],
     ),
     visibility = ["//visibility:public"],
+    exports = ["//platform/platform-impl/error-tree-view"],
     deps = [
         # do not sort,
         "//platform/analysis-api:analysis",
@@ -53,6 +54,7 @@ jvm_library(
         "//platform/projectModel-api:projectModel",
         "//platform/projectModel-impl",
         "//platform/platform-impl:ide-impl",
+        "//platform/platform-impl/error-tree-view",
         "//platform/lang-impl",
         "//platform/buildView",
         "//platform/execution-impl",
@@ -103,6 +105,11 @@ jvm_library(
     ),
     module_name = "intellij.platform.externalSystem.impl",
     visibility = ["//visibility:public"],
+    exports = [
+        # do not sort,
+        "//platform/platform-impl/error-tree-view",
+        "//platform/platform-impl/error-tree-view:error-tree-view_test_lib",
+    ],
     runtime_deps = [
         # do not sort,
         ":externalSystem-impl",
@@ -119,6 +126,7 @@ jvm_library(
         "//platform/projectModel-api:projectModel_test_lib",
         "//platform/projectModel-impl:projectModel-impl_test_lib",
         "//platform/platform-impl:ide-impl_test_lib",
+        "//platform/platform-impl/error-tree-view:error-tree-view_test_lib",
         "//platform/lang-impl:lang-impl_test_lib",
         "//platform/buildView:buildView_test_lib",
         "//platform/execution-impl:execution-impl_test_lib",

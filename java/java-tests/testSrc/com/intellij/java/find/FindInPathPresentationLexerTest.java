@@ -1,7 +1,11 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.find;
+package com.intellij.java.find;
 
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase;
+import com.intellij.find.FindManager;
+import com.intellij.find.FindManagerTestUtils;
+import com.intellij.find.FindModel;
+import com.intellij.find.FindResult;
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.markup.TextAttributes;

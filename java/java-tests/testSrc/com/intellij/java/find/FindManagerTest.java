@@ -1,8 +1,14 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.find;
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.find;
 
 import com.intellij.JavaTestUtil;
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase;
+import com.intellij.find.FindInProjectSearchEngine;
+import com.intellij.find.FindManager;
+import com.intellij.find.FindManagerTestUtils;
+import com.intellij.find.FindModel;
+import com.intellij.find.FindResult;
+import com.intellij.find.FindUtil;
 import com.intellij.find.impl.FindInProjectUtil;
 import com.intellij.find.impl.FindResultImpl;
 import com.intellij.find.replaceInProject.ReplaceInProjectManager;

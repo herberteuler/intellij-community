@@ -1,7 +1,8 @@
-// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.find.actions;
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.java.find.actions;
 
 import com.intellij.JavaTestUtil;
+import com.intellij.find.actions.ShowUsagesAction;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.impl.source.tree.injected.MyTestInjector;
@@ -19,7 +20,7 @@ public class ShowUsagesActionTest extends LightJavaCodeInsightFixtureTestCase {
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    new MyTestInjector(getPsiManager()).injectAll(getTestRootDisposable());
+    new MyTestInjector(getPsiManager()).injectAll(myFixture.getTestRootDisposable());
   }
 
   public void testMultipleUsagesInOneInjectedLine() {

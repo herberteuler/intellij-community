@@ -26,7 +26,7 @@ internal class SecurityProblemsViewTab(project: Project) : SubTabbedProblemsView
 
 internal class SecurityProblemsViewPanelProvider(private val project: Project) : ProblemsViewPanelProvider {
   override fun create(): ProblemsViewTab? {
-    // the tool window reads the providers one time, and a plugin can add one later, so the watch starts here
+    // a plugin can add a provider later, so the watch starts here
     project.service<SecurityProblemsViewTabWatcher>()
     return if (SubTabbedProblemsViewTab.hasSubTabs(ProblemsViewSubTabs.SECURITY_TAB_ID)) {
       SecurityProblemsViewTab(project)
@@ -35,15 +35,6 @@ internal class SecurityProblemsViewPanelProvider(private val project: Project) :
   }
 }
 
-/**
- * Builds the Security tab again when the set of the [ProblemsViewSubTabProvider]s changes.
- *
- * The extension point is dynamic, so a plugin that loads or unloads changes that set. A tab reads the providers one
- * time, in its constructor, so a changed set needs a new tab, and not a new list inside the old one.
- *
- * [SecurityProblemsViewPanelProvider] asks for this service, so the watch starts with the content of the tool window.
- * A tool window that built no content yet reads the providers when it builds it.
- */
 @Service(Service.Level.PROJECT)
 internal class SecurityProblemsViewTabWatcher(private val project: Project, private val scope: CoroutineScope) {
   init {
@@ -53,14 +44,6 @@ internal class SecurityProblemsViewTabWatcher(private val project: Project, priv
     }
   }
 
-  /**
-   * Takes the Security tab out of the tool window, and puts it back from the providers of this moment.
-   *
-   * The removal disposes the old tab, and the old tab disposes its sub-tabs. So a sub-tab of an unloaded plugin goes
-   * away here. A set that became empty adds no tab back.
-   *
-   * The new tab lands last, because the platform adds a tab at the end. A selected tab stays selected.
-   */
   private fun rebuildTab() {
     if (project.isDisposed) return
     val window = ProblemsView.getToolWindow(project) ?: return

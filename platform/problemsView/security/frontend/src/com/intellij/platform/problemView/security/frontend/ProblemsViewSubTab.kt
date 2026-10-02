@@ -42,17 +42,6 @@ interface ProblemsViewSubTab : Disposable {
   }
 }
 
-/**
- * Contributes a permanent [ProblemsViewSubTab] to the tabbed Problems View tab identified by [hostTabId].
- *
- * The host tab appears only while at least one provider contributes to it, so a feature that ships on its own still
- * gets a complete tab, and no empty tab is shown in IDEs where no feature ships at all. The providers are read when
- * the host tab is built, and a provider that arrives with a plugin, or leaves with one, makes the host tab build again.
- *
- * The sub-tabs appear in the order the providers are read, and the first one is selected when the tab is built. The
- * providers of one host tab usually ship in different plugins, so declare that order with the `id` and `order`
- * attributes of the extension rather than leaving it to the order the plugins happen to load in.
- */
 @ApiStatus.Internal
 interface ProblemsViewSubTabProvider {
   companion object {
@@ -64,10 +53,9 @@ interface ProblemsViewSubTabProvider {
   val hostTabId: String
 
   /**
-   * Makes the sub-tab, or gives `null` when this provider contributes none to [project].
+   * Returns `null` when this provider contributes no sub-tab to [project].
    *
-   * @param scope the scope of the sub-tab. The host tab owns it, and the host tab cancels it. It dispatches on the
-   * event dispatch thread, because a sub-tab is a Swing component.
+   * @param scope the scope of the sub-tab. The host tab cancels it. It dispatches on the event dispatch thread.
    */
   fun createSubTab(project: Project, scope: CoroutineScope): ProblemsViewSubTab?
 }

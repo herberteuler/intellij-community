@@ -16,9 +16,6 @@ import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.ListCellRenderer
 
-/**
- * Paints a [ProblemsViewSubTabItem] as the title, an optional count of issues, and the latest status.
- */
 @Suppress("DialogTitleCapitalization")
 internal class ProblemsViewSubTabItemRenderer : ListCellRenderer<ProblemsViewSubTabItem> {
 
@@ -69,7 +66,7 @@ internal class ProblemsViewSubTabItemRenderer : ListCellRenderer<ProblemsViewSub
     countLabel.foreground = foreground
     detailLabel.foreground = secondaryForeground
 
-    // The row is what a screen reader is told about, so its name has to carry its count.
+    // a screen reader reads the row, so its name carries the count
     val accessible = component.accessibleContext
     accessible.accessibleName = when {
       count > 0 -> SecurityProblemsViewBundle.message("security.problems.view.sub.tab.accessible.name", presentation.title, count)

@@ -12,24 +12,10 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
 
-/**
- * Entry points into the tabbed tabs of the Problems View tool window.
- *
- * @see ProblemsViewSubTab
- * @see ProblemsViewSubTabProvider
- */
 @ApiStatus.Internal
 object ProblemsViewSubTabs {
-  /**
-   * The tab that collects the security features: vulnerable dependencies, taint analysis traces, and so on.
-   */
   const val SECURITY_TAB_ID: @NonNls String = "SECURITY_PROBLEMS_TAB"
 
-  /**
-   * Selects the sub-tab [subTabId] of the host tab [hostTabId], and shows the tool window with the host tab selected in
-   * it. The sub-tab is selected first, and the tool window is shown after: the user then never sees the sub-tab that
-   * was selected before this call.
-   */
   suspend fun select(project: Project, @NonNls hostTabId: String, @NonNls subTabId: String) {
     withContext(Dispatchers.EDT) {
       hostTab(contentManager(project), hostTabId)?.selectSubTab(subTabId)

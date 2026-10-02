@@ -28,6 +28,7 @@ import com.intellij.openapi.util.NlsActions
 import com.intellij.platform.projectView.settings.ProjectViewOptionStateDTO
 import com.intellij.platform.projectView.settings.ProjectViewPaneOption
 import com.intellij.platform.projectView.settings.ProjectViewPaneOptionDTO
+import com.intellij.platform.projectView.settings.ProjectViewPaneSettingsService
 import com.intellij.platform.projectView.settings.ProjectViewSortKeyStateDTO
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -272,6 +273,7 @@ private open class FrontendOption(private val event: AnActionEvent, private val 
   override fun setSelected(selected: Boolean) {
     service()?.requestOptionValueChange(option, selected)
     val project = event.project
+    project?.let { project -> ProjectViewPaneSettingsService.getInstance(project).setOptionSelected(option.fromDTO(), selected) }
     val menu = event.getActionMenu()
     if (project != null && menu != null) {
       LOG.debug { "Requested $option to change its value to $selected, action menu update pending" }

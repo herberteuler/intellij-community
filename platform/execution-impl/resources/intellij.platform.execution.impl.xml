@@ -196,6 +196,7 @@
     <extensionPoint qualifiedName="com.intellij.module.workingDirectoryProvider" interface="com.intellij.openapi.module.WorkingDirectoryProvider" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.runningApplicationUpdaterProvider" interface="com.intellij.execution.update.RunningApplicationUpdaterProvider" dynamic="true"/>
     <extensionPoint qualifiedName="org.jetbrains.javaScriptDebuggerStarter" interface="com.intellij.ide.browsers.JavaScriptDebuggerStarter" dynamic="true"/>
+    <extensionPoint qualifiedName="com.intellij.analyzeStacktraceRunContentProvider" interface="com.intellij.unscramble.StacktraceTabContentProvider" dynamic="true"/>
     <extensionPoint interface="com.intellij.execution.DisplayDescriptorChooser"
                     dynamic="true"
                     qualifiedName="com.intellij.execution.displayDescriptorChooser" />

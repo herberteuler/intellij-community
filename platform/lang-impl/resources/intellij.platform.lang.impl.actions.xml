@@ -162,9 +162,6 @@
       <override-text place="MainMenu"/>
       <override-text place="EditorPopup" use-text-of-place="MainMenu"/>
     </action>
-    <action id="Unscramble" class="com.intellij.unscramble.AnalyzeStacktraceAction">
-      <override-text place="EditorPopup"/>
-    </action>
     <action id="InsertLiveTemplate" class="com.intellij.codeInsight.template.impl.actions.ListTemplatesAction"/>
     <action id="SaveAsTemplate" class="com.intellij.codeInsight.template.actions.SaveAsTemplateAction"/>
     <action id="SurroundWith" class="com.intellij.codeInsight.generation.actions.SurroundWithAction"/>

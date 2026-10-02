@@ -2,6 +2,9 @@
   <actions>
     <action id="RunConfiguration" class="com.intellij.execution.actions.RunConfigurationsComboBoxAction"/>
     <action id="ChooseRunConfiguration" class="com.intellij.execution.actions.ChooseRunConfigurationPopupAction" icon="AllIcons.Actions.Execute"/>
+    <action id="Unscramble" class="com.intellij.unscramble.AnalyzeStacktraceAction">
+      <override-text place="EditorPopup"/>
+    </action>
     <action id="ChooseDebugConfiguration" class="com.intellij.execution.actions.ChooseDebugConfigurationPopupAction" icon="AllIcons.Actions.StartDebugger"/>
     <group id="CreateRunConfiguration" class="com.intellij.execution.actions.CreateAction"/>
     <action id="SaveTemporaryRunConfiguration" class="com.intellij.execution.actions.SaveTemporaryRunConfigurationAction"/>

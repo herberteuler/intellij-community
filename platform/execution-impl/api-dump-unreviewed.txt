@@ -900,6 +900,9 @@ f:com.intellij.execution.runners.RerunTestsAction
 - actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent):V
 - getActionUpdateThread():com.intellij.openapi.actionSystem.ActionUpdateThread
 - update(com.intellij.openapi.actionSystem.AnActionEvent):V
+f:com.intellij.execution.runners.RerunTestsNotification
+- <init>():V
+- s:showRerunNotification(com.intellij.execution.ui.RunContentDescriptor,com.intellij.execution.ui.ExecutionConsole):V
 com.intellij.execution.runners.RunContentActionsContributor
 - a:getActions():com.intellij.openapi.actionSystem.AnAction[]
 - getAdditionalActions():com.intellij.openapi.actionSystem.AnAction[]
@@ -1900,3 +1903,5 @@ a:com.intellij.tools.ToolsProvider
 - sf:EP_NAME:com.intellij.openapi.extensions.ExtensionPointName
 - <init>():V
 - a:getTools():java.util.List
+f:com.intellij.unscramble.AnalyzeStacktraceUtil
+- sf:EP_NAME:com.intellij.openapi.extensions.ProjectExtensionPointName

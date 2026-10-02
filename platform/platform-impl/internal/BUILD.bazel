@@ -76,6 +76,7 @@ jvm_library(
         "//libraries/kotlinx/collections-immutable:libraries-kotlinx-collections-immutable",
         "//platform/locking-impl",
         "//platform/lang-impl",
+        "//platform/execution-impl",
     ],
 )
 
@@ -143,6 +144,7 @@ jvm_library(
         "//libraries/kotlinx/collections-immutable:libraries-kotlinx-collections-immutable_test_lib",
         "//platform/locking-impl:locking-impl_test_lib",
         "//platform/lang-impl:lang-impl_test_lib",
+        "//platform/execution-impl:execution-impl_test_lib",
     ],
 )
 ### auto-generated section `build intellij.platform.ide.internal` end

@@ -5279,8 +5279,6 @@ a:com.intellij.ui.tabs.ColorButtonBase
 - setColor(java.awt.Color):V
 pc:com.intellij.ui.tabs.ColorButtonBase$ColorButtonUI
 - javax.swing.plaf.basic.BasicToggleButtonUI
-com.intellij.unscramble.AnalyzeStacktraceUtil$ConsoleFactory
-- a:createConsoleComponent(com.intellij.execution.ui.ConsoleView,com.intellij.openapi.actionSystem.DefaultActionGroup):javax.swing.JComponent
 a:com.intellij.util.TextFieldCompletionProvider
 - com.intellij.openapi.project.PossiblyDumbAware
 - com.intellij.util.textCompletion.TextCompletionProvider

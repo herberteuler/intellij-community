@@ -1,7 +1,6 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.actionMacro;
+package com.intellij.macros.shared;
 
-import com.intellij.ide.IdeBundle;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
@@ -29,7 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
-public final class ActionMacroConfigurationPanel implements Disposable {
+final class ActionMacroConfigurationPanel implements Disposable {
   private static final String SPLITTER_PROPORTION = "ActionMacroConfigurationPanel.SPLITTER_PROPORTION";
   private Splitter mySplitter;
   private final JList<ActionMacro> myMacrosList;
@@ -142,8 +141,8 @@ public final class ActionMacroConfigurationPanel implements Disposable {
               final ActionMacro macro = myMacrosModel.getElementAt(selIndex);
               String newName;
               do {
-                newName = Messages.showInputDialog(mySplitter, IdeBundle.message("prompt.enter.new.name"),
-                                                   IdeBundle.message("title.rename.macro"),
+                newName = Messages.showInputDialog(mySplitter, MacrosBundle.message("prompt.enter.new.name"),
+                                                   MacrosBundle.message("title.rename.macro"),
                                                    Messages.getQuestionIcon(), macro.getName(), null);
                 if (newName == null || macro.getName().equals(newName)) return;
               }
@@ -160,7 +159,7 @@ public final class ActionMacroConfigurationPanel implements Disposable {
                 final ActionMacro macro = elements.nextElement();
                 if (macro.getName().equals(name)) {
                   if (!MessageDialogBuilder
-                        .yesNo(IdeBundle.message("title.macro.name.already.used"), IdeBundle.message("message.macro.exists", name))
+                        .yesNo(MacrosBundle.message("title.macro.name.already.used"), MacrosBundle.message("message.macro.exists", name))
                         .icon(Messages.getWarningIcon()).ask(mySplitter)) {
                     return false;
                   }

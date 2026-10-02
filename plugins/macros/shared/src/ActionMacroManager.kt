@@ -1,10 +1,9 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 @file:Suppress("ReplaceGetOrSet", "ReplacePutWithAssignment")
 
-package com.intellij.ide.actionMacro
+package com.intellij.macros.shared
 
 import com.intellij.icons.AllIcons
-import com.intellij.ide.IdeBundle
 import com.intellij.ide.IdeEventQueue
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.ActionManager
@@ -183,7 +182,7 @@ class ActionMacroManager internal constructor(private val coroutineScope: Corout
     init {
       icon.setBorder(JBUI.CurrentTheme.StatusBar.Widget.iconBorder())
       presentation = object : StatusBarWidget.WidgetPresentation {
-        override fun getTooltipText(): String = IdeBundle.message("tooltip.macro.is.being.recorded.now")
+        override fun getTooltipText(): String = MacrosBundle.message("tooltip.macro.is.being.recorded.now")
 
         override fun getClickConsumer() = this@Widget
       }
@@ -203,10 +202,10 @@ class ActionMacroManager internal constructor(private val coroutineScope: Corout
       tb.setMiniMode(true)
       val top = NonOpaquePanel(BorderLayout())
       top.add(tb.getComponent(), BorderLayout.WEST)
-      myText = JLabel(IdeBundle.message("status.bar.text.macro.recorded", "..." + TYPING_SAMPLE), SwingConstants.LEFT)
+      myText = JLabel(MacrosBundle.message("status.bar.text.macro.recorded", "..." + TYPING_SAMPLE), SwingConstants.LEFT)
       val preferredSize = myText.getPreferredSize()
       myText.preferredSize = preferredSize
-      myText.setText(IdeBundle.message("label.macro.recording.started"))
+      myText.setText(MacrosBundle.message("label.macro.recording.started"))
       lastTyping = ""
       top.add(myText, BorderLayout.CENTER)
       balloonComponent.add(top, BorderLayout.CENTER)
@@ -288,8 +287,8 @@ class ActionMacroManager internal constructor(private val coroutineScope: Corout
     var macroName: String? = ""
     do {
       macroName = Messages.showInputDialog(project,
-                                           IdeBundle.message("prompt.enter.macro.name"),
-                                           IdeBundle.message("title.enter.macro.name"),
+                                           MacrosBundle.message("prompt.enter.macro.name"),
+                                           MacrosBundle.message("title.enter.macro.name"),
                                            Messages.getQuestionIcon(), macroName, null)
       if (macroName == null) {
         recordingMacro = null
@@ -347,7 +346,7 @@ class ActionMacroManager internal constructor(private val coroutineScope: Corout
           val statusBar = frame.getStatusBar()
           if (statusBar != null) {
             if (context != null) {
-              text = IdeBundle.message("status.bar.message.at.line", context.currentLine, text)
+              text = MacrosBundle.message("status.bar.message.at.line", context.currentLine, text)
             }
             statusBar.setInfo(text)
           }
@@ -358,7 +357,7 @@ class ActionMacroManager internal constructor(private val coroutineScope: Corout
     runner.run()
       .thenRun(Runnable {
         val statusBar = frame.getStatusBar()!!
-        statusBar.setInfo(IdeBundle.message("status.bar.text.script.execution.finished"))
+        statusBar.setInfo(MacrosBundle.message("status.bar.text.script.execution.finished"))
       })
       .whenComplete(BiConsumer { unused: Void?, throwable: Throwable? -> isPlaying = false })
   }
@@ -446,7 +445,7 @@ class ActionMacroManager internal constructor(private val coroutineScope: Corout
     val actionManager = ActionManager.getInstance()
     val actionId = ActionMacro.MACRO_ACTION_PREFIX + name
     if (actionManager.getAction(actionId) != null) {
-      if (!yesNo(IdeBundle.message("title.macro.name.already.used"), IdeBundle.message("message.macro.exists", name))
+      if (!yesNo(MacrosBundle.message("title.macro.name.already.used"), MacrosBundle.message("message.macro.exists", name))
           .icon(Messages.getWarningIcon()).ask(project)) {
         return false
       }
@@ -474,7 +473,7 @@ class ActionMacroManager internal constructor(private val coroutineScope: Corout
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     private fun getActionName() =
-      macro.name?.takeIf { it.isNotEmpty() } ?: IdeBundle.message("action.invoke.macro.text")
+      macro.name?.takeIf { it.isNotEmpty() } ?: MacrosBundle.message("action.invoke.macro.text")
 
     override fun actionPerformed(e: AnActionEvent) {
       IdeEventQueue.getInstance().doWhenReady(Runnable { getInstance().playMacro(macro) })
@@ -546,6 +545,6 @@ class ActionMacroManager internal constructor(private val coroutineScope: Corout
     else {
       lastTyping = ""
     }
-    widget?.notifyUser(IdeBundle.message("status.bar.text.macro.recorded", actualText))
+    widget?.notifyUser(MacrosBundle.message("status.bar.text.macro.recorded", actualText))
   }
 }

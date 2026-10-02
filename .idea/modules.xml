@@ -1368,6 +1368,8 @@
       <module fileurl="file://$PROJECT_DIR$/plugins/lsp.ui/lsp.ui.frontend/intellij.lsp.ui.frontend.iml" filepath="$PROJECT_DIR$/plugins/lsp.ui/lsp.ui.frontend/intellij.lsp.ui.frontend.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/lsp.ui/idea.product.modules/intellij.lsp.ui.idea.product.modules.iml" filepath="$PROJECT_DIR$/plugins/lsp.ui/idea.product.modules/intellij.lsp.ui.idea.product.modules.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/lsp.ui/lsp.ui.plugin/intellij.lsp.ui.plugin.iml" filepath="$PROJECT_DIR$/plugins/lsp.ui/lsp.ui.plugin/intellij.lsp.ui.plugin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/plugins/macros/plugin/intellij.macros.plugin.iml" filepath="$PROJECT_DIR$/plugins/macros/plugin/intellij.macros.plugin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/plugins/macros/shared/intellij.macros.shared.iml" filepath="$PROJECT_DIR$/plugins/macros/shared/intellij.macros.shared.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/markdown/core/intellij.markdown.iml" filepath="$PROJECT_DIR$/plugins/markdown/core/intellij.markdown.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/markdown/core/backend/intellij.markdown.backend.iml" filepath="$PROJECT_DIR$/plugins/markdown/core/backend/intellij.markdown.backend.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/markdown/compose/intellij.markdown.compose.preview.iml" filepath="$PROJECT_DIR$/plugins/markdown/compose/intellij.markdown.compose.preview.iml" />

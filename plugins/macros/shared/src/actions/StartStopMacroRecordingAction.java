@@ -1,9 +1,9 @@
 // Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
-package com.intellij.ide.actionMacro.actions;
+package com.intellij.macros.shared.actions;
 
 import com.intellij.icons.AllIcons;
-import com.intellij.ide.IdeBundle;
-import com.intellij.ide.actionMacro.ActionMacroManager;
+import com.intellij.macros.shared.ActionMacroManager;
+import com.intellij.macros.shared.MacrosBundle;
 import com.intellij.openapi.actionSystem.ActionPlaces;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -17,8 +17,8 @@ final class StartStopMacroRecordingAction extends AnAction implements DumbAware 
     boolean isRecording = ActionMacroManager.getInstance().isRecording();
 
     e.getPresentation().setText(isRecording
-                                ? IdeBundle.message("action.stop.macro.recording")
-                                : IdeBundle.message("action.start.macro.recording"));
+                                ? MacrosBundle.message("action.stop.macro.recording")
+                                : MacrosBundle.message("action.start.macro.recording"));
 
     if (ActionPlaces.STATUS_BAR_PLACE.equals(e.getPlace())) {
       e.getPresentation().setIcon(AllIcons.Actions.Suspend);

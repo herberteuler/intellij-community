@@ -1,9 +1,9 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.actionMacro.actions;
+package com.intellij.macros.shared.actions;
 
-import com.intellij.ide.actionMacro.ActionMacro;
-import com.intellij.ide.actionMacro.ActionMacroConfigurable;
-import com.intellij.ide.actionMacro.ActionMacroManager;
+import com.intellij.macros.shared.ActionMacro;
+import com.intellij.macros.shared.ActionMacroConfigurable;
+import com.intellij.macros.shared.ActionMacroManager;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;

@@ -1,0 +1,18 @@
+<!-- BUILD_USING_BAZEL_MARKER: this plugin is also packaged by the `ij_plugin` Bazel rule, and IjPluginDistributionEquivalenceTest
+     checks that the result matches the distribution produced by the build scripts. See IJPL-251444. -->
+<idea-plugin>
+  <id>com.intellij.macros</id>
+  <name>Macro Recording</name>
+  <vendor>JetBrains</vendor>
+  <description><![CDATA[
+    Macros provide a convenient way to automate repetitive procedures you do frequently while writing code.
+    You can record, edit, and play back macros, assign shortcuts to them, and share them.
+  ]]></description>
+
+  <dependencies>
+    <plugin id="com.intellij.modules.lang"/>
+  </dependencies>
+  <content namespace="jetbrains">
+    <module name="intellij.macros.shared" loading="required"/>
+  </content>
+</idea-plugin>

@@ -357,11 +357,6 @@
     <action id="EditorAddCaretPerSelectedLine" class="com.intellij.openapi.editor.actions.AddCaretPerSelectedLineAction"/>
     <action id="ConvertIndentsToSpaces" class="com.intellij.openapi.editor.actions.ConvertIndentsToSpacesAction"/>
     <action id="ConvertIndentsToTabs" class="com.intellij.openapi.editor.actions.ConvertIndentsToTabsAction"/>
-    <action id="PlaybackLastMacro" class="com.intellij.ide.actionMacro.actions.PlaybackLastMacroAction"/>
-    <action id="StartStopMacroRecording" class="com.intellij.ide.actionMacro.actions.StartStopMacroRecordingAction"/>
-    <action id="EditMacros" class="com.intellij.ide.actionMacro.actions.EditMacrosAction"/>
-    <action id="PlaySavedMacrosAction" class="com.intellij.ide.actionMacro.actions.PlaySavedMacros"/>
-    <group id="MacrosGroup" class="com.intellij.ide.actionMacro.actions.MacrosGroup"/>
     <action id="EmojiAndSymbols" class="com.intellij.ide.actions.MacEmojiAndSymbolsInputAction"/>
     <group id="ToolWindowsGroup" class="com.intellij.ide.actions.ToolWindowsGroup" popup="true"/>
     <action id="TogglePresentationMode" class="com.intellij.ide.actions.TogglePresentationModeAction">

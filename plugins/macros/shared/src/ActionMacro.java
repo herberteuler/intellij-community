@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.actionMacro;
+package com.intellij.macros.shared;
 
-import com.intellij.ide.IdeBundle;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -103,13 +102,13 @@ public final class ActionMacro {
         actionNode.setAttribute(ATTRIBUTE_KEY_CODES, unparseKeyCodes(
           Couple.of(typedDescriptor.getKeyCodes(), typedDescriptor.getKeyModifiers())));
       }
-      else if (action instanceof IdActionDescriptor) {
+      else if (action instanceof IdActionDescriptor descriptor) {
         actionNode = new Element(ELEMENT_ACTION);
-        actionNode.setAttribute(ATTRIBUTE_ID, ((IdActionDescriptor)action).getActionId());
+        actionNode.setAttribute(ATTRIBUTE_ID, descriptor.getActionId());
       }
-      else if (action instanceof ShortcutActionDescription) {
+      else if (action instanceof ShortcutActionDescription description) {
         actionNode = new Element(ELEMENT_SHORTCUT);
-        actionNode.setAttribute(ATTRIBUTE_TEXT, ((ShortcutActionDescription)action).getText());
+        actionNode.setAttribute(ATTRIBUTE_TEXT, description.getText());
       }
 
 
@@ -168,8 +167,8 @@ public final class ActionMacro {
 
   public void appendKeyPressed(char c, int keyCode, @JdkConstants.InputEventMask int modifiers) {
     ActionDescriptor lastAction = !myActions.isEmpty() ? myActions.get(myActions.size() - 1) : null;
-    if (lastAction instanceof TypedDescriptor) {
-      ((TypedDescriptor)lastAction).addChar(c, keyCode, modifiers);
+    if (lastAction instanceof TypedDescriptor descriptor) {
+      descriptor.addChar(c, keyCode, modifiers);
     }
     else {
       myActions.add(new TypedDescriptor(c, keyCode, modifiers));
@@ -227,8 +226,8 @@ public final class ActionMacro {
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
-      if (!(o instanceof TypedDescriptor)) return false;
-      return myText.equals(((TypedDescriptor)o).myText);
+      if (!(o instanceof TypedDescriptor descriptor)) return false;
+      return myText.equals(descriptor.myText);
     }
 
     @Override
@@ -260,7 +259,7 @@ public final class ActionMacro {
 
     @Override
     public String toString() {
-      return IdeBundle.message("action.descriptor.typing", myText);
+      return MacrosBundle.message("action.descriptor.typing", myText);
     }
 
     @Override
@@ -308,7 +307,7 @@ public final class ActionMacro {
 
     @Override
     public String toString() {
-      return IdeBundle.message("action.descriptor.keystroke", myKeyStroke);
+      return MacrosBundle.message("action.descriptor.keystroke", myKeyStroke);
     }
 
     public String getText() {
@@ -329,7 +328,7 @@ public final class ActionMacro {
 
     @Override
     public String toString() {
-      return IdeBundle.message("action.descriptor.action", actionId);
+      return MacrosBundle.message("action.descriptor.action", actionId);
     }
 
     @Override
@@ -340,8 +339,8 @@ public final class ActionMacro {
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
-      if (!(o instanceof IdActionDescriptor)) return false;
-      return actionId.equals(((IdActionDescriptor)o).actionId);
+      if (!(o instanceof IdActionDescriptor descriptor)) return false;
+      return actionId.equals(descriptor.actionId);
     }
 
     @Override

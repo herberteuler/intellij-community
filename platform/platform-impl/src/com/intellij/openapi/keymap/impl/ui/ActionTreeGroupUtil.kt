@@ -2,7 +2,6 @@
 package com.intellij.openapi.keymap.impl.ui
 
 import com.intellij.icons.AllIcons
-import com.intellij.ide.actionMacro.ActionMacro
 import com.intellij.ide.plugins.IdeaPluginDescriptor
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.ide.ui.search.SearchUtil
@@ -33,6 +32,7 @@ import java.util.Arrays
 
 private const val EDITOR_PREFIX = "Editor"
 private const val GROUP_INTENTIONS = "Intentions"
+private const val MACRO_ACTION_PREFIX = "Macro."
 
 private typealias ActionFilter = (AnAction?) -> Boolean
 
@@ -249,7 +249,7 @@ private fun appendGroupsFromExtensions(
 
 private fun createMacrosGroup(filtered: ActionFilter): Group {
   val actionManager = ActionManagerEx.getInstanceEx()
-  val ids = actionManager.getActionIdList(ActionMacro.MACRO_ACTION_PREFIX)
+  val ids = actionManager.getActionIdList(MACRO_ACTION_PREFIX)
   val group = Group(KeyMapBundle.message("macros.group.title"), null as String?)
   for (id in ids.sorted()) {
     if (actionMatchesFilter(filtered, actionManager, id)) {

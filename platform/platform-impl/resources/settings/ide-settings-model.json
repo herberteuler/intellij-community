@@ -3102,8 +3102,8 @@
     {
       "name": "ActionMacroManager",
       "scope": "app",
-      "pluginId": "com.intellij",
-      "classFqn": "com.intellij.ide.actionMacro.ActionMacroManager",
+      "pluginId": "com.intellij.macros",
+      "classFqn": "com.intellij.macros.shared.ActionMacroManager",
       "storage": "macros.xml",
       "properties": [
         {

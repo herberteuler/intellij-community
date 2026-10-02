@@ -143,8 +143,6 @@ LayoutsGroup
 LearnGroup
 LeftToolbarSideGroup
 LightEditModePopup
-Macros
-MacrosGroup
 MainMenu
 MainToolBar
 MainToolBarSettings
@@ -250,7 +248,6 @@ ShowIntentionsGroup
 ShowRecentFindUsagesGroup
 ShowUsagesPinGroup
 SplitRevealGroup
-StandardMacroActions
 StepOver.Ref
 StructureViewFloatingToolbar
 StructureViewPopupMenu

@@ -1,0 +1,43 @@
+<idea-plugin>
+  <dependencies>
+    <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+    <module name="intellij.libraries.jetbrains.annotations"/>
+    <module name="intellij.libraries.kotlinx.coroutines.core"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.ui"/>
+    <module name="intellij.platform.editor.ui"/>
+    <module name="intellij.platform.ide"/>
+    <module name="intellij.platform.ide.core"/>
+    <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.projectModel"/>
+    <module name="intellij.platform.util.ui"/>
+    <module name="intellij.platform.monolith"/>
+    <!-- endregion -->
+  </dependencies>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceImplementation="com.intellij.macros.shared.ActionMacroManager"/>
+    <applicationSettings service="com.intellij.macros.shared.ActionMacroManager"/>
+    <actionConfigurationCustomizer implementation="com.intellij.macros.shared.ActionMacroManager$MyActionTuner"/>
+  </extensions>
+
+  <actions resource-bundle="messages.MacrosBundle">
+    <action id="PlaybackLastMacro" class="com.intellij.macros.shared.actions.PlaybackLastMacroAction"/>
+    <action id="StartStopMacroRecording" class="com.intellij.macros.shared.actions.StartStopMacroRecordingAction"/>
+    <action id="EditMacros" class="com.intellij.macros.shared.actions.EditMacrosAction"/>
+    <action id="PlaySavedMacrosAction" class="com.intellij.macros.shared.actions.PlaySavedMacros"/>
+    <group id="MacrosGroup" class="com.intellij.macros.shared.actions.MacrosGroup"/>
+
+    <group id="Macros" popup="true">
+      <group id="StandardMacroActions">
+        <reference ref="PlaybackLastMacro"/>
+        <reference ref="StartStopMacroRecording"/>
+        <reference ref="EditMacros"/>
+        <reference ref="PlaySavedMacrosAction"/>
+      </group>
+      <separator/>
+      <reference ref="MacrosGroup"/>
+      <add-to-group group-id="EditMenu" anchor="before" relative-to-action="EmojiAndSymbols"/>
+    </group>
+  </actions>
+</idea-plugin>

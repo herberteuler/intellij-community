@@ -1646,6 +1646,8 @@ plugins/lsp.client.playground
 plugins/lsp.ui/idea.product.modules
 plugins/lsp.ui/lsp.ui.frontend
 plugins/lsp.ui/lsp.ui.plugin
+plugins/macros/plugin
+plugins/macros/shared
 plugins/markdown/compose
 plugins/markdown/core
 plugins/markdown/core/backend

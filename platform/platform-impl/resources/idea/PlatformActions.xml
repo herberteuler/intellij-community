@@ -503,17 +503,6 @@
           </group>
         </group>
         <separator/>
-        <group id="Macros" popup="true">
-          <group id="StandardMacroActions">
-            <reference ref="PlaybackLastMacro"/>
-            <reference ref="StartStopMacroRecording"/>
-            <reference ref="EditMacros"/>
-            <reference ref="PlaySavedMacrosAction"/>
-          </group>
-          <separator/>
-          <reference ref="MacrosGroup"/>
-        </group>
-        <separator/>
         <reference ref="EmojiAndSymbols"/>
       </group>
 

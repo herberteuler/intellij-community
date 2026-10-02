@@ -1,6 +1,6 @@
 # Golden action-group structure: child id sequences observed via getChildActionsOrStubs.
 # Regenerate: (cd community && ./bazel.cmd test //:main-tests_test --test_filter=com.intellij.openapi.actionSystem.CommunityActionGroupStructureTest --test_arg=--jvm_flag=-Dactions.golden.regenerate=true --cache_test_results=no)
-# Risky group ids not registered in this run (0 of 319):
+# Risky group ids not registered in this run (0 of 316):
 [tree MainMenu]
   FileMenu
     FileOpenGroup
@@ -177,14 +177,9 @@
         ConvertIndentsToSpaces
         ConvertIndentsToTabs
     <separator>
-    Macros
-      StandardMacroActions
-        PlaybackLastMacro
-        StartStopMacroRecording
-        EditMacros
-        PlaySavedMacrosAction
-      <separator>
-      MacrosGroup
+    EmojiPicker.Open
+    EmojiAndSymbols
+    EscapeEntities
     EditBookmarksGroup
       popup@BookmarkContextMenu
         AddAnotherBookmark
@@ -200,10 +195,6 @@
       ShowBookmarks
       ShowTypeBookmarks
       <separator>
-    <separator>
-    EmojiPicker.Open
-    EmojiAndSymbols
-    EscapeEntities
   ViewMenu
     ToolWindowsGroup
     ViewAppearanceGroup
@@ -1777,12 +1768,10 @@
   <separator>
   EditSmartGroup
   <separator>
-  Macros
-  EditBookmarksGroup
-  <separator>
   EmojiPicker.Open
   EmojiAndSymbols
   EscapeEntities
+  EditBookmarksGroup
 [group EditSelectGroup]
   $SelectAll
   EditorAddCaretPerSelectedLine
@@ -2435,11 +2424,6 @@
 [group LightEditModePopup]
   LightEditOpenFileInProject
   <separator>
-[group Macros]
-  StandardMacroActions
-  <separator>
-  MacrosGroup
-[group MacrosGroup]
 [group MainMenu]
   FileMenu
   EditMenu
@@ -3015,11 +2999,6 @@
 [group SplitRevealGroup]
   OpenInRightSplit
   RevealGroup
-[group StandardMacroActions]
-  PlaybackLastMacro
-  StartStopMacroRecording
-  EditMacros
-  PlaySavedMacrosAction
 [group StepOver.Ref]
   StepOver
 [group StructureViewFloatingToolbar]

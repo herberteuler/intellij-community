@@ -3,9 +3,11 @@ package org.jetbrains.plugins.gitlab.mergerequest.data
 
 import com.intellij.collaboration.ui.codereview.details.data.ReviewRequestState
 import com.intellij.openapi.util.NlsSafe
+import com.intellij.util.io.URLUtil
 import git4idea.GitRemoteBranch
 import git4idea.push.GitSpecialRefRemoteBranch
 import git4idea.remote.GitRemoteUrlCoordinates
+import git4idea.remote.hosting.GitHostingUrlUtil
 import git4idea.remote.hosting.GitHostingUrlUtil.getUriFromRemoteUrl
 import git4idea.remote.hosting.HostedGitRepositoryRemote
 import git4idea.repo.GitRemote
@@ -124,20 +126,63 @@ val GitLabMergeRequestFullDetails.reviewState: ReviewRequestState
       else -> ReviewRequestState.OPENED // to avoid null state
     }
 
-// Used as a default value for HostedGitRepositoryRemote serverUri when it's not possible to find an existing remote.
-// Path is removed, to match to every URL with the same host.
-private fun GitRemoteUrlCoordinates.toServerUri(): URI = getUriFromRemoteUrl(url)?.resolve("/")
-                                                         ?: throw IllegalArgumentException("Invalid remote URL: $url")
-
-fun GitLabMergeRequestFullDetails.ProjectDetails.getRemoteDescriptor(defaultCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote {
-  val serverUri = defaultCoordinates.toServerUri()
-  return HostedGitRepositoryRemote(
+/**
+ * Creates the descriptor of the remote for this project.
+ * The descriptor uses the host of [defaultCoordinates], so it also matches a remote with an SSH alias.
+ */
+fun GitLabMergeRequestFullDetails.ProjectDetails.getRemoteDescriptor(defaultCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote =
+  HostedGitRepositoryRemote(
     path.owner,
-    serverUri,
+    getServerUri(defaultCoordinates),
     path.fullPath(),
     httpUrlToRepo,
-    sshUrlToRepo
+    sshUrlToRepo?.let { getSshUrl(it, defaultCoordinates) }
   )
+
+/**
+ * Gets the server URI with the host of [defaultCoordinates].
+ * HTTP remotes keep the web path from [httpUrlToRepo]. SSH remotes use the root path.
+ */
+private fun GitLabMergeRequestFullDetails.ProjectDetails.getServerUri(defaultCoordinates: GitRemoteUrlCoordinates): URI {
+  val remoteUri = getUriFromRemoteUrl(defaultCoordinates.url) ?: throw IllegalArgumentException("Invalid remote URL: ${defaultCoordinates.url}")
+  if (GitHostingUrlUtil.isSshUrl(defaultCoordinates.url)) return remoteUri.resolve("/")
+
+  val projectPath = path.fullPath()
+  val webPath = httpUrlToRepo?.let { getUriFromRemoteUrl(it)?.path }
+    ?.takeIf { it.endsWith("/$projectPath") }
+    ?.removeSuffix(projectPath) ?: "/"
+  return remoteUri.resolve(webPath)
+}
+
+/**
+ * Gets the SSH URL of this project with the host of [defaultCoordinates].
+ * Keeps an explicit port from [defaultCoordinates].
+ * Without such a port, the URL keeps the project port only when the host does not change.
+ * With another host, such as an SSH alias, the SSH config gives the port, so the URL has no port.
+ */
+private fun getSshUrl(sshUrl: String, defaultCoordinates: GitRemoteUrlCoordinates): String {
+  if (!GitHostingUrlUtil.isSshUrl(defaultCoordinates.url) || !GitHostingUrlUtil.isSshUrl(sshUrl)) return sshUrl
+  val remoteUri = getUriFromRemoteUrl(defaultCoordinates.url) ?: return sshUrl
+  val sshUri = getUriFromRemoteUrl(sshUrl) ?: return sshUrl
+  if (remoteUri.host.equals(sshUri.host, true) && (remoteUri.port == -1 || remoteUri.port == sshUri.port)) return sshUrl
+
+  if (sshUrl.contains(URLUtil.SCHEME_SEPARATOR)) {
+    val uri = runCatching { URI(sshUrl) }.getOrNull() ?: return sshUrl
+    if (remoteUri.port == -1) {
+      val userInfo = uri.userInfo?.let { "$it@" }.orEmpty()
+      return "$userInfo${remoteUri.host}:${uri.path.removePrefix("/")}"
+    }
+    return URI(uri.scheme, uri.userInfo, remoteUri.host, remoteUri.port, uri.path, uri.query, uri.fragment).toString()
+  }
+  val hostStart = sshUrl.indexOf('@') + 1
+  val hostEnd = sshUrl.indexOf(':', hostStart)
+  if (hostEnd < 0) return sshUrl
+  if (remoteUri.port != -1) {
+    val userInfo = sshUrl.substring(0, hostStart).removeSuffix("@").takeIf { it.isNotEmpty() }
+    val path = "/" + sshUrl.substring(hostEnd + 1).removePrefix("/")
+    return URI("ssh", userInfo, remoteUri.host, remoteUri.port, path, null, null).toString()
+  }
+  return sshUrl.substring(0, hostStart) + remoteUri.host + sshUrl.substring(hostEnd)
 }
 
 fun GitLabMergeRequestFullDetails.getSourceRemoteDescriptor(defaultCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote? =

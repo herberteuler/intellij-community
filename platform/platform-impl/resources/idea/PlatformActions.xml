@@ -1228,13 +1228,6 @@
       <add-to-group group-id="Other.KeymapGroup"/>
     </group>
 
-    <group id="Internal.HeapAnalysis" popup="true" internal="true">
-      <reference ref="UserInvokedFullAnalysis"/>
-      <reference ref="SilentHeapDumpSnapshot"/>
-      <reference ref="AnalyzeHeapDumpSnapshot"/>
-      <add-to-group group-id="Internal"/>
-    </group>
-
     <reference ref="TriggerLowMemoryNotification"/>
 
     <reference ref="NextWindow"/>

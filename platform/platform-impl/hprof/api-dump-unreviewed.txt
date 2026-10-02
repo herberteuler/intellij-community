@@ -1,0 +1,8 @@
+f:com.intellij.diagnostic.hprof.util.HeapReportUtils
+- sf:INSTANCE:com.intellij.diagnostic.hprof.util.HeapReportUtils
+- sf:STRING_PADDING_FOR_COUNT:I
+- sf:STRING_PADDING_FOR_SIZE:I
+- f:toPaddedShortStringAsCount(J):java.lang.String
+- f:toPaddedShortStringAsSize(J):java.lang.String
+- f:toShortStringAsCount(J):java.lang.String
+- f:toShortStringAsSize(J):java.lang.String

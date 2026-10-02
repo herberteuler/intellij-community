@@ -45,6 +45,7 @@
     <orderEntry type="module" module-name="intellij.grazie" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.testFramework" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
+    <orderEntry type="module" module-name="intellij.platform.ide.hprof" />
     <orderEntry type="module" module-name="intellij.minimap.core" />
     <orderEntry type="module" module-name="intellij.minimap.plugin" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.platform.usageView" />

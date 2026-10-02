@@ -350,8 +350,6 @@ c:com.intellij.diagnostic.WindowsDefenderChecker
 - f:getPathsToExclude(com.intellij.openapi.project.Project):java.util.List
 com.intellij.diagnostic.WindowsDefenderChecker$Extension
 - a:getPaths(com.intellij.openapi.project.Project,java.nio.file.Path):java.util.Collection
-f:com.intellij.diagnostic.hprof.util.HeapReportUtils
-- f:sectionHeader(java.lang.String):java.lang.String
 e:com.intellij.diagnostic.logs.DebugLogLevel
 - java.lang.Enum
 f:com.intellij.diagnostic.logs.LogCategory

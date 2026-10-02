@@ -26,6 +26,7 @@
     <orderEntry type="module" module-name="intellij.xml.analysis.impl" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.ide.core.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide.core" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.ide.hprof" scope="TEST" />
     <orderEntry type="module" module-name="intellij.devkit" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.devkit.scaffolding" scope="TEST" />
     <orderEntry type="module" module-name="intellij.java.execution" scope="TEST" />

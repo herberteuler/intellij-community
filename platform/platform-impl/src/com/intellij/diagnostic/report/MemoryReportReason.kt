@@ -16,7 +16,10 @@
  */
 package com.intellij.diagnostic.report
 
-internal enum class MemoryReportReason {
+import org.jetbrains.annotations.ApiStatus
+
+@ApiStatus.Internal
+enum class MemoryReportReason {
   None,
   InternalUserInvoked,
   FrequentLowMemoryNotification,

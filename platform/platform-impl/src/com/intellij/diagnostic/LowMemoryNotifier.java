@@ -3,8 +3,6 @@ package com.intellij.diagnostic;
 
 import com.intellij.concurrency.ConcurrentCollectionFactory;
 import com.intellij.diagnostic.VMOptions.MemoryKind;
-import com.intellij.diagnostic.hprof.action.HeapDumpSnapshotRunnable;
-import com.intellij.diagnostic.hprof.action.HeapDumpSnapshotRunnable.AnalysisOption;
 import com.intellij.diagnostic.report.MemoryReportReason;
 import com.intellij.featureStatistics.fusCollectors.LifecycleUsageTriggerCollector;
 import com.intellij.ide.IdeBundle;
@@ -121,7 +119,8 @@ public final class LowMemoryNotifier implements Disposable {
     var notification = new Notification("Low Memory", IdeBundle.message("low.memory.notification.title"), message, type)
       .setSuggestionType(true);
 
-    if (!fromCrashReport) {
+    var heapDumpAnalyzer = HeapDumpAnalyzer.getInstanceOrNull();
+    if (!fromCrashReport && heapDumpAnalyzer != null) {
       // Only process heap OOME when max heap size (-Xmx) is above defined threshold
       if (MemoryKind.HEAP.equals(kind) && Runtime.getRuntime().maxMemory() / 1_000_000 >= MINIMUM_MAX_MEMORY_TO_CAPTURE_HEAP_DUMP_IN_MB) {
         notification.addAction(NotificationAction.createSimpleExpiring(
@@ -131,8 +130,8 @@ public final class LowMemoryNotifier implements Disposable {
 
             LifecycleUsageTriggerCollector.onReportProblemClicked(oomError);
 
-            new HeapDumpSnapshotRunnable(oomError ? MemoryReportReason.OutOfMemory : MemoryReportReason.FrequentLowMemoryNotification,
-                                         AnalysisOption.SCHEDULE_ON_NEXT_START).run();
+            heapDumpAnalyzer.captureHeapDumpForAnalysis(
+              oomError ? MemoryReportReason.OutOfMemory : MemoryReportReason.FrequentLowMemoryNotification, false);
           }
         ));
       }
@@ -147,10 +146,10 @@ public final class LowMemoryNotifier implements Disposable {
 
           LifecycleUsageTriggerCollector.onMemoryAdjust(oomError);
 
-          if (oomError) {
+          if (oomError && heapDumpAnalyzer != null) {
             LOG.info("Scheduling heap dump analysis anyway, OOM happened");
             // analyze and prepare report nonetheless, even if users decide to adjust memory
-            new HeapDumpSnapshotRunnable(MemoryReportReason.OutOfMemory, AnalysisOption.SCHEDULE_ON_NEXT_START_SILENT).run();
+            heapDumpAnalyzer.captureHeapDumpForAnalysis(MemoryReportReason.OutOfMemory, true);
           }
 
           new EditMemorySettingsDialog(userOptionsFile, kind, true).show();

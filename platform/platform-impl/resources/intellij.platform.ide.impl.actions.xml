@@ -680,11 +680,6 @@
     <action id="ToggleFloatingMode" class="com.intellij.ide.actions.ToggleFloatingModeAction"/>
     <action id="ToggleWindowedMode" class="com.intellij.ide.actions.ToggleWindowedModeAction"/>
     <action id="ToggleSideMode" class="com.intellij.ide.actions.ToggleSideModeAction"/>
-    <action id="UserInvokedFullAnalysis" class="com.intellij.diagnostic.hprof.action.InternalUserInvokedFullAnalysisAction"
-            internal="true"/>
-    <action id="SilentHeapDumpSnapshot" class="com.intellij.diagnostic.hprof.action.InternalNonuserInvokedHeapDumpSnapshotAction"
-            internal="true"/>
-    <action id="AnalyzeHeapDumpSnapshot" class="com.intellij.diagnostic.hprof.action.AnalyzeReportAction" internal="true"/>
     <action id="TriggerLowMemoryNotification" class="com.intellij.diagnostic.TriggerLowMemoryNotificationAction" internal="true"/>
     <action id="OpenMouseWheelSmoothScrollSettings" class="com.intellij.ui.mouse.MouseWheelSmoothScrollOptionsAction"/>
     <action id="EditorToggleShowBreadcrumbs" class="com.intellij.xml.breadcrumbs.ToggleBreadcrumbsAction$ShowHide"/>

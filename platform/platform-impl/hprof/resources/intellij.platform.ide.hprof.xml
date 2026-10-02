@@ -1,0 +1,43 @@
+<idea-plugin visibility="public">
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.libraries.fastutil"/>
+    <module name="intellij.libraries.gson"/>
+    <module name="intellij.libraries.guava"/>
+    <module name="intellij.libraries.jetbrains.annotations"/>
+    <module name="intellij.libraries.kotlinx.coroutines.core"/>
+    <module name="intellij.platform.analysis"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.impl"/>
+    <module name="intellij.platform.core.ui"/>
+    <module name="intellij.platform.editor.ui"/>
+    <module name="intellij.platform.ide"/>
+    <module name="intellij.platform.ide.core"/>
+    <module name="intellij.platform.ide.core.impl"/>
+    <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.projectModel"/>
+    <module name="intellij.platform.resources.en"/>
+    <module name="intellij.platform.statistics"/>
+    <module name="intellij.platform.util.ex"/>
+    <module name="intellij.platform.util.ui"/>
+  </dependencies>
+  <!-- endregion -->
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceInterface="com.intellij.diagnostic.HeapDumpAnalyzer"
+                        serviceImplementation="com.intellij.diagnostic.hprof.action.HeapDumpAnalyzerImpl"/>
+    <postStartupActivity implementation="com.intellij.diagnostic.AnalyzePendingSnapshotActivity"/>
+    <notificationGroup id="Heap Dump Analysis" displayType="STICKY_BALLOON" bundle="messages.DiagnosticBundle"
+                       key="notification.group.heap.dump.analysis" notificationIds="memory.analysis.complete"/>
+  </extensions>
+
+  <actions>
+    <group id="Internal.HeapAnalysis" popup="true" internal="true">
+      <action id="UserInvokedFullAnalysis" class="com.intellij.diagnostic.hprof.action.InternalUserInvokedFullAnalysisAction"
+              internal="true"/>
+      <action id="SilentHeapDumpSnapshot" class="com.intellij.diagnostic.hprof.action.InternalNonuserInvokedHeapDumpSnapshotAction"
+              internal="true"/>
+      <action id="AnalyzeHeapDumpSnapshot" class="com.intellij.diagnostic.hprof.action.AnalyzeReportAction" internal="true"/>
+      <add-to-group group-id="Internal" anchor="before" relative-to-action="Internal.VFS"/>
+    </group>
+  </actions>
+</idea-plugin>

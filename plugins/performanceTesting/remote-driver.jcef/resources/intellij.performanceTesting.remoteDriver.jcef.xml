@@ -6,6 +6,7 @@
     <module name="intellij.performanceTesting.remoteDriver"/>
     <module name="intellij.platform.core"/>
     <module name="intellij.platform.core.ui"/>
+    <module name="intellij.platform.ide.hprof"/>
     <module name="intellij.platform.ide.impl"/>
     <module name="intellij.platform.ui.jcef"/>
     <module name="intellij.platform.util.ui"/>

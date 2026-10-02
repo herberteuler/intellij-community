@@ -12,6 +12,7 @@
     <orderEntry type="module" module-name="intellij.performanceTesting.remoteDriver" />
     <orderEntry type="module" module-name="intellij.libraries.jcef" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
+    <orderEntry type="module" module-name="intellij.platform.ide.hprof" />
     <orderEntry type="module" module-name="intellij.platform.ui.jcef" />
     <orderEntry type="module" module-name="intellij.platform.core" />
     <orderEntry type="module" module-name="intellij.platform.core.ui" />

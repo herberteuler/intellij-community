@@ -307,6 +307,8 @@ object CoreModuleSets {
     module("intellij.platform.ide.remote")
     // intellij.platform.ide.impl shows the color picker popup through the service of this module
     module("intellij.platform.ide.colorPicker")
+    // intellij.platform.ide.impl captures and analyzes heap dumps through the service of this module
+    module("intellij.platform.ide.hprof")
     module("intellij.platform.threadDumpParser")
     module("intellij.platform.ide.favoritesTreeView")
     // todo not used by platform - move to plugin

@@ -142,6 +142,7 @@
     "intellij.database.docker",
     "intellij.database.flameGraphs",
     "intellij.database.grazie",
+    "intellij.database.grid.impl",
     "intellij.database.impl",
     "intellij.database.impl.cli",
     "intellij.database.impl.bookmarks",

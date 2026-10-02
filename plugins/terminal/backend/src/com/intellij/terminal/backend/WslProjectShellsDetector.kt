@@ -1,9 +1,9 @@
 package com.intellij.terminal.backend
 
+import com.intellij.execution.wsl.EelDescriptorWithWslDistribution
 import com.intellij.openapi.project.Project
 import com.intellij.platform.eel.provider.LocalEelDescriptor
 import com.intellij.platform.eel.provider.getEelDescriptor
-import com.intellij.platform.ide.impl.wsl.WslEelDescriptor
 import org.jetbrains.plugins.terminal.shellDetection.DetectedShellsEnvironmentInfo
 import org.jetbrains.plugins.terminal.shellDetection.ShellsDetectionResult
 import org.jetbrains.plugins.terminal.shellDetection.TerminalShellsDetectionUtil.LOCAL_ENVIRONMENT_NAME
@@ -35,6 +35,6 @@ internal class WslProjectShellsDetector : TerminalShellsDetector {
   }
 
   override fun isApplicable(project: Project): Boolean {
-    return project.getEelDescriptor() is WslEelDescriptor
+    return project.getEelDescriptor() is EelDescriptorWithWslDistribution
   }
 }

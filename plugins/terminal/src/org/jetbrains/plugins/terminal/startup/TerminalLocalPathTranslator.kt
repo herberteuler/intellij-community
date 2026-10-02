@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.terminal.startup
 
+import com.intellij.execution.wsl.EelDescriptorWithWslDistribution
 import com.intellij.execution.wsl.WslPath
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.debug
@@ -192,9 +193,7 @@ class TerminalLocalPathTranslator(private val descriptor: EelDescriptor) {
   }
 
   private fun asWslEelDescriptorSafely(): EelPathBoundDescriptor? {
-    return descriptor.asSafely<EelPathBoundDescriptor>()?.takeIf {
-      it::class.java.name == "com.intellij.platform.ide.impl.wsl.WslEelDescriptor"
-    }
+    return descriptor.asSafely<EelPathBoundDescriptor>()?.takeIf { it is EelDescriptorWithWslDistribution }
   }
 
   internal fun joinEntries(entriesLeft: String, entriesRight: String): String {

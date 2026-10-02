@@ -38,7 +38,6 @@ jvm_library(
         "//platform/core-impl",
         "//platform/platform-impl:ide-impl",
         "//platform/util",
-        "//platform/build-scripts/downloader",
     ],
 )
 
@@ -58,7 +57,6 @@ jvm_library(
         "//platform/core-impl:core-impl_test_lib",
         "//platform/platform-impl:ide-impl_test_lib",
         "//platform/util:util_test_lib",
-        "//platform/build-scripts/downloader:downloader_test_lib",
     ],
 )
 ### auto-generated section `build intellij.terminal.emulator` end
@@ -118,6 +116,8 @@ jvm_library(
         "//libraries/kotlinx/serialization/core:core_test_lib",
         "//libraries/kotlinx/serialization/json",
         "//libraries/kotlinx/serialization/json:json_test_lib",
+        "//platform/build-scripts/downloader",
+        "//platform/build-scripts/downloader:downloader_test_lib",
     ],
 )
 ### auto-generated section `build intellij.terminal.emulator.tests` end

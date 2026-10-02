@@ -182,6 +182,7 @@ These interfaces do not change the distinction between descriptor identity and m
 | [`EelDescriptorWithoutNativeFileChooserSupport`](../../src/com/intellij/platform/eel/EelDescriptor.kt) | Use the IDE file chooser instead of a native dialog for this environment. |
 | [`EelDescriptorWithIsolatedWorkspace`](../../src/com/intellij/platform/eel/EelDescriptor.kt) | Keep the project's workspace state separate for the container environment. |
 | [`EelDescriptorWithInteractiveDeployment`](../../src/com/intellij/platform/eel/EelDescriptor.kt) | Read `deploymentMayRequireUserInteraction`. The type check alone is insufficient because a delegating descriptor can change its answer. |
+| [`EelDescriptorWithWslDistribution`](../../../platform-impl/src/com/intellij/execution/wsl/EelDescriptorWithWslDistribution.kt) | `distribution` is the WSL distribution of the path. A delegating descriptor does not implement it. |
 
 Most policy interfaces above are internal. Respect their API status and check the current declarations before use.
 This list is not exhaustive.

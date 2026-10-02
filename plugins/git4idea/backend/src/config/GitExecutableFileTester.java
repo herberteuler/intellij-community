@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.config;
 
+import com.intellij.execution.wsl.EelDescriptorWithWslDistribution;
 import com.intellij.execution.wsl.WSLDistribution;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.EmptyProgressIndicator;
@@ -14,7 +15,6 @@ import com.intellij.platform.eel.EelApi;
 import com.intellij.platform.eel.EelOsFamily;
 import com.intellij.platform.eel.provider.EelNioBridgeServiceKt;
 import com.intellij.platform.eel.provider.LocalEelDescriptor;
-import com.intellij.platform.ide.impl.wsl.WslEelDescriptor;
 import com.intellij.util.concurrency.AppJavaExecutorUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommand;
@@ -167,8 +167,8 @@ class GitExecutableFileTester {
       workingDirectory = Path.of(distribution.getWindowsPath("/"));
     } else if (executable instanceof GitExecutable.Eel) {
       EelApi eelApi = ((GitExecutable.Eel)executable).getEel();
-      if (eelApi.getDescriptor() instanceof WslEelDescriptor) {
-        WSLDistribution distribution = ((WslEelDescriptor) eelApi.getDescriptor()).getDistribution();
+      if (eelApi.getDescriptor() instanceof EelDescriptorWithWslDistribution wsl) {
+        WSLDistribution distribution = wsl.getDistribution();
         type = distribution.getVersion() == 1 ? GitVersion.Type.WSL1 : GitVersion.Type.WSL2;
       }
       else if (eelApi.getDescriptor() instanceof LocalEelDescriptor && eelApi.getPlatform().getOsFamily().equals(EelOsFamily.Posix)) {

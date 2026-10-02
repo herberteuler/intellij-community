@@ -2,6 +2,7 @@
 package com.intellij.terminal.emulator.impl.ghostty.bindings
 
 import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.ide.plugins.PluginModuleId
 import com.intellij.idea.AppMode
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.PluginPathManager
@@ -11,9 +12,8 @@ import com.intellij.util.system.CpuArch
 import com.intellij.util.system.LowLevelLocalMachineAccess
 import com.intellij.util.system.OS
 import org.jetbrains.annotations.VisibleForTesting
-import org.jetbrains.intellij.build.dependencies.BuildDependenciesCommunityRoot
-import org.jetbrains.intellij.build.dependencies.TerminalLibGhosttyVtDownloader
 import java.io.IOException
+import java.lang.reflect.InvocationTargetException
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -26,6 +26,7 @@ import java.nio.file.Path
  *
  * When running from sources (including tests), there is no such build step, so the
  * library is downloaded on the fly and cached afterward ([getOrDownloadLibRoot]).
+ * The downloader is a content module of the core plugin, not a dependency of this module.
  *
  * [GHOSTTY_VT_LIB_ROOT_PROPERTY] overrides both lookups with ready-to-use library files.
  */
@@ -72,13 +73,27 @@ internal object LibGhosttyVtLocator {
    *
    * Serves running from sources, where no build step prepares the library.
    *
-   * @throws IOException if the download fails
+   * The method calls the downloader by reflection, because this module does not depend on it.
+   * In the IDE, the plugin set gives the class loader of the downloader module.
+   * Without a plugin set, or when that module has no class loader, the method uses its own class loader.
+   * Its own class loader serves a unit test and a run whose class path holds the downloader.
+   *
+   * @throws IOException if the download fails, or if no class loader sees the downloader
    */
   @Throws(IOException::class)
   internal fun getOrDownloadLibRoot(): Path {
-    val communityRoot = BuildDependenciesCommunityRoot(Path.of(PathManager.getCommunityHomePath()))
     try {
-      return TerminalLibGhosttyVtDownloader.getOrDownloadLibRoot(communityRoot)
+      val classLoader = PluginManagerCore.getPluginSetOrNull()
+                          ?.findEnabledModule(PluginModuleId.getId(DOWNLOADER_MODULE, PluginModuleId.JETBRAINS_NAMESPACE))
+                          ?.pluginClassLoader
+                        ?: LibGhosttyVtLocator::class.java.classLoader
+      val method = classLoader.loadClass(DOWNLOADER_CLASS).getMethod("getOrDownloadLibRoot", Path::class.java)
+      try {
+        return method.invoke(null, Path.of(PathManager.getCommunityHomePath())) as Path
+      }
+      catch (e: InvocationTargetException) {
+        throw e.cause ?: e
+      }
     }
     catch (e: Exception) {
       rethrowControlFlowException(e)
@@ -89,6 +104,9 @@ internal object LibGhosttyVtLocator {
       )
     }
   }
+
+  private const val DOWNLOADER_MODULE = "intellij.platform.buildScripts.downloader"
+  private const val DOWNLOADER_CLASS = "org.jetbrains.intellij.build.dependencies.TerminalLibGhosttyVtDownloader"
 
   private fun missingLibraryMessage(relativeLibPath: String, libFile: Path?): String {
     val message = if (libFile == null) "Cannot find $relativeLibPath" else "Cannot find $relativeLibPath: $libFile is not a file"

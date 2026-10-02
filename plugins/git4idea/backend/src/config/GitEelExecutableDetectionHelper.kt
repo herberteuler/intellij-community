@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.config
 
+import com.intellij.execution.wsl.EelDescriptorWithWslDistribution
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.runBlockingMaybeCancellable
@@ -14,7 +15,6 @@ import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.platform.eel.provider.toEelApi
 import com.intellij.platform.eel.provider.toEelApiBlocking
 import com.intellij.platform.eel.where
-import com.intellij.platform.ide.impl.wsl.WslEelDescriptor
 import com.intellij.util.application
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -103,7 +103,7 @@ internal class GitEelExecutableDetectionHelper private constructor(private val s
           project?.takeIf { !it.isDefault }?.getEelDescriptor() ?: gitDirectory?.getEelDescriptor()
         val shouldUse = when {
           descriptor === LocalEelDescriptor -> canUseEelForLocal
-          descriptor is WslEelDescriptor -> canUseEelForWsl
+          descriptor is EelDescriptorWithWslDistribution -> canUseEelForWsl
           else -> canUseEelForOther
         }
         if (!shouldUse) {

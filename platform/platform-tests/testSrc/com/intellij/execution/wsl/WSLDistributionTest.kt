@@ -536,6 +536,15 @@ class WSLDistributionTest {
         disposable,
       )
 
+      val oldAvailabilityService = WslIjentAvailabilityService.getInstance()
+      ApplicationManager.getApplication().registerOrReplaceServiceInstance(
+        WslIjentAvailabilityService::class.java,
+        object : WslIjentAvailabilityService by oldAvailabilityService {
+          override fun runWslCommandsViaIjent(): Boolean = true
+        },
+        disposable,
+      )
+
       options.isLaunchWithWslExe = false  // Exploiting the knowledge about internals of WSLDistribution.mustRunCommandLineWithIjent
       mockWslDistribution.patchCommandLine(sourceCommandLine, null, options)
       assertThat(sourceCommandLine.isProcessCreatorSet)

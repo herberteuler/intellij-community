@@ -2,6 +2,7 @@
 package com.intellij.platform.ide.impl.wsl
 
 import com.intellij.execution.eel.MultiRoutingFileSystemUtils
+import com.intellij.execution.wsl.EelDescriptorWithWslDistribution
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.execution.wsl.WslIjentAvailabilityService
@@ -219,8 +220,9 @@ internal object WslPathParser {
   }
 }
 
-class WslEelDescriptor internal constructor(val distribution: WSLDistribution, fsRoot: String) : EelPathBoundDescriptor,
-                                                                                                 EelDescriptorWithoutNativeFileChooserSupport {
+class WslEelDescriptor internal constructor(override val distribution: WSLDistribution, fsRoot: String) : EelPathBoundDescriptor,
+                                                                                                          EelDescriptorWithoutNativeFileChooserSupport,
+                                                                                                          EelDescriptorWithWslDistribution {
   internal val fsRoot = fsRoot.replace('/', '\\')
 
   constructor(distribution: WSLDistribution) : this(distribution, distribution.getUNCRootPath().pathString)

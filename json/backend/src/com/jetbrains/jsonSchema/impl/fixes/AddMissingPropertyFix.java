@@ -21,6 +21,8 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.SmartPointerManager;
+import com.intellij.psi.SmartPsiElementPointer;
 import com.intellij.psi.codeStyle.CodeStyleManager;
 import com.intellij.util.containers.ContainerUtil;
 import com.jetbrains.jsonSchema.extension.JsonLikePsiWalker;
@@ -78,14 +80,14 @@ public final class AddMissingPropertyFix extends ModCommandBatchQuickFix {
         AddMissingPropertyFix fix = fixes == null ? this : getWorkingQuickFix(fixes);
         if (fix == null) return;
         PsiElement elementCopy = updater.getWritable(descriptor.getPsiElement());
-
+        SmartPsiElementPointer<PsiElement> smartPointer = SmartPointerManager.createPointer(elementCopy);
         PsiFile file = elementCopy.getContainingFile();
         // Reformatting the whole file because formatting is crucial for yaml files and
         // changes now should be inside ModCommand.
         // Reformatting inside `myQuickFixAdapter` doesn't work for non-physical elements
         CodeStyleManager.getInstance(project).reformatText(file, 0, file.getTextLength());
         Ref<PsiElement> newElementRef = Ref.create();
-        fix.performFixInner(elementCopy, newElementRef);
+        fix.performFixInner(smartPointer.getElement(), newElementRef);
         PsiElement newElement = newElementRef.get();
         if (newElement == null) return; // multiple properties: no template/caret move
 

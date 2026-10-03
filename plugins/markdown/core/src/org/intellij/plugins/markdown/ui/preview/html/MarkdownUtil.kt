@@ -3,7 +3,6 @@ package org.intellij.plugins.markdown.ui.preview.html
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.util.Urls
 import com.intellij.util.io.DigestUtil
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
@@ -17,7 +16,6 @@ import org.intellij.plugins.markdown.ui.preview.html.links.IntelliJImageGenerati
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
 import java.math.BigInteger
-import java.net.URI
 
 object MarkdownUtil {
   @ApiStatus.Internal
@@ -30,20 +28,12 @@ object MarkdownUtil {
   }
 
   fun generateMarkdownHtml(file: VirtualFile, text: String, project: Project?): String {
-    // The base has to end with a slash. Resolving a relative link against a base without one replaces
-    // its last segment instead of descending into the directory, so a link next to the document would
-    // resolve into the parent directory (RFC 3986).
-    val baseUri = file.parent?.let {
-      val directory = Urls.toUriWithoutParameters(Urls.newFromVirtualFile(it))
-      if (directory.path.endsWith("/")) directory else URI("${directory}/")
-    }
-
     val parsedTree = MarkdownParserManager.createMarkdownParser(MarkdownParserManager.FLAVOUR)
       .buildMarkdownTreeFromString(CancellableText.of(text))
 
     val linkMap = LinkMap.buildLinkMap(parsedTree, text)
     val footnoteMap = FootnoteMap.build(parsedTree, text)
-    val map = MarkdownParserManager.FLAVOUR.createHtmlGeneratingProviders(linkMap, baseUri).toMutableMap()
+    val map = MarkdownParserManager.FLAVOUR.createHtmlGeneratingProviders(linkMap, null).toMutableMap()
     map[GFMElementTypes.ALERT] = MarkdownAlertGeneratingProvider(map[MarkdownElementTypes.BLOCK_QUOTE]!!)
     map[MarkdownElementTypes.CODE_FENCE] = createCodeFenceProvider(project, file)
     if (project != null) {
@@ -59,7 +49,7 @@ object MarkdownUtil {
 
     val mainHtml = HtmlGenerator(text, parsedTree, map, true).generateHtml()
 
-    val footnoteHtml = footnoteMap.generateFootnoteHtml(baseUri)
+    val footnoteHtml = footnoteMap.generateFootnoteHtml()
     return if (footnoteHtml.isEmpty()) mainHtml
            else mainHtml.dropLast("</body>".length) + "\n" + footnoteHtml + "\n</body>"
   }

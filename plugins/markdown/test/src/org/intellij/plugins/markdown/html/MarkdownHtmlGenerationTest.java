@@ -55,6 +55,11 @@ public class MarkdownHtmlGenerationTest extends BasePlatformTestCase {
     doTestByHtmlFile();
   }
 
+  @TestFor(issues = "IJPL-92231")
+  public void testLinkFromProjectRoot() {
+    doTestByHtmlFile();
+  }
+
   public void testCodeFenceWithLang() {
     doTestByHtmlFile();
   }

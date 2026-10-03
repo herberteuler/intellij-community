@@ -878,7 +878,6 @@
         DumpGroovyControlFlowAction
       DetectProjectLeaks
       TestJbProtocolCommand
-      ShowUpdateDialogAction
       FeatureUsage.Internal
         OpenStatisticsEventLogAction
         RecordStateCollectors
@@ -927,6 +926,7 @@
       Internal.Python
         PyUpdateProjectSdk
         PySetPropertyAction
+      ShowUpdateDialogAction
       TriggerProjectIndexableFilesFilterHealthCheck
       ImageDuplicates
       TestIconMappings

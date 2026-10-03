@@ -572,7 +572,7 @@ object UpdateChecker {
     return emptyList()
   }
 
-  /** A helper method for manually testing platform updates (see com.intellij.internal.ShowUpdateInfoDialogAction). */
+  /** A helper method for manually testing platform updates (see com.intellij.dev.core.update.ShowUpdateInfoDialogAction). */
   @ApiStatus.Internal
   fun testPlatformUpdate(
     project: Project?,

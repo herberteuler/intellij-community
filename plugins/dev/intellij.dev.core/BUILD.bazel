@@ -76,6 +76,11 @@ jvm_library(
         "//libraries/gson",
         "//libraries/jackson3/jackson:libraries-jackson3",
         "//libraries/jbr",
+        "//libraries/compose-runtime-desktop",
+        "//libraries/compose-swing-ui:compose-swing",
+        "//platform/compose/swing-ui:swing",
+        "//platform/platform-impl/update-checker",
+        "//platform/eel-nioFs",
     ],
 )
 
@@ -142,6 +147,11 @@ jvm_library(
         "//libraries/gson:gson_test_lib",
         "//libraries/jackson3/jackson:libraries-jackson3_test_lib",
         "//libraries/jbr:jbr_test_lib",
+        "//libraries/compose-runtime-desktop:compose-runtime-desktop_test_lib",
+        "//libraries/compose-swing-ui:compose-swing_test_lib",
+        "//platform/compose/swing-ui:swing_test_lib",
+        "//platform/platform-impl/update-checker:update-checker_test_lib",
+        "//platform/eel-nioFs:eel-nioFs_test_lib",
     ],
 )
 ### auto-generated section `build intellij.dev.core` end

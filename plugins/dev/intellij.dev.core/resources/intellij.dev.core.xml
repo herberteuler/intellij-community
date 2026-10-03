@@ -1,6 +1,8 @@
 <idea-plugin>
   <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
   <dependencies>
+    <module name="intellij.libraries.compose.runtime.desktop"/>
+    <module name="intellij.libraries.compose.swing"/>
     <module name="intellij.libraries.fastutil"/>
     <module name="intellij.libraries.gson"/>
     <module name="intellij.libraries.jackson3"/>
@@ -12,6 +14,7 @@
     <module name="intellij.platform.backend.workspace"/>
     <module name="intellij.platform.codeStyle"/>
     <module name="intellij.platform.codeStyle.impl"/>
+    <module name="intellij.platform.compose.swing"/>
     <module name="intellij.platform.concurrency"/>
     <module name="intellij.platform.consoleView"/>
     <module name="intellij.platform.core"/>
@@ -31,6 +34,7 @@
     <module name="intellij.platform.ide.internal"/>
     <module name="intellij.platform.ide.progress"/>
     <module name="intellij.platform.ide.ui"/>
+    <module name="intellij.platform.ide.updateChecker"/>
     <module name="intellij.platform.ide.util.io.impl"/>
     <module name="intellij.platform.indexing"/>
     <module name="intellij.platform.indexing.impl"/>
@@ -108,6 +112,9 @@
     <action id="ListPersistentStateComponents" internal="true"
             class="com.intellij.dev.core.ListPersistentStateComponentsAction">
       <add-to-group group-id="Internal.Ex"/>
+    </action>
+    <action id="ShowUpdateDialogAction" internal="true" class="com.intellij.dev.core.update.ShowUpdateInfoDialogAction">
+      <add-to-group group-id="Internal"/>
     </action>
 
     <action id="LaggingMode" internal="true" class="com.intellij.dev.core.ToggleLaggingModeAction">

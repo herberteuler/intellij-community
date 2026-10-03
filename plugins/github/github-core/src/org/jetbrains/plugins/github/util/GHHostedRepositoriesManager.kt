@@ -10,12 +10,12 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.options.advanced.AdvancedSettings
 import com.intellij.openapi.options.advanced.AdvancedSettingsChangeListener
 import com.intellij.openapi.project.Project
+import git4idea.remote.GitRemoteUrlCoordinates
 import git4idea.remote.hosting.GitHostingUrlUtil
 import git4idea.remote.hosting.GitHostingUrlUtil.getUriFromRemoteUrl
 import git4idea.remote.hosting.HostedGitRepositoriesManager
 import git4idea.remote.hosting.discoverServers
 import git4idea.remote.hosting.gitRemotesFlow
-import git4idea.remote.hosting.mapToServers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.stateIn
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.plugins.github.api.GithubServerPath
 import org.jetbrains.plugins.github.authentication.accounts.GHAccountManager
+import org.jetbrains.plugins.github.exceptions.GithubParseException
 
 @Service(Service.Level.PROJECT)
 class GHHostedRepositoriesManager(project: Project, cs: CoroutineScope) : HostedGitRepositoriesManager<GHGitRepositoryMapping> {
@@ -51,20 +52,21 @@ class GHHostedRepositoriesManager(project: Project, cs: CoroutineScope) : Hosted
     awaitClose()
   }
 
-  private fun createAliasesFlow(): Flow<Set<String>> = settingChangeEventsFlow().withInitial(Unit).map { readAliasesFromSettings() }
+  private fun createAliasesFlow(): Flow<Map<String, GithubServerPath>> =
+    settingChangeEventsFlow().withInitial(Unit).map { parseGitHubHostAliases(AdvancedSettings.getString(GITHUB_ALIASES_SETTING_ID)) }
 
   private fun createKnownRepositoriesFlow(project: Project): Flow<Set<GHGitRepositoryMapping>> {
     val gitRemotesFlow = gitRemotesFlow(project).distinctUntilChanged()
-    val defaultServerAliasesFlow = createAliasesFlow().distinctUntilChanged()
+    val aliasesFlow = createAliasesFlow().distinctUntilChanged()
 
     val accountsServersFlow = service<GHAccountManager>().accountsState.map { accounts ->
       mutableSetOf(GithubServerPath.DEFAULT_SERVER) + accounts.map { it.server }
     }.distinctUntilChanged()
 
-    val notDefaultRemotes = gitRemotesFlow.combine(defaultServerAliasesFlow) { remotes, aliases ->
-      remotes.filter { getUriFromRemoteUrl(it.url)?.host?.let { host -> aliases.contains(host) } == false }
+    val notAliasedRemotes = gitRemotesFlow.combine(aliasesFlow) { remotes, aliases ->
+      remotes.filter { remote -> remote.host?.let { it !in aliases } == true }
     }
-    val discoveredServersFlow = notDefaultRemotes.discoverServers(accountsServersFlow) { remote ->
+    val discoveredServersFlow = notAliasedRemotes.discoverServers(accountsServersFlow) { remote ->
       GitHostingUrlUtil.findServerAt(LOG, remote) {
         val server = GithubServerPath.from(it.toString())
         if (server.isGheDataResidency) return@findServerAt server
@@ -80,13 +82,12 @@ class GHHostedRepositoriesManager(project: Project, cs: CoroutineScope) : Hosted
       servers1 + servers2
     }
 
-    return gitRemotesFlow.mapToServers(serversFlow, defaultServerAliasesFlow) { servers, aliases, remote ->
-      val remoteUri = getUriFromRemoteUrl(remote.url) ?: return@mapToServers null
-      if (aliases.contains(remoteUri.host)) {
-        GHGitRepositoryMapping.create(GithubServerPath.DEFAULT_SERVER, remote)
-      }
-      else servers.find { GitHostingUrlUtil.match(it.toURI(), remote.url) }?.let {
-        GHGitRepositoryMapping.create(it, remote)
+    return combine(gitRemotesFlow, serversFlow, accountsServersFlow, aliasesFlow) { remotes, servers, accountServers, aliases ->
+      remotes.mapNotNullTo(mutableSetOf()) { remote ->
+        val host = remote.host ?: return@mapNotNullTo null
+        val server = aliases[host]?.let { accountServers.findServerForAlias(it) }
+                     ?: servers.find { GitHostingUrlUtil.match(it.toURI(), remote.url) }
+        server?.let { GHGitRepositoryMapping.create(it, remote) }
       }
     }.onEach {
       LOG.debug("New list of known repos: $it")
@@ -97,13 +98,15 @@ class GHHostedRepositoriesManager(project: Project, cs: CoroutineScope) : Hosted
   override val knownRepositoriesState: StateFlow<Set<GHGitRepositoryMapping>> =
     knownRepositoriesFlow.stateIn(cs, getStateSharingStartConfig(), emptySet())
 
-  private fun readAliasesFromSettings(): Set<String> =
-    AdvancedSettings.getString(GITHUB_ALIASES_SETTING_ID)
-      .split(',')
-      .asSequence()
-      .map { it.trim().lowercase() }
-      .filter { it.isNotEmpty() }
-      .toSet()
+  private val GitRemoteUrlCoordinates.host: String?
+    get() = getUriFromRemoteUrl(url)?.host?.lowercase()
+
+  /**
+   * Prefers the account server with the same URI, then the first account server with the same host.
+   * Uses [aliasServer] when no account server matches.
+   */
+  private fun Set<GithubServerPath>.findServerForAlias(aliasServer: GithubServerPath): GithubServerPath =
+    find { it.toURI() == aliasServer.toURI() } ?: find { it.host.equals(aliasServer.host, true) } ?: aliasServer
 
   companion object {
     private val LOG = logger<GHHostedRepositoriesManager>()
@@ -113,4 +116,33 @@ class GHHostedRepositoriesManager(project: Project, cs: CoroutineScope) : Hosted
     private fun getStateSharingStartConfig() =
       if (ApplicationManager.getApplication().isUnitTestMode) SharingStarted.Eagerly else SharingStarted.Lazily
   }
+}
+
+/**
+ * Parses the value of the `github.aliases` setting into a map from an alias host to the GitHub server.
+ *
+ * The value is a comma-separated list of `<alias>=<server>` and `<alias>` entries.
+ * The server is a URL, such as `https://git.example.com:8443/github`, or a host.
+ * An entry without a server maps the alias to [GithubServerPath.DEFAULT_SERVER].
+ * The function ignores an entry with an invalid server.
+ */
+internal fun parseGitHubHostAliases(value: String): Map<String, GithubServerPath> =
+  value.split(',').mapNotNull { entry ->
+    val alias = entry.substringBefore('=').trim().lowercase()
+    if (alias.isEmpty()) return@mapNotNull null
+    parseAliasServer(entry.substringAfter('=', "").trim())?.let { alias to it }
+  }.toMap()
+
+private fun parseAliasServer(value: String): GithubServerPath? {
+  if (value.isEmpty()) return GithubServerPath.DEFAULT_SERVER
+
+  val server = try {
+    GithubServerPath.from(value.trimEnd('/'))
+  }
+  catch (_: GithubParseException) {
+    return null
+  }
+  // A host with an invalid character passes the parser, but it fails to build the URI.
+  if (runCatching { server.toURI() }.isFailure) return null
+  return if (server.toURI() == GithubServerPath.DEFAULT_SERVER.toURI()) GithubServerPath.DEFAULT_SERVER else server
 }

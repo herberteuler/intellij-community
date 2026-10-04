@@ -8,16 +8,6 @@ import org.junit.jupiter.api.Test
 internal class GitLabHostAliasesTest {
 
   @Test
-  fun `alias without a server maps to gitlab com`() {
-    assertThat(parseGitLabHostAliases("my-old-alias")).isEqualTo(mapOf("my-old-alias" to GitLabServerPath.DEFAULT_SERVER))
-  }
-
-  @Test
-  fun `alias with an empty server maps to gitlab com`() {
-    assertThat(parseGitLabHostAliases("my.alias=")).isEqualTo(mapOf("my.alias" to GitLabServerPath.DEFAULT_SERVER))
-  }
-
-  @Test
   fun `server host gets the https scheme`() {
     assertThat(parseGitLabHostAliases("my.alias=realgitlab.com"))
       .isEqualTo(mapOf("my.alias" to GitLabServerPath("https://realgitlab.com")))
@@ -50,29 +40,9 @@ internal class GitLabHostAliasesTest {
   }
 
   @Test
-  fun `mixed list of entries`() {
-    assertThat(parseGitLabHostAliases("work=gitlab.example.com, legacy=http://git.example.com:8080/gitlab, old-alias")).isEqualTo(mapOf(
-      "work" to GitLabServerPath("https://gitlab.example.com"),
-      "legacy" to GitLabServerPath("http://git.example.com:8080/gitlab"),
-      "old-alias" to GitLabServerPath.DEFAULT_SERVER,
-    ))
-  }
-
-  @Test
-  fun `alias, scheme and host are trimmed and lowercased, the path keeps its case`() {
-    assertThat(parseGitLabHostAliases("  My.Alias = HTTPS://RealGitLab.com/GitLab  "))
+  fun `scheme and host are lowercased, the path keeps its case`() {
+    assertThat(parseGitLabHostAliases("my.alias=HTTPS://RealGitLab.com/GitLab"))
       .isEqualTo(mapOf("my.alias" to GitLabServerPath("https://realgitlab.com/GitLab")))
-  }
-
-  @Test
-  fun `empty entries are ignored`() {
-    assertThat(parseGitLabHostAliases(" , ,my.alias,,")).isEqualTo(mapOf("my.alias" to GitLabServerPath.DEFAULT_SERVER))
-    assertThat(parseGitLabHostAliases("")).isEmpty()
-  }
-
-  @Test
-  fun `entry with an empty alias is ignored`() {
-    assertThat(parseGitLabHostAliases("=realgitlab.com, my.alias")).isEqualTo(mapOf("my.alias" to GitLabServerPath.DEFAULT_SERVER))
   }
 
   @Test

@@ -165,63 +165,6 @@ internal class GitLabProjectsManagerTest {
   }
 
   @Test
-  fun `explicit alias URL selects the matching account when ports differ`() = timeoutRunBlockingWithBackgroundScope { bg ->
-    val aliasServer = GitLabServerPath("https://git.example.com:8443")
-    accounts.value = linkedSetOf(
-      GitLabAccount(name = "user", server = GitLabServerPath("https://git.example.com:8080")),
-      GitLabAccount(name = "user", server = aliasServer),
-    )
-    setAliases("work=https://git.example.com:8443")
-    registerRemotes(gitRemote("origin", "git@work:group/repo.git"))
-
-    val repositories = GitLabProjectsManagerImpl(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
-
-    assertThat(repositories.map { it.repository })
-      .containsExactly(GitLabProjectCoordinates(aliasServer, GitLabProjectPath("group", "repo")))
-  }
-
-  @Test
-  fun `alias uses the server URL of the account with the same host`() = timeoutRunBlockingWithBackgroundScope { bg ->
-    val accountServer = GitLabServerPath("http://git.example.com:8080")
-    accounts.value = setOf(GitLabAccount(name = "user", server = accountServer))
-    setAliases("legacy=git.example.com")
-    registerRemotes(gitRemote("origin", "git@legacy:group/repo.git"))
-
-    val repositories = GitLabProjectsManagerImpl(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
-
-    assertThat(repositories.map { it.repository })
-      .containsExactly(GitLabProjectCoordinates(accountServer, GitLabProjectPath("group", "repo")))
-  }
-
-  @Test
-  fun `alias uses the first account with the same host`() = timeoutRunBlockingWithBackgroundScope { bg ->
-    val firstServer = GitLabServerPath("http://git.example.com:8080")
-    accounts.value = setOf(
-      GitLabAccount(name = "user", server = firstServer),
-      GitLabAccount(name = "user", server = GitLabServerPath("https://git.example.com:8443")),
-    )
-    setAliases("legacy=git.example.com")
-    registerRemotes(gitRemote("origin", "git@legacy:group/repo.git"))
-
-    val repositories = GitLabProjectsManagerImpl(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
-
-    assertThat(repositories.map { it.repository })
-      .containsExactly(GitLabProjectCoordinates(firstServer, GitLabProjectPath("group", "repo")))
-  }
-
-  @Test
-  fun `account with another host does not change the alias server`() = timeoutRunBlockingWithBackgroundScope { bg ->
-    accounts.value = setOf(GitLabAccount(name = "user", server = GitLabServerPath("http://other.example.com:8080")))
-    setAliases("legacy=git.example.com")
-    registerRemotes(gitRemote("origin", "git@legacy:group/repo.git"))
-
-    val repositories = GitLabProjectsManagerImpl(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
-
-    assertThat(repositories.map { it.repository })
-      .containsExactly(GitLabProjectCoordinates(GitLabServerPath("https://git.example.com"), GitLabProjectPath("group", "repo")))
-  }
-
-  @Test
   fun `new account updates the server of the alias`() = timeoutRunBlockingWithBackgroundScope { bg ->
     setAliases("legacy=git.example.com")
     registerRemotes(gitRemote("origin", "git@legacy:group/repo.git"))

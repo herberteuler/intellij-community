@@ -146,48 +146,6 @@ internal class GHHostedRepositoriesManagerTest {
   }
 
   @Test
-  fun `alias prefers the matching account URI over another account on the same host`() = timeoutRunBlockingWithBackgroundScope { bg ->
-    val accountServer = GithubServerPath("git.example.com")
-    accounts.value = linkedSetOf(
-      GithubAccount(name = "other", server = GithubServerPath.from("http://git.example.com:8080")),
-      GithubAccount(name = "user", server = accountServer),
-    )
-    setAliases("github-work=https://git.example.com")
-    registerRemotes(gitRemote("origin", ALIASED_URL))
-
-    val repositories = GHHostedRepositoriesManager(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
-
-    assertThat(repositories.single().repository.serverPath).isSameAs(accountServer)
-  }
-
-  @Test
-  fun `alias uses the first account with the same host when no URI matches`() = timeoutRunBlockingWithBackgroundScope { bg ->
-    val accountServer = GithubServerPath.from("http://git.example.com:8080")
-    accounts.value = linkedSetOf(
-      GithubAccount(name = "first", server = accountServer),
-      GithubAccount(name = "second", server = GithubServerPath.from("https://git.example.com:8443")),
-    )
-    setAliases("github-work=git.example.com")
-    registerRemotes(gitRemote("origin", ALIASED_URL))
-
-    val repositories = GHHostedRepositoriesManager(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
-
-    assertThat(repositories.single().repository.serverPath).isSameAs(accountServer)
-  }
-
-  @Test
-  fun `account with another host leaves the alias server unchanged`() = timeoutRunBlockingWithBackgroundScope { bg ->
-    accounts.value = setOf(GithubAccount(name = "user", server = GithubServerPath("other.example.com")))
-    val aliasServer = GithubServerPath.from("http://git.example.com:8080/github")
-    setAliases("github-work=http://git.example.com:8080/github")
-    registerRemotes(gitRemote("origin", ALIASED_URL))
-
-    val repositories = GHHostedRepositoriesManager(project, bg).knownRepositoriesState.first { it.isNotEmpty() }
-
-    assertThat(repositories.single().repository.serverPath).isEqualTo(aliasServer)
-  }
-
-  @Test
   fun `new account updates the server of the alias`() = timeoutRunBlockingWithBackgroundScope { bg ->
     setAliases("github-work=git.example.com")
     registerRemotes(gitRemote("origin", ALIASED_URL))

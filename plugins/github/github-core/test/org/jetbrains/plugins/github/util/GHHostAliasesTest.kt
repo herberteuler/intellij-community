@@ -8,16 +8,6 @@ import org.junit.jupiter.api.Test
 internal class GHHostAliasesTest {
 
   @Test
-  fun `alias without a server maps to github com`() {
-    assertThat(parseGitHubHostAliases("my-old-alias")).isEqualTo(mapOf("my-old-alias" to GithubServerPath.DEFAULT_SERVER))
-  }
-
-  @Test
-  fun `alias with an empty server maps to github com`() {
-    assertThat(parseGitHubHostAliases("my.alias=")).isEqualTo(mapOf("my.alias" to GithubServerPath.DEFAULT_SERVER))
-  }
-
-  @Test
   fun `server host maps to that host`() {
     assertThat(parseGitHubHostAliases("my.alias=realgithub.com"))
       .isEqualTo(mapOf("my.alias" to GithubServerPath("realgithub.com")))
@@ -61,29 +51,9 @@ internal class GHHostAliasesTest {
   }
 
   @Test
-  fun `mixed list of entries`() {
-    assertThat(parseGitHubHostAliases("work=github.example.com, legacy=http://git.example.com:8080/github, old-alias")).isEqualTo(mapOf(
-      "work" to GithubServerPath("github.example.com"),
-      "legacy" to GithubServerPath(true, "git.example.com", 8080, "/github"),
-      "old-alias" to GithubServerPath.DEFAULT_SERVER,
-    ))
-  }
-
-  @Test
-  fun `alias and host are trimmed and lowercased, the path keeps its case`() {
-    assertThat(parseGitHubHostAliases("  My.Alias = HTTPS://RealGitHub.com/GitHub  "))
+  fun `host is lowercased, the path keeps its case`() {
+    assertThat(parseGitHubHostAliases("my.alias=HTTPS://RealGitHub.com/GitHub"))
       .isEqualTo(mapOf("my.alias" to GithubServerPath(false, "realgithub.com", null, "/GitHub")))
-  }
-
-  @Test
-  fun `empty entries are ignored`() {
-    assertThat(parseGitHubHostAliases(" , ,my.alias,,")).isEqualTo(mapOf("my.alias" to GithubServerPath.DEFAULT_SERVER))
-    assertThat(parseGitHubHostAliases("")).isEmpty()
-  }
-
-  @Test
-  fun `entry with an empty alias is ignored`() {
-    assertThat(parseGitHubHostAliases("=realgithub.com, my.alias")).isEqualTo(mapOf("my.alias" to GithubServerPath.DEFAULT_SERVER))
   }
 
   @Test

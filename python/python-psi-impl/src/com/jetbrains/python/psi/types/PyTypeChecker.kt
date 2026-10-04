@@ -68,6 +68,7 @@ import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
+import kotlin.jvm.optionals.getOrDefault
 import kotlin.jvm.optionals.getOrElse
 
 object PyTypeChecker {
@@ -77,7 +78,7 @@ object PyTypeChecker {
   @JvmStatic
   fun match(expected: PyType?, actual: PyType?, context: TypeEvalContext): Boolean {
     val substitutions = GenericSubstitutions()
-    return match(expected, actual, MatchContext(context, substitutions, false)).orElse(true)!!
+    return match(expected, actual, MatchContext(context, substitutions, false)).getOrDefault(true)
   }
 
   /**
@@ -104,7 +105,7 @@ object PyTypeChecker {
     typeVars: Map<PyTypeParameterType, PyType?>,
   ): Boolean {
     val substitutions = GenericSubstitutions(typeVars)
-    return match(expected, actual, MatchContext(context, substitutions, false, )).orElse(true)!!
+    return match(expected, actual, MatchContext(context, substitutions, false)).getOrDefault(true)
   }
 
   @JvmStatic
@@ -114,8 +115,8 @@ object PyTypeChecker {
     context: TypeEvalContext,
     substitutions: GenericSubstitutions,
   ): Boolean {
-    return match(expected, actual, MatchContext(context, substitutions, false, ))
-      .orElse(true)!!
+    return match(expected, actual, MatchContext(context, substitutions, false))
+      .getOrDefault(true)
   }
 
   /**
@@ -145,7 +146,7 @@ object PyTypeChecker {
     val collector = DiagnosticsCollector()
     matchContext.diagnostics = collector
     matchContext.anchor = anchor
-    val matched = match(expected, actual, matchContext).orElse(true)!!
+    val matched = match(expected, actual, matchContext).getOrDefault(true)
     if (matched) return null
     val roots = collector.current
     return when (roots.size) {
@@ -524,7 +525,7 @@ object PyTypeChecker {
         val matched = withoutRecording(context) {
           expected.items.all { expectedItem ->
             actual.items.any { actualItem ->
-              match(expectedItem, actualItem, context).orElse(false)!!
+              match(expectedItem, actualItem, context).getOrDefault(false)
             }
           }
         }
@@ -588,7 +589,7 @@ object PyTypeChecker {
       // `actual` does not denote a type expression; only an unknown type may still match.
       return actual.isAnyOrUnknown || actual.containsAny(context = context.context)
     }
-    return match(expected.representedType, representedActual, context).orElse(true)!!
+    return match(expected.representedType, representedActual, context).getOrDefault(true)
   }
 
   /**
@@ -672,7 +673,7 @@ object PyTypeChecker {
     else {
       val finalSafeActual = safeActual
       matchedConstraintIndex =
-        constraints.indexOfFirst { constraint -> match(constraint, finalSafeActual, context).orElse(true)!! }
+        constraints.indexOfFirst { constraint -> match(constraint, finalSafeActual, context).getOrDefault(true) }
       if (matchedConstraintIndex == -1) {
         return false
       }
@@ -701,17 +702,17 @@ object PyTypeChecker {
     val selfType = context.mySubstitutions.selfType
     if (selfType != null && selfType !is PySelfType) {
       val substitution = if (expected.isDefinition) selfType.toClass() else selfType.toInstance()
-      return match(substitution, actual, context).orElse(false)!!
+      return match(substitution, actual, context).getOrDefault(false)
     }
     if (actual !is PySelfType) {
       // A final class has no subclass, so `Self` in it denotes the class itself. A class with own type parameters
       // is excluded: `Self` then denotes the class with those parameters, which the bare scope type cannot express.
       return PyTypingTypeProvider.isFinalClass(expected.pyClass, context.context) &&
              !hasOwnTypeParameters(expected.pyClass, context.context) &&
-             match(expected.scopeClassType, actual, context).orElse(false)!!
+             match(expected.scopeClassType, actual, context).getOrDefault(false)
     }
     return expected.isDefinition == actual.isDefinition &&
-           match(expected.scopeClassType, actual.scopeClassType, context).orElse(false)!!
+           match(expected.scopeClassType, actual.scopeClassType, context).getOrDefault(false)
   }
 
   /**
@@ -743,18 +744,18 @@ object PyTypeChecker {
       if (expected.isUnbound) {
         val repeatedExpectedType = expected.elementTypes[0]
         if (actual.isUnbound) {
-          return match(repeatedExpectedType, actual.elementTypes[0], context).orElse(false)!!
+          return match(repeatedExpectedType, actual.elementTypes[0], context).getOrDefault(false)
         }
         else {
           return actual.elementTypes
-            .all { singleActualType -> match(repeatedExpectedType, singleActualType, context).orElse(false)!! }
+            .all { singleActualType -> match(repeatedExpectedType, singleActualType, context).getOrDefault(false) }
         }
       }
       else {
         if (actual.isUnbound) {
           val repeatedActualType: PyType? = actual.elementTypes[0]
           return expected.elementTypes
-            .all { singleExpectedType -> match(singleExpectedType, repeatedActualType, context).orElse(false)!! }
+            .all { singleExpectedType -> match(singleExpectedType, repeatedActualType, context).getOrDefault(false) }
         }
         else {
           return matchTypeParameters(null, expected.elementTypes, actual.elementTypes, context)
@@ -908,14 +909,14 @@ object PyTypeChecker {
                      actual.members.any { it is PyLiteralStringType || it is PyLiteralType }
     // The original short-circuiting `all`/`any` with zero overhead when no breakdown is being collected.
     if (context.diagnostics == null) {
-      return if (requireAll) actual.members.all { match(expected, it, context).orElse(false)!! }
-             else actual.members.any { match(expected, it, context).orElse(false)!! }
+      return if (requireAll) actual.members.all { match(expected, it, context).getOrDefault(false) }
+             else actual.members.any { match(expected, it, context).getOrDefault(false) }
     }
 
     // Collecting a breakdown: find the incompatible members first (discarding their trial recordings), then record
     // only the most useful shape.
     val failing = withoutRecording(context) {
-      actual.members.filter { !match(expected, it, context).orElse(false)!! }
+      actual.members.filter { !match(expected, it, context).getOrDefault(false) }
     }
     val matched = if (requireAll) failing.isEmpty() else failing.size < actual.members.size
     if (matched) return true
@@ -946,7 +947,7 @@ object PyTypeChecker {
                                        codifiedType(context, member), codifiedType(context, expected))
           }, {
             PyMismatchStep.UnionMember(codifiedType(context, member))
-          }) { match(expected, member, context).orElse(false)!! }
+          }) { match(expected, member, context).getOrDefault(false) }
         }
         false
       }
@@ -984,20 +985,20 @@ object PyTypeChecker {
     }, {
       PyMismatchStep.NoUnionMember(codifiedType(context, actual), codifiedType(context, expected))
     }) {
-      expected.members.any { type: PyType? -> match(type, actual, context).orElse(true)!! }
+      expected.members.any { type: PyType? -> match(type, actual, context).getOrDefault(true) }
     }
   }
 
   private fun match(expected: PyType, actual: PyIntersectionType, context: MatchContext): Boolean {
-    return actual.members.any { type: PyType? -> match(expected, type, context).orElse(false)!! }
+    return actual.members.any { type: PyType? -> match(expected, type, context).getOrDefault(false) }
   }
 
   private fun match(expected: PyIntersectionType, actual: PyType, context: MatchContext): Boolean {
-    return expected.members.all { type: PyType? -> match(type, actual, context).orElse(true)!! }
+    return expected.members.all { type: PyType? -> match(type, actual, context).getOrDefault(true) }
   }
 
   private fun match(expected: PyType, actual: PyUnsafeUnionType, context: MatchContext): Boolean {
-    return actual.members.any { type: PyType? -> match(expected, type, context).orElse(false)!! }
+    return actual.members.any { type: PyType? -> match(expected, type, context).getOrDefault(false) }
   }
 
   private fun match(expected: PyUnsafeUnionType, actual: PyType, context: MatchContext): Boolean {
@@ -1011,7 +1012,7 @@ object PyTypeChecker {
     }, {
       PyMismatchStep.NoUnionMember(codifiedType(context, actual), codifiedType(context, expected))
     }) {
-      expected.members.any { type: PyType? -> match(type, actual, context).orElse(true)!! }
+      expected.members.any { type: PyType? -> match(type, actual, context).getOrDefault(true) }
     }
   }
 
@@ -1030,9 +1031,7 @@ object PyTypeChecker {
       if (!expected.isDefinition && actual.isDefinition) {
         val metaClass = actual.getMetaClassType(context, true)
         return Optional.of(
-          metaClass != null && match(expected as PyType, metaClass.toInstance(), matchContext).orElse(
-            true
-          )!!
+          metaClass != null && match(expected as PyType, metaClass.toInstance(), matchContext).getOrDefault(true)
         )
       }
       return Optional.of(false)
@@ -1224,7 +1223,7 @@ object PyTypeChecker {
     }
 
     val subclassElementType = subclassElementType(expected, actual, subclassElementMember, actualSubstitutions, protocolContext)
-    return match(protocolElementType, subclassElementType, protocolContext).orElse(true)!!
+    return match(protocolElementType, subclassElementType, protocolContext).getOrDefault(true)
   }
 
   /** The subclass member's element type as compared against the protocol: `self` bound to [actual] and dropped, then
@@ -1312,7 +1311,7 @@ object PyTypeChecker {
        * binding `self` is a separate concern from the conversion of [convertToType], so this match keeps the widening default.
        */
       val selfMatchContext = MatchContext(context, selfSubstitutions, false)
-      if (!match(selfParamType, classType, selfMatchContext).orElse(true)) return elementType
+      if (!match(selfParamType, classType, selfMatchContext).getOrDefault(true)) return elementType
     }
     return substitute(elementType, selfSubstitutions, context) as? PyCallableType ?: elementType
   }
@@ -1365,7 +1364,7 @@ object PyTypeChecker {
       val expectedElementType = expected.iteratedItemType
       return Optional.of(
         actual.iteratedItemType.toStream()
-          .allMatch { type: PyType? -> match(expectedElementType, type, context).orElse(true)!! }
+          .allMatch { type: PyType? -> match(expectedElementType, type, context).getOrDefault(true) }
       )
     }
 
@@ -1395,7 +1394,7 @@ object PyTypeChecker {
     val superElementType = expected.iteratedItemType
     val subElementType = actual.iteratedItemType
 
-    return match(superElementType, subElementType, context).orElse(true)!!
+    return match(superElementType, subElementType, context).getOrDefault(true)
   }
 
   private fun match(expected: PyStructuralType, actual: PyType, context: TypeEvalContext): Boolean {
@@ -1448,7 +1447,7 @@ object PyTypeChecker {
       val firstExpectedParam: PyCallableParameter = expectedParameters.first()
       val firstActualParam: PyCallableParameter = actualParameters.first()
       if (firstExpectedParam.isSelf && firstActualParam.isSelf) {
-        if (!match(firstExpectedParam.getType(context), firstActualParam.getType(context), matchContext).orElse(true)!!) {
+        if (!match(firstExpectedParam.getType(context), firstActualParam.getType(context), matchContext).getOrDefault(true)) {
           return false
         }
         startIndex = 1
@@ -1495,7 +1494,7 @@ object PyTypeChecker {
         else
           match(pair.getFirst(), pair.getSecond(), matchContext.reverseSubstitutions())
       }
-      if (!matched.orElse(true)!!) {
+      if (!matched.getOrDefault(true)) {
         return false
       }
     }
@@ -1544,7 +1543,7 @@ object PyTypeChecker {
       return Optional.of(expectedOverloads.all { expectedCall ->
         actualOverloads.any { actualCall ->
           match(dropSelfInProtocolMember(expected, expectedCall, context),
-                actualCall, matchContext).orElse(true)
+                actualCall, matchContext).getOrDefault(true)
         }
       })
     }
@@ -1555,7 +1554,7 @@ object PyTypeChecker {
 
       var allMatched = true
       if (expectedParametersType != null && actualParametersType != null) {
-        if (!match(expectedParametersType, actualParametersType, matchContext).orElse(true)!!) {
+        if (!match(expectedParametersType, actualParametersType, matchContext).getOrDefault(true)) {
           // While collecting a breakdown, keep going to record the return-type reason too, so a callable that is
           // wrong in both a parameter and its return type explains both; when matching normally, short-circuit.
           if (matchContext.diagnostics == null) return Optional.of(false)
@@ -1567,7 +1566,7 @@ object PyTypeChecker {
                                       { PyMismatchStep.Return }) {
         match(expected.getReturnType(context), getActualReturnType(actual, context), matchContext)
       }
-      if (!returnMatched.orElse(true)!!) {
+      if (!returnMatched.getOrDefault(true)) {
         allMatched = false
       }
       return Optional.of(allMatched)
@@ -1612,11 +1611,8 @@ object PyTypeChecker {
   }
 
   private fun match(expected: List<PyType?>, actual: List<PyType?>, matchContext: MatchContext): Boolean {
-    if (expected.size != actual.size) return false
-    for (i in expected.indices) {
-      if (!match(expected[i], actual[i], matchContext).orElse(true)!!) return false
-    }
-    return true
+    return expected.size == actual.size &&
+           expected.zip(actual).all { (expectedItem, actualItem) -> match(expectedItem, actualItem, matchContext).getOrDefault(true) }
   }
 
   private fun isCallableProtocol(expected: PyClassLikeType, context: TypeEvalContext): Boolean {
@@ -1852,7 +1848,7 @@ object PyTypeChecker {
       val typeParameter = if (context.diagnostics != null) findTypeParameter(genericType, typeArgIndex, context) else null
       val matched = recordTypeArgumentFrame(context, typeArgIndex, typeParameter, genericType, pair.getFirst(), pair.getSecond()) {
         (if (context.reversedSubstitutions) match(pair.getSecond(), pair.getFirst(), context)
-         else match(pair.getFirst(), pair.getSecond(), context)).orElse(true)!!
+         else match(pair.getFirst(), pair.getSecond(), context)).getOrDefault(true)
       }
       if (!matched) {
         return false
@@ -2045,7 +2041,7 @@ object PyTypeChecker {
         // If the __call__ is overloaded, compare overload types (subset matching)
         return overloadType.items.all { expectedItem ->
           callType.items.any { actualItem ->
-            match(expectedItem, actualItem, context).orElse(false)!!
+            match(expectedItem, actualItem, context).getOrDefault(false)
           }
         }
       }
@@ -2054,10 +2050,10 @@ object PyTypeChecker {
         return overloadType.items.any { item ->
           // Match with correct argument order based on which is expected
           if (expectedIsOverload) {
-            match(item, callType, context).orElse(false)!!
+            match(item, callType, context).getOrDefault(false)
           }
           else {
-            match(callType, item, context).orElse(false)!!
+            match(callType, item, context).getOrDefault(false)
           }
         }
       }
@@ -2630,7 +2626,7 @@ object PyTypeChecker {
     if (container.isPositionalContainer && expectedArgumentType is PyPositionalVariadicType) {
       return match(
         expectedArgumentType, PyUnpackedTupleTypeImpl.create(actualArgumentTypes),
-        MatchContext(context, substitutions, false, )
+        MatchContext(context, substitutions, false)
       )
     }
     return match(expectedArgumentType, PyUnionType.unionOrUnknown(actualArgumentTypes), context, substitutions)
@@ -2933,7 +2929,7 @@ object PyTypeChecker {
   fun convertToType(type: PyType?, superType: PyClassType, context: TypeEvalContext): PyType? {
     val matchContext = MatchContext(context, GenericSubstitutions(), false)
     val matched = match(superType, type, matchContext)
-    if (matched.orElse(false)) {
+    if (matched.getOrDefault(false)) {
       // There is a tricky problem with handling type parameter binds to Any. Namely, during matching list[Any] to Iterable[T@Iterable],
       // we don't keep the bind T@Iterable -> Any (see the implementation of `match(PyTypeVarType, PyType, MatchContext)`).
       // As a workaround, until we migrate to type checking with CSP, we consider that
@@ -2986,7 +2982,7 @@ object PyTypeChecker {
         else
           Computable { match(expected, actual, myContext) }
       )
-      return result != null && result.orElse(false)!!
+      return result != null && result.getOrDefault(false)
     }
   }
 

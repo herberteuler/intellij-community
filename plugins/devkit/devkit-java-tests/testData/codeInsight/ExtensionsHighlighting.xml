@@ -57,6 +57,9 @@
         <!-- no replacement EP 'com.intellij.dom.fileMetaData' defined -->
         <dom.fileDescription implementation="foo.MyRunnable"/>
 
+        <!-- the replacement EP 'com.intellij.colorSettings' is declared by the platform -->
+        <<error descr="Deprecated extension point 'com.intellij.colorSettingsPage', use 'com.intellij.colorSettings' instead">colorSettingsPage</error> implementation="foo.MyColorSettingsPage"/>
+
         <!-- no replacement EP to suggest -->
         <<error descr="Deprecated extension point 'com.intellij.exportable'">exportable</error> implementation="foo.MyRunnable"/>
 

@@ -140,7 +140,8 @@ public abstract class ExtensionPointImpl implements ExtensionPoint {
   private static final Map<String, String> ADDITIONAL_DEPRECATED_EP = Map.of(
     "com.intellij.definitionsSearch", "com.intellij.definitionsScopedSearch",
     "com.intellij.dom.fileDescription", "com.intellij.dom.fileMetaData",
-    "com.intellij.exportable", "");
+    "com.intellij.exportable", "",
+    "com.intellij.colorSettingsPage", "com.intellij.colorSettings");
 
   @Override
   public @NotNull ExtensionPoint.Status getExtensionPointStatus() {

@@ -171,6 +171,8 @@ public class PluginXmlFunctionalTest extends JavaCodeInsightFixtureTestCase {
     myFixture.addClass("package foo;\n\n@Deprecated(forRemoval=true) public interface MyDeprecatedForRemovalEP {}");
     myFixture.addClass("package foo;\n\npublic class MyDeprecatedForRemovalEPImpl implements MyDeprecatedForRemovalEP {}");
     myFixture.addClass("package foo;\n\npublic class MyAppStarter implements com.intellij.openapi.application.ApplicationStarter {}");
+    myFixture.addClass(
+      "package foo;\n\npublic class MyColorSettingsPage implements com.intellij.openapi.options.colors.ColorSettingsPage {}");
     myFixture.addClass("""
       package foo;
       import org.jetbrains.annotations.ApiStatus.Experimental;

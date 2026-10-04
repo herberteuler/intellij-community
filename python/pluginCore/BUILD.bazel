@@ -280,6 +280,18 @@ dev_dist_complex_plugin(
         },
     },
     platforms = ["windows_x64"],
+    remainder_executables = ["{platform:destination}"],
+    remainder_files = {
+        "lib/python-ce.jar": [
+            "intellij.python.community.plugin",
+            "intellij.commandInterface",
+        ],
+        "{platform:destination}": [],
+    },
+    remainder_trees = [
+        "helpers",
+        "pyrefly/license",
+    ],
     resource_inputs = {
         "@dev_launch_windows_x64_pyrefly_extracted//:Windows-X86_64/pyrefly.exe": "layout-source:platform-resource-generator:0:0",
     },
@@ -408,6 +420,18 @@ dev_dist_complex_plugin(
         },
     },
     platforms = ["windows_aarch64"],
+    remainder_executables = ["{platform:destination}"],
+    remainder_files = {
+        "lib/python-ce.jar": [
+            "intellij.python.community.plugin",
+            "intellij.commandInterface",
+        ],
+        "{platform:destination}": [],
+    },
+    remainder_trees = [
+        "helpers",
+        "pyrefly/license",
+    ],
     resource_inputs = {
         "@dev_launch_windows_aarch64_pyrefly_extracted//:Windows-AArch64/pyrefly.exe": "layout-source:platform-resource-generator:0:0",
     },
@@ -536,6 +560,18 @@ dev_dist_complex_plugin(
         },
     },
     platforms = ["darwin_x64"],
+    remainder_executables = ["{platform:destination}"],
+    remainder_files = {
+        "lib/python-ce.jar": [
+            "intellij.python.community.plugin",
+            "intellij.commandInterface",
+        ],
+        "{platform:destination}": [],
+    },
+    remainder_trees = [
+        "helpers",
+        "pyrefly/license",
+    ],
     resource_inputs = {
         "@dev_launch_darwin_x64_pyrefly_extracted//:macOS-X86_64/pyrefly": "layout-source:platform-resource-generator:0:0",
     },
@@ -664,6 +700,18 @@ dev_dist_complex_plugin(
         },
     },
     platforms = ["darwin_aarch64"],
+    remainder_executables = ["{platform:destination}"],
+    remainder_files = {
+        "lib/python-ce.jar": [
+            "intellij.python.community.plugin",
+            "intellij.commandInterface",
+        ],
+        "{platform:destination}": [],
+    },
+    remainder_trees = [
+        "helpers",
+        "pyrefly/license",
+    ],
     resource_inputs = {
         "@dev_launch_darwin_aarch64_pyrefly_extracted//:macOS-AArch64/pyrefly": "layout-source:platform-resource-generator:0:0",
     },
@@ -792,6 +840,18 @@ dev_dist_complex_plugin(
         },
     },
     platforms = ["linux_x64"],
+    remainder_executables = ["{platform:destination}"],
+    remainder_files = {
+        "lib/python-ce.jar": [
+            "intellij.python.community.plugin",
+            "intellij.commandInterface",
+        ],
+        "{platform:destination}": [],
+    },
+    remainder_trees = [
+        "helpers",
+        "pyrefly/license",
+    ],
     resource_inputs = {
         "@dev_launch_linux_x64_pyrefly_extracted//:Linux-X86_64/pyrefly": "layout-source:platform-resource-generator:0:0",
     },
@@ -920,6 +980,18 @@ dev_dist_complex_plugin(
         },
     },
     platforms = ["linux_aarch64"],
+    remainder_executables = ["{platform:destination}"],
+    remainder_files = {
+        "lib/python-ce.jar": [
+            "intellij.python.community.plugin",
+            "intellij.commandInterface",
+        ],
+        "{platform:destination}": [],
+    },
+    remainder_trees = [
+        "helpers",
+        "pyrefly/license",
+    ],
     resource_inputs = {
         "@dev_launch_linux_aarch64_pyrefly_extracted//:Linux-AArch64/pyrefly": "layout-source:platform-resource-generator:0:0",
     },

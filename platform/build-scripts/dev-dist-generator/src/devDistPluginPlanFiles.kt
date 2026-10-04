@@ -87,6 +87,23 @@ internal class DevDistPluginPlanFiles private constructor(
   }
 
   /**
+   * The destination of each asset of [record], as the plan file of [key] states it. A folded file states a
+   * `{platform:<name>}` slot where the destination differs per platform, and the macro resolves the slot per chain.
+   */
+  fun assetDestinations(key: DevDistPluginPlanKey, record: DevDistPluginPlanRecord): List<String> {
+    val binding = requireNotNull(bindings.get(key)) { "The plan file of $key is not bound" }
+    require(binding.record === record) { "The plan file of $key belongs to another owner record" }
+    val assets = record.plan.projection.assets
+    if (!binding.folded) {
+      return assets.map { it.destination }
+    }
+    val text = requireNotNull(files.get(binding.path)) { "The owner did not emit graph file '${binding.path}'" }
+    val folded = PLAN_JSON.decodeFromString(PluginPackingProjection.serializer(), text).assets
+    require(folded.size == assets.size) { "The folded plan file '${binding.path}' has ${folded.size} assets, and $key has ${assets.size}" }
+    return folded.map { it.destination }
+  }
+
+  /**
    * Checks that the emitted plan file gives back the record text. A folded file is resolved for the key's platform with
    * the slot values of [labels] first, as `dev_plugin_file_graph` resolves it for the chain.
    */

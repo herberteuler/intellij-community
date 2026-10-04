@@ -7,14 +7,13 @@ use component::manifest::ComponentManifest;
 use crate::placement::{Placement, check_placement};
 use crate::test_support::*;
 
-fn placement(files: &[(&str, &str)], trees: &[(&str, &str)], homes: &[(&str, &str)], executables: &[&str]) -> Placement {
+fn placement(files: &[(&str, &str)], trees: &[(&str, &str)], executables: &[&str]) -> Placement {
     let map = |pairs: &[(&str, &str)]| -> BTreeMap<String, String> {
         pairs.iter().map(|(key, value)| ((*key).to_owned(), (*value).to_owned())).collect()
     };
     Placement {
         files: map(files),
         trees: map(trees),
-        homes: map(homes),
         executables: executables.iter().map(|path| (*path).to_owned()).collect(),
     }
 }
@@ -46,11 +45,16 @@ fn plugin() -> ComponentManifest {
     )
 }
 
+/// A plugin places each remainder file and each reused jar as a file, and each tree asset as a tree.
 fn complete() -> Placement {
     placement(
-        &[("lib/util.jar", "out/util.jar"), ("bin/restarter", "external/restarter")],
-        &[("lib/jna", "out/jna/native")],
-        &[("plugins/Kotlin", "intellij.kotlin.plugin")],
+        &[
+            ("lib/util.jar", "out/util.jar"),
+            ("bin/restarter", "external/restarter"),
+            ("plugins/Kotlin/lib/kotlin-plugin.jar", "out/remainder/lib/kotlin-plugin.jar"),
+            ("plugins/Kotlin/lib/modules/intellij.kotlin.base.jar", "out/base.jar"),
+        ],
+        &[("lib/jna", "out/jna/native"), ("plugins/Kotlin/kotlinc", "out/remainder/kotlinc")],
         &["bin/restarter"],
     )
 }
@@ -122,14 +126,17 @@ fn a_tree_member_at_another_relative_path_fails() {
 }
 
 #[test]
-fn an_entry_below_the_home_of_another_component_fails() {
+fn a_reused_jar_from_the_remainder_fails() {
     let mut placement = complete();
-    placement
-        .homes
-        .insert("plugins/Kotlin".to_owned(), "intellij.java.plugin".to_owned());
+    placement.files.insert(
+        "plugins/Kotlin/lib/modules/intellij.kotlin.base.jar".to_owned(),
+        "out/remainder/lib/modules/intellij.kotlin.base.jar".to_owned(),
+    );
     let message = error(&placement);
     assert!(
-        message.contains("belongs to the component 'intellij.kotlin.plugin', and 'plugins/Kotlin' is the home of 'intellij.java.plugin'"),
+        message.contains(
+            "'plugins/Kotlin/lib/modules/intellij.kotlin.base.jar' comes from out/base.jar, and the placement states out/remainder/lib/modules/intellij.kotlin.base.jar"
+        ),
         "{message}"
     );
 }
@@ -137,15 +144,7 @@ fn an_entry_below_the_home_of_another_component_fails() {
 #[test]
 fn a_link_outside_a_root_fails() {
     let mut placement = complete();
-    placement.homes.clear();
-    placement.files.insert(
-        "plugins/Kotlin/lib/kotlin-plugin.jar".to_owned(),
-        "out/remainder/lib/kotlin-plugin.jar".to_owned(),
-    );
-    placement.files.insert(
-        "plugins/Kotlin/lib/modules/intellij.kotlin.base.jar".to_owned(),
-        "out/base.jar".to_owned(),
-    );
+    placement.trees.remove("plugins/Kotlin/kotlinc");
     let message = error(&placement);
     assert!(
         message.contains("'plugins/Kotlin/kotlinc/current' is a link outside a placed directory"),

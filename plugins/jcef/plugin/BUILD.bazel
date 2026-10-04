@@ -48,6 +48,10 @@ dev_dist_complex_plugin(
         "linux_x64",
         "linux_aarch64",
     ],
+    remainder_files = {
+        "lib/jcef-plugin.jar": ["intellij.jcef.plugin"],
+    },
+    remainder_trees = ["jcef"],
     resource_inputs = {
         "@dev_launch_{platform}_jcef//:files": "layout-source:resource-generator:0:0",
     },

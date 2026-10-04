@@ -16,6 +16,9 @@ dev_dist_complex_plugin(
     descriptor = "//plugins/jna/plugin:intellij.jna.plugin_dev_descriptor",
     execution_version = 2,
     independent_artifacts = ["//libraries/jna:jna_content_module_jar"],
+    independent_destinations = {
+        "native-tree:intellij.libraries.jna": "lib/jna",
+    },
     main_module = "intellij.jna.plugin",
     platforms = [
         "windows_x64",
@@ -25,6 +28,9 @@ dev_dist_complex_plugin(
         "linux_x64",
         "linux_aarch64",
     ],
+    remainder_files = {
+        "lib/jna-plugin.jar": ["intellij.jna.plugin"],
+    },
 )
 ### auto-generated section `dev intellij.jna.plugin` end
 

@@ -158,7 +158,6 @@ DevDistPlacementInfo = provider(
     fields = {
         "files": "Dictionary from a file destination to its `File`.",
         "trees": "Dictionary from a directory destination to a directory `File` that holds every entry below it at the same relative path.",
-        "homes": "Dictionary from a directory destination to the component home of the component, a directory `File`.",
         "executables": "The file destinations that need the executable bit.",
     },
 )
@@ -178,7 +177,7 @@ IntellijDevDistInfo = provider(
         "home": "The self-contained home or the local launch metadata directory.",
         "ide_config": "The config file used by PreBuiltDevMain.",
         "runtime_files": "Component artifacts used directly by a local launch.",
-        "placement": "The merged `DevDistPlacementInfo` of a local launch as `struct(files, trees, homes, executables)`, where `homes` maps a destination to `struct(tree, kind)`. None for a full distribution or a component without a placement.",
+        "placement": "The merged `DevDistPlacementInfo` of a local launch as `struct(files, trees, executables)`. None for a full distribution or a component without a placement.",
         "core_classpath": "The `core-classpath.txt` of a local launch as a file of its own, or None.",
         "plugin_classpath": "The `plugins/plugin-classpath.txt` of a local launch as a file of its own, or None.",
     },
@@ -663,7 +662,7 @@ def _packed_jars_component_impl(ctx):
             inputs = [catalogue, jar_list] + [source.metadata for record in records for source in _packed_sources(record)],
             mnemonic = "IntellijDevPackedJars",
             progress_message = "Naming %d packed %s jars and %d native trees for %%{label}" % (len(jars), ctx.attr.platform_prefix, len(trees)),
-            placement = DevDistPlacementInfo(files = placed_files, trees = placed_trees, homes = {}, executables = []),
+            placement = DevDistPlacementInfo(files = placed_files, trees = placed_trees, executables = []),
             plugin_classpath_prefix = ctx.file.plugin_classpath_prefix,
             main_class = ctx.attr.main_class,
         )
@@ -701,7 +700,7 @@ def _packed_jars_component_impl(ctx):
         inputs = [metadata] + files,
         mnemonic = "IntellijDevFiles",
         progress_message = "Naming distribution files for %{label}",
-        placement = DevDistPlacementInfo(files = destinations, trees = {}, homes = {}, executables = executables),
+        placement = DevDistPlacementInfo(files = destinations, trees = {}, executables = executables),
         main_class = ctx.attr.main_class,
     )
 
@@ -770,12 +769,11 @@ def _parents(path):
 def _merge_placements(ctx, fragment_targets):
     """The merged placement of every component, or None when a component states none.
 
-    A destination belongs to one component. No file and no directory lies below a tree or a component home, because a
-    runfiles tree cannot write into a linked directory.
+    A destination belongs to one component. No file and no directory lies below a tree, because a runfiles tree cannot
+    write into a linked directory.
     """
     files = {}
     trees = {}
-    homes = {}
     executables = []
     owners = {}
     for target in fragment_targets:
@@ -789,17 +787,12 @@ def _merge_placements(ctx, fragment_targets):
                     fail("%s: '%s' is placed by both %s and %s" % (ctx.label, destination, owners[destination], kind))
                 owners[destination] = kind
                 into[destination] = file
-        for destination, home in placement.homes.items():
-            if destination in owners:
-                fail("%s: '%s' is placed by both %s and %s" % (ctx.label, destination, owners[destination], kind))
-            owners[destination] = kind
-            homes[destination] = struct(tree = home, kind = kind)
         executables.extend(placement.executables)
     for destination in owners:
         for parent in _parents(destination):
-            if parent in trees or parent in homes:
+            if parent in trees:
                 fail("%s: '%s' of %s is below '%s', which %s links as a whole" % (ctx.label, destination, owners[destination], parent, owners[parent]))
-    return struct(files = files, trees = trees, homes = homes, executables = executables)
+    return struct(files = files, trees = trees, executables = executables)
 
 def _compose(ctx, fragment_targets):
     local_launch = ctx.attr.local_launch
@@ -852,7 +845,6 @@ def _compose(ctx, fragment_targets):
             "placement": {
                 "files": {destination: file.path for destination, file in placement.files.items()},
                 "trees": {destination: tree.path for destination, tree in placement.trees.items()},
-                "homes": {destination: home.kind for destination, home in placement.homes.items()},
                 "executables": placement.executables,
             } if placement else None,
         }),

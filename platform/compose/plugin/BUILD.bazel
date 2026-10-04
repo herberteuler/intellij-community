@@ -51,6 +51,9 @@ dev_dist_complex_plugin(
         "//platform/jewel/markdown/extensions/images:images_content_module_jar",
         "//platform/compose/markdown:markdown_content_module_jar",
     ],
+    independent_destinations = {
+        "native-tree:intellij.libraries.skiko": "lib/skiko-awt-runtime-all",
+    },
     main_module = "intellij.platform.compose.plugin",
     platforms = [
         "windows_x64",
@@ -60,6 +63,9 @@ dev_dist_complex_plugin(
         "linux_x64",
         "linux_aarch64",
     ],
+    remainder_files = {
+        "lib/platform-compose-plugin.jar": ["intellij.platform.compose.plugin"],
+    },
 )
 ### auto-generated section `dev intellij.platform.compose.plugin` end
 

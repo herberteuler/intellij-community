@@ -315,7 +315,6 @@ def _intellij_dev_java_launcher_impl(ctx):
             file = copy
         home[destination] = file
     home.update(placement.trees)
-    home.update({destination: entry.tree for destination, entry in placement.homes.items()})
     home["fingerprint.txt"] = dist.fingerprint
     if dist.plugin_classpath:
         home["plugins/plugin-classpath.txt"] = dist.plugin_classpath

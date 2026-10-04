@@ -21,27 +21,18 @@ pub(crate) struct Placement {
     /// A file destination and the path of its source, as the component manifest states the source.
     pub(crate) files: BTreeMap<String, String>,
     /// A directory destination and the path of the directory artifact that the home links there. The artifact holds
-    /// every entry below the destination at the same relative path.
+    /// every entry below the destination at the same relative path. A tree asset of a plugin is one.
     pub(crate) trees: BTreeMap<String, String>,
-    /// A directory destination and the kind of the component whose component home the home links there.
-    pub(crate) homes: BTreeMap<String, String>,
     /// The file destinations that need the executable bit.
     pub(crate) executables: Vec<String>,
 }
 
-/// The directory that a home links as a whole.
-enum Root<'a> {
-    Tree(&'a str),
-    Home(&'a str),
-}
-
 /// Checks that `placement` states every entry of `manifests` and nothing else.
 ///
-/// An entry below a tree must have its source at the same relative path in the tree. An entry below a component home
-/// must belong to that component. Every other file must be a placed file with the same source and the same executable
-/// flag, and without an exact mode. A link must be below a tree or a component home, because a runfiles tree holds no
-/// declared link. A directory entry outside a root must hold a placed file, because a runfiles tree has no empty
-/// directory.
+/// An entry below a tree must have its source at the same relative path in the tree. Every other file must be a placed
+/// file with the same source and the same executable flag, and without an exact mode. A link must be below a tree,
+/// because a runfiles tree holds no declared link. A directory entry outside a tree must hold a placed file, because a
+/// runfiles tree has no empty directory.
 pub(crate) fn check_placement(manifests: &[&ComponentManifest], placement: &Placement) -> Result<()> {
     let executables: HashSet<&str> = placement.executables.iter().map(String::as_str).collect();
     let mut problems = Vec::new();
@@ -51,22 +42,13 @@ pub(crate) fn check_placement(manifests: &[&ComponentManifest], placement: &Plac
     for manifest in manifests {
         for entry in &manifest.entries {
             let path = entry.relative_path();
-            if let Some((root, kind)) = covering_root(placement, path) {
+            if let Some((root, directory)) = covering_tree(placement, path) {
                 covered_roots.insert(root);
-                match (kind, entry) {
-                    (Root::Tree(directory), ComponentEntry::ComponentFile { source, .. }) => {
-                        let expected = format!("{directory}/{}", path.get(root.len() + 1..).unwrap_or_default());
-                        if *source != expected {
-                            problems.push(format!("'{path}' comes from {source}, and the tree at '{root}' holds {expected}"));
-                        }
+                if let ComponentEntry::ComponentFile { source, .. } = entry {
+                    let expected = format!("{directory}/{}", path.get(root.len() + 1..).unwrap_or_default());
+                    if *source != expected {
+                        problems.push(format!("'{path}' comes from {source}, and the tree at '{root}' holds {expected}"));
                     }
-                    (Root::Home(home_kind), _) if *home_kind != manifest.kind => {
-                        problems.push(format!(
-                            "'{path}' belongs to the component '{}', and '{root}' is the home of '{home_kind}'",
-                            manifest.kind
-                        ));
-                    }
-                    _ => {}
                 }
                 continue;
             }
@@ -105,7 +87,7 @@ pub(crate) fn check_placement(manifests: &[&ComponentManifest], placement: &Plac
             problems.push(format!("the placement states '{path}', which no component manifest names"));
         }
     }
-    for root in placement.trees.keys().chain(placement.homes.keys()) {
+    for root in placement.trees.keys() {
         if !covered_roots.contains(root.as_str()) {
             problems.push(format!(
                 "the placement links '{root}', and no component manifest names an entry there"
@@ -119,12 +101,11 @@ pub(crate) fn check_placement(manifests: &[&ComponentManifest], placement: &Plac
     }
     for directory in directories {
         let prefix = format!("{directory}/");
-        let holds = placement.files.keys().any(|path| path.starts_with(&prefix))
-            || placement
-                .trees
-                .keys()
-                .chain(placement.homes.keys())
-                .any(|root| root.starts_with(&prefix));
+        let holds = placement
+            .files
+            .keys()
+            .chain(placement.trees.keys())
+            .any(|path| path.starts_with(&prefix));
         if !holds {
             problems.push(format!("'{directory}' is an empty directory, which a runfiles home cannot hold"));
         }
@@ -145,15 +126,12 @@ pub(crate) fn check_placement(manifests: &[&ComponentManifest], placement: &Plac
     bail!(message)
 }
 
-/// The deepest tree or component home that holds `path`, or `path` itself, with its kind.
-fn covering_root<'a>(placement: &'a Placement, path: &str) -> Option<(&'a str, Root<'a>)> {
+/// The deepest tree that holds `path`, or `path` itself, with the path of its directory artifact.
+fn covering_tree<'a>(placement: &'a Placement, path: &str) -> Option<(&'a str, &'a str)> {
     let mut current = path;
     loop {
         if let Some((root, directory)) = placement.trees.get_key_value(current) {
-            return Some((root.as_str(), Root::Tree(directory.as_str())));
-        }
-        if let Some((root, kind)) = placement.homes.get_key_value(current) {
-            return Some((root.as_str(), Root::Home(kind.as_str())));
+            return Some((root.as_str(), directory.as_str()));
         }
         current = current.rsplit_once('/')?.0;
     }

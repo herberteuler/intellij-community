@@ -16,6 +16,9 @@ dev_dist_complex_plugin(
     descriptor = "//plugins/pty4j/plugin:intellij.pty4j.plugin_dev_descriptor",
     execution_version = 2,
     independent_artifacts = ["//libraries/pty4j:pty4j_content_module_jar"],
+    independent_destinations = {
+        "native-tree:intellij.libraries.pty4j": "lib/pty4j",
+    },
     main_module = "intellij.pty4j.plugin",
     platforms = [
         "windows_x64",
@@ -25,6 +28,9 @@ dev_dist_complex_plugin(
         "linux_x64",
         "linux_aarch64",
     ],
+    remainder_files = {
+        "lib/pty4j-plugin.jar": ["intellij.pty4j.plugin"],
+    },
 )
 ### auto-generated section `dev intellij.pty4j.plugin` end
 

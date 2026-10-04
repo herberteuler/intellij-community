@@ -60,6 +60,9 @@ dev_dist_complex_plugin(
         "//plugins/maven/jps:jps_content_module_jar",
         "//plugins/maven/jps/ide:ide_content_module_jar",
     ],
+    independent_destinations = {
+        "intellij.maven.model": "lib/intellij.maven.model.jar",
+    },
     libraries = {
         "@lib//:maven-plexus-archiver": "@lib//:maven-plexus-archiver",
         "@lib//:maven-jetbrains-idea-maven-indexer-api-rt": "@lib//:maven-jetbrains-idea-maven-indexer-api-rt",
@@ -69,6 +72,36 @@ dev_dist_complex_plugin(
         "@lib//:maven-server-indexer-apache-maven-archetype-catalog-no-trans-321": "@lib//:maven-server-indexer-apache-maven-archetype-catalog-no-trans-321",
     },
     main_module = "intellij.maven.plugin",
+    remainder_files = {
+        "lib/intellij.maven.jar": ["intellij.maven"],
+        "lib/maven-indexer-api-rt.jar": [],
+        "lib/intellij.maven.server3/maven3-server-common.jar": ["intellij.maven.server.m3.common"],
+        "lib/intellij.maven.server3/maven3-server.jar": ["intellij.maven.server.m3.impl"],
+        "lib/intellij.maven.server3/maven-server-telemetry.jar": ["intellij.maven.server.telemetry"],
+        "lib/intellij.maven.server36/maven36-server.jar": ["intellij.maven.server.m36.impl"],
+        "lib/intellij.maven.server4/maven40-server.jar": ["intellij.maven.server.m40"],
+        "lib/intellij.maven.server4/maven-server-telemetry.jar": ["intellij.maven.server.telemetry"],
+        "lib/intellij.maven.rt/maven-event-listener.jar": ["intellij.maven.server.eventListener"],
+        "lib/intellij.maven.server.indexer/maven-server-indexer.jar": ["intellij.maven.server.indexer"],
+        "lib/maven-plugin.jar": [
+            "intellij.maven.plugin",
+            "intellij.idea.community.build.dependencies",
+        ],
+        "lib/artifact-resolver-m31.jar": [
+            "intellij.maven.artifactResolver.m31",
+            "intellij.maven.artifactResolver.common",
+        ],
+        "lib/maven-server.jar": ["intellij.maven.server"],
+        "lib/intellij.maven.server.indexer/apache.maven.core-3.8.3.jar": [],
+        "lib/intellij.maven.server.indexer/apache.maven.wagon.provider.api-3.5.2.jar": [],
+        "lib/intellij.maven.server.indexer/apache.maven.archetype.common-no-trans-3.2.1.jar": [],
+        "lib/intellij.maven.server.indexer/apache.maven.archetype.catalog-no-trans-321.jar": [],
+    },
+    remainder_trees = [
+        "lib/maven3",
+        "lib/intellij.maven.server3",
+        "lib/intellij.maven.server4",
+    ],
     resource_inputs = {
         "@dev_launch_maven//:files": "layout-source:resource-generator:0:0",
     },

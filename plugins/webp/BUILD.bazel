@@ -52,6 +52,11 @@ dev_dist_complex_plugin(
         "linux_x64",
         "linux_aarch64",
     ],
+    remainder_files = {
+        "lib/webp.jar": ["intellij.webp"],
+        "lib/libwebp.jar.jar": [],
+    },
+    remainder_trees = ["{platform:destination}"],
     resource_inputs = {
         "@dev_launch_libwebp//:files": "layout-source:platform-resource-generator:0:0",
     },

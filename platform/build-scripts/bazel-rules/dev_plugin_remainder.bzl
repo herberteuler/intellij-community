@@ -34,7 +34,10 @@ DevPluginRemainderInfo, _new_remainder_info = provider(
     fields = {
         "graph": "The graph target of the chain.",
         "execution_version": "The execution version of the graph.",
-        "directory": "Directory File containing only the remainder outputs.",
+        "root": "The path of the plugin directory that the packer writes, `<name>.plugin`. No artifact is at this path.",
+        "outputs": """Dictionary from a destination below the plugin directory to its declared `File`. A file asset is a
+        file, and a tree asset is a directory that holds every asset below it.""",
+        "executables": "The destinations of `outputs` that the packer writes with the executable bit.",
         "metadata": "File containing the remainder file inventory and hashes.",
         "assets": "File containing the complete ordered asset table.",
         "classpath": "File containing the plugin classpath record.",
@@ -609,18 +612,21 @@ def _catalogue_binding(ctx, artifact_catalogue, reused_jars):
                 fail("catalogue artifact %s overlaps independent artifact %s" % (identifier, independent.path))
     return binding
 
-def _remainder_providers(ctx, graph, execution_version, directory, metadata, assets, classpath, independent_artifacts, content, refused_modules):
+def _remainder_providers(ctx, graph, execution_version, packed, metadata, assets, classpath, independent_artifacts, content, refused_modules):
     """The providers of a packed remainder. The component reads this one contract."""
+    files = packed.outputs.values()
     return [
         DefaultInfo(
-            files = depset([directory]),
-            runfiles = ctx.runfiles(files = [directory], transitive_files = independent_artifacts),
+            files = depset(files),
+            runfiles = ctx.runfiles(files = files, transitive_files = independent_artifacts),
         ),
         content,
         _new_remainder_info(
             graph = graph,
             execution_version = execution_version,
-            directory = directory,
+            root = packed.root,
+            outputs = packed.outputs,
+            executables = packed.executables,
             metadata = metadata,
             assets = assets,
             classpath = classpath,
@@ -629,12 +635,66 @@ def _remainder_providers(ctx, graph, execution_version, directory, metadata, ass
         ),
         OutputGroupInfo(
             file_metadata = depset([metadata]),
-            dev_dist_plugin_remainder = depset([directory]),
+            dev_dist_plugin_remainder = depset(files),
             dev_dist_plugin_assets = depset([assets]),
             dev_dist_plugin_classpath = depset([classpath]),
             dev_dist_plugin_independent_artifacts = independent_artifacts,
         ),
     ]
+
+def _parents(path):
+    """Every directory that holds `path`, the deepest first. The plugin root is the empty text."""
+    parts = path.split("/")
+    return ["/".join(parts[:index]) for index in range(len(parts) - 1, 0, -1)] + [""]
+
+def _check_asset_destination(label, destination, kind):
+    if destination != destination.strip() or "\\" in destination or any([part in ["", ".", ".."] for part in destination.split("/")]):
+        if not (kind == "tree" and destination == ""):
+            fail("%s: the %s asset '%s' is no safe destination below the plugin directory" % (label, kind, destination))
+
+def _declare_remainder_outputs(ctx, metadata, refused_modules):
+    """Declares one output per asset that the packer writes, below `<name>.plugin`.
+
+    The packer omits a file asset whose every module the product mode refuses, so the rule omits it too. Bazel declares
+    no output below a declared directory. So a tree holds every asset below it, and only the outermost tree is declared.
+
+    Returns:
+        `struct(root, outputs, executables)`, see `DevPluginRemainderInfo`.
+    """
+    label = ctx.label
+    trees = {}
+    for destination in ctx.attr.remainder_trees:
+        _check_asset_destination(label, destination, "tree")
+        if destination in trees:
+            fail("%s: the tree asset '%s' is named twice" % (label, destination))
+        trees[destination] = True
+    for destination in ctx.attr.remainder_files:
+        _check_asset_destination(label, destination, "file")
+        if destination in trees:
+            fail("%s: '%s' is a file asset and a tree asset" % (label, destination))
+    for destination in ctx.attr.remainder_executables:
+        if destination not in ctx.attr.remainder_files:
+            fail("%s: the executable '%s' is no file asset" % (label, destination))
+
+    def covered(destination):
+        return any([parent in trees for parent in _parents(destination)])
+
+    refused = {module: True for module in refused_modules}
+    root_name = label.name + ".plugin"
+    outputs = {}
+    for destination in sorted(trees.keys()):
+        if destination == "" or not covered(destination):
+            outputs[destination] = ctx.actions.declare_directory(root_name + ("/" + destination if destination else ""))
+    for destination, modules in ctx.attr.remainder_files.items():
+        if modules and all([module in refused for module in modules]):
+            continue
+        if not covered(destination):
+            outputs[destination] = ctx.actions.declare_file(root_name + "/" + destination)
+    return struct(
+        root = metadata.dirname + "/" + root_name,
+        outputs = outputs,
+        executables = [destination for destination in ctx.attr.remainder_executables if destination in outputs],
+    )
 
 _PACKER = attr.label(
     default = "//platform/build-scripts/bazel-rules:plugin_remainder_packer",
@@ -676,8 +736,8 @@ def _dev_plugin_remainder_from_plan_impl(ctx):
             if _overlapping_artifacts(source, artifact):
                 fail("remainder input %s overlaps independent artifact %s" % (source.path, artifact.path))
 
-    directory = ctx.actions.declare_directory(ctx.label.name + ".plugin")
     metadata = ctx.actions.declare_file(ctx.label.name + ".file-metadata.json")
+    packed = _declare_remainder_outputs(ctx, metadata, refused_modules)
     assets = ctx.actions.declare_file(ctx.label.name + ".assets.json")
     classpath = ctx.actions.declare_file(ctx.label.name + ".plugin-classpath.txt")
     arguments = ctx.actions.args()
@@ -686,7 +746,7 @@ def _dev_plugin_remainder_from_plan_impl(ctx):
     arguments.add(classpath_descriptor, format = "--classpath-descriptor=%s")
     arguments.add(ctx.attr.plugin_directory, format = "--plugin-directory=%s")
     arguments.add(execution_version, format = "--execution-version=%s")
-    arguments.add(directory.path, format = "--output-dir=%s")
+    arguments.add(packed.root, format = "--output-dir=%s")
     arguments.add(metadata, format = "--inventory=%s")
     arguments.add(assets, format = "--assets=%s")
     arguments.add(classpath, format = "--classpath=%s")
@@ -696,7 +756,7 @@ def _dev_plugin_remainder_from_plan_impl(ctx):
         mnemonic = "PackDevPluginRemainder",
         executable = ctx.executable._packer,
         inputs = inputs,
-        outputs = [directory, metadata, assets, classpath],
+        outputs = packed.outputs.values() + [metadata, assets, classpath],
         arguments = [arguments],
         progress_message = "Packing plugin remainder %{label} from its plan file",
     )
@@ -732,7 +792,7 @@ def _dev_plugin_remainder_from_plan_impl(ctx):
         arguments = [layout_arguments],
         progress_message = "Deriving the runtime layout part of %{label} from its plan file",
     )
-    return _remainder_providers(ctx, ctx.attr.graph, execution_version, directory, metadata, assets, classpath, independent_artifacts, content, refused_modules) + [
+    return _remainder_providers(ctx, ctx.attr.graph, execution_version, packed, metadata, assets, classpath, independent_artifacts, content, refused_modules) + [
         DevDistRuntimeLayoutInfo(
             part = runtime_layout,
             descriptor = classpath_descriptor,
@@ -746,7 +806,10 @@ dev_plugin_remainder_from_plan = rule(
 
 The packer reads the plan file and the input catalogue in its `--projection` mode. It derives the recipe, runs the
 operations, packs the remainder, and writes the asset table and the plugin classpath record. No recipe and no
-prepared directory exist as a file.""",
+prepared directory exist as a file.
+
+The generator states the destination of each asset that the packer writes. So the rule declares one output per file
+asset and one directory per outermost tree asset, and a home links each output at analysis.""",
     attrs = {
         "graph": attr.label(mandatory = True, providers = [DevPluginGraphInfo]),
         "descriptor": attr.label(
@@ -756,6 +819,16 @@ prepared directory exist as a file.""",
 as a catalogue artifact. The product reaches it through the configuration the consumer of the component sets.""",
         ),
         "plugin_directory": attr.string(mandatory = True),
+        "remainder_files": attr.string_list_dict(
+            doc = """Each file asset that the packer writes, keyed by its destination below the plugin directory. The value
+is the module list of the asset. The rule omits a file whose every module the product mode refuses.""",
+        ),
+        "remainder_trees": attr.string_list(
+            doc = "The destination of each tree asset that the packer writes. The empty text is the plugin directory itself.",
+        ),
+        "remainder_executables": attr.string_list(
+            doc = "The destinations of `remainder_files` that the packer writes with the executable bit.",
+        ),
         "artifact_catalogue": attr.label(
             mandatory = True,
             providers = [DevPluginArtifactCatalogueInfo],
@@ -779,6 +852,32 @@ reaches each jar's module and compiles it a second time. No input of the action 
     },
 )
 
+# The key of a native tree in `independent_destinations`. The plan file names the input of the tree the same way.
+_NATIVE_TREE_PREFIX = "native-tree:"
+
+def _place_reused(reused, destination, file):
+    if destination in reused:
+        fail("'%s' is the destination of both %s and %s" % (destination, reused[destination].path, file.path))
+    reused[destination] = file
+
+def _component_placement(files, trees, reused, executables):
+    """The placement of a complex plugin: the remainder outputs, then each reused jar and native tree.
+
+    A runfiles tree cannot write below a linked directory. So a reused jar or native tree below a remainder tree has no
+    placement, and the function returns None. A launch that links a home then fails on the missing placement.
+    """
+    for destination in reused:
+        if destination in files or destination in trees:
+            return None
+        for parent in _parents(destination):
+            if parent in trees:
+                return None
+    placed_files = dict(files)
+    placed_trees = dict(trees)
+    for destination, file in reused.items():
+        (placed_trees if file.is_directory else placed_files)[destination] = file
+    return DevDistPlacementInfo(files = placed_files, trees = placed_trees, executables = executables)
+
 def _dev_plugin_component_impl(ctx):
     product = ctx.attr._product_info[DevDistProductInfo]
     if not product.platform_prefix:
@@ -788,11 +887,22 @@ def _dev_plugin_component_impl(ctx):
         ))
     remainder = ctx.attr.remainder[DevPluginRemainderInfo]
     execution_version = _execution_version(remainder, "DevPluginRemainderInfo")
-    if not remainder.directory.is_directory:
-        fail("plugin remainder must provide a directory artifact")
+    plugin_directory = ctx.attr.plugin_directory
+
+    def destination(relative):
+        return plugin_directory + ("/" + relative if relative else "")
+
+    # The placement is the remainder outputs, the reused jars and their native trees, each at its own destination.
+    placed_files = {}
+    placed_trees = {}
+    for relative, file in remainder.outputs.items():
+        (placed_trees if file.is_directory else placed_files)[destination(relative)] = file
+    reused = {}
     independent = []
-    payload = [remainder.directory]
+    payload = list(remainder.outputs.values())
     inputs = [remainder.metadata, remainder.assets, remainder.classpath]
+    for key in ctx.attr.independent_destinations:
+        _check_asset_destination(ctx.label, ctx.attr.independent_destinations[key], "independent")
     identifiers = {}
     declared = {file: True for file in remainder.independent_artifacts.to_list()}
     bound = {}
@@ -817,6 +927,7 @@ def _dev_plugin_component_impl(ctx):
         bound[metadata] = True
         payload.append(jar)
         inputs.append(metadata)
+        _place_reused(reused, destination(ctx.attr.independent_destinations.get(identifier, "lib/modules/%s.jar" % identifier)), jar)
         entry = {
             "artifact": identifier,
             "source": jar.path,
@@ -835,6 +946,8 @@ def _dev_plugin_component_impl(ctx):
             payload.append(native.tree)
             inputs.append(native.metadata)
             entry["nativeTree"] = {"source": native.tree.path, "metadata": native.metadata.path}
+            native_destination = ctx.attr.independent_destinations.get(_NATIVE_TREE_PREFIX + identifier, "lib/" + info.native_lib_dir)
+            _place_reused(reused, destination(native_destination), native.tree)
         independent.append(entry)
     for source in declared:
         if source not in bound:
@@ -849,7 +962,7 @@ def _dev_plugin_component_impl(ctx):
     collection = {
         "version": execution_version,
         "pluginDirectory": ctx.attr.plugin_directory,
-        "remainder": {"directory": remainder.directory.path, "metadata": remainder.metadata.path},
+        "remainder": {"directory": remainder.root, "metadata": remainder.metadata.path},
         "assets": remainder.assets.path,
         "classpath": remainder.classpath.path,
         "independent": independent,
@@ -890,28 +1003,7 @@ def _dev_plugin_component_impl(ctx):
         progress_message = "Collecting plugin component metadata %{label}",
     )
 
-    # A remainder without a reused jar is the whole plugin directory, so a home links it as it is. Any other plugin
-    # directory merges several artifacts, and a runfiles tree cannot merge them. Then the component home clones the
-    # entries of the manifest into one directory artifact, which a launch builds only when it links the home.
-    if len(payload) == 1:
-        placement = DevDistPlacementInfo(files = {}, trees = {ctx.attr.plugin_directory: remainder.directory}, homes = {}, executables = [])
-    else:
-        home = ctx.actions.declare_directory(ctx.label.name + ".home")
-        home_arguments = ctx.actions.args()
-        home_arguments.add("component-home")
-        home_arguments.add(manifest, format = "--component-manifest=%s")
-        home_arguments.add(ctx.attr.plugin_directory, format = "--plugin-directory=%s")
-        home_arguments.add(home.path, format = "--output-dir=%s")
-        ctx.actions.run(
-            mnemonic = "DevPluginComponentHome",
-            executable = ctx.executable._composer,
-            inputs = depset([manifest] + payload),
-            outputs = [home],
-            arguments = [home_arguments],
-            execution_requirements = {"block-network": "1", "no-remote-cache": "1", "no-remote-exec": "1"},
-            progress_message = "Cloning the plugin directory of %{label}",
-        )
-        placement = DevDistPlacementInfo(files = {}, trees = {}, homes = {ctx.attr.plugin_directory: home}, executables = [])
+    placement = _component_placement(placed_files, placed_trees, reused, [destination(relative) for relative in remainder.executables])
     payload = depset(payload)
     return [
         DefaultInfo(files = depset([manifest, classpath]), runfiles = ctx.runfiles(transitive_files = payload)),
@@ -925,7 +1017,6 @@ def _dev_plugin_component_impl(ctx):
             plugin_classpath_part = classpath,
             plugin_classpath_prefix = None,
         ),
-        placement,
         OutputGroupInfo(
             dev_dist_plugin_outputs = depset([manifest, classpath], transitive = [payload]),
             dev_dist_plugin_assets = depset([remainder.assets]),
@@ -933,7 +1024,7 @@ def _dev_plugin_component_impl(ctx):
             file_metadata = depset([remainder.metadata] + [file for file in inputs if file not in [remainder.metadata, remainder.assets, remainder.classpath]]),
             trace_spans = depset(spans),
         ),
-    ]
+    ] + ([placement] if placement else [])
 
 dev_plugin_component = rule(
     implementation = _dev_plugin_component_impl,
@@ -947,6 +1038,11 @@ see one `File` per reused jar. The module name of each target is its artifact ID
 remainder use.""",
         ),
         "plugin_directory": attr.string(mandatory = True),
+        "independent_destinations": attr.string_dict(
+            doc = """The destination below the plugin directory of a reused jar that is not `lib/modules/<module>.jar`,
+keyed by the module. A native tree states its destination under `native-tree:<module>`. Without it, the tree is at
+`lib/<native_lib_dir>`.""",
+        ),
         "component_name": attr.string(mandatory = True),
         "target_platform": attr.string(doc = "A `HOST_PLATFORMS` entry, or empty for a component that serves every platform."),
         "_product_info": attr.label(
@@ -956,7 +1052,6 @@ remainder use.""",
         ),
         "_trace_spans": attr.label(default = "//platform/build-scripts/bazel-rules:trace_spans", providers = [BuildSettingInfo]),
         "_collector": attr.label(default = "//platform/build-scripts/bazel-rules:dev_dist_collector", executable = True, cfg = "exec"),
-        "_composer": attr.label(default = "//platform/build-scripts/bazel-rules:dev_dist_composer", executable = True, cfg = "exec"),
         "_allowlist_function_transition": attr.label(default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist")),
     },
 )
@@ -974,6 +1069,17 @@ def _dict_for_platform(values, platform, what):
     if len(result) != len(values):
         fail("two %s entries name the same key on %s: %s" % (what, platform, sorted(values.keys())))
     return result
+
+def _resolve_slot(main_module, value, values):
+    """Resolves a destination that is one `{platform:<name>}` slot from the chain's `platform_values`."""
+    if not value.startswith(_TOKEN_PREFIX):
+        if _TOKEN_PREFIX in value:
+            fail("%s states '%s', and a slot must be the whole destination" % (main_module, value))
+        return value
+    slot = value[len(_TOKEN_PREFIX) + 1:-1] if value.startswith(_TOKEN_PREFIX + ":") and value.endswith("}") else None
+    if slot == None or slot not in values:
+        fail("%s states '%s', and the chain has no value for it" % (main_module, value))
+    return values[slot]
 
 def platform_values_error(main_module, platforms, platform_values, platform_plans = False):
     """Returns why `platform_values` and `platform_plans` do not fit `platforms`, or None when they do.
@@ -1031,6 +1137,10 @@ def dev_dist_complex_plugin(
         source_tree_prefixes = {},
         optional_source_trees = [],
         independent_artifacts = [],
+        remainder_files = {},
+        remainder_trees = [],
+        remainder_executables = [],
+        independent_destinations = {},
         tags = [],
         visibility = ["//visibility:public"]):
     """Declares the execution chains of one complex plugin: one chain per platform it is bundled on, or one for all.
@@ -1076,6 +1186,12 @@ def dev_dist_complex_plugin(
         source_tree_prefixes: Repository-relative source prefix keyed by the source tree artifact ID.
         optional_source_trees: Source tree IDs that may have no files and then materialize as empty directories.
         independent_artifacts: The `content_module_jar` targets whose jar the plugin reuses.
+        remainder_files: Each file asset that the packer writes, keyed by its destination, with the modules of the asset.
+            A destination may be a `{platform:<name>}` slot.
+        remainder_trees: The destination of each tree asset that the packer writes. A destination may be a slot.
+        remainder_executables: The destinations of `remainder_files` with the executable mode.
+        independent_destinations: The destination of a reused jar outside `lib/modules/<module>.jar`, keyed by the
+            module, and the destination of each native tree, keyed by `native-tree:<module>`.
         tags: Tags for every target of every chain. `manual` is added.
         visibility: The visibility of every component. Public by default, because the product's dist is in another
             package. The other targets of a chain keep the package default.
@@ -1098,6 +1214,7 @@ def dev_dist_complex_plugin(
         if chain_descriptor in chain_resources:
             fail("%s states its descriptor %s in resource_inputs; the macro adds that entry" % (main_module, chain_descriptor))
         chain_resources[chain_descriptor] = descriptor_id
+        values = platform_values[platform] if platform_values else {}
         dev_dist_complex_plugin_variant(
             name = chain_stem + ("_" + platform if platform else ""),
             projection = projection,
@@ -1106,7 +1223,7 @@ def dev_dist_complex_plugin(
             plugin_directory = dev_dist_plugin_directory(main_module, directory_name),
             component_name = main_module,
             target_platform = platform,
-            platform_values = platform_values[platform] if platform_values else {},
+            platform_values = values,
             source_tree_targets = _dict_for_platform(source_tree_targets, platform, "source_tree_targets"),
             source_tree_prefixes = _dict_for_platform(source_tree_prefixes, platform, "source_tree_prefixes"),
             optional_source_trees = optional_source_trees,
@@ -1114,6 +1231,10 @@ def dev_dist_complex_plugin(
             resource_inputs = chain_resources,
             libraries = _dict_for_platform(libraries, platform, "libraries"),
             independent_artifacts = [_for_platform(label, platform) for label in independent_artifacts],
+            remainder_files = {_resolve_slot(main_module, key, values): modules for key, modules in remainder_files.items()},
+            remainder_trees = [_resolve_slot(main_module, destination, values) for destination in remainder_trees],
+            remainder_executables = [_resolve_slot(main_module, destination, values) for destination in remainder_executables],
+            independent_destinations = {key: _resolve_slot(main_module, value, values) for key, value in independent_destinations.items()},
             tags = tags,
             visibility = visibility,
         )
@@ -1134,6 +1255,10 @@ def dev_dist_complex_plugin_variant(
         resource_inputs = {},
         libraries = {},
         independent_artifacts = [],
+        remainder_files = {},
+        remainder_trees = [],
+        remainder_executables = [],
+        independent_destinations = {},
         tags = [],
         visibility = ["//visibility:public"]):
     """Declares the execution chain of one complex plugin variant, every argument stated.
@@ -1165,6 +1290,11 @@ def dev_dist_complex_plugin_variant(
         libraries: Library container targets mapped to stable library IDs.
         independent_artifacts: The `content_module_jar` targets whose jar the plugin reuses. Both rules read the jar
             and the module name from `ContentModuleJarInfo`; the module name is the artifact ID of the reused jar.
+        remainder_files: Each file asset that the packer writes, keyed by its destination, with the modules of the asset.
+        remainder_trees: The destination of each tree asset that the packer writes.
+        remainder_executables: The destinations of `remainder_files` with the executable mode.
+        independent_destinations: The destination of a reused jar outside `lib/modules/<module>.jar`, keyed by the
+            module, and the destination of each native tree, keyed by `native-tree:<module>`.
         tags: Tags for every target of the chain. `manual` is added.
         visibility: The visibility of `<name>_component`. The graph, the catalogue and the remainder keep the package
             default.
@@ -1198,6 +1328,9 @@ def dev_dist_complex_plugin_variant(
         artifact_catalogue = ":" + catalogue,
         descriptor = descriptor,
         plugin_directory = plugin_directory,
+        remainder_files = remainder_files,
+        remainder_trees = remainder_trees,
+        remainder_executables = remainder_executables,
         independent_artifacts = independent_artifacts,
         tags = tags,
     )
@@ -1205,6 +1338,7 @@ def dev_dist_complex_plugin_variant(
         name = name + "_component",
         remainder = ":" + remainder,
         independent_artifacts = independent_artifacts,
+        independent_destinations = independent_destinations,
         plugin_directory = plugin_directory,
         component_name = component_name,
         target_platform = target_platform,

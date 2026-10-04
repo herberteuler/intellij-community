@@ -88,8 +88,8 @@ fn remove_stage(root: &Path, directories: &[PathBuf]) {
 impl Execution {
     /// Creates one plugin directory and a separate inventory. It reads no independent asset.
     ///
-    /// The directory must be absent or empty, and the inventory must not exist. A failed write leaves no partial payload
-    /// and no inventory. Exclusive reservations reject file system aliases before any operation writes content.
+    /// The directory must be absent or hold only directories, and the inventory must not exist. A failed write leaves no
+    /// partial payload and no inventory. Exclusive reservations reject file system aliases before any operation writes content.
     pub fn write(&self, output_directory: &Path, inventory_file: &Path) -> Result<()> {
         let (output, inventory) = self.output_paths(output_directory, inventory_file)?;
         let mut scratch = LayoutScratch::new(&self.recipe, &output)?;
@@ -182,10 +182,7 @@ impl Execution {
         fscopy::set_mode(&metadata, 0o644)?;
         scratch.remove()?;
         check_empty_directory(&output)?;
-        match fs::remove_dir(&output) {
-            Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error).with_context(|| output.display().to_string()),
-            _ => {}
-        }
+        remove_empty_directories(&output)?;
         stage.publish(&output)?;
         // `fs::rename` gives a long path the `\\?\` prefix. `TempPath::persist` does not, so it fails past `MAX_PATH`.
         if let Err(error) = fs::rename(&metadata, &inventory) {
@@ -666,7 +663,8 @@ fn check_output_namespace(output: &Path, inventory: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Accepts an absent path or an empty real directory. A link to a directory is not a real directory.
+/// Accepts an absent path, or a real directory that holds only real directories. Bazel creates the parent of each
+/// declared output and each declared tree before the action runs. A link to a directory is not a real directory.
 fn check_empty_directory(directory: &Path) -> Result<()> {
     let directory = paths::clean_host(directory);
     let metadata = match fs::symlink_metadata(&directory) {
@@ -677,14 +675,32 @@ fn check_empty_directory(directory: &Path) -> Result<()> {
     if !metadata.is_dir() {
         bail!("output is not a real directory: {}", directory.display());
     }
-    if fs::read_dir(&directory)
-        .with_context(|| directory.display().to_string())?
-        .next()
-        .is_some()
-    {
-        bail!("output directory is not empty: {}", directory.display());
+    check_only_directories(&directory)
+}
+
+fn check_only_directories(directory: &Path) -> Result<()> {
+    for entry in fs::read_dir(directory).with_context(|| directory.display().to_string())? {
+        let entry = entry.with_context(|| directory.display().to_string())?;
+        let path = entry.path();
+        if !entry.file_type().with_context(|| path.display().to_string())?.is_dir() {
+            bail!("output directory is not empty: {}", path.display());
+        }
+        check_only_directories(&path)?;
     }
     Ok(())
+}
+
+/// Removes an absent path or a directory that holds only directories, the deepest first.
+fn remove_empty_directories(directory: &Path) -> Result<()> {
+    let entries = match fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error).with_context(|| directory.display().to_string()),
+    };
+    for entry in entries {
+        remove_empty_directories(&entry.with_context(|| directory.display().to_string())?.path())?;
+    }
+    fs::remove_dir(directory).with_context(|| directory.display().to_string())
 }
 
 #[cfg(test)]

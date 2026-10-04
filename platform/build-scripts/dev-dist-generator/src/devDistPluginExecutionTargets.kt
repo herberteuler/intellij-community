@@ -3,6 +3,9 @@
 package com.intellij.platform.buildScripts.devDistGenerator
 
 import org.jetbrains.intellij.build.dev.devBuildPathIdentity
+import org.jetbrains.intellij.build.devDist.NATIVE_TREE_INPUT_PREFIX
+import org.jetbrains.intellij.build.devDist.PluginPackingPlan
+import org.jetbrains.intellij.build.devDist.isNativeTreeAsset
 import org.jetbrains.intellij.build.devDist.pluginPackingExecutionVersion
 import org.jetbrains.intellij.build.impl.SUPPORTED_DISTRIBUTIONS
 
@@ -224,6 +227,8 @@ internal fun renderDevDistPluginExecutionTargets(
     "The descriptor of ${configuration.name} has the catalogue ID ${descriptorInput.id}"
   }
   val directoryName = if (originalDirectoryName == derivedPluginDirectoryName(entry.mainModule)) "" else originalDirectoryName
+  val outputs = devDistRemainderOutputs(selected, files.assetDestinations(key, record))
+  require(plan.projection.preparationRoots.isEmpty()) { "The plan of ${configuration.name} states a preparation root, which has no destination" }
   // The macro reads the jar of each reused artifact from its owner label, so the owner labels are stated once. A source tree is keyed by its artifact ID, so one target can serve two IDs with different prefixes.
   // A call in a community package names a label as a community package spells it. An ID keeps its spelling, because
   // the plan file keeps it. A chain that reads a plan file of a community package spells a label-shaped ID as that
@@ -257,11 +262,67 @@ internal fun renderDevDistPluginExecutionTargets(
     ),
     "libraries" to executionDictionary(requiredLibraries.map { label(it) to executionQuote(id(it)) }),
     "independent_artifacts" to executionStrings(independent.keys.map(label)),
+    "remainder_files" to executionDictionary(outputs.files.map { (destination, modules) -> destination to executionStrings(modules, indent = 8) }),
+    "remainder_trees" to executionStrings(outputs.trees),
+    "remainder_executables" to executionStrings(outputs.executables),
+    "independent_destinations" to executionDictionary(outputs.independentDestinations.map { (key, destination) -> key to executionQuote(destination) }),
   )
   return DevDistPluginExecutionVariant(platform, arguments, "${configuration.packageLabel}:${names.getValue("component")}", platformValues, folded)
 }
 
 private const val PLATFORM_TOKEN = "{platform}"
+
+/**
+ * The outputs of one remainder, in plan order. [files] maps the destination of each file asset that the packer writes to
+ * the modules of the asset. [trees] holds the destination of each tree asset that it writes. [executables] holds the
+ * files with the executable mode. [independentDestinations] maps a reused module to the destination of its jar outside
+ * `lib/modules/<module>.jar`, and `native-tree:<module>` to the destination of each native tree.
+ */
+internal class DevDistRemainderOutputs(
+  @JvmField val files: List<Pair<String, List<String>>>,
+  @JvmField val trees: List<String>,
+  @JvmField val executables: List<String>,
+  @JvmField val independentDestinations: List<Pair<String, String>>,
+)
+
+/**
+ * The outputs of [plan], so the remainder declares each one at analysis. [destinations] holds the destination of each
+ * asset as the plan file states it, so a `{platform:<name>}` slot stays a slot. A link asset and a directory asset are
+ * refused, because the packer writes neither.
+ */
+internal fun devDistRemainderOutputs(plan: PluginPackingPlan, destinations: List<String>): DevDistRemainderOutputs {
+  require(destinations.size == plan.assets.size) { "Plugin '${plan.plugin}' states ${destinations.size} destinations for ${plan.assets.size} assets" }
+  val files = ArrayList<Pair<String, List<String>>>()
+  val trees = ArrayList<String>()
+  val executables = ArrayList<String>()
+  val independent = ArrayList<Pair<String, String>>()
+  for ((index, planned) in plan.assets.withIndex()) {
+    val asset = planned.asset
+    val destination = destinations.get(index)
+    require(asset.symlinkTarget == null && asset.kind in setOf("file", "tree")) {
+      "Plugin '${plan.plugin}' has the ${asset.kind} asset '${asset.destination}', and the packer writes only files and trees"
+    }
+    val owner = planned.artifact
+    if (owner != null) {
+      if (isNativeTreeAsset(asset)) {
+        independent.add("$NATIVE_TREE_INPUT_PREFIX${owner.module}" to destination)
+      }
+      else if (destination != "lib/modules/${owner.module}.jar") {
+        independent.add(owner.module to destination)
+      }
+      continue
+    }
+    if (asset.kind == "tree") {
+      trees.add(destination)
+      continue
+    }
+    files.add(destination to asset.recipe?.sources.orEmpty().filter { it.kind == "module" }.map { it.input }.distinct())
+    if ((asset.mode and 0b001_001_001) != 0) {
+      executables.add(destination)
+    }
+  }
+  return DevDistRemainderOutputs(files = files, trees = trees, executables = executables, independentDestinations = independent)
+}
 
 /**
  * Whether a community package can name [label] in its community spelling: a label of `@community`, of `@lib`, or of a

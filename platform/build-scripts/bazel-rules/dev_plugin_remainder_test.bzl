@@ -8,7 +8,7 @@ load(":dev_dist_content.bzl", "DevDistContentInfo")
 load(":dev_dist_plugin_descriptor.bzl", "DevDistPluginDescriptorInfo", "DevDistProductInfo", "dev_dist_plugin_descriptor", "dev_dist_plugin_descriptor_target_name", "dev_dist_product_info", "dev_dist_product_info_transition")
 load(":dev_plugin.bzl", "DevDistRuntimeLayoutInfo")
 load(":dev_plugin_remainder.bzl", "DevPluginArtifactCatalogueInfo", "DevPluginGraphInfo", "DevPluginRemainderInfo", "dev_dist_complex_plugin", "dev_dist_complex_plugin_variant", "dev_plugin_artifact_catalogue", "dev_plugin_component", "dev_plugin_file_graph", "dev_plugin_remainder_from_plan", "platform_values_error")
-load(":intellij_dev_dist.bzl", "IntellijDevFragmentInfo")
+load(":intellij_dev_dist.bzl", "DevDistPlacementInfo", "IntellijDevFragmentInfo")
 
 # The application info of the fixture product, an EAP product without a release date.
 _FIXTURE_APPLICATION_INFO = Label("//platform/build-scripts/bazel-rules:testdata/ApplicationInfo.xml")
@@ -312,6 +312,14 @@ _expected_failure_test = analysistest.make(
     attrs = {"expected_message": attr.string(mandatory = True)},
 )
 
+# The same check for a target that reads the product, such as a remainder.
+_expected_product_failure_test = analysistest.make(
+    _expected_failure_test_impl,
+    expect_failure = True,
+    config_settings = _PRODUCT_CONFIG,
+    attrs = {"expected_message": attr.string(mandatory = True)},
+)
+
 def _component_test_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
@@ -321,7 +329,12 @@ def _component_test_impl(ctx):
     asserts.equals(env, 1, len(actions))
     action = actions[0]
     asserts.equals(env, ctx.attr.kind, fragment.name)
-    asserts.equals(env, _short_paths([remainder.directory]), _short_paths(fragment.payload.to_list()))
+    asserts.equals(env, _short_paths(remainder.outputs.values()), _short_paths(fragment.payload.to_list()))
+
+    # A remainder without a reused jar places each of its outputs at its own destination.
+    placement = target[DevDistPlacementInfo]
+    asserts.equals(env, {"plugins/test/" + key: value.short_path for key, value in remainder.outputs.items()}, {key: value.short_path for key, value in placement.files.items()})
+    asserts.equals(env, {}, placement.trees)
     for input_file in [remainder.metadata, remainder.assets, remainder.classpath]:
         asserts.true(env, input_file.short_path in _short_paths(action.inputs.to_list()))
     asserts.true(env, "--kind=" + ctx.attr.kind in action.argv)
@@ -433,7 +446,10 @@ def _remainder_from_plan_test_impl(ctx):
     action = actions[0]
     asserts.equals(env, ctx.attr.graph[0].label, remainder.graph.label)
     asserts.equals(env, graph.execution_version, remainder.execution_version)
-    asserts.true(env, remainder.directory.is_directory)
+    asserts.equals(env, ["lib/test.jar"], remainder.outputs.keys())
+    asserts.false(env, remainder.outputs["lib/test.jar"].is_directory)
+    asserts.equals(env, remainder.metadata.dirname + "/" + target.label.name + ".plugin", remainder.root)
+    asserts.equals(env, remainder.root + "/lib/test.jar", remainder.outputs["lib/test.jar"].path)
     asserts.equals(env, [], remainder.independent_artifacts.to_list())
     packer = action.argv[0]
     asserts.true(env, packer.split("/")[-1].startswith("plugin-remainder-packer"))
@@ -443,19 +459,19 @@ def _remainder_from_plan_test_impl(ctx):
     inputs = [file for file in action.inputs.to_list() if not file.path.startswith(packer)]
     asserts.equals(env, sorted(_short_paths(expected_inputs)), sorted(_short_paths(inputs)))
     input_by_short_path = {file.short_path: file for file in inputs}
-    asserts.equals(env, [remainder.directory, remainder.metadata, remainder.assets, remainder.classpath], action.outputs.to_list())
+    asserts.equals(env, remainder.outputs.values() + [remainder.metadata, remainder.assets, remainder.classpath], action.outputs.to_list())
     asserts.equals(env, [
         "--projection=" + input_by_short_path[graph.projection.short_path].path,
         "--input-catalogue=" + input_by_short_path[catalogue.catalogue.short_path].path,
         "--classpath-descriptor=" + input_by_short_path[classpath_descriptor.short_path].path,
         "--plugin-directory=plugins/test",
         "--execution-version=%d" % graph.execution_version,
-        "--output-dir=" + remainder.directory.path,
+        "--output-dir=" + remainder.root,
         "--inventory=" + remainder.metadata.path,
         "--assets=" + remainder.assets.path,
         "--classpath=" + remainder.classpath.path,
     ], action.argv[1:])
-    asserts.equals(env, [remainder.directory], target[DefaultInfo].files.to_list())
+    asserts.equals(env, remainder.outputs.values(), target[DefaultInfo].files.to_list())
 
     # The layout part comes from the same plan file and catalogue, in an action of its own that reads no packed byte.
     layout = target[DevDistRuntimeLayoutInfo]
@@ -477,7 +493,7 @@ def _remainder_from_plan_test_impl(ctx):
     ], layout_action.argv[1:])
 
     groups = target[OutputGroupInfo]
-    asserts.equals(env, [remainder.directory], groups.dev_dist_plugin_remainder.to_list())
+    asserts.equals(env, remainder.outputs.values(), groups.dev_dist_plugin_remainder.to_list())
     asserts.equals(env, [remainder.metadata], groups.file_metadata.to_list())
     asserts.equals(env, [remainder.assets], groups.dev_dist_plugin_assets.to_list())
     asserts.equals(env, [remainder.classpath], groups.dev_dist_plugin_classpath.to_list())
@@ -615,8 +631,19 @@ def _reused_component_test_impl(ctx):
     # jar reaches the payload beside the remainder.
     payload = fragment.payload.to_list()
     asserts.equals(env, 2, len(payload))
-    asserts.true(env, remainder.directory.short_path in _short_paths(payload))
+    asserts.true(env, remainder.outputs["lib/test.jar"].short_path in _short_paths(payload))
     asserts.true(env, content.jar.short_path in [file.short_path for file in payload])
+
+    # The reused jar is placed at `lib/modules/<module>.jar` beside the remainder output, so no file is cloned.
+    placement = target[DevDistPlacementInfo]
+    asserts.equals(
+        env,
+        {
+            "plugins/test/lib/test.jar": remainder.outputs["lib/test.jar"].short_path,
+            "plugins/test/lib/modules/%s.jar" % content.module_name: content.jar.short_path,
+        },
+        {key: value.short_path for key, value in placement.files.items()},
+    )
     asserts.equals(env, [content.jar.short_path], [file.short_path for file in remainder.independent_artifacts.to_list()])
 
     # The module name is the key of the reused jar: the component writes it as the artifact of the collection row.
@@ -664,6 +691,56 @@ _reused_remainder_test = analysistest.make(
     _reused_remainder_test_impl,
     config_settings = _PRODUCT_CONFIG,
     attrs = {"content_jar": attr.label(mandatory = True, providers = [ContentModuleJarInfo])},
+)
+
+def _remainder_outputs_test_impl(ctx):
+    """The remainder declares one file per file asset and one directory per outermost tree asset, below its root."""
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    remainder = target[DevPluginRemainderInfo]
+    asserts.equals(env, sorted(ctx.attr.files), sorted([key for key, file in remainder.outputs.items() if not file.is_directory]))
+    asserts.equals(env, sorted(ctx.attr.trees), sorted([key for key, file in remainder.outputs.items() if file.is_directory]))
+    asserts.equals(env, ctx.attr.executables, remainder.executables)
+    for key, file in remainder.outputs.items():
+        asserts.equals(env, remainder.root + ("/" + key if key else ""), file.path)
+    actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "PackDevPluginRemainder"]
+    asserts.equals(env, 1, len(actions))
+    asserts.equals(env, remainder.outputs.values() + [remainder.metadata, remainder.assets, remainder.classpath], actions[0].outputs.to_list())
+    return analysistest.end(env)
+
+_REMAINDER_OUTPUTS_ATTRS = {
+    "files": attr.string_list(doc = "The file destinations the remainder declares."),
+    "trees": attr.string_list(doc = "The tree destinations the remainder declares."),
+    "executables": attr.string_list(doc = "The declared files with the executable bit."),
+}
+
+_remainder_outputs_test = analysistest.make(_remainder_outputs_test_impl, config_settings = _PRODUCT_CONFIG, attrs = _REMAINDER_OUTPUTS_ATTRS)
+
+# The product of the refusal case: its mode is `frontend`, so a descriptor that refuses a module for that mode omits it.
+_FRONTEND_PRODUCT_CONFIG = {str(Label("//build:dev_dist_product_info")): str(Label(_PACKAGE + ":" + _SUITE + "_frontend_product_info"))}
+
+_refused_remainder_outputs_test = analysistest.make(_remainder_outputs_test_impl, config_settings = _FRONTEND_PRODUCT_CONFIG, attrs = _REMAINDER_OUTPUTS_ATTRS)
+
+def _placement_test_impl(ctx):
+    """A component places the remainder outputs and the reused jars at their destinations, or states no placement."""
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    if not ctx.attr.placed:
+        asserts.false(env, DevDistPlacementInfo in target)
+        return analysistest.end(env)
+    placement = target[DevDistPlacementInfo]
+    asserts.equals(env, sorted(ctx.attr.files), sorted(placement.files.keys()))
+    asserts.equals(env, sorted(ctx.attr.trees), sorted(placement.trees.keys()))
+    return analysistest.end(env)
+
+_placement_test = analysistest.make(
+    _placement_test_impl,
+    config_settings = _PRODUCT_CONFIG,
+    attrs = {
+        "placed": attr.bool(default = True, doc = "Whether the component states a placement."),
+        "files": attr.string_list(doc = "The placed file destinations."),
+        "trees": attr.string_list(doc = "The placed tree destinations."),
+    },
 )
 
 def dev_plugin_remainder_test_suite(name):
@@ -923,6 +1000,7 @@ def dev_plugin_remainder_test_suite(name):
             artifact_catalogue = ":" + catalogue,
             descriptor = ":" + descriptor,
             plugin_directory = "plugins/test",
+            remainder_files = {"lib/test.jar": []},
             tags = ["manual"],
         )
         remainder_test = remainder + "_test"
@@ -939,6 +1017,106 @@ def dev_plugin_remainder_test_suite(name):
         )
 
     remainder = remainders["normal"]
+
+    # The declared outputs. A tree holds the assets below it, so only the outermost tree and the files outside a tree
+    # are outputs. A tree at the plugin root is the root itself. A file whose every module the mode refuses is omitted.
+    outputs_tests = []
+    frontend_product_info = name + "_frontend_product_info"
+    dev_dist_product_info(
+        name = frontend_product_info,
+        application_info = _FIXTURE_APPLICATION_INFO,
+        platform_prefix = "idea",
+        mode = "frontend",
+    )
+    refusing_main_module = "test.%s.refusing" % name
+    refusing_descriptor = dev_dist_plugin_descriptor_target_name(refusing_main_module)
+    dev_dist_plugin_descriptor(
+        main_module = refusing_main_module,
+        descriptor = ":" + descriptor_source,
+        mode_refused_content_modules = {"frontend": ["test.refused"]},
+    )
+    for suffix, test_rule, descriptor, arguments, expected in [
+        (
+            "nested",
+            _remainder_outputs_test,
+            normal_descriptor,
+            {
+                "remainder_files": {
+                    "lib/test.jar": ["test.kept"],
+                    "lib/server/server.jar": [],
+                    "lib/run.sh": [],
+                    "bin/tool": [],
+                    "bin/helpers/helper.py": [],
+                },
+                "remainder_trees": ["lib/server", "bin", "bin/helpers"],
+                "remainder_executables": ["lib/run.sh", "bin/tool"],
+            },
+            struct(files = ["lib/run.sh", "lib/test.jar"], trees = ["bin", "lib/server"], executables = ["lib/run.sh"]),
+        ),
+        (
+            "root_tree",
+            _remainder_outputs_test,
+            normal_descriptor,
+            {"remainder_files": {"lib/test.jar": []}, "remainder_trees": ["", "lib/native"]},
+            struct(files = [], trees = [""], executables = []),
+        ),
+        (
+            "refused",
+            _refused_remainder_outputs_test,
+            refusing_descriptor,
+            {"remainder_files": {
+                "lib/test.jar": [],
+                "lib/modules/test.refused.jar": ["test.refused"],
+                "lib/mixed.jar": ["test.refused", "test.kept"],
+            }},
+            struct(files = ["lib/mixed.jar", "lib/test.jar"], trees = [], executables = []),
+        ),
+    ]:
+        outputs_remainder = name + "_outputs_" + suffix + "_remainder"
+        dev_plugin_remainder_from_plan(
+            name = outputs_remainder,
+            graph = ":" + plan_graph,
+            artifact_catalogue = ":" + name + "_normal_catalogue",
+            descriptor = ":" + descriptor,
+            plugin_directory = "plugins/test",
+            tags = ["manual"],
+            **arguments
+        )
+        outputs_test = outputs_remainder + "_test"
+        test_rule(
+            name = outputs_test,
+            target_under_test = ":" + outputs_remainder,
+            files = expected.files,
+            trees = expected.trees,
+            executables = expected.executables,
+        )
+        outputs_tests.append(outputs_test)
+    for suffix, arguments in [
+        ("tree_and_file", {"remainder_files": {"lib": []}, "remainder_trees": ["lib"]}),
+        ("unsafe", {"remainder_files": {"../lib/test.jar": []}}),
+        ("executable_tree", {"remainder_trees": ["bin"], "remainder_executables": ["bin"]}),
+    ]:
+        refused_remainder = name + "_outputs_" + suffix + "_remainder"
+        dev_plugin_remainder_from_plan(
+            name = refused_remainder,
+            graph = ":" + plan_graph,
+            artifact_catalogue = ":" + name + "_normal_catalogue",
+            descriptor = ":" + normal_descriptor,
+            plugin_directory = "plugins/test",
+            tags = ["manual"],
+            **arguments
+        )
+        refused_test = refused_remainder + "_test"
+        _expected_product_failure_test(
+            name = refused_test,
+            target_under_test = ":" + refused_remainder,
+            expected_message = {
+                "tree_and_file": "is a file asset and a tree asset",
+                "unsafe": "is no safe destination",
+                "executable_tree": "is no file asset",
+            }[suffix],
+        )
+        outputs_tests.append(refused_test)
 
     component = name + "_component"
     dev_plugin_component(
@@ -992,6 +1170,7 @@ def dev_plugin_remainder_test_suite(name):
             ":" + raw: "raw",
         },
         independent_artifacts = [":" + content_jar],
+        remainder_files = {"lib/test.jar": []},
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
@@ -1019,6 +1198,45 @@ def dev_plugin_remainder_test_suite(name):
         content_jar = ":" + content_jar,
     )
 
+    # A reused jar outside `lib/modules/<module>.jar` states its destination. A reused jar below a remainder tree has
+    # no placement, because a runfiles tree cannot write below a linked directory.
+    placement_tests = []
+    member_module = "test.%s.member" % name
+    for suffix, arguments, expected in [
+        (
+            "moved",
+            {"remainder_trees": ["lib/native"], "independent_destinations": {member_module: "lib/member.jar"}},
+            struct(placed = True, files = ["plugins/test/lib/member.jar"], trees = ["plugins/test/lib/native"]),
+        ),
+        ("below_tree", {"remainder_trees": ["lib"]}, struct(placed = False, files = [], trees = [])),
+    ]:
+        placement_chain = complex + "_" + suffix
+        dev_dist_complex_plugin_variant(
+            name = placement_chain,
+            projection = ":" + projection,
+            execution_version = 2,
+            descriptor = ":" + normal_descriptor,
+            plugin_directory = "plugins/test",
+            component_name = "plugin-test",
+            target_platform = "linux_x64",
+            resource_inputs = {
+                ":" + normal_descriptor: "descriptor",
+                ":" + raw: "raw",
+            },
+            independent_artifacts = [":" + content_jar],
+            tags = ["manual"],
+            **arguments
+        )
+        placement_test = placement_chain + "_placement_test"
+        _placement_test(
+            name = placement_test,
+            target_under_test = ":" + placement_chain + "_component",
+            placed = expected.placed,
+            files = expected.files,
+            trees = expected.trees,
+        )
+        placement_tests.append(placement_test)
+
     # A chain over a plan file with a layout-assets operation. The packer executes the operation in the remainder
     # action. The same action writes the asset table and the classpath record the component reads.
     plan_chain = name + "_plan_chain"
@@ -1034,6 +1252,7 @@ def dev_plugin_remainder_test_suite(name):
             ":" + normal_descriptor: "descriptor",
             ":" + raw: "raw",
         },
+        remainder_files = {"lib/test.jar": []},
         tags = ["manual"],
     )
     _check_chain_shape(plan_chain)
@@ -1350,7 +1569,7 @@ def dev_plugin_remainder_test_suite(name):
         ] + optional_source_tree_tests + [
             library_catalogue_test,
             unsafe_source_tree_graph_test,
-        ] + remainder_tests + [
+        ] + remainder_tests + outputs_tests + placement_tests + [
             component_test,
             neutral_component_test,
             complex_graph_test,

@@ -20,6 +20,9 @@ dev_dist_complex_plugin(
         "darwin_x64",
         "darwin_aarch64",
     ],
+    remainder_files = {
+        "lib/laf-macos.jar": ["intellij.laf.macos"],
+    },
 )
 ### auto-generated section `dev intellij.laf.macos` end
 

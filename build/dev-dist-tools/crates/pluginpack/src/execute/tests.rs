@@ -1052,3 +1052,26 @@ fn default_field_recipe_plans_and_writes() {
     let written = write_execution(&recipe, &catalogue(Vec::new()));
     assert_eq!(written.inventory.len(), 1);
 }
+
+/// Bazel creates the parent of each declared output and each declared tree before the action runs. The packer writes
+/// over these empty directories, and it refuses a file that a former run left there.
+#[test]
+fn write_accepts_the_parents_of_declared_outputs_and_refuses_a_stale_file() {
+    let root = temp();
+    let source = root.path().join("source");
+    write_file(source.join("bin/tool"), b"executable");
+    let (recipe, catalogue) = tree_plan(&source);
+    let execution = plan(&recipe, &catalogue).unwrap();
+
+    let output = root.path().join("plugin");
+    fs::create_dir_all(output.join("kotlinc")).unwrap();
+    fs::create_dir_all(output.join("lib/modules")).unwrap();
+    execution.write(&output, &root.path().join("metadata.json")).unwrap();
+    assert!(exists(&output.join("kotlinc/bin/tool")));
+    assert!(!exists(&output.join("lib")), "a directory that Bazel created stays after the write");
+
+    let stale = root.path().join("stale");
+    write_file(stale.join("lib/modules/old.jar"), b"stale");
+    let error = execution.write(&stale, &root.path().join("stale-metadata.json")).unwrap_err();
+    assert!(format!("{error:#}").contains("output directory is not empty"), "{error:#}");
+}

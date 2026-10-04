@@ -476,7 +476,6 @@ def _dev_plugin_impl(ctx):
     placement = DevDistPlacementInfo(
         files = placed_files,
         trees = placed_trees,
-        homes = {},
         executables = [plugin_directory + "/" + copy.destination for copy in copies if copy.executable],
     )
     return [

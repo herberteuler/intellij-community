@@ -8,8 +8,6 @@
 //! `--core-classpath-file` and `--plugin-classpath-file`, which get a copy of the two metadata files of the output.
 //! Every failure exits with 1.
 //!
-//! The command `component-home` writes the directory of one plugin component, see [`home`].
-//!
 //! The composer owns the composition of the component contract. [`spec`] reads the composition spec and the source
 //! bindings. [`compose`] checks the components and their destinations, then [`merge`] copies the files of a full
 //! distribution, and [`local_layout`] writes the layout of launch metadata. [`plugin_classpath`] joins the plugin
@@ -29,7 +27,6 @@ use crate::compose::{ComposeOptions, DevBuildComponent};
 
 mod compose;
 mod fingerprint;
-mod home;
 mod ide_config;
 mod local_layout;
 mod merge;
@@ -46,31 +43,7 @@ mod tests;
 const JOB_NAME: &str = "compose dev distribution";
 
 fn main() -> ExitCode {
-    let mut args = std::env::args_os().skip(1).peekable();
-    if args.peek().is_some_and(|arg| arg == "component-home") {
-        args.next();
-        return ExitCode::from(run_component_home(args, &mut io::stderr()));
-    }
-    ExitCode::from(run(args, &mut io::stderr()))
-}
-
-/// `component-home --component-manifest=<file> --plugin-directory=plugins/<name> --output-dir=<directory>`. It returns
-/// 0 on success and 1 for every failure.
-fn run_component_home(args: impl IntoIterator<Item = OsString>, errors: &mut dyn Write) -> u8 {
-    let result = (|| -> Result<()> {
-        let mut options = cli::parse(args)?;
-        let manifest = required_path(&mut options, "--component-manifest")?;
-        let plugin_directory = options.require("--plugin-directory")?;
-        let output_dir = required_path(&mut options, "--output-dir")?;
-        options.finish()?;
-        let manifest = manifest::read_component_manifest(&manifest)?;
-        remove_output(&output_dir)?;
-        home::write_component_home(&manifest, &plugin_directory, &output_dir)
-    })();
-    match result {
-        Ok(()) => 0,
-        Err(error) => report(errors, &error),
-    }
+    ExitCode::from(run(std::env::args_os().skip(1), &mut io::stderr()))
 }
 
 /// Runs the tool. It returns 0 when the composition succeeds and 1 for every failure.

@@ -20,6 +20,9 @@ dev_dist_complex_plugin(
         "windows_x64",
         "windows_aarch64",
     ],
+    remainder_files = {
+        "lib/laf-win10.jar": ["intellij.laf.win10"],
+    },
 )
 ### auto-generated section `dev intellij.laf.win10` end
 

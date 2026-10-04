@@ -48,6 +48,9 @@ dev_dist_complex_plugin(
         "//platform/vcs-impl/frontend:frontend_content_module_jar",
         "//libraries/sqlite-native:sqlite-native_content_module_jar",
     ],
+    independent_destinations = {
+        "native-tree:intellij.libraries.sqlite.native": "lib/native",
+    },
     main_module = "intellij.platform.vcs.plugin",
     platforms = [
         "windows_x64",
@@ -57,6 +60,9 @@ dev_dist_complex_plugin(
         "linux_x64",
         "linux_aarch64",
     ],
+    remainder_files = {
+        "lib/platform-vcs-plugin.jar": ["intellij.platform.vcs.plugin"],
+    },
 )
 ### auto-generated section `dev intellij.platform.vcs.plugin` end
 

@@ -275,11 +275,7 @@ class PyUnresolvedReferencesVisitor(
     if (PyNames.DUNDER_AWAIT != prefixExpression.operator.specialMethodName) return false
     val callExpression = getReferenceQualifierOrImportSource(reference) as? PyCallExpression ?: return false
     val callees = callExpression.multiResolveCalleeFunction(PyResolveContext.defaultContext(myTypeEvalContext))
-    if (callees.isEmpty()) return false
-    for (callee in callees) {
-      if (callee is PyFunction && callee.isAsync) return false
-    }
-    return true // no signature is declared async -> warning
+    return callees.isNotEmpty() && callees.none { it is PyFunction && it.isAsync } // no signature is declared async -> warning
   }
 
   private fun registerUnresolvedReferenceProblem(node: PyElement, reference: PsiReference, severity: HighlightSeverity) {

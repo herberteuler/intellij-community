@@ -309,13 +309,7 @@ class PyTypeAssertionEvaluator(private var myPositive: Boolean) : PyRecursiveEle
   companion object {
     private fun isSafeForNegativeAssertion(expression: PyExpression, context: TypeEvalContext): Boolean {
       val elements: MutableList<PyExpression> = expandClassInfoExpressions(expression)
-      if (elements.isEmpty()) return false
-      for (element in elements) {
-        if (!isSafeClassInfoReference(element, context)) {
-          return false
-        }
-      }
-      return true
+      return elements.isNotEmpty() && elements.all { isSafeClassInfoReference(it, context) }
     }
 
     @ApiStatus.Internal

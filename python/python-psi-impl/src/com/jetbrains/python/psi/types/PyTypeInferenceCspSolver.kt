@@ -1651,21 +1651,11 @@ private object TypeBoundResolver {
   }
 
   private fun isSubtypeOfAll(context: TypeEvalContext, left: PyType?, vararg rights: PyType?): Boolean {
-    for (right in rights) {
-      if (!isSubtype(left, right, context)) {
-        return false
-      }
-    }
-    return true
+    return rights.all { right -> isSubtype(left, right, context) }
   }
 
   private fun isSupertypeOfAll(context: TypeEvalContext, left: PyType?, vararg rights: PyType?): Boolean {
-    for (right in rights) {
-      if (!isSubtype(right, left, context)) {
-        return false
-      }
-    }
-    return true
+    return rights.all { right -> isSubtype(right, left, context) }
   }
 
   /** Returns null iff there is no common supertype */

@@ -7,7 +7,7 @@ import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.disposableFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
-import com.intellij.testFramework.registerOrReplaceServiceInstance
+import com.intellij.testFramework.replaceService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -86,10 +86,10 @@ class GitLabProjectViewModelTest {
       }
     }
 
-    project.registerOrReplaceServiceInstance(GitLabProjectsManager::class.java, projectsManager, disposable)
-    project.registerOrReplaceServiceInstance(GitLabProjectConnectionManager::class.java, connectionManager, disposable)
-    project.registerOrReplaceServiceInstance(GitLabConnectedProjectViewModelFactory::class.java, connectedProjectVmFactory, disposable)
-    ApplicationManager.getApplication().registerOrReplaceServiceInstance(GitLabAccountManager::class.java, accountManager, disposable)
+    project.replaceService(GitLabProjectsManager::class.java, projectsManager, disposable)
+    project.replaceService(GitLabProjectConnectionManager::class.java, connectionManager, disposable)
+    project.replaceService(GitLabConnectedProjectViewModelFactory::class.java, connectedProjectVmFactory, disposable)
+    ApplicationManager.getApplication().replaceService(GitLabAccountManager::class.java, accountManager, disposable)
   }
 
   @AfterEach

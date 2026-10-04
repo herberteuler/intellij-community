@@ -94,7 +94,7 @@ import com.jetbrains.python.psi.PyStringLiteralExpression
 import com.jetbrains.python.psi.PyTypedElement
 import com.jetbrains.python.psi.PyUtil
 import com.jetbrains.python.psi.impl.IntentionalUnstubbing
-import com.jetbrains.python.psi.impl.PyBuiltinCache.Companion.getInstance
+import com.jetbrains.python.psi.impl.PyBuiltinCache
 import com.jetbrains.python.psi.types.PyAnyType
 import com.jetbrains.python.psi.types.PyExpectedTypeJudgement.getExpectedType
 import com.jetbrains.python.psi.types.PyExpectedVarianceJudgment.getExpectedVariance
@@ -826,7 +826,7 @@ abstract class PyCodeInsightTestCase {
 
   /** Asserts whether a given element is a builtin or not. */
   private fun assertIsBuiltin(element: PsiElement): String {
-    val isBuiltin = getInstance(element).isBuiltin(element)
+    val isBuiltin = PyBuiltinCache.getInstance(element).isBuiltin(element)
     return if (isBuiltin) "" else "FALSE"
   }
 

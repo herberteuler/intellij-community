@@ -70,7 +70,7 @@ import com.jetbrains.python.psi.PyUtil.isInitMethod
 import com.jetbrains.python.psi.PyUtil.peelArgument
 import com.jetbrains.python.psi.PyWithStatement
 import com.jetbrains.python.psi.PyYieldExpression
-import com.jetbrains.python.psi.impl.PyBuiltinCache.Companion.getInstance
+import com.jetbrains.python.psi.impl.PyBuiltinCache
 import com.jetbrains.python.psi.impl.PyCallExpressionHelper
 import com.jetbrains.python.psi.impl.PyCallExpressionHelper.analyzeArguments
 import com.jetbrains.python.psi.impl.PyCallExpressionHelper.mapArguments
@@ -332,7 +332,9 @@ open class PyTypeCheckerInspection : PyInspection() {
             }
           }
 
-          val actual = if (returnExpr == null) getInstance(node).noneType ?: PyAnyType.unknown else returnExpr.getType(myTypeEvalContext)
+          val actual =
+            if (returnExpr == null) PyBuiltinCache.getInstance(node).noneType ?: PyAnyType.unknown
+            else returnExpr.getType(myTypeEvalContext)
           if (!matchesExpectedType(expected, actual, returnExpr, null)) {
             if (returnExpr != null) {
               val actualViaPromotion = tryPromotingType(returnExpr, expected)
@@ -520,7 +522,7 @@ open class PyTypeCheckerInspection : PyInspection() {
               val rhsType = myTypeEvalContext.getType(rhs)
               if (rhsType is PyClassType && rhsType.isParameterized) {
                 val elementType = upcastLiteralToClass(rhsType.iteratedItemType)
-                val listClass = getInstance(node).getClass("list")
+                val listClass = PyBuiltinCache.getInstance(node).getClass("list")
                 if (listClass != null) {
                   val actualType = PyCollectionTypeImpl(listClass, false, listOf(elementType))
                   val annotatedType = myTypeEvalContext.getType(innerExpr)
@@ -874,7 +876,7 @@ open class PyTypeCheckerInspection : PyInspection() {
       if (hasExplicitType(node)) {
         val annotation = node.annotation
         val expected: PyType? = getExpectedReturnStatementType(node, myTypeEvalContext)
-        val noneType: PyType? = getInstance(node).noneType ?: PyAnyType.unknown
+        val noneType: PyType? = PyBuiltinCache.getInstance(node).noneType ?: PyAnyType.unknown
         val returnsNone = expected.isNoneType
         val returnsOptional = match(expected, noneType, myTypeEvalContext)
 

@@ -35,7 +35,7 @@ import com.jetbrains.python.psi.PySetLiteralExpression
 import com.jetbrains.python.psi.PyTargetExpression
 import com.jetbrains.python.psi.PyTupleExpression
 import com.jetbrains.python.psi.PyUtil
-import com.jetbrains.python.psi.impl.PyBuiltinCache.Companion.getInstance
+import com.jetbrains.python.psi.impl.PyBuiltinCache
 import com.jetbrains.python.psi.impl.PyEvaluator
 import com.jetbrains.python.psi.impl.PyPsiUtils
 import com.jetbrains.python.psi.resolve.PyResolveContext
@@ -107,7 +107,7 @@ class PyTypeAssertionEvaluator(private var myPositive: Boolean) : PyRecursiveEle
       // TODO: we can actually check if the class defines __bool__ or __len__, and use it to exclude the type
       // we could not suggest `None` because it could be a reference to an empty collection
       // so we could push only non-`None` assertions
-      pushAssertion(node, !myPositive) { getInstance(node).noneType }
+      pushAssertion(node, !myPositive) { PyBuiltinCache.getInstance(node).noneType }
     }
   }
 
@@ -151,12 +151,12 @@ class PyTypeAssertionEvaluator(private var myPositive: Boolean) : PyRecursiveEle
     }
 
     if (isNone(lhs)) {
-      pushAssertion(rhs, myPositive) { getInstance(rhs).noneType }
+      pushAssertion(rhs, myPositive) { PyBuiltinCache.getInstance(rhs).noneType }
       return
     }
 
     if (isNone(rhs)) {
-      pushAssertion(lhs, myPositive) { getInstance(lhs).noneType }
+      pushAssertion(lhs, myPositive) { PyBuiltinCache.getInstance(lhs).noneType }
       return
     }
 
@@ -209,7 +209,7 @@ class PyTypeAssertionEvaluator(private var myPositive: Boolean) : PyRecursiveEle
       pushAssertion(lhs, myPositive) { context ->
         val elements = rhs.elements
         val types: MutableList<PyType?> = ArrayList(elements.size)
-        val noneType = getInstance(rhs).noneType
+        val noneType = PyBuiltinCache.getInstance(rhs).noneType
         for (element in elements) {
           val type: PyType? = if (isNone(element)) noneType else getLiteralType(element, context)
           if (type != null && (positive || type === noneType || type is PyLiteralType)) {

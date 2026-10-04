@@ -26,7 +26,6 @@ import com.jetbrains.python.PythonCodeStyleService
 import com.jetbrains.python.ast.impl.PyUtilCore
 import com.jetbrains.python.codeInsight.PyCodeInsightSettings
 import com.jetbrains.python.codeInsight.dataflow.scope.ScopeUtil
-import com.jetbrains.python.codeInsight.imports.ImportLocationHelper.Companion.getInstance
 import com.jetbrains.python.codeInsight.imports.PyNestedClassUtils.findTopLevelClass
 import com.jetbrains.python.codeInsight.imports.PyRelativeImportData.Companion.fromString
 import com.jetbrains.python.documentation.docstrings.DocStringUtil
@@ -43,7 +42,7 @@ import com.jetbrains.python.psi.PyImportStatementBase
 import com.jetbrains.python.psi.PyReferenceExpression
 import com.jetbrains.python.psi.PyStatement
 import com.jetbrains.python.psi.PyUtil
-import com.jetbrains.python.psi.impl.PyBuiltinCache.Companion.getInstance
+import com.jetbrains.python.psi.impl.PyBuiltinCache
 import com.jetbrains.python.psi.impl.PyCodeFragmentWithHiddenImports
 import com.jetbrains.python.psi.impl.PyPsiUtils
 import com.jetbrains.python.psi.resolve.QualifiedNameFinder
@@ -186,7 +185,7 @@ object AddImportHelper {
     newImport: PyImportStatementBase?,
     priority: ImportPriority?,
   ): PsiElement? {
-    var feeler = getInstance().getSearchStartPosition(anchor, insertParent)
+    var feeler = ImportLocationHelper.getInstance().getSearchStartPosition(anchor, insertParent)
     if (feeler == null) return null
     // skip initial comments and whitespace and try to get just below the last import stmt
     var skippedOverStatements = false
@@ -745,7 +744,7 @@ object AddImportHelper {
   @JvmStatic
   fun addImport(target: PsiNamedElement, file: PsiFile, element: PyElement) {
     if (target.containingFile == file) return
-    if (getInstance(element).isBuiltin(target)) return
+    if (PyBuiltinCache.getInstance(element).isBuiltin(target)) return
 
     if (target is PsiFileSystemItem) {
       addFileSystemItemImport(target, file, element)

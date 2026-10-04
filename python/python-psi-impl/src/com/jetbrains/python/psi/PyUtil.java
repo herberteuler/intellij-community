@@ -129,6 +129,8 @@ public final class PyUtil {
 
   private static final boolean VERBOSE_MODE = System.getenv("_PYCHARM_VERBOSE_MODE") != null;
 
+  private static final Pattern SUPPRESS_PATTERN = Pattern.compile(SuppressionUtil.COMMON_SUPPRESS_REGEXP);
+
   private PyUtil() {
   }
 
@@ -1613,8 +1615,7 @@ public final class PyUtil {
   }
 
   public static boolean isNoinspectionComment(@NotNull PsiComment comment) {
-    Pattern suppressPattern = Pattern.compile(SuppressionUtil.COMMON_SUPPRESS_REGEXP);
-    return suppressPattern.matcher(comment.getText()).find();
+    return SUPPRESS_PATTERN.matcher(comment.getText()).find();
   }
 
   /**

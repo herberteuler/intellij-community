@@ -867,11 +867,12 @@ object PyCallExpressionHelper {
     val parameters = callableType.getParameters(context)
         ?.let { unpackParameters(it, wrappedArguments, context) }
 
-    if (parameters == null) return PyArgumentsMapping.empty(expression)
+    if (parameters == null) return PyArgumentsMapping.empty(expression, arguments)
 
     val mappingResults = analyzeArguments(wrappedArguments, parameters, context)
 
     return PyArgumentsMapping(expression,
+                              arguments,
                               callableType,
                               mappingResults.mappedParameters.mapKeys { (argument, _) -> argument.expression!! },
                               mappingResults.unmappedParameters,

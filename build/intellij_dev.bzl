@@ -383,8 +383,21 @@ def _intellij_dev_java_launcher_impl(ctx):
     # The launcher of ADR 0014 gives these two to the IDE, as the java stub does.
     environment = dict(ctx.attr.env)
     environment.update({"JAVA_RUNFILES": runfiles_directory, "RUNFILES_DIR": runfiles_directory})
+
+    # The run handler of the devkit Bazel plugin reads this file. It starts `java` with the debug options before the
+    # argument file.
+    launch = ctx.actions.declare_file(ctx.label.name + ".launch.json")
+    ctx.actions.write(launch, json.encode_indent({
+        "version": 1,
+        "java": "%s/execroot/%s/%s" % (OUTPUT_BASE, ctx.workspace_name, java_runtime.java_executable_exec_path),
+        "argfile": "%s/%s/%s.jvm.args" % (runfiles_directory, ctx.workspace_name, ctx.label.name),
+        "runfilesDirectory": runfiles_directory,
+        "workingDirectory": "%s/%s" % (runfiles_directory, ctx.workspace_name),
+        "programArguments": ctx.attr.program_args,
+        "env": environment,
+    }) + "\n")
     return [
-        DefaultInfo(executable = executable, files = depset([executable, argfile]), runfiles = runfiles),
+        DefaultInfo(executable = executable, files = depset([executable, argfile, launch]), runfiles = runfiles),
         RunEnvironmentInfo(environment = environment),
     ]
 
@@ -395,7 +408,9 @@ The executable is a link to the `java` of the Java runtime. Its `args` start wit
 file that `dev-launcher jvm-args` writes at build time. The home is `<name>.runfiles/ide_home`, which Bazel links from
 the placement of the components. So no process runs before the JVM, and a launch writes no file. `bazel run` starts
 the executable in `<name>.runfiles/_main`, so every path of the argument file is absolute. A caller adds JVM flags
-through `JDK_JAVA_OPTIONS`, and `java` reads them before the argument file. Windows uses `intellij_dev_launcher`.""",
+through `JDK_JAVA_OPTIONS`, and `java` reads them before the argument file. `<name>.launch.json` states the absolute
+paths of `java`, the argument file and the runfiles tree, the program arguments and the environment. The devkit Bazel
+plugin reads it to debug the row. Windows uses `intellij_dev_launcher`.""",
     implementation = _intellij_dev_java_launcher_impl,
     executable = True,
     fragments = ["java"],

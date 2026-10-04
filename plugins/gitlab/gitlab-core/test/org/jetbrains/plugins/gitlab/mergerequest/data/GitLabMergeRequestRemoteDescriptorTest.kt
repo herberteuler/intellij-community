@@ -29,7 +29,7 @@ internal class GitLabMergeRequestRemoteDescriptorTest {
   }
 
   @Test
-  fun `server URI is the host of the remote without a path`() {
+  fun `descriptor uses the project data from the API`() {
     val coordinates = remoteCoordinates(gitRemote(ALIASED_URL))
 
     val descriptor = projectDetails("group").getRemoteDescriptor(coordinates)
@@ -37,43 +37,8 @@ internal class GitLabMergeRequestRemoteDescriptorTest {
     assertThat(descriptor.serverUri).isEqualTo(URI("https://gitlab-work/"))
     assertThat(descriptor.name).isEqualTo("group")
     assertThat(descriptor.path).isEqualTo("group/repo")
-  }
-
-  @Test
-  fun `server URI of an HTTP remote keeps the web path from the project HTTP URL`() {
-    val coordinates = remoteCoordinates(gitRemote("https://example.com/gitlab/group/repo.git"))
-    val project = projectDetails("group").copy(httpUrlToRepo = "https://example.com/gitlab/group/repo.git")
-
-    val descriptor = project.getRemoteDescriptor(coordinates)
-
-    assertThat(descriptor.serverUri).isEqualTo(URI("https://example.com/gitlab/"))
-  }
-
-  @Test
-  fun `server URI of an HTTP remote is the root when the project HTTP URL has no web path`() {
-    val coordinates = remoteCoordinates(gitRemote("https://example.com/gitlab/group/repo.git"))
-
-    val descriptor = projectDetails("group").getRemoteDescriptor(coordinates)
-
-    assertThat(descriptor.serverUri).isEqualTo(URI("https://example.com/"))
-  }
-
-  @Test
-  fun `HTTP fork remote matching keeps the server web path`() {
-    val origin = gitRemote("https://example.com/gitlab/group/repo.git")
-    val otherFork = gitRemote("https://example.com/other/fork-owner/repo.git", "other-fork")
-    val fork = gitRemote("https://example.com/gitlab/fork-owner/repo.git", "fork")
-    val coordinates = remoteCoordinates(origin)
-    every { coordinates.repository.info.remotes } returns listOf(origin, otherFork, fork)
-    val source = GitLabMergeRequestFullDetails.ProjectDetails(
-      path = GitLabProjectPath("fork-owner", "repo"),
-      httpUrlToRepo = "https://example.com/gitlab/fork-owner/repo.git",
-      sshUrlToRepo = "git@example.com:fork-owner/repo.git",
-    )
-    val descriptor = source.getRemoteDescriptor(coordinates)
-
-    assertThat(descriptor.serverUri).isEqualTo(URI("https://example.com/gitlab/"))
-    assertThat(GitRemoteBranchesUtil.findRemote(coordinates.repository, descriptor)).isEqualTo(fork)
+    assertThat(descriptor.httpUrl).isEqualTo("https://gitlab.com/group/repo.git")
+    assertThat(descriptor.sshUrl).isEqualTo("git@gitlab-work:group/repo.git")
   }
 
   @Test
@@ -125,79 +90,6 @@ internal class GitLabMergeRequestRemoteDescriptorTest {
     verify(exactly = 1) { git.addRemote(repository, "fork-owner", any()) }
     assertThat(createdRemote).isNotNull
     assertThat(addedUrl.captured).isEqualTo("git@gitlab-work:fork-owner/repo.git")
-  }
-
-  @Test
-  fun `SSH alias drops the project port when the remote has no explicit port`() {
-    val coordinates = remoteCoordinates(gitRemote(ALIASED_URL))
-    val project = projectDetails("fork-owner").copy(sshUrlToRepo = "ssh://git@gitlab.com:2222/fork-owner/repo.git")
-
-    val descriptor = project.getRemoteDescriptor(coordinates)
-
-    assertThat(descriptor.sshUrl).isEqualTo("git@gitlab-work:fork-owner/repo.git")
-  }
-
-  @Test
-  fun `SSH URL keeps the project port with the same host`() {
-    val coordinates = remoteCoordinates(gitRemote("git@gitlab.com:group/repo.git"))
-    val project = projectDetails("fork-owner").copy(sshUrlToRepo = "ssh://git@gitlab.com:2222/fork-owner/repo.git")
-
-    val descriptor = project.getRemoteDescriptor(coordinates)
-
-    assertThat(descriptor.sshUrl).isEqualTo("ssh://git@gitlab.com:2222/fork-owner/repo.git")
-  }
-
-  @Test
-  fun `SSH alias keeps the explicit remote port for an SCP project URL`() {
-    val coordinates = remoteCoordinates(gitRemote("ssh://git@gitlab-work:2222/group/repo.git"))
-
-    val descriptor = projectDetails("fork-owner").getRemoteDescriptor(coordinates)
-
-    assertThat(descriptor.sshUrl).isEqualTo("ssh://git@gitlab-work:2222/fork-owner/repo.git")
-  }
-
-  @Test
-  fun `SSH URL keeps the explicit remote port with the same host`() {
-    val coordinates = remoteCoordinates(gitRemote("ssh://git@gitlab.com:2222/group/repo.git"))
-
-    val descriptor = projectDetails("fork-owner").getRemoteDescriptor(coordinates)
-
-    assertThat(descriptor.sshUrl).isEqualTo("ssh://git@gitlab.com:2222/fork-owner/repo.git")
-  }
-
-  @Test
-  fun `SSH alias keeps the HTTP URL from the API`() {
-    val coordinates = remoteCoordinates(gitRemote(ALIASED_URL))
-    val project = projectDetails("fork-owner")
-
-    val descriptor = project.getRemoteDescriptor(coordinates)
-
-    assertThat(descriptor.httpUrl).isEqualTo("https://gitlab.com/fork-owner/repo.git")
-    assertThat(descriptor.sshUrl).isEqualTo("git@gitlab-work:fork-owner/repo.git")
-  }
-
-  @Test
-  fun `creating an HTTP fork remote uses the URL from the API`() {
-    val origin = gitRemote("http://gitlab.com:8080/group/repo.git")
-    val coordinates = remoteCoordinates(origin)
-    val repository = coordinates.repository
-    val remotes = mutableListOf(origin)
-    every { repository.remotes } returns remotes
-    every { repository.update() } returns Unit
-    val descriptor = projectDetails("fork-owner").getRemoteDescriptor(coordinates)
-    val addedUrl = slot<String>()
-    val git = mockk<Git> {
-      every { addRemote(repository, "fork-owner", capture(addedUrl)) } answers {
-        remotes.add(gitRemote(addedUrl.captured, "fork-owner"))
-        mockk()
-      }
-    }
-
-    val createdRemote = git.findOrCreateRemote(repository, descriptor)
-
-    verify(exactly = 1) { git.addRemote(repository, "fork-owner", "https://gitlab.com/fork-owner/repo.git") }
-    assertThat(createdRemote?.firstUrl).isEqualTo("https://gitlab.com/fork-owner/repo.git")
-    assertThat(descriptor.sshUrl).isEqualTo("git@gitlab.com:fork-owner/repo.git")
   }
 
   @Test

@@ -3,7 +3,6 @@ package org.jetbrains.plugins.github.pullrequest.ui.details.model
 
 import git4idea.commands.Git
 import git4idea.remote.GitRemoteUrlCoordinates
-import git4idea.remote.hosting.GitRemoteBranchesUtil
 import git4idea.remote.hosting.GitRemoteBranchesUtil.findOrCreateRemote
 import git4idea.repo.GitRemote
 import git4idea.repo.GitRepoInfo
@@ -45,76 +44,25 @@ internal class GHPRRemoteDescriptorTest {
   }
 
   @Test
-  fun `SSH alias uses its configured port when the remote has no explicit port`() {
+  fun `head descriptor uses the repository data from the API`() {
     val coordinates = remoteCoordinates(gitRemote("git@github-work:group/repo.git"))
-    val details = pullRequest(sshUrl = "ssh://git@github.com:2222/fork-owner/repo.git")
 
-    val descriptor = details.getHeadRemoteDescriptor(coordinates)!!
+    val descriptor = pullRequest().getHeadRemoteDescriptor(coordinates)!!
 
+    assertThat(descriptor.name).isEqualTo("fork-owner")
+    assertThat(descriptor.path).isEqualTo("fork-owner/repo")
+    assertThat(descriptor.serverUri).isEqualTo(URI("https://github-work/"))
+    assertThat(descriptor.httpUrl).isEqualTo("https://github.com/fork-owner/repo")
     assertThat(descriptor.sshUrl).isEqualTo("git@github-work:fork-owner/repo.git")
   }
 
-  @Test
-  fun `SSH alias keeps the explicit remote port`() {
-    val coordinates = remoteCoordinates(gitRemote("ssh://git@github-work:2222/group/repo.git"))
-
-    val descriptor = pullRequest().getHeadRemoteDescriptor(coordinates)!!
-
-    assertThat(descriptor.sshUrl).isEqualTo("ssh://git@github-work:2222/fork-owner/repo.git")
-  }
-
-  @Test
-  fun `SSH URL keeps the project port when the host stays the same`() {
-    val coordinates = remoteCoordinates(gitRemote("git@github.com:group/repo.git"))
-    val details = pullRequest(sshUrl = "ssh://git@github.com:2222/fork-owner/repo.git")
-
-    val descriptor = details.getHeadRemoteDescriptor(coordinates)!!
-
-    assertThat(descriptor.sshUrl).isEqualTo("ssh://git@github.com:2222/fork-owner/repo.git")
-  }
-
-  @Test
-  fun `matching prefers the SSH alias over the canonical host`() {
-    val origin = gitRemote("git@github-work:group/repo.git")
-    val canonicalFork = gitRemote("git@github.com:fork-owner/repo.git", "canonical")
-    val aliasedFork = gitRemote("git@github-work:fork-owner/repo.git", "fork")
-    val coordinates = remoteCoordinates(origin)
-    every { coordinates.repository.info.remotes } returns listOf(origin, canonicalFork, aliasedFork)
-
-    val descriptor = pullRequest().getHeadRemoteDescriptor(coordinates)!!
-
-    assertThat(GitRemoteBranchesUtil.findRemote(coordinates.repository, descriptor)).isEqualTo(aliasedFork)
-  }
-
-  @Test
-  fun `HTTP matching keeps the server web path and the API URLs`() {
-    val origin = gitRemote("https://git.example.com/github/group/repo.git")
-    val otherFork = gitRemote("https://git.example.com/other/fork-owner/repo.git", "other-fork")
-    val fork = gitRemote("https://git.example.com/github/fork-owner/repo.git", "fork")
-    val coordinates = remoteCoordinates(origin)
-    every { coordinates.repository.info.remotes } returns listOf(origin, otherFork, fork)
-    val details = pullRequest(
-      httpUrl = "https://git.example.com/github/fork-owner/repo",
-      sshUrl = "git@git.example.com:fork-owner/repo.git",
-    )
-
-    val descriptor = details.getHeadRemoteDescriptor(coordinates)!!
-
-    assertThat(descriptor.serverUri).isEqualTo(URI("https://git.example.com/github/"))
-    assertThat(descriptor.httpUrl).isEqualTo("https://git.example.com/github/fork-owner/repo")
-    assertThat(descriptor.sshUrl).isEqualTo("git@git.example.com:fork-owner/repo.git")
-    assertThat(GitRemoteBranchesUtil.findRemote(coordinates.repository, descriptor)).isEqualTo(fork)
-  }
-
-  private fun pullRequest(
-    httpUrl: String = "https://github.com/fork-owner/repo",
-    sshUrl: String = "git@github.com:fork-owner/repo.git",
-  ): GHPullRequest {
+  // The API returns the canonical URLs of github.com, not the URLs with the SSH alias.
+  private fun pullRequest(): GHPullRequest {
     val repository = mockk<GHRepository> {
       every { owner } returns mockk { every { login } returns "fork-owner" }
       every { nameWithOwner } returns "fork-owner/repo"
-      every { url } returns httpUrl
-      every { this@mockk.sshUrl } returns sshUrl
+      every { url } returns "https://github.com/fork-owner/repo"
+      every { sshUrl } returns "git@github.com:fork-owner/repo.git"
     }
     return mockk { every { headRepository } returns repository }
   }

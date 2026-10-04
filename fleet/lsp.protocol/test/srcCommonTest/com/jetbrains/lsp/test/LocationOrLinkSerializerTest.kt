@@ -1,5 +1,6 @@
 package com.jetbrains.lsp.test
 
+import com.jetbrains.lsp.implementation.LspWireCodec
 import com.jetbrains.lsp.protocol.DefinitionRequestType
 import com.jetbrains.lsp.protocol.DocumentUri
 import com.jetbrains.lsp.protocol.LSP
@@ -9,8 +10,8 @@ import com.jetbrains.lsp.protocol.LocationOrLink
 import com.jetbrains.lsp.protocol.Position
 import com.jetbrains.lsp.protocol.Range
 import com.jetbrains.lsp.protocol.URI
+import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -24,8 +25,6 @@ class LocationOrLinkSerializerTest {
   private val range = Range(Position(1, 2), Position(3, 4))
   private val origin = Range(Position(0, 5), Position(0, 9))
   private val uri = DocumentUri(URI("file:///a.kt"))
-
-  private val compact = Json(LSP.json) { prettyPrint = false }
 
   private val location = Location(uri, range)
   private val link = LocationLink(originSelectionRange = origin, targetUri = uri, targetRange = range, targetSelectionRange = range)
@@ -58,20 +57,21 @@ class LocationOrLinkSerializerTest {
 
   @Test
   fun `link encodes the link members only`() {
-    val json = compact.encodeToString(DefinitionRequestType.resultSerializer, listOf(link))
+    val json = LSP.json.encodeToString(DefinitionRequestType.resultSerializer, listOf(link))
     assertEquals("""[{"originSelectionRange":$o,"targetUri":"file:///a.kt","targetRange":$r,"targetSelectionRange":$r}]""", json)
   }
 
   @Test
   fun `location encodes like the plain location serializer`() {
-    val json = compact.encodeToString(DefinitionRequestType.resultSerializer, listOf(location))
-    assertEquals("[${compact.encodeToString(Location.serializer(), location)}]", json)
+    val json = LSP.json.encodeToString(DefinitionRequestType.resultSerializer, listOf(location))
+    assertEquals("[${LSP.json.encodeToString(Location.serializer(), location)}]", json)
   }
 
   @Test
   fun `wrong shapes fail`() {
     for (payload in listOf("[1]", "[\"s\"]", "[[]]", "[{}]", """[{"targetUri":"file:///a.kt"}]""")) {
       assertFailsWith<SerializationException>(payload) { LSP.json.decodeFromString(DefinitionRequestType.resultSerializer, payload) }
+      assertFailsWith<SerializationException>(payload) { wire(DefinitionRequestType.resultSerializer, payload) }
     }
   }
 
@@ -81,11 +81,12 @@ class LocationOrLinkSerializerTest {
     assertIs<LocationLink>(decodeAll("[${LSP.json.encodeToString(LocationLink.serializer(), link)}]").single())
   }
 
-  /** Decodes [payload] with `decodeFromString`, and `decodeFromJsonElement`; both must agree. */
+  /** Decodes [payload] with `decodeFromString`, `decodeFromJsonElement` and the wire codec; all three must agree. */
   private fun decodeAll(payload: String): List<LocationOrLink> {
     val serializer = DefinitionRequestType.resultSerializer
     val string = LSP.json.decodeFromString(serializer, payload)
     assertEquals(string, LSP.json.decodeFromJsonElement(serializer, LSP.json.parseToJsonElement(payload)), "tree: $payload")
+    assertEquals(string, wire(serializer, payload), "wire: $payload")
     return string
   }
 
@@ -93,4 +94,7 @@ class LocationOrLinkSerializerTest {
     val json = LSP.json.encodeToString(DefinitionRequestType.resultSerializer, value)
     assertEquals(value, decodeAll(json), json)
   }
+
+  private fun <T> wire(serializer: DeserializationStrategy<T>, payload: String): T? =
+    LspWireCodec.decodeFrameBody("""{"jsonrpc":"2.0","id":1,"result":$payload}""".encodeToByteArray()).read().decodeResult(serializer)
 }

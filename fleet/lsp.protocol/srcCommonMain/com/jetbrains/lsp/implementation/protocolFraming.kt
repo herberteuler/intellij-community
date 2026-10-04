@@ -1,8 +1,5 @@
 package com.jetbrains.lsp.implementation
 
-import com.jetbrains.lsp.protocol.LSP
-import fleet.util.decodeToStringUtf8
-import fleet.util.encodeToByteArrayUtf8
 import fleet.util.logging.KLoggers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
@@ -31,35 +28,88 @@ private val LOG = KLoggers.logger("com.jetbrains.lsp.implementation.protocolFram
  */
 private val HEADER_NAME_REGEX = Regex("""[!#$%&'*+\-.^_`|~0-9A-Za-z]+""")
 
+/** The longest header line [withLspFraming] and [withBaseProtocolFraming] read, in bytes; a longer one is rejected. */
+internal const val MAX_HEADER_LINE_LENGTH: Int = 8 shl 10
+
+/**
+ * The default largest frame body, in bytes, of [withLspFraming] and [withBaseProtocolFraming]: a frame whose
+ * `Content-Length` is larger is rejected before any of its body is read.
+ */
+const val DEFAULT_MAX_BODY_SIZE: Int = 256 shl 20
+
+/**
+ * Runs [body] over the base-protocol frames of [connection]: `Content-Length` header, blank line, UTF-8 JSON body.
+ *
+ * [body] gets the decoded incoming messages and a channel for outgoing messages, both as JSON trees. [withLsp] and
+ * [serveLsp] over these channels convert at the boundary: an incoming tree is decoded from its compact text, an
+ * outgoing frame is parsed back into a tree. To skip that, use [withLspFraming] with their wire overloads, or their
+ * connection-level overloads.
+ *
+ * A header line of more than [MAX_HEADER_LINE_LENGTH] bytes, or a `Content-Length` above [maxBodySize], drops the
+ * connection, as any header that is not ours does.
+ */
 suspend fun withBaseProtocolFraming(
   connection: LspConnection,
   exitSignal: CompletableDeferred<Unit>? = null,
+  maxBodySize: Int = DEFAULT_MAX_BODY_SIZE,
   body: suspend CoroutineScope.(
     incoming: ReceiveChannel<JsonElement>,
     outgoing: SendChannel<JsonElement>,
   ) -> Unit,
 ) {
+  withFraming(connection, exitSignal, maxBodySize, decode = LspWireCodec::decodeBody, write = { message -> writeByteArray(LspWireCodec.encodeFrame(message)) }, body)
+}
+
+/**
+ * [withBaseProtocolFraming] over wire messages: the same frames, reader and header rules, but an incoming body becomes
+ * no tree ([LspWireBody]: its text, read by the wire [withLsp], where kotlinx reads the envelope and the payload, typed
+ * by the handler's serializer, straight from the text), and outgoing messages are ready frame parts ([LspWireOutgoing]),
+ * written as they are. Use it with the wire overloads of [withLsp] and [serveLsp].
+ *
+ * NOT A STABLE API, see [LspWireCodec].
+ */
+suspend fun withLspFraming(
+  connection: LspConnection,
+  exitSignal: CompletableDeferred<Unit>? = null,
+  maxBodySize: Int = DEFAULT_MAX_BODY_SIZE,
+  body: suspend CoroutineScope.(
+    incoming: ReceiveChannel<LspWireBody>,
+    outgoing: SendChannel<LspWireOutgoing>,
+  ) -> Unit,
+) {
+  withFraming(connection, exitSignal, maxBodySize, decode = LspWireCodec::decodeFrameBody, write = { message -> message.writeTo(writeBuffer) }, body)
+}
+
+/** The frame loops: a reader that decodes each body with [decode], a writer that writes each message with [write]. */
+private suspend fun <In : Any, Out : Any> withFraming(
+  connection: LspConnection,
+  exitSignal: CompletableDeferred<Unit>?,
+  maxBodySize: Int,
+  decode: (ByteArray) -> In,
+  write: ByteWriter.(Out) -> Unit,
+  body: suspend CoroutineScope.(incoming: ReceiveChannel<In>, outgoing: SendChannel<Out>) -> Unit,
+) {
   val reader = connection.input
   val writer = connection.output
 
   coroutineScope {
-    val (incomingSender, incomingReceiver) = channels<JsonElement>()
-    val (outgoingSender, outgoingReceiver) = channels<JsonElement>(Channel.UNLIMITED)
+    val (incomingSender, incomingReceiver) = channels<In>()
+    val (outgoingSender, outgoingReceiver) = channels<Out>(Channel.UNLIMITED)
     val readJob = launch(CoroutineName("frame reader")) {
       incomingSender.use {
         while (true) {
-          val frame = reader.readFrame()
+          val frame = reader.readFrame(maxBodySize)
           if (frame == null) {
             exitSignal?.complete(Unit)
             break
           }
-          incomingSender.send(frame)
+          incomingSender.send(decode(frame))
         }
       }
     }
     val writeJob = launch(CoroutineName("frame writer")) {
-      outgoingReceiver.consumeEach { frame ->
-        val success = writer.writeFrame(frame)
+      outgoingReceiver.consumeEach { message ->
+        val success = writer.writeFrame(message, write)
         if (!success) {
           exitSignal?.complete(Unit)
         }
@@ -77,25 +127,38 @@ suspend fun withBaseProtocolFraming(
   }
 }
 
-private suspend fun ByteReader.readFrame(): JsonElement? {
+/**
+ * @return the body of the next frame, or `null` at the end of input or on a header that is not ours: a header line of
+ *   more than [MAX_HEADER_LINE_LENGTH] bytes, or a `Content-Length` above [maxBodySize], is not ours either.
+ *
+ * This is the one place that decides what the end of input inside a frame means: wherever the input ends (inside a
+ * header line, right after a CR, after the headers, inside the body), the frame is dropped and the input ends
+ * cleanly, with one INFO line. The read primitives only report what they saw.
+ */
+private suspend fun ByteReader.readFrame(maxBodySize: Int): ByteArray? {
   var contentLength = -1
   var readSomething = false
-  val buf = try {
-    while (!isClosedForRead) {
-      val line = readUTF8Line()
-      if (line.isNullOrEmpty()) break
-      readSomething = true
-      val colon = line.indexOf(':')
-      val name = if (colon >= 0) line.substring(0, colon) else line
-      if (colon < 0 || !HEADER_NAME_REGEX.matches(name)) {
-        // Not a base-protocol header (e.g. an HTTP request line or an HTTP header such as `Host`).
-        // Drop the connection instead of trying to interpret it as a frame.
-        LOG.warn { "Rejecting connection: not a valid base-protocol header: ${line.take(80)}" }
+  try {
+    while (true) {
+      val line = readLineWithEnd(MAX_HEADER_LINE_LENGTH) ?: return if (readSomething) truncated("after the headers, before the blank line") else null
+      if (line.end == LineEnd.TOO_LONG) {
+        LOG.warn { "Rejecting connection: a header line longer than $MAX_HEADER_LINE_LENGTH bytes" }
         return null
       }
-      if (name == "Content-Length") {
-        val value = line.substring(colon + 1).trim()
-        contentLength = value.toIntOrNull() ?: run {
+      if (line.end != LineEnd.NEWLINE) return truncated("inside a header line")
+      val text = line.text
+      if (text.isEmpty()) break
+      readSomething = true
+      val colon = text.indexOf(':')
+      if (colon < 0 || !isHeaderName(text, colon)) {
+        // Not a base-protocol header (e.g. an HTTP request line or an HTTP header such as `Host`).
+        // Drop the connection instead of trying to interpret it as a frame.
+        LOG.warn { "Rejecting connection: not a valid base-protocol header: ${text.take(80)}" }
+        return null
+      }
+      if (colon == CONTENT_LENGTH.length && text.startsWith(CONTENT_LENGTH)) {
+        val value = text.substring(colon + 1).trim()
+        contentLength = value.toIntOrNull()?.takeIf { it >= 0 } ?: run {
           LOG.warn { "Rejecting connection: invalid Content-Length: $value" }
           return null
         }
@@ -106,35 +169,43 @@ private suspend fun ByteReader.readFrame(): JsonElement? {
       LOG.warn { "Rejecting connection: Content-Length header not found" }
       return null
     }
-    readByteArray(contentLength)
+    if (contentLength > maxBodySize) {
+      LOG.warn { "Rejecting connection: Content-Length $contentLength is above the limit of $maxBodySize bytes" }
+      return null
+    }
+    val body = readByteArray(contentLength)
+    if (body.size < contentLength) return truncated("${body.size} of $contentLength body bytes")
+    return body
   }
   catch (_: IOException) {
     return null
   }
-  val jsonStr = buf.decodeToStringUtf8()
-  return try {
-    LSP.json.decodeFromString(JsonElement.serializer(), jsonStr)
-  }
-  catch (x: Throwable) {
-    throw IllegalStateException("could not decode json: $jsonStr", x)
-  }
 }
 
+/** The input ended inside a frame at [where]: drop the frame, end cleanly. */
+private fun truncated(where: String): ByteArray? {
+  LOG.info { "Input ended inside a frame: $where" }
+  return null
+}
+
+private const val CONTENT_LENGTH = "Content-Length"
+private const val CONTENT_TYPE = "Content-Type"
+
+/** Whether `line[0, colon)` is a header name: the two names the base protocol sends, or else any RFC 7230 token. */
+private fun isHeaderName(line: String, colon: Int): Boolean =
+  colon == CONTENT_LENGTH.length && line.startsWith(CONTENT_LENGTH) ||
+  colon == CONTENT_TYPE.length && line.startsWith(CONTENT_TYPE) ||
+  HEADER_NAME_REGEX.matches(line.substring(0, colon))
+
 /**
- * @return Boolean indicating whether the frame was successfully written (`true`) or the channel was closed (`false`).
+ * Writes one frame with one flush: [write] puts the frame bytes of [message] into the write buffer.
+ *
+ * @return whether the frame was written (`true`) or the channel was closed (`false`).
  */
-private suspend fun ByteWriter.writeFrame(jsonElement: JsonElement): Boolean {
-  val str = LSP.json.encodeToString(JsonElement.serializer(), jsonElement)
-  val frameStr = buildString {
-    // protocol requires string length in bytes
-    val contentLengthInBytes = str.encodeToByteArrayUtf8().size
-    append("Content-Length: $contentLengthInBytes\r\n")
-    append("\r\n")
-    append(str)
-  }
+private suspend fun <Out> ByteWriter.writeFrame(message: Out, write: ByteWriter.(Out) -> Unit): Boolean {
   try {
     if (isClosedForWrite) return false
-    writeByteArray(frameStr.encodeToByteArrayUtf8())
+    write(message)
     flush()
     return true
   }

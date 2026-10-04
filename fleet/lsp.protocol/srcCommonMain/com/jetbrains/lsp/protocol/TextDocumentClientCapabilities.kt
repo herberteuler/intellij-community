@@ -1,7 +1,13 @@
 package com.jetbrains.lsp.protocol
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
 
 @Serializable
@@ -557,6 +563,32 @@ enum class FoldingRangeKind {
 
     ;
 
+}
+
+/**
+ * For `FoldingRange.kind` only: reads the name once and maps an unknown one to `null`, which the enum's own serializer
+ * does with a peek and a second read under `coerceInputValues`. The capabilities value sets keep the enum serializer.
+ */
+internal object FoldingRangeKindSerializer : KSerializer<FoldingRangeKind?> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("com.jetbrains.lsp.protocol.FoldingRangeKind", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: FoldingRangeKind?) {
+        when (value) {
+            null -> encoder.encodeNull()
+            FoldingRangeKind.Comment -> encoder.encodeString("comment")
+            FoldingRangeKind.Imports -> encoder.encodeString("imports")
+            FoldingRangeKind.Region -> encoder.encodeString("region")
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): FoldingRangeKind? {
+        return when (decoder.decodeString()) {
+            "comment" -> FoldingRangeKind.Comment
+            "imports" -> FoldingRangeKind.Imports
+            "region" -> FoldingRangeKind.Region
+            else -> null
+        }
+    }
 }
 
 @Serializable

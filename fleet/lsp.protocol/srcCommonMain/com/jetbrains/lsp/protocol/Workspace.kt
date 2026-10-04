@@ -1,15 +1,20 @@
 package com.jetbrains.lsp.protocol
 
 import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.encoding.CompositeDecoder
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.encoding.decodeStructure
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.jvm.JvmInline
 
@@ -303,26 +308,120 @@ sealed interface WorkspaceSymbolResult {
     @JvmInline
     value class WorkspaceSymbols(val value: List<WorkspaceSymbol>) : WorkspaceSymbolResult
 
-    class Serializer : JsonContentPolymorphicSerializer<WorkspaceSymbolResult>(WorkspaceSymbolResult::class) {
-        // NOTE: any SymbolInformation can successfully deserialise in a WorkspaceSymbol with the exception of its
-        //       `deprecated' field. If such field is present we'll try to deserialise the JSON as SymbolInformation,
-        //        if not, even if the sender meant to send SymbolInformatino (the `deprecated' field is optional), we
-        //        still will deserialise it as a WorkspaceSymbol and it should just work. Note also, that SymbolInformation
-        //        is itself deprecated and should not be used.
-        private fun isSymbolInformation(element: JsonElement) = element is JsonObject && element.containsKey("deprecated")
+    // NOTE: any SymbolInformation can successfully deserialise in a WorkspaceSymbol with the exception of its
+    //       `deprecated' field. If such field is present we'll try to deserialise the JSON as SymbolInformation,
+    //        if not, even if the sender meant to send SymbolInformatino (the `deprecated' field is optional), we
+    //        still will deserialise it as a WorkspaceSymbol and it should just work. Note also, that SymbolInformation
+    //        is itself deprecated and should not be used.
+    /**
+     * Streams the list with no tree: each element is read with the members of both variants
+     * ([WorkspaceSymbolOrInformation]), then the first element picks the variant for all, as the tree way did: a
+     * `deprecated` member (also `null`) makes symbol informations, anything else (also an empty list) workspace symbols.
+     * Encode writes the variant with its own serializer.
+     */
+    class Serializer : KSerializer<WorkspaceSymbolResult> {
+        override val descriptor: SerialDescriptor = unionDescriptor("WorkspaceSymbolResult")
 
-        override fun selectDeserializer(element: JsonElement): DeserializationStrategy<WorkspaceSymbolResult> {
-            return when {
-                element is JsonArray -> {
-                    if (element.isNotEmpty() && isSymbolInformation(element[0])) {
-                        SymbolInformations.serializer()
-                    }
-                    else {
-                        WorkspaceSymbols.serializer()
+        override fun serialize(encoder: Encoder, value: WorkspaceSymbolResult) {
+            when (value) {
+                is SymbolInformations -> encoder.encodeSerializableValue(SymbolInformations.serializer(), value)
+                is WorkspaceSymbols -> encoder.encodeSerializableValue(WorkspaceSymbols.serializer(), value)
+            }
+        }
+
+        override fun deserialize(decoder: Decoder): WorkspaceSymbolResult {
+            val elements = decoder.decodeSerializableValue(DecodeOnlyList(WorkspaceSymbolOrInformation.Reader))
+            return when (elements.firstOrNull()?.hasDeprecated) {
+                true -> SymbolInformations(elements.map { it.symbolInformation() })
+                else -> WorkspaceSymbols(elements.map { it.workspaceSymbol() })
+            }
+        }
+    }
+}
+
+/**
+ * One element of a [WorkspaceSymbolResult]: the members of [WorkspaceSymbol] and [SymbolInformation]. `location` is
+ * read as the [WorkspaceSymbol.SymbolLocation] of a workspace symbol; a symbol information takes only its full form.
+ */
+private class WorkspaceSymbolOrInformation(
+    val name: String?,
+    val kind: SymbolKind?,
+    val tags: List<SymbolTag>?,
+    /** The object has a `deprecated` member, also `null`. */
+    val hasDeprecated: Boolean,
+    val deprecated: Boolean?,
+    val location: WorkspaceSymbol.SymbolLocation?,
+    val containerName: String?,
+    val data: JsonElement?,
+) {
+    fun workspaceSymbol(): WorkspaceSymbol {
+        if (name == null || kind == null || location == null) {
+            throw missingFields(WorkspaceSymbol.serializer().descriptor, "name" to name, "kind" to kind, "location" to location)
+        }
+        return WorkspaceSymbol(name = name, kind = kind, tags = tags, containerName = containerName, location = location, data = data)
+    }
+
+    fun symbolInformation(): SymbolInformation {
+        if (name == null || kind == null || location == null) {
+            throw missingFields(SymbolInformation.serializer().descriptor, "name" to name, "kind" to kind, "location" to location)
+        }
+        val full = location as? WorkspaceSymbol.SymbolLocation.Full
+                   ?: throw missingFields(Location.serializer().descriptor, "range" to null)
+        return SymbolInformation(name = name, kind = kind, tags = tags, deprecated = deprecated, location = full.value,
+                                 containerName = containerName)
+    }
+
+    /** Every member optional and nullable: a member of one variant is absent from the other, and `null` is not skipped. */
+    object Reader : DeserializationStrategy<WorkspaceSymbolOrInformation> {
+        private const val NAME = 0
+        private const val KIND = 1
+        private const val TAGS = 2
+        private const val DEPRECATED = 3
+        private const val LOCATION = 4
+        private const val CONTAINER_NAME = 5
+        private const val DATA = 6
+
+        private val tagsSerializer = SymbolTagListSerializer().nullable
+
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("com.jetbrains.lsp.protocol.WorkspaceSymbolOrInformation") {
+            annotations = ignoreUnknownKeys
+            element("name", String.serializer().nullable.descriptor, isOptional = true)
+            element("kind", SymbolKind.serializer().nullable.descriptor, isOptional = true)
+            element("tags", tagsSerializer.descriptor, isOptional = true)
+            element("deprecated", Boolean.serializer().nullable.descriptor, isOptional = true)
+            element("location", WorkspaceSymbol.SymbolLocation.serializer().nullable.descriptor, isOptional = true)
+            element("containerName", String.serializer().nullable.descriptor, isOptional = true)
+            element("data", JsonElement.serializer().nullable.descriptor, isOptional = true)
+        }
+
+        override fun deserialize(decoder: Decoder): WorkspaceSymbolOrInformation {
+            var name: String? = null
+            var kind: SymbolKind? = null
+            var tags: List<SymbolTag>? = null
+            var hasDeprecated = false
+            var deprecated: Boolean? = null
+            var location: WorkspaceSymbol.SymbolLocation? = null
+            var containerName: String? = null
+            var data: JsonElement? = null
+            decoder.decodeStructure(descriptor) {
+                while (true) {
+                    when (val index = decodeElementIndex(descriptor)) {
+                        NAME -> name = decodeNullableSerializableElement(descriptor, index, String.serializer())
+                        KIND -> kind = decodeNullableSerializableElement(descriptor, index, SymbolKind.serializer())
+                        TAGS -> tags = decodeSerializableElement(descriptor, index, tagsSerializer)
+                        DEPRECATED -> {
+                            hasDeprecated = true
+                            deprecated = decodeNullableSerializableElement(descriptor, index, Boolean.serializer())
+                        }
+                        LOCATION -> location = decodeNullableSerializableElement(descriptor, index, WorkspaceSymbol.SymbolLocation.serializer())
+                        CONTAINER_NAME -> containerName = decodeNullableSerializableElement(descriptor, index, String.serializer())
+                        DATA -> data = decodeNullableSerializableElement(descriptor, index, JsonElement.serializer())
+                        CompositeDecoder.DECODE_DONE -> break
+                        else -> throw SerializationException("Unexpected index $index")
                     }
                 }
-                else -> throw SerializationException("Expected an array of either WorkspaceSymbol or SymbolInformation.")
             }
+            return WorkspaceSymbolOrInformation(name, kind, tags, hasDeprecated, deprecated, location, containerName, data)
         }
     }
 }

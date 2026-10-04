@@ -1,5 +1,8 @@
 package com.jetbrains.lsp.protocol
 
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
@@ -13,7 +16,17 @@ val Initialize: RequestType<InitializeParams, InitializeResult, InitializeError>
 
 val Initialized: NotificationType<Unit> = NotificationType("initialized", Unit.serializer())
 
-@Serializable
+@OptIn(ExperimentalSerializationApi::class)
+internal object InitializeParamsSerializer :
+    KSerializer<InitializeParams> by RequiredNullMembers(InitializeParams.generatedSerializer(), "processId", "rootUri")
+
+/**
+ * `processId` (`integer | null`) and `rootUri` (`DocumentUri | null`) are required members of the spec: written as `null`
+ * when null ([RequiredNullMembers]).
+ */
+@OptIn(ExperimentalSerializationApi::class)
+@KeepGeneratedSerializer
+@Serializable(with = InitializeParamsSerializer::class)
 data class InitializeParams(
     /**
      * The process Id of the parent process that started the server. Is null if

@@ -1,14 +1,19 @@
 package com.jetbrains.lsp.protocol
 
-import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonContentPolymorphicSerializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.encoding.CompositeDecoder
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.encoding.decodeStructure
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.jvm.JvmInline
 
@@ -345,15 +350,91 @@ sealed interface CommandOrCodeAction {
     @JvmInline
     value class CodeAction(val codeAction: com.jetbrains.lsp.protocol.CodeAction) : CommandOrCodeAction
 
-    class Serializer : JsonContentPolymorphicSerializer<CommandOrCodeAction>(CommandOrCodeAction::class) {
-        private fun isCommand(json: JsonObject) = json["command"]?.let { command -> command is JsonPrimitive && command.isString }
-            ?: false
+    /**
+     * Streams the object with no tree, with the members of both variants: a `command` member that is a string makes a
+     * [Command], as the tree way did, anything else a [CodeAction]. `command` is read as a [JsonElement] (the variant is
+     * known only at the end) and decoded as the [com.jetbrains.lsp.protocol.Command] of a code action from it. Encode
+     * writes the variant with its own serializer.
+     */
+    class Serializer : KSerializer<CommandOrCodeAction> {
+        private val diagnosticsSerializer = ListSerializer(Diagnostic.serializer()).nullable
+        private val argumentsSerializer = ListSerializer(JsonElement.serializer()).nullable
 
-        override fun selectDeserializer(element: JsonElement): DeserializationStrategy<CommandOrCodeAction> {
-            return when (element) {
-                is JsonObject -> if (isCommand(element)) Command.serializer() else CodeAction.serializer()
-                else -> throw SerializationException("Expected either Command or CodeAction, got $element")
+        override val descriptor: SerialDescriptor = unionDescriptor("CommandOrCodeAction")
+
+        /** Every member optional and nullable: a member of one variant is absent from the other, and `null` is not skipped. */
+        private val merged: SerialDescriptor = buildClassSerialDescriptor("com.jetbrains.lsp.protocol.CommandOrCodeActionMerged") {
+            annotations = ignoreUnknownKeys
+            element("title", String.serializer().nullable.descriptor, isOptional = true)
+            element("kind", CodeActionKind.serializer().nullable.descriptor, isOptional = true)
+            element("diagnostics", diagnosticsSerializer.descriptor, isOptional = true)
+            element("isPreferred", Boolean.serializer().nullable.descriptor, isOptional = true)
+            element("disabled", com.jetbrains.lsp.protocol.CodeAction.Disabled.serializer().nullable.descriptor, isOptional = true)
+            element("edit", WorkspaceEdit.serializer().nullable.descriptor, isOptional = true)
+            element("command", JsonElement.serializer().nullable.descriptor, isOptional = true)
+            element("data", JsonElement.serializer().nullable.descriptor, isOptional = true)
+            element("arguments", argumentsSerializer.descriptor, isOptional = true)
+        }
+
+        override fun serialize(encoder: Encoder, value: CommandOrCodeAction) {
+            when (value) {
+                is Command -> encoder.encodeSerializableValue(Command.serializer(), value)
+                is CodeAction -> encoder.encodeSerializableValue(CodeAction.serializer(), value)
             }
+        }
+
+        override fun deserialize(decoder: Decoder): CommandOrCodeAction {
+            require(decoder is JsonDecoder) { "CommandOrCodeAction can only be deserialized from JSON" }
+            var title: String? = null
+            var kind: CodeActionKind? = null
+            var diagnostics: List<Diagnostic>? = null
+            var isPreferred: Boolean? = null
+            var disabled: com.jetbrains.lsp.protocol.CodeAction.Disabled? = null
+            var edit: WorkspaceEdit? = null
+            var command: JsonElement? = null
+            var data: JsonElement? = null
+            var arguments: List<JsonElement>? = null
+            decoder.decodeStructure(merged) {
+                while (true) {
+                    when (val index = decodeElementIndex(merged)) {
+                        TITLE -> title = decodeNullableSerializableElement(merged, index, String.serializer())
+                        KIND -> kind = decodeNullableSerializableElement(merged, index, CodeActionKind.serializer())
+                        DIAGNOSTICS -> diagnostics = decodeSerializableElement(merged, index, diagnosticsSerializer)
+                        IS_PREFERRED -> isPreferred = decodeNullableSerializableElement(merged, index, Boolean.serializer())
+                        DISABLED -> disabled = decodeNullableSerializableElement(merged, index, com.jetbrains.lsp.protocol.CodeAction.Disabled.serializer())
+                        EDIT -> edit = decodeNullableSerializableElement(merged, index, WorkspaceEdit.serializer())
+                        COMMAND -> command = decodeNullableSerializableElement(merged, index, JsonElement.serializer())
+                        DATA -> data = decodeNullableSerializableElement(merged, index, JsonElement.serializer())
+                        ARGUMENTS -> arguments = decodeSerializableElement(merged, index, argumentsSerializer)
+                        CompositeDecoder.DECODE_DONE -> break
+                        else -> throw SerializationException("Unexpected index $index")
+                    }
+                }
+            }
+            // copies: the decode lambda wrote the vars, so they do not smart cast
+            val name = title
+            val member = command
+            if (member is JsonPrimitive && member.isString) {
+                if (name == null) throw missingFields(com.jetbrains.lsp.protocol.Command.serializer().descriptor, "title" to null)
+                return Command(com.jetbrains.lsp.protocol.Command(title = name, command = member.content, arguments = arguments))
+            }
+            if (name == null) throw missingFields(com.jetbrains.lsp.protocol.CodeAction.serializer().descriptor, "title" to null)
+            val codeActionCommand = member?.let { decoder.json.decodeFromJsonElement(com.jetbrains.lsp.protocol.Command.serializer(), it) }
+            return CodeAction(com.jetbrains.lsp.protocol.CodeAction(title = name, kind = kind, diagnostics = diagnostics,
+                                                                    isPreferred = isPreferred, disabled = disabled, edit = edit,
+                                                                    command = codeActionCommand, data = data))
+        }
+
+        private companion object {
+            const val TITLE = 0
+            const val KIND = 1
+            const val DIAGNOSTICS = 2
+            const val IS_PREFERRED = 3
+            const val DISABLED = 4
+            const val EDIT = 5
+            const val COMMAND = 6
+            const val DATA = 7
+            const val ARGUMENTS = 8
         }
     }
 }

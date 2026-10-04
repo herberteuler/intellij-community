@@ -2,19 +2,25 @@ package com.jetbrains.lsp.protocol
 
 import fleet.util.isValidUriString
 import kotlinx.serialization.DeserializationStrategy
-import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.descriptors.PolymorphicKind
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.descriptors.buildSerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.descriptors.nullable
+import kotlinx.serialization.encoding.CompositeDecoder
+import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.encoding.decodeStructure
+import kotlinx.serialization.encoding.encodeStructure
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonDecoder
@@ -22,12 +28,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.modules.SerializersModule
 import org.jetbrains.annotations.Nls
 import kotlin.jvm.JvmInline
 
@@ -963,8 +964,24 @@ object LSP {
         ignoreUnknownKeys = true
         coerceInputValues = true
         isLenient = true
-        prettyPrint = true
         classDiscriminator = "kind"
+    }
+
+    /**
+     * [json] for DECODING only. With `explicitNulls = true` kotlinx skips its per-object bookkeeping of absent nullable
+     * members, which is a good part of the decode cost on sparse objects. Every nullable property of the protocol types
+     * defaults to `null`, so a missing member decodes as with [json]. Types outside this module may lack that default: the
+     * wire codec decodes again with [json] after a missing-field error. Never encode with it: it would write `"x":null`.
+     */
+    val decodeJson: Json = Json(json) {
+        explicitNulls = true
+    }
+
+    /**
+     * [json] with `prettyPrint`. For human-readable logs only, never the wire.
+     */
+    val prettyJson: Json = Json(json) {
+        prettyPrint = true
     }
 
     val ProgressNotificationType: NotificationType<ProgressParams> =
@@ -980,116 +997,360 @@ object LSP {
       RequestType("client/unregisterCapability", UnregistrationParams.serializer(), Unit.serializer(), Unit.serializer())
 }
 
+/**
+ * Streams a [FileChange] without a `JsonObject` of the whole change.
+ *
+ * The variant is chosen like before: no `kind` means [TextDocumentEdit]; `create`, `rename`, `delete` mean the file
+ * operations; any other `kind` (also `null`) fails. `kind` may come after other keys, so the small fields of the file
+ * operations (`uri`, `oldUri`, `newUri`, `options`, `annotationId`) are kept as [JsonElement]s and decoded when the
+ * variant is known. `textDocument` and `edits` are decoded in place unless a file-operation `kind` came first (then they
+ * are skipped, as before).
+ */
 @Serializer(forClass = FileChange::class)
 object FileChangeSerializer : KSerializer<FileChange> {
-  @OptIn(InternalSerializationApi::class)
-  override val descriptor: SerialDescriptor = buildSerialDescriptor("FileChange", PolymorphicKind.SEALED) {
-    element("TextDocumentEdit", TextDocumentEdit.serializer().descriptor)
-    element("CreateFile", CreateFile.serializer().descriptor)
-    element("RenameFile", RenameFile.serializer().descriptor)
-    element("DeleteFile", DeleteFile.serializer().descriptor)
+  private const val KIND = 0
+  private const val TEXT_DOCUMENT = 1
+  private const val EDITS = 2
+  private const val URI_FIELD = 3
+  private const val OLD_URI = 4
+  private const val NEW_URI = 5
+  private const val OPTIONS = 6
+  private const val ANNOTATION_ID = 7
+
+  private val editsSerializer = ListSerializer(TextEditSerializer)
+
+  override val descriptor: SerialDescriptor = buildClassSerialDescriptor("com.jetbrains.lsp.protocol.FileChange") {
+    annotations = ignoreUnknownKeys
+    element("kind", String.serializer().nullable.descriptor, isOptional = true)
+    element("textDocument", TextDocumentIdentifier.serializer().nullable.descriptor, isOptional = true)
+    element("edits", editsSerializer.nullable.descriptor, isOptional = true)
+    element("uri", DocumentUri.serializer().nullable.descriptor, isOptional = true)
+    element("oldUri", DocumentUri.serializer().nullable.descriptor, isOptional = true)
+    element("newUri", DocumentUri.serializer().nullable.descriptor, isOptional = true)
+    element("options", JsonElement.serializer().nullable.descriptor, isOptional = true)
+    element("annotationId", ChangeAnnotationIdentifier.serializer().nullable.descriptor, isOptional = true)
   }
 
   override fun serialize(encoder: Encoder, value: FileChange) {
     require(encoder is JsonEncoder) { "FileChange can only be serialized to JSON" }
-    val json = encoder.json
-
-    val jsonElement = when (value) {
-      is TextDocumentEdit -> json.encodeToJsonElement(value)
-      is CreateFile -> JsonObject((json.encodeToJsonElement(value) as JsonObject) + ("kind" to JsonPrimitive("create")))
-      is RenameFile -> JsonObject((json.encodeToJsonElement(value) as JsonObject) + ("kind" to JsonPrimitive("rename")))
-      is DeleteFile -> JsonObject((json.encodeToJsonElement(value) as JsonObject) + ("kind" to JsonPrimitive("delete")))
+    // Same members and order as the generated serializers of the file operations, then `kind`.
+    when (value) {
+      is TextDocumentEdit -> encoder.encodeSerializableValue(TextDocumentEditSerializer, value)
+      is CreateFile -> encoder.encodeStructure(descriptor) {
+        encodeSerializableElement(descriptor, URI_FIELD, DocumentUri.serializer(), value.uri)
+        encodeOptionalElement(OPTIONS, CreateFileOptions.serializer(), value.options)
+        encodeOptionalElement(ANNOTATION_ID, ChangeAnnotationIdentifier.serializer(), value.annotationId)
+        encodeStringElement(descriptor, KIND, "create")
+      }
+      is RenameFile -> encoder.encodeStructure(descriptor) {
+        encodeSerializableElement(descriptor, OLD_URI, DocumentUri.serializer(), value.oldUri)
+        encodeSerializableElement(descriptor, NEW_URI, DocumentUri.serializer(), value.newUri)
+        encodeOptionalElement(OPTIONS, RenameFileOptions.serializer(), value.options)
+        encodeOptionalElement(ANNOTATION_ID, ChangeAnnotationIdentifier.serializer(), value.annotationId)
+        encodeStringElement(descriptor, KIND, "rename")
+      }
+      is DeleteFile -> encoder.encodeStructure(descriptor) {
+        encodeSerializableElement(descriptor, URI_FIELD, DocumentUri.serializer(), value.uri)
+        encodeOptionalElement(OPTIONS, DeleteFileOptions.serializer(), value.options)
+        encodeOptionalElement(ANNOTATION_ID, ChangeAnnotationIdentifier.serializer(), value.annotationId)
+        encodeStringElement(descriptor, KIND, "delete")
+      }
     }
+  }
 
-    encoder.encodeJsonElement(jsonElement)
+  /** Mirrors a generated serializer: a `null` is written only if defaults are encoded, and then only with explicit nulls. */
+  @OptIn(ExperimentalSerializationApi::class)
+  private fun <T : Any> CompositeEncoder.encodeOptionalElement(index: Int, serializer: KSerializer<T>, value: T?) {
+    if (value != null || shouldEncodeElementDefault(descriptor, index)) {
+      encodeNullableSerializableElement(descriptor, index, serializer, value)
+    }
   }
 
   override fun deserialize(decoder: Decoder): FileChange {
     require(decoder is JsonDecoder) { "FileChange can only be deserialized from JSON" }
-    val jsonElement = decoder.decodeJsonElement()
-    require(jsonElement is JsonObject) { "Expected JsonObject for FileChange" }
+    var kind: String? = null
+    var kindSeen = false
+    var textDocument: TextDocumentIdentifier? = null
+    var edits: List<TextEdit>? = null
+    var uri: JsonElement? = null
+    var oldUri: JsonElement? = null
+    var newUri: JsonElement? = null
+    var options: JsonElement? = null
+    var annotationId: JsonElement? = null
+    decoder.decodeStructure(descriptor) {
+      while (true) {
+        when (val index = decodeElementIndex(descriptor)) {
+          // The old code read `kind` as `jsonPrimitive.content`, so a JSON `null` became the unknown kind "null".
+          KIND -> {
+            kind = decodeSerializableElement(descriptor, KIND, String.serializer().nullable) ?: "null"
+            kindSeen = true
+          }
+          TEXT_DOCUMENT -> {
+            if (kindSeen) decodeSerializableElement(descriptor, index, JsonElement.serializer())
+            else textDocument = decodeSerializableElement(descriptor, index, TextDocumentIdentifier.serializer())
+          }
+          EDITS -> {
+            if (kindSeen) decodeSerializableElement(descriptor, index, JsonElement.serializer())
+            else edits = decodeSerializableElement(descriptor, index, editsSerializer)
+          }
+          URI_FIELD -> uri = decodeSerializableElement(descriptor, index, JsonElement.serializer())
+          OLD_URI -> oldUri = decodeSerializableElement(descriptor, index, JsonElement.serializer())
+          NEW_URI -> newUri = decodeSerializableElement(descriptor, index, JsonElement.serializer())
+          OPTIONS -> options = decodeSerializableElement(descriptor, index, JsonElement.serializer())
+          ANNOTATION_ID -> annotationId = decodeSerializableElement(descriptor, index, JsonElement.serializer())
+          CompositeDecoder.DECODE_DONE -> break
+          else -> throw SerializationException("Unexpected index $index")
+        }
+      }
+    }
 
     val json = decoder.json
-    return when (val kind = jsonElement["kind"]?.jsonPrimitive?.content) {
-      "create" -> json.decodeFromJsonElement<CreateFile>(jsonElement)
-      "rename" -> json.decodeFromJsonElement<RenameFile>(jsonElement)
-      "delete" -> json.decodeFromJsonElement<DeleteFile>(jsonElement)
-      null -> json.decodeFromJsonElement<TextDocumentEdit>(TextDocumentEdit.serializer(), jsonElement)
+    fun <T> JsonElement?.required(serializer: KSerializer<T>, field: String, serialName: String): T =
+      json.decodeFromJsonElement(serializer, this ?: missingField(field, serialName))
+    fun <T : Any> JsonElement?.optional(serializer: KSerializer<T>): T? =
+      this?.let { json.decodeFromJsonElement(serializer.nullable, it) }
+
+    return when (kind) {
+      "create" -> CreateFile(
+        uri = uri.required(DocumentUri.serializer(), "uri", "CreateFile"),
+        options = options.optional(CreateFileOptions.serializer()),
+        annotationId = annotationId.optional(ChangeAnnotationIdentifier.serializer()),
+      )
+      "rename" -> RenameFile(
+        oldUri = oldUri.required(DocumentUri.serializer(), "oldUri", "RenameFile"),
+        newUri = newUri.required(DocumentUri.serializer(), "newUri", "RenameFile"),
+        options = options.optional(RenameFileOptions.serializer()),
+        annotationId = annotationId.optional(ChangeAnnotationIdentifier.serializer()),
+      )
+      "delete" -> DeleteFile(
+        uri = uri.required(DocumentUri.serializer(), "uri", "DeleteFile"),
+        options = options.optional(DeleteFileOptions.serializer()),
+        annotationId = annotationId.optional(ChangeAnnotationIdentifier.serializer()),
+      )
+      null -> TextDocumentEdit(
+        textDocument = textDocument ?: missingField("textDocument", "TextDocumentEdit"),
+        edits = edits ?: missingField("edits", "TextDocumentEdit"),
+      )
       else -> throw SerializationException("Unknown FileChange kind: $kind")
     }
   }
 }
 
+/**
+ * Streams a [TextEdit] (plain, annotated or snippet) without a `JsonObject`.
+ *
+ * Decode keeps the old rules: a `snippet` object with a `value` wins and makes `newText` empty (key order does not
+ * matter), a missing `newText` is empty, and a JSON `null` in `newText` or `snippet.value` becomes the string "null"
+ * (the old code read them as `jsonPrimitive.content`). `snippet: null` and `annotationId: null` fail, as before.
+ */
 @Serializer(forClass = TextEdit::class)
 object TextEditSerializer : KSerializer<TextEdit> {
+  private const val RANGE = 0
+  private const val NEW_TEXT = 1
+  private const val SNIPPET = 2
+  private const val ANNOTATION_ID = 3
+
+  // Nullable and optional elements: the decoder hands us every present value as is (no input coercion, no implicit null).
+  override val descriptor: SerialDescriptor = buildClassSerialDescriptor("com.jetbrains.lsp.protocol.TextEdit") {
+    annotations = ignoreUnknownKeys
+    element("range", Range.serializer().descriptor)
+    element("newText", String.serializer().nullable.descriptor, isOptional = true)
+    element("snippet", SnippetValueSerializer.descriptor.nullable, isOptional = true)
+    element("annotationId", ChangeAnnotationIdentifier.serializer().nullable.descriptor, isOptional = true)
+  }
+
   override fun serialize(encoder: Encoder, value: TextEdit) {
     require(encoder is JsonEncoder) { "TextEdit can only be serialized to JSON" }
-    val json = encoder.json
-
-    val jsonObject = buildJsonObject {
-      put("range", json.encodeToJsonElement(Range.serializer(), value.range))
-      if (value.snippet != null) {
-        put("snippet", buildJsonObject {
-          put("kind", JsonPrimitive("snippet"))
-          put("value", JsonPrimitive(value.snippet))
-        })
+    encoder.encodeStructure(descriptor) {
+      encodeSerializableElement(descriptor, RANGE, Range.serializer(), value.range)
+      val snippet = value.snippet
+      if (snippet != null) {
+        encodeSerializableElement(descriptor, SNIPPET, SnippetValueSerializer, snippet)
       }
       else {
-        put("newText", JsonPrimitive(value.newText))
+        encodeStringElement(descriptor, NEW_TEXT, value.newText)
       }
-      if (value.annotationId != null) {
-        put("annotationId", json.encodeToJsonElement(ChangeAnnotationIdentifier.serializer(), value.annotationId))
+      val annotationId = value.annotationId
+      if (annotationId != null) {
+        encodeSerializableElement(descriptor, ANNOTATION_ID, ChangeAnnotationIdentifier.serializer(), annotationId)
       }
     }
-
-    encoder.encodeJsonElement(jsonObject)
   }
 
   override fun deserialize(decoder: Decoder): TextEdit {
     require(decoder is JsonDecoder) { "TextEdit can only be deserialized from JSON" }
-    val json = decoder.json
-    val jsonObject = decoder.decodeJsonElement().jsonObject
-
-    val range = json.decodeFromJsonElement(Range.serializer(), jsonObject.getValue("range"))
-    val snippet = jsonObject["snippet"]?.jsonObject?.get("value")?.jsonPrimitive?.content
-    val newText = if (snippet != null) "" else jsonObject["newText"]?.jsonPrimitive?.content ?: ""
-    val annotationId = jsonObject["annotationId"]?.let {
-      json.decodeFromJsonElement(ChangeAnnotationIdentifier.serializer(), it)
+    var range: Range? = null
+    var newText: String? = null
+    var snippet: String? = null
+    var annotationId: ChangeAnnotationIdentifier? = null
+    decoder.decodeStructure(descriptor) {
+      while (true) {
+        when (val index = decodeElementIndex(descriptor)) {
+          RANGE -> range = decodeSerializableElement(descriptor, RANGE, Range.serializer())
+          NEW_TEXT -> newText = decodeSerializableElement(descriptor, NEW_TEXT, String.serializer().nullable) ?: "null"
+          SNIPPET -> snippet = decodeSerializableElement(descriptor, SNIPPET, SnippetValueSerializer)
+          ANNOTATION_ID -> annotationId = decodeSerializableElement(descriptor, ANNOTATION_ID, ChangeAnnotationIdentifier.serializer())
+          CompositeDecoder.DECODE_DONE -> break
+          else -> throw SerializationException("Unexpected index $index")
+        }
+      }
     }
-
-    return TextEdit(range = range, newText = newText, snippet = snippet, annotationId = annotationId)
+    return TextEdit(
+      range = range ?: missingField("range", "TextEdit"),
+      newText = if (snippet != null) "" else newText ?: "",
+      snippet = snippet,
+      annotationId = annotationId,
+    )
   }
 }
 
+/**
+ * The `snippet` member of a snippet [TextEdit]: `{"kind":"snippet","value":...}`. Decode reads only `value` (`null` if it
+ * is missing); `kind` is ignored whatever its shape.
+ */
+internal object SnippetValueSerializer : SerializationStrategy<String>, DeserializationStrategy<String?> {
+  private const val KIND = 0
+  private const val VALUE = 1
+
+  override val descriptor: SerialDescriptor = buildClassSerialDescriptor("com.jetbrains.lsp.protocol.StringValue") {
+    annotations = ignoreUnknownKeys
+    element("kind", JsonElement.serializer().nullable.descriptor, isOptional = true)
+    element("value", String.serializer().nullable.descriptor, isOptional = true)
+  }
+
+  override fun serialize(encoder: Encoder, value: String) {
+    encoder.encodeStructure(descriptor) {
+      encodeStringElement(descriptor, KIND, "snippet")
+      encodeStringElement(descriptor, VALUE, value)
+    }
+  }
+
+  override fun deserialize(decoder: Decoder): String? {
+    var value: String? = null
+    decoder.decodeStructure(descriptor) {
+      while (true) {
+        when (val index = decodeElementIndex(descriptor)) {
+          KIND -> decodeSerializableElement(descriptor, KIND, JsonElement.serializer())
+          VALUE -> value = decodeSerializableElement(descriptor, VALUE, String.serializer().nullable) ?: "null"
+          CompositeDecoder.DECODE_DONE -> break
+          else -> throw SerializationException("Unexpected index $index")
+        }
+      }
+    }
+    return value
+  }
+}
+
+/**
+ * Streams a [TextDocumentEdit] without a `JsonObject`. Keys may come in any order; unknown keys are ignored.
+ */
 @Serializer(forClass = TextDocumentEdit::class)
 object TextDocumentEditSerializer : KSerializer<TextDocumentEdit> {
+  private const val TEXT_DOCUMENT = 0
+  private const val EDITS = 1
+
+  private val editsSerializer = ListSerializer(TextEditSerializer)
+
+  /** An OptionalVersionedTextDocumentIdentifier: `version` (integer | null) is required, a `null` one is written. */
+  private val versionedTextDocument = RequiredNullMembers(TextDocumentIdentifier.serializer(), "version")
+
+  override val descriptor: SerialDescriptor = buildClassSerialDescriptor("com.jetbrains.lsp.protocol.TextDocumentEdit") {
+    annotations = ignoreUnknownKeys
+    element("textDocument", TextDocumentIdentifier.serializer().descriptor)
+    element("edits", editsSerializer.descriptor)
+  }
+
   override fun serialize(encoder: Encoder, value: TextDocumentEdit) {
     require(encoder is JsonEncoder) { "TextDocumentEdit can only be serialized to JSON" }
-    val json = encoder.json
-
-    // `textDocument` is an OptionalVersionedTextDocumentIdentifier: its `version` (integer | null) must be
-    // present. The shared Json uses explicitNulls = false, which would otherwise drop a null version and
-    // produce a `textDocument` that LSP clients (e.g. VS Code) reject as an unknown workspace edit change.
-    val textDocument = json.encodeToJsonElement(TextDocumentIdentifier.serializer(), value.textDocument).jsonObject
-    val textDocumentWithVersion = JsonObject(
-      textDocument + ("version" to (value.textDocument.version?.let { JsonPrimitive(it) } ?: JsonNull))
-    )
-
-    val jsonObject = buildJsonObject {
-      put("textDocument", textDocumentWithVersion)
-      put("edits", json.encodeToJsonElement(ListSerializer(TextEdit.serializer()), value.edits))
+    encoder.encodeStructure(descriptor) {
+      encodeSerializableElement(descriptor, TEXT_DOCUMENT, versionedTextDocument, value.textDocument)
+      encodeSerializableElement(descriptor, EDITS, editsSerializer, value.edits)
     }
-
-    encoder.encodeJsonElement(jsonObject)
   }
 
   override fun deserialize(decoder: Decoder): TextDocumentEdit {
     require(decoder is JsonDecoder) { "TextDocumentEdit can only be deserialized from JSON" }
-    val json = decoder.json
-    val jsonObject = decoder.decodeJsonElement().jsonObject
-
-    val textDocument = json.decodeFromJsonElement(TextDocumentIdentifier.serializer(), jsonObject.getValue("textDocument"))
-    val edits = json.decodeFromJsonElement(ListSerializer(TextEdit.serializer()), jsonObject.getValue("edits"))
-    return TextDocumentEdit(textDocument = textDocument, edits = edits)
+    var textDocument: TextDocumentIdentifier? = null
+    var edits: List<TextEdit>? = null
+    decoder.decodeStructure(descriptor) {
+      while (true) {
+        when (val index = decodeElementIndex(descriptor)) {
+          TEXT_DOCUMENT -> textDocument = decodeSerializableElement(descriptor, TEXT_DOCUMENT, TextDocumentIdentifier.serializer())
+          EDITS -> edits = decodeSerializableElement(descriptor, EDITS, editsSerializer)
+          CompositeDecoder.DECODE_DONE -> break
+          else -> throw SerializationException("Unexpected index $index")
+        }
+      }
+    }
+    return TextDocumentEdit(
+      textDocument = textDocument ?: missingField("textDocument", "TextDocumentEdit"),
+      edits = edits ?: missingField("edits", "TextDocumentEdit"),
+    )
   }
+}
+
+/**
+ * The [generated] serializer of a class with the members [names] written as JSON `null` when `null`: the spec marks them
+ * required and nullable (`x: T | null`, no `?`), and [LSP.json] (`explicitNulls = false`) would drop them. E.g. the
+ * `version` of an OptionalVersionedTextDocumentIdentifier, which VS Code needs to accept a workspace edit change.
+ *
+ * Streaming, no tree: [generated] writes into a [CompositeEncoder] that answers `true` to `shouldEncodeElementDefault`
+ * for [names] (else a `null` default is skipped before any call) and writes a `null` of [names] as `JsonNull` (the
+ * nullable element call of [LSP.json] drops it); every other call goes to the real encoder unchanged. Only the members of
+ * this class: nested values are written by the real encoder. Decode is [generated]. Pinned by `RequiredNullMembersProbeTest`.
+ */
+internal class RequiredNullMembers<T>(private val generated: KSerializer<T>, vararg names: String) : KSerializer<T> {
+  override val descriptor: SerialDescriptor = generated.descriptor
+
+  private val required = BooleanArray(descriptor.elementsCount).also { required ->
+    for (name in names) {
+      val index = descriptor.getElementIndex(name)
+      require(index != CompositeDecoder.UNKNOWN_NAME) { "${descriptor.serialName} has no member $name" }
+      required[index] = true
+    }
+  }
+
+  override fun serialize(encoder: Encoder, value: T) {
+    if (encoder !is JsonEncoder) return generated.serialize(encoder, value)
+    generated.serialize(RequiredNullsEncoder(encoder, required), value)
+  }
+
+  override fun deserialize(decoder: Decoder): T = generated.deserialize(decoder)
+}
+
+/** The [Encoder] and the [CompositeEncoder] of one [RequiredNullMembers] value: one object per value. */
+@OptIn(ExperimentalSerializationApi::class)
+private class RequiredNullsEncoder(private val encoder: Encoder, private val required: BooleanArray) : Encoder by encoder, CompositeEncoder {
+  private lateinit var output: CompositeEncoder
+
+  override val serializersModule: SerializersModule get() = encoder.serializersModule
+
+  override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
+    output = encoder.beginStructure(descriptor)
+    return this
+  }
+
+  override fun endStructure(descriptor: SerialDescriptor): Unit = output.endStructure(descriptor)
+
+  override fun shouldEncodeElementDefault(descriptor: SerialDescriptor, index: Int): Boolean =
+    required[index] || output.shouldEncodeElementDefault(descriptor, index)
+
+  override fun <V : Any> encodeNullableSerializableElement(descriptor: SerialDescriptor, index: Int, serializer: SerializationStrategy<V>, value: V?) {
+    if (value == null && required[index]) output.encodeSerializableElement(descriptor, index, JsonNull.serializer(), JsonNull)
+    else output.encodeNullableSerializableElement(descriptor, index, serializer, value)
+  }
+
+  override fun <V> encodeSerializableElement(descriptor: SerialDescriptor, index: Int, serializer: SerializationStrategy<V>, value: V): Unit =
+    output.encodeSerializableElement(descriptor, index, serializer, value)
+
+  override fun encodeBooleanElement(descriptor: SerialDescriptor, index: Int, value: Boolean): Unit = output.encodeBooleanElement(descriptor, index, value)
+  override fun encodeByteElement(descriptor: SerialDescriptor, index: Int, value: Byte): Unit = output.encodeByteElement(descriptor, index, value)
+  override fun encodeShortElement(descriptor: SerialDescriptor, index: Int, value: Short): Unit = output.encodeShortElement(descriptor, index, value)
+  override fun encodeCharElement(descriptor: SerialDescriptor, index: Int, value: Char): Unit = output.encodeCharElement(descriptor, index, value)
+  override fun encodeIntElement(descriptor: SerialDescriptor, index: Int, value: Int): Unit = output.encodeIntElement(descriptor, index, value)
+  override fun encodeLongElement(descriptor: SerialDescriptor, index: Int, value: Long): Unit = output.encodeLongElement(descriptor, index, value)
+  override fun encodeFloatElement(descriptor: SerialDescriptor, index: Int, value: Float): Unit = output.encodeFloatElement(descriptor, index, value)
+  override fun encodeDoubleElement(descriptor: SerialDescriptor, index: Int, value: Double): Unit = output.encodeDoubleElement(descriptor, index, value)
+  override fun encodeStringElement(descriptor: SerialDescriptor, index: Int, value: String): Unit = output.encodeStringElement(descriptor, index, value)
+  override fun encodeInlineElement(descriptor: SerialDescriptor, index: Int): Encoder = output.encodeInlineElement(descriptor, index)
 }

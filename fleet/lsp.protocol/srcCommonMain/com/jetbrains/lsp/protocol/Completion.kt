@@ -1,13 +1,22 @@
 package com.jetbrains.lsp.protocol
 
 import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.descriptors.nullable
+import kotlinx.serialization.encoding.CompositeDecoder
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.encoding.decodeStructure
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.jvm.JvmInline
@@ -677,14 +686,8 @@ data class CompletionItem(
         @JvmInline
         value class InsertReplace(val insertReplaceEdit: InsertReplaceEdit) : Edit
 
-        class Serializer : JsonContentPolymorphicSerializer<Edit>(Edit::class) {
-            override fun selectDeserializer(element: JsonElement): DeserializationStrategy<Edit> {
-                return when {
-                    element is JsonObject && element.containsKey("insert") -> InsertReplace.serializer()
-                    else -> Text.serializer()
-                }
-            }
-        }
+        /** Streams an [Edit] without a `JsonObject` per item; `insert` present means [InsertReplace], else [Text]. */
+        class Serializer : KSerializer<Edit> by CompletionItemEditSerializer
 
       companion object {
         fun emptyAtPosition(position: Position): Edit {
@@ -692,6 +695,90 @@ data class CompletionItem(
           return InsertReplace(InsertReplaceEdit("", range, range))
         }
       }
+    }
+}
+
+/**
+ * Streams a [CompletionItem.Edit]: an `insert` member (any value, also `null`) means [CompletionItem.Edit.InsertReplace]
+ * with the strictness of the generated [InsertReplaceEdit] serializer, else [CompletionItem.Edit.Text] with the rules of
+ * [TextEditSerializer]. Keys may come in any order; unknown keys are ignored. The members of the variant not taken are
+ * decoded typed and dropped, so a wrong-shaped one fails where the old tree ignored it.
+ */
+private object CompletionItemEditSerializer : KSerializer<CompletionItem.Edit> {
+    private const val RANGE = 0
+    private const val NEW_TEXT = 1
+    private const val SNIPPET = 2
+    private const val ANNOTATION_ID = 3
+    private const val INSERT = 4
+    private const val REPLACE = 5
+
+    private val insertReplaceName = InsertReplaceEdit.serializer().descriptor.serialName
+
+    // Nullable and optional elements: the decoder hands us every present value as is (no input coercion, no implicit null).
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("com.jetbrains.lsp.protocol.CompletionItem.Edit") {
+        annotations = ignoreUnknownKeys
+        element("range", Range.serializer().nullable.descriptor, isOptional = true)
+        element("newText", String.serializer().nullable.descriptor, isOptional = true)
+        element("snippet", SnippetValueSerializer.descriptor.nullable, isOptional = true)
+        element("annotationId", ChangeAnnotationIdentifier.serializer().nullable.descriptor, isOptional = true)
+        element("insert", Range.serializer().nullable.descriptor, isOptional = true)
+        element("replace", Range.serializer().nullable.descriptor, isOptional = true)
+    }
+
+    override fun serialize(encoder: Encoder, value: CompletionItem.Edit) {
+        require(encoder is JsonEncoder) { "CompletionItem.Edit can only be serialized to JSON" }
+        when (value) {
+            is CompletionItem.Edit.Text -> encoder.encodeSerializableValue(TextEdit.serializer(), value.textEdit)
+            is CompletionItem.Edit.InsertReplace -> encoder.encodeSerializableValue(InsertReplaceEdit.serializer(), value.insertReplaceEdit)
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): CompletionItem.Edit {
+        require(decoder is JsonDecoder) { "CompletionItem.Edit can only be deserialized from JSON" }
+        var range: Range? = null
+        var newText: String? = null
+        var newTextSeen = false
+        var snippet: String? = null
+        var annotationId: ChangeAnnotationIdentifier? = null
+        var insert: Range? = null
+        var insertSeen = false
+        var replace: Range? = null
+        decoder.decodeStructure(descriptor) {
+            while (true) {
+                when (val index = decodeElementIndex(descriptor)) {
+                    RANGE -> range = decodeSerializableElement(descriptor, RANGE, Range.serializer().nullable)
+                    NEW_TEXT -> {
+                        newText = decodeSerializableElement(descriptor, NEW_TEXT, String.serializer().nullable)
+                        newTextSeen = true
+                    }
+                    SNIPPET -> snippet = decodeSerializableElement(descriptor, SNIPPET, SnippetValueSerializer)
+                    ANNOTATION_ID -> annotationId = decodeSerializableElement(descriptor, ANNOTATION_ID, ChangeAnnotationIdentifier.serializer())
+                    INSERT -> {
+                        insert = decodeSerializableElement(descriptor, INSERT, Range.serializer().nullable)
+                        insertSeen = true
+                    }
+                    REPLACE -> replace = decodeSerializableElement(descriptor, REPLACE, Range.serializer().nullable)
+                    CompositeDecoder.DECODE_DONE -> break
+                    else -> throw SerializationException("Unexpected index $index")
+                }
+            }
+        }
+        return if (insertSeen) {
+            CompletionItem.Edit.InsertReplace(InsertReplaceEdit(
+                newText = newText ?: missingField("newText", insertReplaceName),
+                insert = insert ?: missingField("insert", insertReplaceName),
+                replace = replace ?: missingField("replace", insertReplaceName),
+            ))
+        }
+        else {
+            // The rules of TextEditSerializer: a snippet empties `newText`, a JSON `null` in `newText` is the string "null".
+            CompletionItem.Edit.Text(TextEdit(
+                range = range ?: missingField("range", "TextEdit"),
+                newText = if (snippet != null) "" else if (newTextSeen) newText ?: "null" else "",
+                snippet = snippet,
+                annotationId = annotationId,
+            ))
+        }
     }
 }
 
@@ -787,13 +874,19 @@ sealed interface CompletionResult {
     @JvmInline
     value class Complete(val items: List<CompletionItem>) : CompletionResult
 
-    class Serializer : JsonContentPolymorphicSerializer<CompletionResult>(CompletionResult::class) {
-        override fun selectDeserializer(element: JsonElement): DeserializationStrategy<CompletionResult> {
-            return when {
-                element is JsonArray -> Complete.serializer()
-                else -> MaybeIncomplete.serializer()
+    /** An array is a list of items, anything else a completion list ([decodeObjectOrArray]). */
+    class Serializer : KSerializer<CompletionResult> {
+        override val descriptor: SerialDescriptor = unionDescriptor("CompletionResult")
+
+        override fun serialize(encoder: Encoder, value: CompletionResult) {
+            when (value) {
+                is MaybeIncomplete -> encoder.encodeSerializableValue(MaybeIncomplete.serializer(), value)
+                is Complete -> encoder.encodeSerializableValue(Complete.serializer(), value)
             }
         }
+
+        override fun deserialize(decoder: Decoder): CompletionResult =
+            decodeObjectOrArray(decoder, MaybeIncomplete.serializer(), Complete.serializer())
     }
 }
 

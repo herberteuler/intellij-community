@@ -40,6 +40,7 @@ data class FoldingRange(
    * The kind is used to categorize folding ranges and used by commands like 'Fold all comments'.
    * @see FoldingRangeKind
    */
+  @Serializable(with = FoldingRangeKindSerializer::class)
   val kind: FoldingRangeKind? = null,
 
   /**

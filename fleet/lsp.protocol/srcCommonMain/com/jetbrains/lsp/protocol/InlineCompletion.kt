@@ -1,12 +1,12 @@
 package com.jetbrains.lsp.protocol
 
-import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonContentPolymorphicSerializer
-import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlin.jvm.JvmInline
 
 /**
@@ -210,13 +210,19 @@ sealed interface InlineCompletionResult {
         override val items: List<InlineCompletionItem> get() = list.items
     }
 
-    class Serializer : JsonContentPolymorphicSerializer<InlineCompletionResult>(InlineCompletionResult::class) {
-        override fun selectDeserializer(element: JsonElement): DeserializationStrategy<InlineCompletionResult> {
-            return when (element) {
-                is JsonArray -> Items.serializer()
-                else -> ItemList.serializer()
+    /** An array is a list of items, anything else an item list ([decodeObjectOrArray]). */
+    class Serializer : KSerializer<InlineCompletionResult> {
+        override val descriptor: SerialDescriptor = unionDescriptor("InlineCompletionResult")
+
+        override fun serialize(encoder: Encoder, value: InlineCompletionResult) {
+            when (value) {
+                is Items -> encoder.encodeSerializableValue(Items.serializer(), value)
+                is ItemList -> encoder.encodeSerializableValue(ItemList.serializer(), value)
             }
         }
+
+        override fun deserialize(decoder: Decoder): InlineCompletionResult =
+            decodeObjectOrArray(decoder, ItemList.serializer(), Items.serializer())
     }
 }
 

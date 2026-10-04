@@ -7,6 +7,9 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.io.Buffer
 import kotlinx.io.Source
+import kotlinx.io.UnsafeIoApi
+import kotlinx.io.unsafe.UnsafeBufferOperations
+import kotlinx.io.unsafe.writeToTail
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
@@ -40,10 +43,10 @@ suspend fun ByteReader.joinReaderThread(timeoutMillis: Long) {
 
 private val isWindows: Boolean = System.getProperty("os.name", "").startsWith("windows", ignoreCase = true)
 
+@OptIn(UnsafeIoApi::class)
 private class InputStreamByteReader(inputStream: InputStream) : ByteReader {
   private val channel: ReadableByteChannel = Channels.newChannel(inputStream)
   private val backingBuffer = Buffer()
-  private val nioBuffer = ByteBuffer.allocate(DEFAULT_BUFFER_SIZE)
 
   @Volatile private var _closed = false
   @Volatile private var _closedCause: Throwable? = null
@@ -54,9 +57,15 @@ private class InputStreamByteReader(inputStream: InputStream) : ByteReader {
 
   override suspend fun awaitContent(min: Int): Boolean {
     if (_closed) return false
-    nioBuffer.clear()
     val count = try {
-      runInterruptible(Dispatchers.IO) { channel.read(nioBuffer) }
+      // Reads straight into the tail segment of the buffer, no intermediate copy.
+      runInterruptible(Dispatchers.IO) {
+        var read = 0
+        UnsafeBufferOperations.writeToTail(backingBuffer, 1) { tail: ByteBuffer ->
+          read = channel.read(tail)
+        }
+        read
+      }
     }
     catch (_: IOException) {
       _closed = true
@@ -66,8 +75,6 @@ private class InputStreamByteReader(inputStream: InputStream) : ByteReader {
       _closed = true
       return false
     }
-    nioBuffer.flip()
-    backingBuffer.write(nioBuffer.array(), nioBuffer.arrayOffset() + nioBuffer.position(), count)
     return backingBuffer.size >= min
   }
 

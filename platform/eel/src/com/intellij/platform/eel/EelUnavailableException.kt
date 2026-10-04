@@ -34,12 +34,6 @@ import kotlin.coroutines.cancellation.CancellationException
 sealed class EelUnavailableException(
   override val message: String,
   cause: Throwable?,
-
-  /**
-   * Required to have no conflicts with `fun EelUnavailableException(String, Throwable?)`.
-   * Exists only to have a smaller diff in the commit.
-   */
-  @Suppress("UNUSED_PARAMETER") dummyArgument: Unit,
 ) : IOException(message, cause) {
 
   /**
@@ -52,7 +46,7 @@ sealed class EelUnavailableException(
   open class CommunicationFailure @ApiStatus.Internal @JvmOverloads constructor(
     message: String,
     cause: Throwable? = null,
-  ) : EelUnavailableException(message, cause, Unit) {
+  ) : EelUnavailableException(message, cause) {
     @ApiStatus.Internal
     override fun copyForCaller(): EelUnavailableException = CommunicationFailure(message, this)
   }
@@ -67,7 +61,7 @@ sealed class EelUnavailableException(
   abstract class Conclusive @ApiStatus.Internal constructor(
     message: String,
     cause: Throwable?,
-  ) : EelUnavailableException(message, cause, Unit)
+  ) : EelUnavailableException(message, cause)
 
   /**
    * The environment ended on purpose.
@@ -122,9 +116,3 @@ sealed class EelUnavailableException(
     }
   }
 }
-
-/** Exists only to have a smaller diff in the commit. */
-@ApiStatus.Internal
-@Deprecated("Inline me")
-fun EelUnavailableException(message: String, cause: Throwable? = null): EelUnavailableException.CommunicationFailure =
-  EelUnavailableException.CommunicationFailure(message, cause)

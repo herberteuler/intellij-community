@@ -1171,7 +1171,8 @@ object PyTypeChecker {
       result.add(Pair(protocolMember, matchingMembers))
       if (ContainerUtil.isEmpty(subclassElementMembers)) {
         // Name the kind of member missing (a callable protocol member is a "method", everything else an "attribute").
-        val isMethod = protocolMember.type.let { it is PyFunctionType || (it as? PyCallableType)?.isCallable == true }
+        val memberType = protocolMember.type
+        val isMethod = memberType is PyFunctionType || (memberType as? PyCallableType)?.isCallable == true
         recordLeaf(protocolContext, { protocolMember.name?.let { PyMismatchStep.Missing(it, isMethod) } }) {
           PyPsiBundle.problemMessage(
             if (isMethod) "INSP.type.checker.breakdown.method.missing" else "INSP.type.checker.breakdown.member.missing",

@@ -87,14 +87,15 @@ internal object PyTypeCheckerInspectionProblemRegistrar {
       val expected = expectedTypeAfterSubstitution ?: argumentResult.expectedType
       PyTypeCheckerProblemReporter.reportWithTooltip(holder, code, argument, message, type) {
         // The call site lets the breakdown read as "f() needs parameter 'a' … / 'x' is …" instead of a bare tree.
+        val actualType = argumentResult.actualType
         val callSite = PyTypeMismatchProse.CallSite(
           callee = calleeParam(calleeResults.callable),
           argument = shortenExpression(argument),
           parameterName = argumentResult.parameter?.name,
           parameterType = PyInspectionMessages.CodifiedParam.ofType(expected, argument, context),
-          actualType = PyInspectionMessages.CodifiedParam.ofType(argumentResult.actualType, argument, context),
+          actualType = PyInspectionMessages.CodifiedParam.ofType(actualType, argument, context),
           // A literal actual (e.g. `"a"`, `42`) restates the argument expression, so its type clause is dropped.
-          actualIsLiteral = argumentResult.actualType.let { it is PyLiteralType || it is PyLiteralStringType },
+          actualIsLiteral = actualType is PyLiteralType || actualType is PyLiteralStringType,
         )
         breakdownTooltip(message,
                          expected,

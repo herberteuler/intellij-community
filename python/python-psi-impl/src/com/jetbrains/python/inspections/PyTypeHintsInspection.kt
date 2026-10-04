@@ -424,21 +424,21 @@ class PyTypeHintsInspection : PyInspection() {
     override fun visitPyElement(node: PyElement) {
       super.visitPyElement(node)
 
-      if (node is PyTypeCommentOwner &&
-          node is PyAnnotationOwner &&
-          node.typeComment?.text.let { it != null && !PyTypingTypeProvider.TYPE_IGNORE_PATTERN.matcher(it).matches() }) {
-        val message = PyPsiBundle.message("INSP.type.hints.type.specified.both.in.type.comment.and.annotation")
+      if (node !is PyTypeCommentOwner || node !is PyAnnotationOwner) return
+      val typeCommentText = node.typeComment?.text
+      if (typeCommentText == null || PyTypingTypeProvider.TYPE_IGNORE_PATTERN.matcher(typeCommentText).matches()) return
 
-        if (node is PyFunction) {
-          if (node.annotationValue != null || node.parameterList.parameters.any { it is PyNamedParameter && it.annotationValue != null }) {
-            registerProblem(node.typeComment, message, RemoveElementQuickFix(PyPsiBundle.message("QFIX.remove.type.comment")))
-            registerProblem(node.nameIdentifier, message, RemoveFunctionAnnotations())
-          }
-        }
-        else if (node.annotationValue != null) {
+      val message = PyPsiBundle.message("INSP.type.hints.type.specified.both.in.type.comment.and.annotation")
+
+      if (node is PyFunction) {
+        if (node.annotationValue != null || node.parameterList.parameters.any { it is PyNamedParameter && it.annotationValue != null }) {
           registerProblem(node.typeComment, message, RemoveElementQuickFix(PyPsiBundle.message("QFIX.remove.type.comment")))
-          registerProblem(node.annotation, message, RemoveElementQuickFix(PyPsiBundle.message("QFIX.remove.annotation")))
+          registerProblem(node.nameIdentifier, message, RemoveFunctionAnnotations())
         }
+      }
+      else if (node.annotationValue != null) {
+        registerProblem(node.typeComment, message, RemoveElementQuickFix(PyPsiBundle.message("QFIX.remove.type.comment")))
+        registerProblem(node.annotation, message, RemoveElementQuickFix(PyPsiBundle.message("QFIX.remove.annotation")))
       }
     }
 
@@ -1342,7 +1342,10 @@ class PyTypeHintsInspection : PyInspection() {
       if (subParameter is PyReferenceExpression &&
           PyResolveUtil
             .resolveImportedElementQNameLocally(subParameter)
-            .any { qName -> qName.toString().let { it == PyTypingTypeProvider.LITERAL || it == PyTypingTypeProvider.LITERAL_EXT } }) {
+            .any { qName ->
+              val name = qName.toString()
+              name == PyTypingTypeProvider.LITERAL || name == PyTypingTypeProvider.LITERAL_EXT
+            }) {
         // if `index` is like `typing.Literal[...]` and has invalid form,
         // outer `typing.Literal[...]` won't be highlighted
         return
@@ -1989,8 +1992,12 @@ class PyTypeHintsInspection : PyInspection() {
       }
 
       val self = scopeOwner.parameterList.parameters.firstOrNull()?.takeIf { it.isSelf }
-      if (self == null ||
-          PyUtil.multiResolveTopPriority(qualifier, resolveContext).let { it.isNotEmpty() && it.all { e -> e != self } }) {
+      if (self == null) {
+        registerProblem(node, PyPsiBundle.message("INSP.type.hints.non.self.attribute.could.not.be.type.hinted"))
+        return
+      }
+      val qualifierTargets = PyUtil.multiResolveTopPriority(qualifier, resolveContext)
+      if (qualifierTargets.isNotEmpty() && self !in qualifierTargets) {
         registerProblem(node, PyPsiBundle.message("INSP.type.hints.non.self.attribute.could.not.be.type.hinted"))
       }
     }
@@ -2347,10 +2354,9 @@ private fun referenceIsCorrectTypeHint(referenceExpression: PyReferenceExpressio
     }
     is PyTypeParameter, is PyClass, is PyTypeAliasStatement -> return true
     is PyFunction -> {
-      if (PyTypingTypeProvider.OPAQUE_NAMES.contains(resolvedElement.qualifiedName)) return true
-      return resolvedElement.qualifiedName?.let {
-        it.endsWith("ParamSpec.args") || it.endsWith("ParamSpec.kwargs")
-      } == true
+      val qualifiedName = resolvedElement.qualifiedName
+      return PyTypingTypeProvider.OPAQUE_NAMES.contains(qualifiedName) ||
+             qualifiedName != null && (qualifiedName.endsWith("ParamSpec.args") || qualifiedName.endsWith("ParamSpec.kwargs"))
     }
     else -> return false
   }

@@ -487,13 +487,15 @@ private fun isInProvidedSdk(element: PsiElement): Boolean =
   PyThirdPartySdkDetector.EP_NAME.findFirstSafe { it.isInThirdPartySdk(element) } != null
 
 private fun isUserFile(element: PsiElement, module: Module?): Boolean {
-  return module != null &&
-         element is PsiFileSystemItem &&
-         element.virtualFile.let { it != null && ModuleUtilCore.moduleContainsFile(module, it, false) }
+  if (module == null || element !is PsiFileSystemItem) return false
+  val virtualFile = element.virtualFile ?: return false
+  return ModuleUtilCore.moduleContainsFile(module, virtualFile, false)
 }
 
 private fun isInTypeShed(element: PsiElement): Boolean {
-  return PyiUtil.isPyiFileOfPackage(element) && (element as? PsiFileSystemItem)?.virtualFile.let { it != null && PyTypeShed.isInside(it) }
+  if (!PyiUtil.isPyiFileOfPackage(element)) return false
+  val virtualFile = (element as? PsiFileSystemItem)?.virtualFile ?: return false
+  return PyTypeShed.isInside(virtualFile)
 }
 
 /**

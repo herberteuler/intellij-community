@@ -1051,7 +1051,7 @@ class PyTypeDiffTest : PyCodeInsightTestCase() {
       def f(a: int) -> int: ...
       x: Callable[[int], str] = f
     """).firstNotNullOf { it.toolTip }
-    assertFalse(callableDiff.let { "Provided:" in it || "Expected:" in it }, callableDiff)
+    assertFalse("Provided:" in callableDiff || "Expected:" in callableDiff, callableDiff)
 
     val overloadGrid = warningTooltips<PyTypeCheckerInspection>("""
       from typing import overload

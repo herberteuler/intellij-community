@@ -3,6 +3,7 @@ package com.jetbrains.python.codeInsight.testIntegration
 
 import com.intellij.idea.TestFor
 import com.intellij.psi.PsiNamedElement
+import com.intellij.psi.util.PsiUtilCore
 import com.intellij.testFramework.runInEdtAndWait
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
@@ -194,7 +195,7 @@ class PyTestFinderTest : PyCodeInsightTestCase() {
     check()
   }
 
-  private fun elementAtCaret() = myFixture.file.findElementAt(myFixture.caretOffset)!!
+  private fun elementAtCaret() = PsiUtilCore.getElementAtOffset(myFixture.file, myFixture.caretOffset)
 
   private fun findSourceName(): String? = PyTestFinder().findSourceElement(elementAtCaret())?.name
 

@@ -4,12 +4,12 @@ package com.jetbrains.python.codeInsight.highlighting
 import com.intellij.codeInsight.highlighting.HighlightUsagesHandlerBase
 import com.intellij.idea.TestFor
 import com.intellij.psi.PsiElement
+import com.intellij.psi.util.PsiUtilCore
 import com.intellij.testFramework.runInEdtAndWait
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
 import com.jetbrains.python.fixtures.PyCodeInsightTestCase
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -109,10 +109,9 @@ class PyHighlightExitPointsHandlerTest : PyCodeInsightTestCase() {
 
   private fun createHandler(code: String): HighlightUsagesHandlerBase<PsiElement>? {
     configureWithCaret(code)
-    val target = myFixture.file.findElementAt(myFixture.caretOffset)
-    assertNotNull(target, "No PSI element at the caret")
+    val target = PsiUtilCore.getElementAtOffset(myFixture.file, myFixture.caretOffset)
     @Suppress("UNCHECKED_CAST")
     return PyHighlightExitPointsHandlerFactory()
-      .createHighlightUsagesHandler(myFixture.editor, myFixture.file, target!!) as HighlightUsagesHandlerBase<PsiElement>?
+      .createHighlightUsagesHandler(myFixture.editor, myFixture.file, target) as HighlightUsagesHandlerBase<PsiElement>?
   }
 }

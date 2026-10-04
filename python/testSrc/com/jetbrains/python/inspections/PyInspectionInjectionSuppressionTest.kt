@@ -15,6 +15,7 @@ import com.intellij.psi.ElementManipulators
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiLanguageInjectionHost
+import com.intellij.psi.util.PsiUtilCore
 import com.intellij.psi.util.PsiTreeUtil
 import com.jetbrains.python.PythonLanguage
 import com.jetbrains.python.fixtures.PyTestCase
@@ -97,7 +98,7 @@ class PyInspectionInjectionSuppressionTest : PyTestCase() {
                         ?: error("No injected PSI files found for host")
     val injectedFile = injectedFiles.first().first as? PsiFile ?: error("Injected PSI root is not a file")
     val targetOffset = injectedFile.text.indexOf("missing_name").takeIf { it >= 0 } ?: 0
-    return injectedFile.findElementAt(targetOffset) ?: injectedFile
+    return PsiUtilCore.getElementAtOffset(injectedFile, targetOffset)
   }
 
   private fun runWithoutPythonSdk(action: () -> Unit) {

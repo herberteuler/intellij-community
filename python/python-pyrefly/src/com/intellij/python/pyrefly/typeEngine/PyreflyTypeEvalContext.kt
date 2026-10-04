@@ -430,7 +430,7 @@ open class PyreflyTypeEvalContext internal constructor(val lspClient: LspClient,
     flags != null && flags.and(PyreflyLsp4jServer.INSTANTIABLE_FLAG) != 0
 
   private fun PyreflyLsp4jServer.TspType.isCallable(): Boolean =
-    flags?.let { it and PyreflyLsp4jServer.CALLABLE_FLAG != 0 } == true
+    flags != null && flags.and(PyreflyLsp4jServer.CALLABLE_FLAG) != 0
 
   private fun PyClassLikeType.asDefinitionIf(isDefinition: Boolean): PyClassLikeType =
     if (isDefinition && !this.isDefinition) toClass() else this

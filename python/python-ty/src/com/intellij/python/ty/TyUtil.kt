@@ -3,11 +3,11 @@ package com.intellij.python.ty
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.util.SystemInfo
 import com.intellij.python.ty.common.icons.PythonTyCommonIcons
 import com.intellij.util.IconUtil
 import com.intellij.util.io.HttpRequests
 import com.intellij.util.system.CpuArch
+import com.intellij.util.system.LowLevelLocalMachineAccess
 import com.intellij.util.system.OS
 import java.io.IOException
 import java.nio.file.Files
@@ -37,6 +37,7 @@ object TyUtil {
   /**
    * Gets the expected binary name for the current platform.
    */
+  @OptIn(LowLevelLocalMachineAccess::class)
   fun getTyBinaryName(): String {
     return if (OS.CURRENT == OS.Windows) "ty.exe" else "ty"
   }
@@ -99,6 +100,7 @@ object TyUtil {
     }
   }
 
+  @OptIn(LowLevelLocalMachineAccess::class)
   fun downloadTyBinaryImpl(indicator: ProgressIndicator? = null): Path? {
     indicator?.text = TyBundle.message("install.ty.progress.fetching")
     val releaseInfo = fetchLatestRelease() ?: return null
@@ -140,12 +142,13 @@ object TyUtil {
     return binaryPath
   }
 
+  @OptIn(LowLevelLocalMachineAccess::class)
   private fun getPlatformSuffix(): String {
-    val os = when {
-      SystemInfo.isWindows -> "pc-windows-msvc"
-      SystemInfo.isLinux -> "unknown-linux-TODO" // TODO: linux type: musl, gnu,
-      SystemInfo.isMac -> "apple-darwin"
-      else -> return ""
+    val os = when (OS.CURRENT) {
+      OS.Windows -> "pc-windows-msvc"
+      OS.Linux -> "unknown-linux-TODO" // TODO: linux type: musl, gnu,
+      OS.macOS -> "apple-darwin"
+      OS.FreeBSD, OS.OHOS, OS.Other -> return ""
     }
 
     val arch = when (CpuArch.CURRENT) {

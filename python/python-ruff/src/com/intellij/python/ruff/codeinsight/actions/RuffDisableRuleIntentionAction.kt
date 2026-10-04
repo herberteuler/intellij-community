@@ -75,7 +75,12 @@ class RuffDisableRuleIntentionAction(private val ruleCode: String) : BaseIntenti
         val newPsiFile = PsiFileFactory.getInstance(project).createFileFromText("ruff.toml", TomlFileType, "") as TomlFile
         addRuleToIgnoreInSection(newPsiFile, ruleCode, "lint")
         val added = psiDir.add(newPsiFile)
-        val addedPsiFile = (added as? PsiFile) ?: PsiManager.getInstance(project).findFile((added.containingFile?.virtualFile) ?: return@runWriteCommandAction)
+        val addedPsiFile = if (added is PsiFile) {
+          added
+        } else {
+          val addedVirtualFile = added.containingFile?.virtualFile ?: return@runWriteCommandAction
+          PsiManager.getInstance(project).findFile(addedVirtualFile)
+        }
         if (addedPsiFile != null) {
           commitAndSave(project, addedPsiFile)
         }

@@ -74,6 +74,12 @@ internal fun mainImpl(
   val args = preprocessArgs(rawArgs)
   AppMode.setFlags(args)
   addBootstrapTiming("AppMode.setFlags", startupTimings)
+  val devProjectDir = AppMode.getDevIdeaProjectDir()
+  if (AppMode.isRunningFromDevBuild() && devProjectDir != null) {
+    // before `PathManager` reads `idea.config.path`, which is below `out/dev-data` for a dev launch
+    ensureDevDataLink(devProjectDir)
+    addBootstrapTiming("dev data link", startupTimings)
+  }
   try {
     PathManager.loadProperties()
     addBootstrapTiming("properties loading", startupTimings)

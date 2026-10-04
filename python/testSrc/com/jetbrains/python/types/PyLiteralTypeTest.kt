@@ -5,8 +5,9 @@ import com.jetbrains.python.allure.Subsystems
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Components
 import com.intellij.idea.TestFor
-import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.registry.Registry
+import com.intellij.testFramework.junit5.TestDisposable
 import com.jetbrains.python.fixtures.PyCodeInsightTestCase
 import com.jetbrains.python.psi.LanguageLevel
 import org.junit.jupiter.api.Nested
@@ -992,18 +993,12 @@ class PyLiteralTypeTest : PyCodeInsightTestCase() {
 
     @Test
     @TestFor(issues = ["PY-46450"])
-    fun `literal inference for literal expressions can be disabled by registry`() {
-      val disposable = Disposer.newDisposable("PY-46450 literal-types-for-literals registry")
-      try {
-        Registry.get("python.typing.literal.types.for.literals").setValue(false, disposable)
-        test("""
-          expr = 1
-          #└ TYPE int
-          """.trimIndent())
-      }
-      finally {
-        Disposer.dispose(disposable)
-      }
+    fun `literal inference for literal expressions can be disabled by registry`(@TestDisposable disposable: Disposable) {
+      Registry.get("python.typing.literal.types.for.literals").setValue(false, disposable)
+      test("""
+        expr = 1
+        #└ TYPE int
+        """.trimIndent())
     }
 
     @Test

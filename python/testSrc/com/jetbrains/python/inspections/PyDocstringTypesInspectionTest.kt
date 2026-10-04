@@ -2,7 +2,8 @@
 package com.jetbrains.python.inspections
 
 import com.intellij.idea.TestFor
-import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.Disposable
+import com.intellij.testFramework.junit5.TestDisposable
 import com.intellij.testFramework.replaceService
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
@@ -10,7 +11,6 @@ import com.jetbrains.python.debugger.PySignature
 import com.jetbrains.python.debugger.PySignatureCacheManager
 import com.jetbrains.python.fixtures.PyCodeInsightTestCase
 import com.jetbrains.python.ast.PyAstFunction
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
 /**
@@ -185,12 +185,8 @@ class PyDocstringTypesInspectionTest : PyCodeInsightTestCase() {
     """)
   }
 
-  private val serviceDisposable = Disposer.newDisposable("PyDocstringTypesInspectionTest signature cache")
-
-  @AfterEach
-  fun disposeSignatureCache() {
-    Disposer.dispose(serviceDisposable)
-  }
+  @TestDisposable
+  private lateinit var serviceDisposable: Disposable
 
   /** Makes the signature cache report [args] as the runtime types of [functionName], as the debugger would. */
   private fun recordSignature(functionName: String, vararg args: Pair<String, String>) {

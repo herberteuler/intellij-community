@@ -2,12 +2,13 @@
 package com.jetbrains.python.types
 
 import com.intellij.idea.TestFor
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.module.Module
-import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Ref
 import com.intellij.testFramework.ExtensionTestUtil
+import com.intellij.testFramework.junit5.TestDisposable
 import com.jetbrains.python.allure.Components
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
@@ -38,6 +39,9 @@ import org.junit.jupiter.api.Test
 @Layers.Functional
 @TestFor(classes = [TypeEvalContextImpl::class], issues = ["PY-92265"])
 class PyTypeEngineFallbackTest : PyCodeInsightTestCase() {
+  @TestDisposable
+  private lateinit var testDisposable: Disposable
+
   @Test
   fun `a ready exclusive engine answers`() {
     withTypeEngine(TestTypeEngine(exclusive = true)) {
@@ -85,14 +89,8 @@ class PyTypeEngineFallbackTest : PyCodeInsightTestCase() {
   }
 
   private fun withTypeEngine(typeEngine: PyTypeEngine, action: () -> Unit) {
-    val disposable = Disposer.newDisposable()
-    try {
-      ExtensionTestUtil.maskExtensions(TYPE_ENGINE_PROVIDER_EP, listOf(TestTypeEngineProvider(typeEngine)), disposable)
-      action()
-    }
-    finally {
-      Disposer.dispose(disposable)
-    }
+    ExtensionTestUtil.maskExtensions(TYPE_ENGINE_PROVIDER_EP, listOf(TestTypeEngineProvider(typeEngine)), testDisposable)
+    action()
   }
 
   private class TestTypeEngineProvider(private val typeEngine: PyTypeEngine) : PyTypeEngineProvider {

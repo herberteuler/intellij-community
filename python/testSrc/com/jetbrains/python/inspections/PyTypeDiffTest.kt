@@ -7,8 +7,8 @@ import com.intellij.ide.ui.UISettings
 import com.intellij.idea.TestFor
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.registry.Registry
+import com.intellij.testFramework.junit5.TestDisposable
 import com.intellij.ui.ColorUtil
 import com.intellij.util.ui.NamedColorUtil
 import com.intellij.util.ui.UIUtil
@@ -17,7 +17,6 @@ import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
 import com.jetbrains.python.fixtures.PyCodeInsightTestCase
 import org.intellij.lang.annotations.Language
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -48,18 +47,13 @@ class PyTypeDiffTest : PyCodeInsightTestCase() {
 
   /** Per-test disposable; resets any registry override this test made when the test finishes (the fixture, and so
    *  the registry state, is shared across the class). */
+  @TestDisposable
   private lateinit var testDisposable: Disposable
 
   // The structural diff is off by default in production; these tests exercise it, so turn it on for each test.
   @BeforeEach
   fun enableDiffTooltips() {
-    testDisposable = Disposer.newDisposable("PyTypeDiffTest diff-tooltip flag")
     Registry.get("python.type.checker.diff.tooltip").setValue(true, testDisposable)
-  }
-
-  @AfterEach
-  fun resetDiffTooltips() {
-    Disposer.dispose(testDisposable)
   }
 
   // The whole point: an incompatible parameter is highlighted, a compatible one is not.

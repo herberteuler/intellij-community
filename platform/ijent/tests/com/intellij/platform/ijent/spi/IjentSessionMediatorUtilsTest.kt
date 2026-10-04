@@ -72,15 +72,14 @@ class IjentSessionMediatorUtilsTest {
   }
 
   @Test
-  fun `a failure the IDE has already named to the user is not propagated to the parent scope`(): Unit = runBlocking {
+  fun `a failure of the environment is not propagated to the parent scope`(): Unit = runBlocking {
     withParentScope { parent, uncaught ->
       val ijentScope = ParentOfIjentScopes(parent).createIjentScope("test-session")
 
-      // The deployer could tell what went wrong — "authentication failed" — and has shown it: a condition of the
-      // environment, not a defect. Ending the session is all that is left to do.
+      // The deployer could tell what went wrong — "authentication failed": a condition of the environment, not a defect.
+      // Ending the session is all that is left to do.
       val failure = EelUnavailableException.CommunicationFailure("Failed to connect over SSH: authentication failed", null)
-        .apply { diagnosed = true }
-      ijentScope.destroy(failure, isRootCause = true)
+      ijentScope.destroy(failure)
       ijentScope.s.coroutineContext.job.join()
 
       uncaught.shouldBeEmpty()

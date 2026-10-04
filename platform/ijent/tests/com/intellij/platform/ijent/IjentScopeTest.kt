@@ -1,8 +1,10 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.ijent
 
+import com.intellij.platform.eel.EelUnavailableException
 import com.intellij.platform.eel.EelUnavailableException.ClosedByApplication
 import com.intellij.platform.eel.EelUnavailableException.CommunicationFailure
+import com.intellij.platform.eel.EelUnavailableException.IntendedExit
 import com.intellij.platform.eel.SafeDeferred
 import com.intellij.platform.eel.testFramework.bodyLimitedCoroutineScope
 import com.intellij.platform.eel.testFramework.executeAndCollectLoggedErrors
@@ -19,6 +21,9 @@ import io.kotest.matchers.collections.shouldHaveAtLeastSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeSameInstanceAs
+import io.kotest.matchers.types.shouldNotBeSameInstanceAs
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +38,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -111,12 +117,11 @@ class IjentScopeTest {
     }
     caughtError.message shouldBe "oops"
 
-    val rethrownErr = shouldThrow<IllegalStateException> {
-      ijentScope.wrapErrors {
-        ijentScope.s.async { delay(1.seconds) }.await()
-      }
-    }
-    rethrownErr.message shouldBe "oops"
+    // The raw failure is a bug in the session, and a caller gets it inside a copy of the exit reason.
+    val rethrownErr = shouldThrow<SafeDeferred.FailedDeferred> {
+      ijentScope.toSafeDeferred(ijentScope.s.async { delay(1.seconds) }).await()
+    }.cause.shouldBeInstanceOf<CommunicationFailure>().cause
+    rethrownErr.shouldBeInstanceOf<IllegalStateException>().message shouldBe "oops"
 
     // In this test we don't care if this particular error is actually logged or not.
     loggedErrors.removeAll {
@@ -148,7 +153,7 @@ class IjentScopeTest {
           withContext(NonCancellable) {
             firstChild.join()
             delay(50.milliseconds)
-            ijentScope.destroy(expected, isRootCause = true)
+            ijentScope.destroy(expected)
           }
         }
       }
@@ -162,7 +167,7 @@ class IjentScopeTest {
         ijentScope.resolveExitReason(timeout = 1.seconds)
       }
       firstChildCanFinish.complete(Unit)
-      resolved.await() shouldBe expected
+      resolved.await().shouldBeInstanceOf<ClosedByApplication>().cause shouldBeSameInstanceAs expected
     }
   }
 
@@ -186,21 +191,234 @@ class IjentScopeTest {
       thrown.cause.shouldBeInstanceOf<IllegalStateException>().message shouldBe "An ordinary API failure"
 
       child.isActive shouldBe true
-      ijentScope.destroy(ClosedByApplication("The test is over", null), isRootCause = true)
+      ijentScope.destroy(ClosedByApplication("The test is over", null))
     }
+  }
+
+  @TestFactory
+  fun `wrapApiSurfaceErrors inside an alive scope rethrows an ordinary failure immediately`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+      val child = ijentScope.s.launch { awaitCancellation() }
+
+      // Production code calls `wrapApiSurfaceErrors` also in coroutines of the IJent scope, for example in the process readers.
+      // The error must not leave the coroutine, because a failed child destroys the whole session.
+      val caught = withTimeout(1.seconds) {
+        ijentScope.s.async {
+          runCatching {
+            ijentScope.wrapApiSurfaceErrors<Unit> { throw IllegalStateException("An ordinary API failure") }
+          }.exceptionOrNull()
+        }.await()
+      }
+      caught.shouldBeInstanceOf<IllegalStateException>().message shouldBe "An ordinary API failure"
+
+      child.isActive shouldBe true
+      ijentScope.destroy(IntendedExit("The test is over", null))
+    }
+  }
+
+  @TestFactory
+  fun `wrapApiSurfaceErrors turns a rogue cancellation into a bug`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+      val rawDeferred = CompletableDeferred<Unit>().apply { cancel(CancellationException("A raw deferred was cancelled")) }
+
+      val caught = withTimeout(1.seconds) {
+        runCatching { ijentScope.wrapApiSurfaceErrors { rawDeferred.await() } }.exceptionOrNull()
+      }
+      caught.shouldBeInstanceOf<RuntimeException>().message shouldBe "Rogue cancellation exception"
+      caught.cause.shouldBeInstanceOf<CancellationException>().message shouldBe "A raw deferred was cancelled"
+
+      ijentScope.destroy(IntendedExit("The test is over", null))
+    }
+  }
+
+  @TestFactory
+  fun `wrapApiSurfaceErrors rethrows a validation error at once while the session is destroying`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+      // A child that finishes its work without cancellation keeps the resolution waiting, so the state stays `Destroying`.
+      val release = ijentScope.holdTheSession()
+      ijentScope.destroy(CommunicationFailure("A symptom", null))
+      ijentScope.isResolvingExitReason shouldBe true
+
+      val validationError = IllegalArgumentException("must be positive")
+      val caught = withTimeout(1.seconds) {
+        runCatching { ijentScope.wrapApiSurfaceErrors<Unit> { throw validationError } }.exceptionOrNull()
+      }
+      caught shouldBeSameInstanceAs validationError
+
+      ijentScope.destroy(IntendedExit("The test is over", null))
+      release.complete(Unit)
+    }
+  }
+
+  @TestFactory
+  fun `wrapApiSurfaceErrors rethrows a validation error unchanged in a destroyed session`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+      ijentScope.destroy(IntendedExit("The session closed", null))
+
+      val validationError = IllegalArgumentException("must be positive")
+      val caught = withTimeout(1.seconds) {
+        runCatching { ijentScope.wrapApiSurfaceErrors<Unit> { throw validationError } }.exceptionOrNull()
+      }
+      caught shouldBeSameInstanceAs validationError
+    }
+  }
+
+  @TestFactory
+  fun `resolveExitReason waits for the root cause after destroy by a symptom`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+      val rootCause = IntendedExit("The root cause", null)
+      // The symptom cancels the scope at once. A root cause after it comes from work that ends without cancellation,
+      // for example the wait for the exit code of IJent.
+      ijentScope.s.launch(start = CoroutineStart.UNDISPATCHED) {
+        try {
+          awaitCancellation()
+        }
+        finally {
+          withContext(NonCancellable) {
+            delay(100.milliseconds)
+            ijentScope.destroy(rootCause)
+          }
+        }
+      }
+
+      // In production, gRPC reports UNAVAILABLE before the process watcher reports the exit code of IJent.
+      ijentScope.destroy(CommunicationFailure("A symptom", null))
+
+      val resolved = withTimeout(1.seconds) {
+        ijentScope.resolveExitReason(Duration.INFINITE)
+      }
+      resolved.shouldBeInstanceOf<IntendedExit>().cause shouldBeSameInstanceAs rootCause
+    }
+  }
+
+  @TestFactory
+  fun `resolveExitReason gives each caller its own copy of the exit reason`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      withContext(CoroutineExceptionHandler { _, _ -> }) {
+        supervisorScope {
+          val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+          val exitReason = CommunicationFailure("The process suddenly exited with the code 9", null)
+          ijentScope.destroy(exitReason)
+
+          val first = ijentScope.resolveExitReason().shouldBeInstanceOf<CommunicationFailure>()
+          val second = ijentScope.resolveExitReason().shouldBeInstanceOf<CommunicationFailure>()
+
+          // A shared instance would show the stack trace of another caller, and callers could change it concurrently.
+          (first === second) shouldBe false
+          (first === exitReason) shouldBe false
+          first.message shouldBe exitReason.message
+          first.cause shouldBeSameInstanceAs exitReason
+          second.cause shouldBeSameInstanceAs exitReason
+          ijentScope.exitReasonOrNull shouldBeSameInstanceAs exitReason
+        }
+      }
+    }
+  }
+
+  @TestFactory
+  fun `a bug in the session reaches a caller as CommunicationFailure and the watcher reports it`() = differentDispatchersTest {
+    val loggedErrors = Collections.synchronizedList(mutableListOf<Throwable>())
+    val uncaught = Collections.synchronizedList(mutableListOf<Throwable>())
+    executeAndCollectLoggedErrors(loggedErrors) {
+      bodyLimitedCoroutineScope {
+        withContext(CoroutineExceptionHandler { _, err -> uncaught += err }) {
+          supervisorScope {
+            val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+            val bug = IllegalStateException("A bug in the session")
+            ijentScope.destroy(bug)
+
+            val resolved = ijentScope.resolveExitReason().shouldBeInstanceOf<CommunicationFailure>()
+            resolved.cause shouldBeSameInstanceAs bug
+            ijentScope.exitReasonOrNull shouldBeSameInstanceAs bug
+          }
+        }
+      }
+    }
+    // The watcher reports the raw bug one time. The copies of the callers are not reported.
+    loggedErrors.single().shouldBeInstanceOf<IllegalStateException>().message shouldBe "A bug in the session"
+    uncaught.single().shouldBeInstanceOf<IllegalStateException>().message shouldBe "A bug in the session"
+  }
+
+  @TestFactory
+  fun `an environment failure as the exit reason is not reported`() = differentDispatchersTest {
+    val loggedErrors = Collections.synchronizedList(mutableListOf<Throwable>())
+    val uncaught = Collections.synchronizedList(mutableListOf<Throwable>())
+    executeAndCollectLoggedErrors(loggedErrors) {
+      bodyLimitedCoroutineScope {
+        withContext(CoroutineExceptionHandler { _, err -> uncaught += err }) {
+          supervisorScope {
+            val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+            ijentScope.destroy(CommunicationFailure("The container was destroyed", null))
+            ijentScope.s.coroutineContext.job.join()
+          }
+        }
+      }
+    }
+    loggedErrors.shouldBeEmpty()
+    uncaught.shouldBeEmpty()
+  }
+
+  @TestFactory
+  fun `wrapSystemErrors inside an alive scope rethrows the root reason`() = differentDispatchersTest {
+    val err = bodyLimitedCoroutineScope {
+      withContext(CoroutineExceptionHandler { _, _ -> }) {
+        supervisorScope {
+          val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+
+          // All timeouts were taken as a wild guess.
+          val errorResolutionTimeout = 5.seconds
+          val rootCauseDelay = errorResolutionTimeout / 5
+          val awaitTimeout = rootCauseDelay + 1.seconds
+
+          ijentScope.s.launch(start = CoroutineStart.ATOMIC) {
+            try {
+              delay(rootCauseDelay)
+            }
+            finally {
+              ijentScope.destroy(IntendedExit("Good failure", null))
+            }
+          }
+
+          // The coroutine dies together with the destroyed scope, so its own deferred cannot deliver the result.
+          val caught = CompletableDeferred<Throwable?>()
+          ijentScope.s.launch {
+            try {
+              withTimeout(awaitTimeout) {
+                ijentScope.wrapSystemErrors(errorResolutionTimeout) {
+                  throw IllegalStateException("Unexpected failure")
+                }
+              }
+              caught.complete(null)
+            }
+            catch (err: Throwable) {
+              caught.complete(err)
+              throw err
+            }
+          }
+          caught.await()
+        }
+      }
+    }
+
+    err.shouldBeInstanceOf<IntendedExit>().message shouldBe "Good failure"
   }
 
   @TestFactory
   fun `a later root cause is suppressed in the first root cause`() = differentDispatchersTest {
     val first = ClosedByApplication("The first root cause", null)
-    val second = CommunicationFailure("The second root cause", null)
+    val second = TestConclusive("The second root cause", null)
     lateinit var ijentScope: IjentScope
 
     shouldNotThrowAny {
       coroutineScope {
         ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
-        ijentScope.destroy(first, isRootCause = true)
-        ijentScope.destroy(second, isRootCause = true)
+        ijentScope.destroy(first)
+        ijentScope.destroy(second)
       }
     }
 
@@ -223,9 +441,7 @@ class IjentScopeTest {
         }
 
         functionThatWorksLikeAnyEelApiMethod = {
-          ijentScope.wrapErrors {
-            deferred.await()
-          }
+          ijentScope.toSafeDeferred(deferred).await()
         }
 
         ijentScope.s.launch {
@@ -249,17 +465,17 @@ class IjentScopeTest {
           }
           finally {
             val err = ClosedByApplication(rightErrorMessage, null)
-            ijentScope.destroy(err, isRootCause = true)
+            ijentScope.destroy(err)
             throw CommunicationFailure("And even this error should not propagate", null)
           }
         }
       }
     }
 
-    val errorFromExternalCall = shouldThrow<ClosedByApplication> {
+    val errorFromExternalCall = shouldThrow<SafeDeferred.FailedDeferred> {
       functionThatWorksLikeAnyEelApiMethod()
-    }
-    errorFromExternalCall.message shouldBe rightErrorMessage
+    }.cause
+    errorFromExternalCall.shouldBeInstanceOf<ClosedByApplication>().message shouldBe rightErrorMessage
   }
 
   @TestFactory
@@ -289,8 +505,9 @@ class IjentScopeTest {
     val resolvedError = withTimeout(1.seconds) {
       ijentScope.resolveExitReason(Duration.INFINITE)
     }
-    withClue("Since destroy() is not called, resolveExitReason() returns null") {
-      resolvedError.shouldBeNull()
+    withClue("A raw failure works like destroy() with a bug, and no child is left to bring a root cause") {
+      resolvedError.shouldBeInstanceOf<CommunicationFailure>()
+        .cause.shouldBeInstanceOf<IllegalStateException>().message shouldBe "oops"
     }
 
     loggedErrors.forAll {
@@ -312,11 +529,7 @@ class IjentScopeTest {
 
     loggedError?.message shouldBe "Cancelling IjentScope is prohibited, use IjentScope.destroy() instead"
 
-    shouldThrow<ClosedByApplication> {
-      ijentScope.wrapErrors {
-        ijentScope.s.async { }.await()
-      }
-    }
+    ijentScope.resolveExitReason().shouldBeInstanceOf<IntendedExit>()
   }
 
   @TestFactory
@@ -331,11 +544,7 @@ class IjentScopeTest {
 
     loggedError.shouldBeNull()
 
-    shouldThrow<ClosedByApplication> {
-      ijentScope.wrapErrors {
-        ijentScope.s.async { }.await()
-      }
-    }
+    ijentScope.resolveExitReason().shouldBeInstanceOf<ClosedByApplication>()
   }
 
   @TestFactory
@@ -351,7 +560,7 @@ class IjentScopeTest {
       parentJob.cancelAndJoin()
 
       // In production, gRPC reports UNAVAILABLE after the application has dropped the session.
-      ijentScope.destroy(CommunicationFailure("A late failure", null), isRootCause = false)
+      ijentScope.destroy(CommunicationFailure("A late failure", null))
     }
 
     val reason = ijentScope.resolveExitReason()
@@ -360,4 +569,161 @@ class IjentScopeTest {
     loggedErrors.shouldBeEmpty()
     uncaught.shouldBeEmpty()
   }
+
+  @TestFactory
+  fun `the copy for a caller keeps the subtype of the exit reason`() = differentDispatchersTest {
+    val ijentScope = ParentOfIjentScopes(CoroutineScope(SupervisorJob() + CoroutineExceptionHandler { _, _ -> }))
+      .createIjentScope("IjentScopeTest")
+    val exitReason = TestConclusive("A known cause", null)
+    ijentScope.destroy(exitReason)
+
+    val copy = ijentScope.resolveExitReason().shouldBeInstanceOf<TestConclusive>()
+    copy shouldNotBeSameInstanceAs exitReason
+    copy.cause shouldBeSameInstanceAs exitReason
+    copy.message shouldBe exitReason.message
+  }
+
+  @TestFactory
+  fun `a subtype without its own copy gets the copy of its kind`() = differentDispatchersTest {
+    val ijentScope = ParentOfIjentScopes(CoroutineScope(SupervisorJob() + CoroutineExceptionHandler { _, _ -> }))
+      .createIjentScope("IjentScopeTest")
+    val exitReason = TestCommunicationFailure("A lost connection")
+    ijentScope.destroy(exitReason)
+
+    val copy = ijentScope.resolveExitReason().shouldBeInstanceOf<CommunicationFailure>()
+    copy.javaClass shouldBe CommunicationFailure::class.java
+    copy.cause shouldBeSameInstanceAs exitReason
+    copy.message shouldBe exitReason.message
+  }
+
+  @TestFactory
+  fun `a Conclusive error after a symptom becomes the exit reason`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+      // A child that finishes its work without cancellation keeps the resolution waiting.
+      val release = ijentScope.holdTheSession()
+      val symptom = CommunicationFailure("A lost connection", null)
+      val rootCause = TestConclusive("IJent exited", null)
+
+      ijentScope.destroy(symptom)
+      ijentScope.destroy(rootCause)
+
+      val resolved = withTimeout(1.seconds) {
+        ijentScope.resolveExitReason(Duration.INFINITE)
+      }
+      resolved.shouldBeInstanceOf<TestConclusive>().cause shouldBeSameInstanceAs rootCause
+      release.complete(Unit)
+    }
+  }
+
+  @TestFactory
+  fun `an IntendedExit becomes the exit reason at once`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+      ijentScope.s.launch { awaitCancellation() }
+      val exit = IntendedExit("The session closed", null)
+
+      ijentScope.destroy(exit)
+
+      ijentScope.exitReasonOrNull shouldBeSameInstanceAs exit
+    }
+  }
+
+  @TestFactory
+  fun `a symptom without a root cause becomes the exit reason after the wait and is not reported`() = differentDispatchersTest {
+    val loggedErrors = Collections.synchronizedList(mutableListOf<Throwable>())
+    val uncaught = Collections.synchronizedList(mutableListOf<Throwable>())
+    val symptom = CommunicationFailure("A lost connection", null)
+    executeAndCollectLoggedErrors(loggedErrors) {
+      bodyLimitedCoroutineScope {
+        withContext(CoroutineExceptionHandler { _, err -> uncaught += err }) {
+          supervisorScope {
+            val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+            val release = ijentScope.holdTheSession()
+
+            ijentScope.destroy(symptom)
+            ijentScope.exitReasonOrNull.shouldBeNull()
+
+            val resolved = withTimeout(IjentScope.DEAD_SESSION_RESOLVE_TIMEOUT + 2.seconds) {
+              ijentScope.resolveExitReason(Duration.INFINITE)
+            }
+            resolved.shouldBeInstanceOf<CommunicationFailure>().cause shouldBeSameInstanceAs symptom
+            release.complete(Unit)
+            ijentScope.s.coroutineContext.job.join()
+          }
+        }
+      }
+    }
+    loggedErrors.shouldBeEmpty()
+    uncaught.shouldBeEmpty()
+  }
+
+  @TestFactory
+  fun `a symptom cancels the session at once and the exit reason waits`() = differentDispatchersTest {
+    bodyLimitedCoroutineScope {
+      val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+      val release = ijentScope.holdTheSession()
+      val longLivedChild = ijentScope.s.launch { awaitCancellation() }
+
+      ijentScope.destroy(CommunicationFailure("A lost connection", null))
+
+      withTimeout(1.seconds) {
+        longLivedChild.join()
+      }
+      longLivedChild.isCancelled shouldBe true
+      ijentScope.s.coroutineContext.job.isActive shouldBe false
+      val bodyStarted = AtomicBoolean(false)
+      ijentScope.s.launch { bodyStarted.set(true) }.join()
+      bodyStarted.get() shouldBe false
+      ijentScope.isResolvingExitReason shouldBe true
+
+      val rootCause = TestConclusive("IJent exited", null)
+      ijentScope.destroy(rootCause)
+      ijentScope.exitReasonOrNull shouldBeSameInstanceAs rootCause
+      release.complete(Unit)
+    }
+  }
+
+  @TestFactory
+  fun `a raw failure makes the session wait for a root cause`() = differentDispatchersTest {
+    val loggedErrors = Collections.synchronizedList(mutableListOf<Throwable>())
+    val rootCause = TestConclusive("IJent exited", null)
+    executeAndCollectLoggedErrors(loggedErrors) {
+      bodyLimitedCoroutineScope {
+        val ijentScope = ParentOfIjentScopes(this).createIjentScope("IjentScopeTest")
+        val release = ijentScope.holdTheSession()
+
+        ijentScope.s.launch { error("A bug in the session") }.join()
+        ijentScope.isResolvingExitReason shouldBe true
+
+        ijentScope.destroy(rootCause)
+        release.complete(Unit)
+        withTimeout(1.seconds) {
+          ijentScope.resolveExitReason(Duration.INFINITE)
+        }.shouldBeInstanceOf<TestConclusive>().cause shouldBeSameInstanceAs rootCause
+      }
+    }
+    // The root cause won, so the bug is not the exit reason, and the watcher does not report it.
+    loggedErrors.shouldBeEmpty()
+  }
+
+  /**
+   * Starts a child that finishes its work without cancellation, until the returned deferred completes.
+   * It works like the wait for the exit code of IJent, so the resolution of the exit reason waits for it.
+   */
+  private fun IjentScope.holdTheSession(): CompletableDeferred<Unit> {
+    val release = CompletableDeferred<Unit>()
+    s.launch(start = CoroutineStart.UNDISPATCHED) {
+      withContext(NonCancellable) {
+        release.await()
+      }
+    }
+    return release
+  }
+
+  private class TestConclusive(message: String, cause: Throwable?) : EelUnavailableException.Conclusive(message, cause) {
+    override fun copyForCaller(): EelUnavailableException = TestConclusive(message, this)
+  }
+
+  private class TestCommunicationFailure(message: String) : CommunicationFailure(message, null)
 }

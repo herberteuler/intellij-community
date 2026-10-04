@@ -40,9 +40,13 @@ interface IjentProvisioningProgress : CoroutineContext.Element {
 }
 
 @Suppress("HardCodedStringLiteral") // Internal diagnostic message, not user-facing UI text.
-class IjentMissingBinary(
-  platform: EelPlatform,
-  cause: String? = null,
-) : EelUnavailableException("Failed to get an IJent binary for $platform" + cause?.let { ": $cause" }) {
+class IjentMissingBinary private constructor(message: String, cause: Throwable?) : EelUnavailableException.Conclusive(message, cause) {
+  constructor(
+    platform: EelPlatform,
+    cause: String? = null,
+  ) : this("Failed to get an IJent binary for $platform" + cause?.let { ": $cause" }, null)
+
+  override fun copyForCaller(): EelUnavailableException = IjentMissingBinary(message, this)
+
   override fun toString(): String = "${javaClass.name}: $message"
 }

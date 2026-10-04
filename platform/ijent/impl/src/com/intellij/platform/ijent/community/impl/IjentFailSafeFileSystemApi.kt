@@ -50,7 +50,7 @@ import kotlin.coroutines.EmptyCoroutineContext
  * A wrapper for [IjentFileSystemApi] that launches a new IJent through [delegateFactory] if an operation
  * with an already created IJent throws [EelUnavailableException.CommunicationFailure].
  *
- * [delegateFactory] is NOT called if the delegated instance throws [EelUnavailableException.ClosedByApplication].
+ * [delegateFactory] is NOT called if the delegated instance throws [EelUnavailableException.IntendedExit].
  *
  * [delegateFactory] can be called at most once.
  * If the just created new IJent throws [EelUnavailableException.CommunicationFailure] again, the error is rethrown,
@@ -134,8 +134,11 @@ private class DelegateHolder<I : IjentApi, F : IjentFileSystemApi>(
       when (val unwrapped = EelUnavailableException.unwrapFromCancellationExceptions(err)) {
         // TODO There must be a request ID, in order to ensure in idempotency of mutating calls.
         is EelUnavailableException.CommunicationFailure -> withDelegateSecondAttempt(callerContext, block)
-        is EelUnavailableException.ClosedByApplication -> throw unwrapped
-        else -> throw err
+        // A new IJent can recover from a known cause, for example a killed container. Only an intended exit is final.
+        is EelUnavailableException.Conclusive ->
+          if (unwrapped is EelUnavailableException.IntendedExit) throw unwrapped
+          else withDelegateSecondAttempt(callerContext, block)
+        null -> throw err
       }
     }
   }

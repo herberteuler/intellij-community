@@ -11,27 +11,14 @@ import org.jetbrains.annotations.Nls
  * To keep working with a remote machine, a new IJent should be launched.
  */
 @Deprecated("Use EelUnavailableException instead")
-class IjentUnavailableException(message: @Nls String) : EelUnavailableException(message) {
-  /**
-   * The IDE or the user ended the session on purpose. It is an [EelUnavailableException.ClosedByApplication].
-   * New code uses [EelUnavailableException.ClosedByApplication].
-   *
-   * The use cases and the other error kinds are in `platform/ijent/docs/internal/scope-lifetime.md`.
-   */
+class IjentUnavailableException(message: @Nls String) : EelUnavailableException.CommunicationFailure(message, null) {
+  @Suppress("HardCodedStringLiteral")
   @Deprecated("Use EelUnavailableException instead")
   class ClosedByApplication(
     message: String,
     cause: Throwable?,
   ) : EelUnavailableException.ClosedByApplication(message, cause)
 
-  /**
-   * The communication with IJent broke. It is an [EelUnavailableException.CommunicationFailure].
-   *
-   * New code uses [EelUnavailableException.CommunicationFailure].
-   * Use this class only to pass [attachments]. The Eel module does not know [Attachment].
-   *
-   * The use cases and the other error kinds are in `platform/ijent/docs/internal/scope-lifetime.md`.
-   */
   @Deprecated("Use EelUnavailableException instead")
   class CommunicationFailure(
     message: String,

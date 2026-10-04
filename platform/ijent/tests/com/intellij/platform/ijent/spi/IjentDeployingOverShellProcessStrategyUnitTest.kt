@@ -15,9 +15,11 @@ import com.intellij.platform.eel.provider.utils.lines
 import com.intellij.platform.eel.provider.utils.sendWholeText
 import com.intellij.platform.eel.testFramework.executeAndCollectLoggedErrors
 import com.intellij.platform.ijent.IjentApi
+import com.intellij.platform.ijent.IjentDeploymentFailed
 import com.intellij.platform.ijent.IjentEventBus
 import com.intellij.platform.ijent.IjentExecFileProvider
 import com.intellij.platform.ijent.IjentMissingBinary
+import com.intellij.platform.ijent.IjentProcessExited
 import com.intellij.platform.ijent.IjentScope
 import com.intellij.platform.ijent.IjentSession
 import com.intellij.platform.ijent.ParentOfIjentScopes
@@ -27,9 +29,10 @@ import com.intellij.platform.util.coroutines.childScope
 import com.intellij.testFramework.LoggedErrorProcessorEnabler
 import com.intellij.testFramework.common.timeoutRunBlocking
 import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.assertions.withClue
 import io.kotest.matchers.be
 import io.kotest.matchers.collections.beIn
-import io.kotest.matchers.collections.shouldContainOnly
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.include
@@ -86,24 +89,28 @@ class IjentDeployingOverShellProcessStrategyUnitTest {
   @Test
   fun `bootstrap cleanup failure does not mask a malformed response`(): Unit = timeoutRunBlocking(10.seconds) {
     val loggedErrors = mutableListOf<Throwable>()
-    val directlyThrownError = executeAndCollectLoggedErrors(loggedErrors) {
+    executeAndCollectLoggedErrors(loggedErrors) {
       withContext(CoroutineExceptionHandler { _, err -> loggedErrors += err }) {
         supervisorScope {
           val cleanupFailure = IOException("test bootstrap cleanup failure")
           val strategy = TestShellCommandStrategy(this, "malformed", destroyFailure = cleanupFailure)
 
-          val error = shouldThrow<EelUnavailableException.CommunicationFailure> {
+          val error = shouldThrow<IjentDeploymentFailed> {
             strategy.createIjentSession(failingProvider("Connection must not be attempted when shell detection fails"))
           }
-          error.message should include("Malformed target shell marker")
-          cleanupFailure should beIn(error.suppressed.toList())
+          withClue("The cause chain must contain the malformed response: ${error.stackTraceToString()}") {
+            generateSequence<Throwable>(error) { it.cause }.any { it.message?.contains("Malformed target shell marker") == true } shouldBe true
+          }
+          // The caller can get a copy of the exit reason. Then the cleanup failure is suppressed into its cause.
+          cleanupFailure should beIn(generateSequence<Throwable>(error) { it.cause }.flatMap { it.suppressed.asSequence() }.toList())
           strategy.shellProcess.destroyed.await()
           error
         }
       }
     }
 
-    loggedErrors.shouldContainOnly(directlyThrownError)
+    // A malformed answer of the remote shell is a failure of the environment, not a bug. So nothing logs it as an error.
+    loggedErrors.shouldBeEmpty()
   }
 
   @Test
@@ -116,10 +123,14 @@ class IjentDeployingOverShellProcessStrategyUnitTest {
     val strategy = TestShellStrategy(parentScope, shellWriteFailure = expectedFailure)
 
     try {
-      val error = shouldThrow<EelUnavailableException.CommunicationFailure> {
+      val error = shouldThrow<IjentDeploymentFailed> {
         strategy.createIjentSession(failingProvider("Connection must not be attempted when shell initialization fails"))
       }
-      error.cause.shouldBeInstanceOf<EelSendChannelException>().cause shouldBe expectedFailure
+      // The caller gets a copy of the exit reason, and the exit reason is its cause.
+      error.cause.shouldBeInstanceOf<IjentDeploymentFailed>()
+        .cause.shouldBeInstanceOf<EelUnavailableException.CommunicationFailure>()
+        .cause.shouldBeInstanceOf<EelSendChannelException>()
+        .cause shouldBe expectedFailure
 
       strategy.shellProcess.destroyed.await()
       strategy.shellProcess.isAlive shouldBe false
@@ -135,10 +146,10 @@ class IjentDeployingOverShellProcessStrategyUnitTest {
     val expectedFailure = IOException("test path mapping failure")
     val strategy = TestShellStrategy(this, pathMapper = { throw expectedFailure })
 
-    val error = shouldThrow<EelUnavailableException.CommunicationFailure> {
+    val error = shouldThrow<IjentDeploymentFailed> {
       strategy.createIjentSession(failingProvider("Connection must not be attempted when path mapping fails"))
     }
-    error.cause shouldBe expectedFailure
+    error.cause.shouldBeInstanceOf<IjentDeploymentFailed>().cause shouldBe expectedFailure
 
     strategy.shellProcess.destroyed.await()
     strategy.shellProcess.isAlive shouldBe false
@@ -180,11 +191,11 @@ class IjentDeployingOverShellProcessStrategyUnitTest {
       destroyFailure = cleanupFailure,
     )
 
-    val error = shouldThrow<EelUnavailableException.CommunicationFailure> {
+    val error = shouldThrow<IjentDeploymentFailed> {
       strategy.createIjentSession(failingProvider("Connection must not be attempted when path mapping fails"))
     }
-    error.cause shouldBe expectedFailure
-    expectedFailure.suppressed.single() shouldBe cleanupFailure
+    error.cause.shouldBeInstanceOf<IjentDeploymentFailed>().cause shouldBe expectedFailure
+    error.suppressed.single() shouldBe cleanupFailure
     strategy.shellProcess.destroyed.await()
   }
 
@@ -277,7 +288,7 @@ class IjentDeployingOverShellProcessStrategyUnitTest {
   @OptIn(DelicateCoroutinesApi::class)
   @Test
   @ExtendWith(LoggedErrorProcessorEnabler.DoNoRethrowErrors::class)
-  fun `unexpected process exit still fails the parent`(): Unit = timeoutRunBlocking(10.seconds) {
+  fun `unexpected process exit ends the session but does not fail the parent`(): Unit = timeoutRunBlocking(10.seconds) {
     val parentFailure = CompletableDeferred<Throwable>()
     val parentScope = childScope(
       "ParentOfIjentScope",
@@ -293,7 +304,11 @@ class IjentDeployingOverShellProcessStrategyUnitTest {
     try {
       strategy.shellProcess.exitUnexpectedly()
 
-      parentFailure.await().shouldBeInstanceOf<EelUnavailableException.CommunicationFailure>()
+      completion.await()
+      session.sessionCoroutineScope.resolveExitReason().shouldBeInstanceOf<IjentProcessExited>()
+      // A sudden exit is a failure of the environment, not a bug. So the watcher of the session does not report it.
+      parentScope.coroutineContext.job.children.toList().joinAll()
+      parentFailure.isCompleted shouldBe false
     }
     finally {
       parentScope.cancel()

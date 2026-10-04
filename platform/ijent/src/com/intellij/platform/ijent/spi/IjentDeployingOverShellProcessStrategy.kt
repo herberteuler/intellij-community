@@ -11,11 +11,13 @@ import com.intellij.platform.eel.channels.EelChannelException
 import com.intellij.platform.eel.channels.sendWholeBuffer
 import com.intellij.platform.eel.provider.utils.consumeAsEelChannel
 import com.intellij.platform.eel.provider.utils.sendWholeText
+import com.intellij.platform.ijent.IjentDeploymentFailed
 import com.intellij.platform.ijent.IjentLogger
 import com.intellij.platform.ijent.IjentScope
 import com.intellij.platform.ijent.IjentSession
 import com.intellij.platform.ijent.ParentOfIjentScopes
 import com.intellij.platform.ijent.asyncSafe
+import com.intellij.platform.ijent.causeSequence
 import com.intellij.platform.ijent.getIjentGrpcArgv
 import com.intellij.platform.ijent.spi.IjentSessionMediatorUtils.readLineOrThrow
 import com.intellij.platform.ijent.tcp.MutualTlsCertificates
@@ -187,6 +189,20 @@ abstract class IjentDeployingOverShellProcessStrategy(
       shell.close()
       currentCoroutineContext().ensureActive()
     }
+    try {
+      initializeShell(shell, processFacade)
+    }
+    catch (e: Exception) {
+      // The shell exits after the failure, maybe with the code 0. That exit must not hide the failure.
+      deploymentFailureOf(e, "Deployment shell initialization failed")?.let { failure ->
+        ijentProcessScope.destroy(failure)
+        throw failure
+      }
+      throw e
+    }
+  }
+
+  private suspend fun initializeShell(shell: ShellProcessWrapper, processFacade: IjentSessionProcessMediator.ProcessFacade): ShellSession =
     withShellInitializationInterruption {
       val shellIo = when (getShellDialect(processFacade)) {
         ShellDialect.POSIX -> PosixShellIo(shell)
@@ -209,7 +225,6 @@ abstract class IjentDeployingOverShellProcessStrategy(
         is PowerShellIo -> PowerShellSession(shellIo)
       }
     }
-  }
 
   private val myDetectedTarget = ijentProcessScope.asyncSafe(currentDispatcher, start = CoroutineStart.LAZY) {
     val session = getMyContext()
@@ -358,9 +373,14 @@ private class ShellProcessWrapper(
    */
   class CleanupResult(val processFailure: EelUnavailableException?, val cleanupFailure: Exception?)
 
-  /** Terminates a process that is still owned by the deployer and returns the failures that it observed. */
+  /**
+   * Terminates a process that is still owned by the deployer and returns the failures that it observed.
+   *
+   * If the deployer kills the process because of [deploymentFailure], the failure becomes the exit reason first.
+   * Then the exit of the killed process cannot hide it.
+   */
   @OptIn(InternalCoroutinesApi::class)
-  suspend fun destroyForciblyAndGetError(): CleanupResult = withContext(NonCancellable) {
+  suspend fun destroyForciblyAndGetError(deploymentFailure: IjentDeploymentFailed? = null): CleanupResult = withContext(NonCancellable) {
     var cleanupFailure: Exception? = null
     val cleanupStartsNow = cleanupStarted.compareAndSet(false, true)
     val processTerminationWasRequested = when (mediator.process.exitCode.state) {
@@ -370,6 +390,9 @@ private class ShellProcessWrapper(
     val job = mediator.ijentProcessScope.s.coroutineContext.job
     val processCompleted = withTimeoutOrNull(PROCESS_CLEANUP_TIMEOUT) {
       if (processTerminationWasRequested) {
+        if (deploymentFailure != null) {
+          terminateProcessScope(deploymentFailure)
+        }
         try {
           mediator.process.destroyForcibly()
         }
@@ -403,7 +426,7 @@ private class ShellProcessWrapper(
   }
 
   private fun terminateProcessScope(error: EelUnavailableException) {
-    mediator.ijentProcessScope.destroy(error, isRootCause = true)
+    mediator.ijentProcessScope.destroy(error)
   }
 
   fun processForConnection(): IjentSessionProcessMediator = mediator
@@ -412,7 +435,6 @@ private class ShellProcessWrapper(
     if (cleanupStarted.compareAndSet(false, true)) {
       mediator.ijentProcessScope.destroy(
         EelUnavailableException.ClosedByApplication("Deployment closed before process handoff", null),
-        isRootCause = true,
       )
     }
   }
@@ -583,17 +605,24 @@ private suspend fun <T : Any> ShellSession.execCommand(block: suspend ShellSessi
     block()
   }
   catch (initialErrorFromStack: Exception) {
-    val cleanup = io.process.destroyForciblyAndGetError()
     val errorFromStack = EelUnavailableException.unwrapFromCancellationExceptions(initialErrorFromStack)
+    val deploymentFailure = deploymentFailureOf(errorFromStack ?: initialErrorFromStack, "Deployment shell command failed")
+    val cleanup = io.process.destroyForciblyAndGetError(deploymentFailure)
 
     // A process failure may be hidden behind CancellationException. Prefer the canonical failure from the process scope in that case.
     // Other errors may be programmer bugs and must retain their original type so that they reach the error reporter.
     // A null processFailure means that this cleanup itself tried to kill the process, so the stack error is the root cause.
     // That stays true when the kill fails: a cleanup failure is only a consequence, so it never replaces the root cause.
-    val mainError: Throwable = cleanup.processFailure ?: errorFromStack ?: initialErrorFromStack
+    // A failure that the cleanup made the exit reason reaches the caller as a copy, like every exit reason.
+    val mainError: Throwable =
+      cleanup.processFailure
+      ?: deploymentFailure?.copyForCaller()
+      ?: errorFromStack
+      ?: initialErrorFromStack
 
     for (secondaryError in listOfNotNull(errorFromStack, cleanup.processFailure, cleanup.cleanupFailure)) {
-      if (mainError !== secondaryError && mainError.suppressed.none { it === secondaryError }) {
+      // The main error can be a copy of the exit reason for this caller. Then the exit reason is its cause, not a suppressed error.
+      if (secondaryError !in mainError.causeSequence() + mainError.suppressed) {
         mainError.addSuppressed(secondaryError)
       }
     }
@@ -606,6 +635,23 @@ private suspend fun <T : Any> ShellSession.execCommand(block: suspend ShellSessi
     }
   }
 }
+
+/**
+ * Returns the conclusive failure of the deployment for [error], or `null` if [error] needs no wrapper.
+ *
+ * A failure of the environment ends the deployment for good, so it becomes [IjentDeploymentFailed].
+ * A [EelUnavailableException.Conclusive] error is already a root cause.
+ * A bug keeps its own type, so it reaches the error reporter.
+ */
+private fun deploymentFailureOf(error: Throwable, message: String): IjentDeploymentFailed? =
+  when (error) {
+    is EelUnavailableException -> when (error) {
+      is CommunicationFailure -> IjentDeploymentFailed(message, error)
+      is EelUnavailableException.Conclusive -> null
+    }
+    is IOException -> IjentDeploymentFailed(message, error)
+    else -> null
+  }
 
 @VisibleForTesting
 internal data class DeployingContext(

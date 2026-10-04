@@ -250,11 +250,9 @@ class IjentSessionProcessMediator private constructor(
       }
 
       awaiterScope.invokeOnCompletion { err ->
-        val exitReason = ijentProcessScope.exitReason
-          .takeIf { it.isCompleted }
-          ?.getCompleted()
+        val exitReason = ijentProcessScope.exitReasonOrNull
         if (exitReason is EelUnavailableException.ClosedByApplication) {
-          ijentProcessScope.destroy(exitReason, isRootCause = true)
+          ijentProcessScope.destroy(exitReason)
         }
         finalizerScope.cancel(if (err != null) CancellationException(err.message, err) else null)
       }

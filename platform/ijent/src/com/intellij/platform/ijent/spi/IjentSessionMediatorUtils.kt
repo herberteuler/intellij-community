@@ -3,7 +3,6 @@
 package com.intellij.platform.ijent.spi
 
 import com.intellij.openapi.diagnostic.Attachment
-import com.intellij.openapi.diagnostic.ExceptionWithAttachments
 import com.intellij.platform.eel.EelUnavailableException
 import com.intellij.platform.eel.channels.EelReceiveChannel
 import com.intellij.platform.eel.channels.EelReceiveChannelException
@@ -13,6 +12,7 @@ import com.intellij.platform.eel.channels.readUntil
 import com.intellij.platform.eel.channels.useLines
 import com.intellij.platform.ijent.IjentLog
 import com.intellij.platform.ijent.IjentLogger
+import com.intellij.platform.ijent.IjentProcessExited
 import com.intellij.platform.ijent.IjentScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -203,7 +203,7 @@ object IjentSessionMediatorUtils {
   ): Nothing {
     if (isExitExpected) {
       val error = EelUnavailableException.ClosedByApplication("IJent process exited successfully", null)
-      currentCoroutineContext()[IjentScope.Key]?.destroy(error, isRootCause = true)
+      currentCoroutineContext()[IjentScope.Key]?.destroy(error)
       IjentLogger.LIFETIME_LOG.debug { error.message }
       // Carrying the domain exception as the cancellation cause makes expected shutdown look like a test failure.
       throw error
@@ -216,16 +216,12 @@ object IjentSessionMediatorUtils {
         }
         if (timeoutResult == null) stderr.append("\n<didn't collect the whole stderr>")
 
-        EelUnavailableException.CommunicationFailure(
+        IjentProcessExited(
           "The process $ijentLabel suddenly exited with the code $exitCode",
           null,
+          Attachment("stderr", stderr.toString()),
         ).also {
-          it.addSuppressed(object : Throwable("", null, true, false), ExceptionWithAttachments {
-            override fun getAttachments(): Array<out Attachment> {
-              return arrayOf(Attachment("stderr", stderr.toString()))
-            }
-          })
-          currentCoroutineContext()[IjentScope.Key]?.destroy(it, isRootCause = true)
+          currentCoroutineContext()[IjentScope.Key]?.destroy(it)
         }
       }
       // TODO IJPL-198706 When IJent unexpectedly terminates, users should be asked for further actions.
@@ -257,20 +253,22 @@ object IjentSessionMediatorUtils {
 
       val existingIjentUnavailableException = actualErrors.filterIsInstance<EelUnavailableException>().firstOrNull()
       if (existingIjentUnavailableException != null) {
-        currentCoroutineContext()[IjentScope.Key]?.destroy(existingIjentUnavailableException, isRootCause = true)
+        currentCoroutineContext()[IjentScope.Key]?.destroy(existingIjentUnavailableException)
         throw existingIjentUnavailableException
       }
 
       if (actualErrors.isEmpty()) {
         // A plain cancellation is an application-initiated close; publish the canonical reason but keep the control flow.
         val closed = EelUnavailableException.ClosedByApplication("The coroutine scope of $ijentLabel was cancelled", err)
-        currentCoroutineContext()[IjentScope.Key]?.destroy(closed, isRootCause = true)
+        currentCoroutineContext()[IjentScope.Key]?.destroy(closed)
       }
       // A real failure is not an application close; the exit-code handler publishes the authoritative reason.
       throw err
     }
     finally {
       withContext(NonCancellable) {
+        // After a symptom, IJent can still report the root cause, for example its exit code. A kill now would replace it.
+        currentCoroutineContext()[IjentScope.Key]?.awaitExitReasonResolution()
         mediatorFinalizer()
       }
     }

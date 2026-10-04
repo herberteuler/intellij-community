@@ -3,8 +3,12 @@ package com.intellij.platform.ijent.spi
 
 import com.intellij.openapi.util.SystemInfoRt
 import com.intellij.platform.eel.EelUnavailableException
+import com.intellij.platform.eel.ReadResult
 import com.intellij.platform.eel.SafeDeferred
+import com.intellij.platform.eel.ThrowsChecked
+import com.intellij.platform.eel.channels.EelDelicateApi
 import com.intellij.platform.eel.channels.EelReceiveChannel
+import com.intellij.platform.eel.channels.EelReceiveChannelException
 import com.intellij.platform.eel.channels.EelSendChannel
 import com.intellij.platform.eel.channels.PeekableEelReceiveChannel
 import com.intellij.platform.eel.channels.peekable
@@ -18,6 +22,7 @@ import com.intellij.platform.ijent.asyncSafeInParent
 import com.intellij.platform.ijent.coroutineNameAppended
 import com.intellij.platform.ijent.spi.IjentSessionProcessMediator.ProcessExitPolicy.CHECK_CODE
 import com.intellij.platform.ijent.spi.IjentSessionProcessMediator.ProcessExitPolicy.NORMAL
+import com.intellij.platform.ijent.spi.IjentSessionProcessMediator.ProcessExitPolicy.TRANSPORT_CLOSED_BY_IJENT
 import com.intellij.util.io.blockingDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -28,6 +33,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
@@ -40,6 +47,7 @@ import java.io.FilterInputStream
 import java.io.FilterOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.ByteBuffer
 import java.nio.channels.ReadableByteChannel
 import java.nio.channels.WritableByteChannel
 import kotlin.time.Duration
@@ -59,9 +67,35 @@ import kotlin.time.Duration.Companion.seconds
  */
 class IjentSessionProcessMediator private constructor(
   override val ijentProcessScope: IjentScope,
-  val process: ProcessFacade,
+  rawProcess: ProcessFacade,
   internal val exitsOnStdinEof: Boolean,
 ) : IjentSessionMediator {
+  /**
+   * The mediator notices the end of the stdout of this facade, and calls [onTransportClosedByIjent] after [useStdoutAsTransport].
+   * Before that call, the end of the stdout is a failure of the start, not a close of the transport by IJent.
+   */
+  val process: ProcessFacade = StdoutEndTrackingFacade(rawProcess, ::onStdoutEnd)
+
+  @Volatile
+  private var stdoutIsTransport: Boolean = false
+
+  /**
+   * The transport layer calls it when the stdout of IJent becomes the transport of the session.
+   * Only then the end of the stdout is a close of the transport by IJent. See [onTransportClosedByIjent].
+   *
+   * In the TCP mode and in the Hyper-V mode, IJent writes only its connection details there.
+   * An end of the stdout before them is a failure of the start, and it must not hide the symptom that reports it.
+   */
+  fun useStdoutAsTransport() {
+    stdoutIsTransport = true
+  }
+
+  private fun onStdoutEnd() {
+    if (stdoutIsTransport) {
+      onTransportClosedByIjent()
+    }
+  }
+
   interface ProcessFacade {
     val stdin: EelSendChannel
     val stdout: PeekableEelReceiveChannel
@@ -151,6 +185,16 @@ class IjentSessionProcessMediator private constructor(
     CHECK_CODE,
 
     /**
+     * IJent closed its side of the transport while the session was still healthy. See [onTransportClosedByIjent].
+     * So the symptoms of the session follow from the end of IJent, and not vice versa.
+     * An expected exit code then becomes the exit reason, also when the session already waits for a root cause.
+     *
+     * Without it, the session itself can be the cause of the exit.
+     * A failing session cancels its transport at once, and IJent can exit normally because of it.
+     */
+    TRANSPORT_CLOSED_BY_IJENT,
+
+    /**
      * Normal shutdown, never treat as error.
      * Used during intentional process termination.
      */
@@ -160,7 +204,60 @@ class IjentSessionProcessMediator private constructor(
   @Volatile
   internal var myExitPolicy: ProcessExitPolicy = CHECK_CODE
 
+  /** `true` after [onTransportClosedByIjent] that came after the exit of the process. */
+  private val transportClosedByIjentAfterExit = MutableStateFlow(false)
+
+  /**
+   * `true` if the session started to fail before IJent closed the transport.
+   * Then an expected exit code is a consequence of that failure, and it must not hide the symptom as a root cause.
+   *
+   * The process can report its exit code a moment before the IDE reads the end of the transport.
+   * So, if IJent closes the transport within [TRANSPORT_CLOSE_AFTER_EXIT_TIMEOUT] after the exit, IJent closed it first.
+   * A close before the exit that came after a symptom does not count. The failing session caused it.
+   */
+  internal suspend fun isExitConsequenceOfSessionFailure(): Boolean {
+    if (!ijentProcessScope.isResolvingExitReason) return false
+    return when (myExitPolicy) {
+      NORMAL -> true
+      TRANSPORT_CLOSED_BY_IJENT -> false
+      CHECK_CODE -> withTimeoutOrNull(TRANSPORT_CLOSE_AFTER_EXIT_TIMEOUT) { transportClosedByIjentAfterExit.first { it } } == null
+    }
+  }
+
+  /**
+   * A transport of the session calls it when IJent closes its side of the transport in an orderly way.
+   * For the stdio transport, it is the end of the stdout of IJent. For a TCP transport, it is a close of the connection by IJent.
+   * A reset or a timeout of the connection is not a close by IJent.
+   *
+   * The call changes the exit policy only while the session is healthy. See [ProcessExitPolicy.TRANSPORT_CLOSED_BY_IJENT].
+   * A call just after an expected exit code also counts. See [isExitConsequenceOfSessionFailure].
+   */
+  fun onTransportClosedByIjent() {
+    if (!process.isAlive) {
+      transportClosedByIjentAfterExit.value = true
+    }
+    val sessionIsHealthy = !ijentProcessScope.isResolvingExitReason && ijentProcessScope.exitReasonOrNull == null
+    myExitPolicy = when (val myExitPolicy = myExitPolicy) {
+      CHECK_CODE if sessionIsHealthy -> TRANSPORT_CLOSED_BY_IJENT
+      CHECK_CODE, TRANSPORT_CLOSED_BY_IJENT, NORMAL -> myExitPolicy
+    }
+  }
+
+  /**
+   * A transport that can reconnect calls it when it connects to IJent again.
+   * IJent is alive then, so an earlier [onTransportClosedByIjent] no longer tells anything about the end of IJent.
+   */
+  fun onTransportReconnected() {
+    myExitPolicy = when (val myExitPolicy = myExitPolicy) {
+      TRANSPORT_CLOSED_BY_IJENT -> CHECK_CODE
+      CHECK_CODE, NORMAL -> myExitPolicy
+    }
+  }
+
   companion object {
+    /** IJent closes its transport before it exits, but the IDE can notice it a moment after the exit code. */
+    private val TRANSPORT_CLOSE_AFTER_EXIT_TIMEOUT: Duration = 100.milliseconds
+
     fun create(
       parentScope: ParentOfIjentScopes,
       process: Process,
@@ -233,11 +330,13 @@ class IjentSessionProcessMediator private constructor(
         // classification and publication must complete atomically with respect to session cancellation.
         withContext(NonCancellable) {
           IjentLogger.LIFETIME_LOG.debug { "IJent process $ijentLabel exited with code $exitCode" }
+          val isExitExpected = isExpectedProcessExit(exitCode)
           IjentSessionMediatorUtils.ijentProcessExitCodeHandler(
             ijentLabel,
             lastStderrMessages,
             exitCode,
-            isExpectedProcessExit(exitCode),
+            isExitExpected,
+            exitFollowsSessionFailure = isExitExpected && mediator.isExitConsequenceOfSessionFailure(),
           )
         }
       }
@@ -293,6 +392,39 @@ private suspend fun ijentProcessFinalizer(ijentLabel: String, mediator: IjentSes
   catch (e: Throwable) {
     IjentLogger.LIFETIME_LOG.warn("Failed to terminate $ijentLabel", e)
   }
+}
+
+private class StdoutEndTrackingFacade(
+  private val delegate: IjentSessionProcessMediator.ProcessFacade,
+  onStdoutEnd: () -> Unit,
+) : IjentSessionProcessMediator.ProcessFacade by delegate {
+  override val stdout: PeekableEelReceiveChannel = EndListeningReceiveChannel(delegate.stdout, onStdoutEnd).peekable()
+}
+
+private class EndListeningReceiveChannel(
+  private val delegate: EelReceiveChannel,
+  private val onEnd: () -> Unit,
+) : EelReceiveChannel {
+  @ThrowsChecked(EelReceiveChannelException::class)
+  override suspend fun receive(dst: ByteBuffer): ReadResult {
+    val result = delegate.receive(dst)
+    when (result) {
+      ReadResult.EOF -> onEnd()
+      ReadResult.NOT_EOF -> Unit
+    }
+    return result
+  }
+
+  @ThrowsChecked(EelReceiveChannelException::class)
+  @EelDelicateApi
+  override fun available(): Int = delegate.available()
+
+  override suspend fun closeForReceive() {
+    delegate.closeForReceive()
+  }
+
+  override val prefersDirectBuffers: Boolean
+    get() = delegate.prefersDirectBuffers
 }
 
 private suspend fun awaitProcessExit(process: IjentSessionProcessMediator.ProcessFacade, timeout: Duration) {

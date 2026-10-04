@@ -200,11 +200,21 @@ object IjentSessionMediatorUtils {
     lastStderrMessages: MutableSharedFlow<String?>,
     exitCode: Int,
     isExitExpected: Boolean,
+    exitFollowsSessionFailure: Boolean,
   ): Nothing {
     if (isExitExpected) {
-      val error = EelUnavailableException.IntendedExit("IJent process exited successfully", null)
-      currentCoroutineContext()[IjentScope.Key]?.destroy(error)
-      IjentLogger.LIFETIME_LOG.debug { error.message }
+      // TODO Maybe, `isExitExpected` should be a String to let SPI providers define the error message.
+      //  For example, instead of "Ijent exited with code 123" it could be "The Docker container was destroyed by the user".
+      val error = EelUnavailableException.IntendedExit("IJent process exited expectedly with the code $exitCode", null)
+      if (exitFollowsSessionFailure) {
+        // The failing session closed its transport, and IJent exited normally because of it.
+        // So this exit must not hide the symptom as a root cause.
+        IjentLogger.LIFETIME_LOG.debug { "IJent process exited successfully after the session started to end because of a symptom" }
+      }
+      else {
+        currentCoroutineContext()[IjentScope.Key]?.destroy(error)
+        IjentLogger.LIFETIME_LOG.debug { error.message }
+      }
       // Carrying the domain exception as the cancellation cause makes expected shutdown look like a test failure.
       throw error
     }

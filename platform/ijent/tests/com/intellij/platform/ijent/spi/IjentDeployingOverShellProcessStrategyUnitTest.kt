@@ -4,6 +4,7 @@ package com.intellij.platform.ijent.spi
 import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.EelPlatform
 import com.intellij.platform.eel.EelUnavailableException
+import com.intellij.platform.eel.ReadResult
 import com.intellij.platform.eel.SafeDeferred
 import com.intellij.platform.eel.channels.EelReceiveChannel
 import com.intellij.platform.eel.channels.EelSendChannel
@@ -634,7 +635,27 @@ private class TestShellStrategy(
     }
 
   fun successfulProvider(remoteBinaryPath: String): IjentSessionProvider = object : IjentSessionProvider {
-    override suspend fun connect(deploymentResult: IjentConnectionContext): IjentSession = object : IjentSession {
+    override suspend fun connect(deploymentResult: IjentConnectionContext): IjentSession {
+      when (val mediator = deploymentResult.mediator) {
+        // A real stdio transport reads the stdout of IJent until its end.
+        is IjentSessionProcessMediator -> {
+          mediator.useStdoutAsTransport()
+          mediator.ijentProcessScope.s.launch { readToEnd(mediator.process.stdout) }
+        }
+        is IjentTcpSessionMediator -> error("The test shell uses the stdio transport")
+      }
+      return fakeSession(deploymentResult, remoteBinaryPath)
+    }
+  }
+
+  @Suppress("checkedExceptions") // The fake transport ends together with the session.
+  private suspend fun readToEnd(stdout: EelReceiveChannel) {
+    val buffer = ByteBuffer.allocate(4096)
+    while (stdout.receive(buffer.clear()) == ReadResult.NOT_EOF) Unit
+  }
+
+  private fun fakeSession(deploymentResult: IjentConnectionContext, remoteBinaryPath: String): IjentSession =
+    object : IjentSession {
       override val isRunning: Boolean get() = shellProcess.isAlive
       override val platform: EelPlatform = deploymentResult.targetPlatform
       override val remotePathToBinary: String = remoteBinaryPath
@@ -651,7 +672,6 @@ private class TestShellStrategy(
         sessionCoroutineScope.s.cancel()
       }
     }
-  }
 
   fun closeStrategy() {
     close()
@@ -730,9 +750,15 @@ private class TestShellProcessFacade(
 
   init {
     ijentProcessScope.s.launch {
-      bootstrapOutput?.let { stdoutPipe.sink.sendWholeText(it) }
-      stdinPipe.source.lines(StandardCharsets.UTF_8).collect { command ->
-        respondTo(command)
+      try {
+        bootstrapOutput?.let { stdoutPipe.sink.sendWholeText(it) }
+        stdinPipe.source.lines(StandardCharsets.UTF_8).collect { command ->
+          respondTo(command)
+        }
+      }
+      catch (err: EelSendChannelException) {
+        // A real shell cannot fail the session after it exits.
+        if (alive.get()) throw err
       }
     }
   }
@@ -804,9 +830,9 @@ private class TestShellProcessFacade(
   private suspend fun finish(exitCode: Int) {
     if (!alive.compareAndSet(true, false)) return
 
-    exitCodeImpl.complete(exitCode)
     stdoutPipe.sink.close(null)
     stderrPipe.sink.close(null)
+    exitCodeImpl.complete(exitCode)
     destroyed.complete(Unit)
   }
 

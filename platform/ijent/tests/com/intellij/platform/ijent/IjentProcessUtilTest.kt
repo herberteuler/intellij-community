@@ -51,6 +51,7 @@ class IjentProcessUtilTest {
           lastStderrMessages = MutableSharedFlow<String?>(),
           exitCode = -1,
           isExitExpected = true,
+          exitFollowsSessionFailure = false,
         )
       }
 

@@ -788,6 +788,12 @@ abstract class PyAbstractTestConfiguration(
   internal open fun shouldSeparateTargetPath(): Boolean = true
 
   /**
+   * @return the working directory for a configuration that the IDE creates from the context,
+   * or null to use the directory that the target is imported from
+   */
+  internal open fun getWorkingDirectoryForContext(): String? = null
+
+  /**
    * @param metaInfo String "metainfo" field provided by test runner.
    * Pytest reports test name with parameters here
    */
@@ -911,7 +917,7 @@ internal class PyTestsConfigurationProducer : AbstractPythonTestConfigurationPro
       targetForConfig.configurationTarget.copyTo(configuration.target)
       // Directory may be set in Default configuration. In that case no need to rewrite it.
       if (configuration.workingDirectory.isNullOrEmpty()) {
-        configuration.workingDirectory = targetForConfig.workingDirectory.path
+        configuration.workingDirectory = configuration.getWorkingDirectoryForContext() ?: targetForConfig.workingDirectory.path
       }
       else {
         // Template has working directory set

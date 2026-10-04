@@ -293,9 +293,9 @@ class PyLiteralType private constructor(
       }
 
       private fun acceptsDictLiteral(expectedType: PyClassType, dictLiteral: PyDictLiteralExpression): Boolean {
-        return PyDictLiteralPromotionExtension.EP_NAME.extensionList.any {
+        return PyDictLiteralPromotionExtension.EP_NAME.findFirstSafe {
           it.acceptsDictLiteral(expectedType, dictLiteral, ::promoteToType, context)
-        }
+        } != null
       }
 
       private fun promoteDictLiteralOrDictComprehension(

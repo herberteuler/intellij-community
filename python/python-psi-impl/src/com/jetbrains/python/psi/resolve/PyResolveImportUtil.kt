@@ -484,7 +484,7 @@ fun isInSkeletons(element: PsiElement): Boolean {
 }
 
 private fun isInProvidedSdk(element: PsiElement): Boolean =
-  PyThirdPartySdkDetector.EP_NAME.extensionList.any { it.isInThirdPartySdk(element) }
+  PyThirdPartySdkDetector.EP_NAME.findFirstSafe { it.isInThirdPartySdk(element) } != null
 
 private fun isUserFile(element: PsiElement, module: Module?): Boolean {
   return module != null &&

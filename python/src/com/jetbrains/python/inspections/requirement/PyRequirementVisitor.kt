@@ -44,7 +44,7 @@ internal class PyRequirementVisitor(
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
   private fun checkPackageNameInRequirements(importedExpression: PyQualifiedExpression) {
-    if (PyInspectionExtension.EP_NAME.extensionList.any { it.ignorePackageNameInRequirements(importedExpression) }) {
+    if (PyInspectionExtension.EP_NAME.findFirstSafe { it.ignorePackageNameInRequirements(importedExpression) } != null) {
       return
     }
 

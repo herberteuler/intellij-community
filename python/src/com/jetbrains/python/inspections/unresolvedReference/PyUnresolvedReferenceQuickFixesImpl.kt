@@ -241,9 +241,7 @@ object PyUnresolvedReferenceQuickFixesImpl : PyUnresolvedReferenceQuickFixes {
   }
 
   override fun getPluginQuickFixes(fixes: MutableList<LocalQuickFix>, reference: PsiReference) {
-    for (provider in PyUnresolvedReferenceQuickFixProvider.EP_NAME.extensionList) {
-      provider.registerQuickFixes(reference, fixes)
-    }
+    PyUnresolvedReferenceQuickFixProvider.EP_NAME.forEachExtensionSafe { it.registerQuickFixes(reference, fixes) }
   }
 
   private fun createInstallAndImportQuickFix(project: Project, interpreter: PythonInterpreter, importedModuleName: String, asName: String?): LocalQuickFix? {

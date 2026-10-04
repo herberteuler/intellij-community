@@ -362,11 +362,11 @@ object PyTypeChecker {
       return Optional.of(true)
     }
 
-    for (extension in PyTypeCheckerExtension.EP_NAME.extensionList) {
-      val result = extension.match(expected, actual, context.context, context.mySubstitutions)
-      if (result.isPresent) {
-        return result
-      }
+    val extensionResult = PyTypeCheckerExtension.EP_NAME.computeSafeIfAny {
+      it.match(expected, actual, context.context, context.mySubstitutions).takeIf { result -> result.isPresent }
+    }
+    if (extensionResult != null) {
+      return extensionResult
     }
 
     if (expected is PyTypeFormType) {
@@ -719,7 +719,7 @@ object PyTypeChecker {
    * a generic ancestor, for example `class C(list[int])`, declares none.
    */
   private fun hasOwnTypeParameters(cls: PyClass, context: TypeEvalContext): Boolean {
-    return PyTypeProvider.EP_NAME.extensionList.any { it.getGenericType(cls, context) != null }
+    return PyTypeProvider.EP_NAME.findFirstSafe { it.getGenericType(cls, context) != null } != null
   }
 
   private fun convertToClass(type: PyType?): PyType? {
@@ -1793,13 +1793,9 @@ object PyTypeChecker {
   @JvmStatic
   @ApiStatus.Internal
   fun findGenericDefinitionType(pyClass: PyClass, context: TypeEvalContext): PyClassType? {
-    for (provider in PyTypeProvider.EP_NAME.extensionList) {
-      val definitionType = provider.getGenericType(pyClass, context)
-      if (definitionType is PyClassType && definitionType.isParameterized) {
-        return definitionType
-      }
+    return PyTypeProvider.EP_NAME.computeSafeIfAny {
+      (it.getGenericType(pyClass, context) as? PyClassType)?.takeIf { definitionType -> definitionType.isParameterized }
     }
-    return null
   }
 
   private fun matchGenericClassesParameterWise(

@@ -32,7 +32,7 @@ class PyInterpreterInspectionTest {
   private val projectFixture = projectFixture(openAfterCreation = true)
   private val moduleFixture = projectFixture.pyModuleFixture()
   private val sourceRootFixture = moduleFixture.sourceRootFixture(
-    pathFixture = projectFixture.pathInProjectFixture(Path.of("")),
+    pathFixture = projectFixture.pathInProjectFixture(Path.of("src")),
   )
 
   private val project get() = projectFixture.get()

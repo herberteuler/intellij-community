@@ -1,14 +1,14 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.github.util
 
-import com.intellij.collaboration.async.withInitial
+import com.intellij.collaboration.api.findServerForAlias
+import com.intellij.collaboration.api.parseServerHostAliases
+import com.intellij.collaboration.api.serverHostAliasesFlow
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.components.serviceAsync
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.options.advanced.AdvancedSettings
-import com.intellij.openapi.options.advanced.AdvancedSettingsChangeListener
 import com.intellij.openapi.project.Project
 import git4idea.remote.GitRemoteUrlCoordinates
 import git4idea.remote.hosting.GitHostingUrlUtil
@@ -18,11 +18,9 @@ import git4idea.remote.hosting.discoverServers
 import git4idea.remote.hosting.gitRemotesFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -42,22 +40,9 @@ class GHHostedRepositoriesManager(project: Project, cs: CoroutineScope) : Hosted
   internal val knownRepositoriesFlow: Flow<Set<GHGitRepositoryMapping>> = createKnownRepositoriesFlow(project)
 
 
-  private fun settingChangeEventsFlow(): Flow<Unit> = callbackFlow {
-    val connection = ApplicationManager.getApplication().messageBus.connect(this)
-    connection.subscribe(AdvancedSettingsChangeListener.TOPIC, object : AdvancedSettingsChangeListener {
-      override fun advancedSettingChanged(id: String, oldValue: Any, newValue: Any) {
-        if (id == GITHUB_ALIASES_SETTING_ID) trySend(Unit)
-      }
-    })
-    awaitClose()
-  }
-
-  private fun createAliasesFlow(): Flow<Map<String, GithubServerPath>> =
-    settingChangeEventsFlow().withInitial(Unit).map { parseGitHubHostAliases(AdvancedSettings.getString(GITHUB_ALIASES_SETTING_ID)) }
-
   private fun createKnownRepositoriesFlow(project: Project): Flow<Set<GHGitRepositoryMapping>> {
     val gitRemotesFlow = gitRemotesFlow(project).distinctUntilChanged()
-    val aliasesFlow = createAliasesFlow().distinctUntilChanged()
+    val aliasesFlow = serverHostAliasesFlow(GITHUB_ALIASES_SETTING_ID, ::parseGitHubHostAliases).distinctUntilChanged()
 
     val accountsServersFlow = service<GHAccountManager>().accountsState.map { accounts ->
       mutableSetOf(GithubServerPath.DEFAULT_SERVER) + accounts.map { it.server }
@@ -101,13 +86,6 @@ class GHHostedRepositoriesManager(project: Project, cs: CoroutineScope) : Hosted
   private val GitRemoteUrlCoordinates.host: String?
     get() = getUriFromRemoteUrl(url)?.host?.lowercase()
 
-  /**
-   * Prefers the account server with the same URI, then the first account server with the same host.
-   * Uses [aliasServer] when no account server matches.
-   */
-  private fun Set<GithubServerPath>.findServerForAlias(aliasServer: GithubServerPath): GithubServerPath =
-    find { it.toURI() == aliasServer.toURI() } ?: find { it.host.equals(aliasServer.host, true) } ?: aliasServer
-
   companion object {
     private val LOG = logger<GHHostedRepositoriesManager>()
 
@@ -127,15 +105,9 @@ class GHHostedRepositoriesManager(project: Project, cs: CoroutineScope) : Hosted
  * The function ignores an entry with an invalid server.
  */
 internal fun parseGitHubHostAliases(value: String): Map<String, GithubServerPath> =
-  value.split(',').mapNotNull { entry ->
-    val alias = entry.substringBefore('=').trim().lowercase()
-    if (alias.isEmpty()) return@mapNotNull null
-    parseAliasServer(entry.substringAfter('=', "").trim())?.let { alias to it }
-  }.toMap()
+  parseServerHostAliases(value, GithubServerPath.DEFAULT_SERVER, ::parseAliasServer)
 
 private fun parseAliasServer(value: String): GithubServerPath? {
-  if (value.isEmpty()) return GithubServerPath.DEFAULT_SERVER
-
   val server = try {
     GithubServerPath.from(value.trimEnd('/'))
   }

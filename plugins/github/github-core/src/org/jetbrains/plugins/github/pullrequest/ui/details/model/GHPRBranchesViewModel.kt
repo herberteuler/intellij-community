@@ -10,14 +10,12 @@ import com.intellij.collaboration.ui.codereview.details.model.CodeReviewBranches
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
-import com.intellij.util.io.URLUtil
 import git4idea.GitStandardRemoteBranch
 import git4idea.remote.GitRemoteUrlCoordinates
-import git4idea.remote.hosting.GitHostingUrlUtil
-import git4idea.remote.hosting.GitHostingUrlUtil.getUriFromRemoteUrl
 import git4idea.remote.hosting.GitRemoteBranchesUtil
 import git4idea.remote.hosting.HostedGitRepositoryRemote
 import git4idea.remote.hosting.changesSignalFlow
+import git4idea.remote.hosting.createHostedGitRepositoryRemote
 import git4idea.workingTrees.GitWorkingTreesService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +36,6 @@ import org.jetbrains.plugins.github.authentication.accounts.GithubAccount
 import org.jetbrains.plugins.github.pullrequest.GHPRStatisticsCollector
 import org.jetbrains.plugins.github.pullrequest.ui.GHPRProjectViewModel
 import org.jetbrains.plugins.github.util.GHGitRepositoryMapping
-import java.net.URI
 
 private val LOG = logger<GHPRBranchesViewModel>()
 
@@ -132,56 +129,10 @@ class GHPRBranchesViewModel internal constructor(
     private const val WORKTREE_FROM_REVIEW_PLACE = "review.details.branch.popup"
 
     /**
-     * Gets the server URI with the host of [defaultCoordinates].
-     * HTTP remotes keep the web path from [url]. SSH remotes use the root path.
-     */
-    private fun GHRepository.getServerUri(defaultCoordinates: GitRemoteUrlCoordinates): URI {
-      val remoteUri = getUriFromRemoteUrl(defaultCoordinates.url)
-                      ?: throw IllegalArgumentException("Invalid remote URL: ${defaultCoordinates.url}")
-      if (GitHostingUrlUtil.isSshUrl(defaultCoordinates.url)) return remoteUri.resolve("/")
-
-      val webPath = getUriFromRemoteUrl(url)?.path
-        ?.takeIf { it.endsWith("/$nameWithOwner") }
-        ?.removeSuffix(nameWithOwner) ?: "/"
-      return remoteUri.resolve(webPath)
-    }
-
-    /**
      * Creates the descriptor with the host of [defaultCoordinates] and the project paths from the API.
      */
-    private fun GHRepository.getRemoteDescriptor(defaultCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote {
-      val serverUri = getServerUri(defaultCoordinates)
-      return HostedGitRepositoryRemote(owner.login, serverUri, nameWithOwner, url, getSshUrl(defaultCoordinates))
-    }
-
-    /**
-     * Uses the SSH host and explicit port of [defaultCoordinates].
-     * When the host changes and no port is specified, the SSH configuration supplies the port.
-     */
-    private fun GHRepository.getSshUrl(defaultCoordinates: GitRemoteUrlCoordinates): String {
-      if (!GitHostingUrlUtil.isSshUrl(defaultCoordinates.url) || !GitHostingUrlUtil.isSshUrl(sshUrl)) return sshUrl
-      val remoteUri = getUriFromRemoteUrl(defaultCoordinates.url) ?: return sshUrl
-      val sshUri = getUriFromRemoteUrl(sshUrl) ?: return sshUrl
-      if (remoteUri.host.equals(sshUri.host, true) && (remoteUri.port == -1 || remoteUri.port == sshUri.port)) return sshUrl
-
-      if (sshUrl.contains(URLUtil.SCHEME_SEPARATOR)) {
-        val uri = URI(sshUrl)
-        if (remoteUri.port == -1) {
-          val userInfo = uri.userInfo?.let { "$it@" }.orEmpty()
-          return "$userInfo${remoteUri.host}:${uri.path.removePrefix("/")}"
-        }
-        return URI(uri.scheme, uri.userInfo, remoteUri.host, remoteUri.port, uri.path, uri.query, uri.fragment).toString()
-      }
-      val hostStart = sshUrl.indexOf('@') + 1
-      val hostEnd = sshUrl.indexOf(':', hostStart)
-      if (hostEnd < 0) return sshUrl
-      if (remoteUri.port != -1) {
-        val userInfo = sshUrl.substring(0, hostStart).removeSuffix("@").takeIf { it.isNotEmpty() }
-        val path = "/" + sshUrl.substring(hostEnd + 1).removePrefix("/")
-        return URI("ssh", userInfo, remoteUri.host, remoteUri.port, path, null, null).toString()
-      }
-      return sshUrl.substring(0, hostStart) + remoteUri.host + sshUrl.substring(hostEnd)
-    }
+    private fun GHRepository.getRemoteDescriptor(defaultCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote =
+      createHostedGitRepositoryRemote(owner.login, nameWithOwner, url, sshUrl, defaultCoordinates)
 
     fun GHPullRequest.getHeadRemoteDescriptor(remoteUrlCoordinates: GitRemoteUrlCoordinates): HostedGitRepositoryRemote? =
       headRepository?.getRemoteDescriptor(remoteUrlCoordinates)

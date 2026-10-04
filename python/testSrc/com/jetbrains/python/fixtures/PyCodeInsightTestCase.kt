@@ -408,8 +408,9 @@ abstract class PyCodeInsightTestCase {
    *
    * The marker is a comment line below the code line, for example `#     └ CARET`. Use `#\ CARET` for column 0.
    * The marker line is removed, so the file holds the code alone. Call this on the EDT.
+   * Pass [fileName] to configure a file other than the default test file, for example a `.pyi` stub.
    */
-  protected fun configureWithCaret(@Language("Python") fileContent: String): PsiFile {
+  protected fun configureWithCaret(@Language("Python") fileContent: String, fileName: String = myTestCaseOptions.testFileName): PsiFile {
     val text = fileContent.trimIndent()
     val markers = parseAssertions(text).filter { it.type == PyTestAssertionType.CARET.name }
     val marker = markers.singleOrNull() ?: fail("Expected one CARET marker, found ${markers.size}")
@@ -419,7 +420,7 @@ abstract class PyCodeInsightTestCase {
     val markerLineEnd = text.indexOf(NEWLINE, marker.assertionOffsetEnd)
     // The marker line comes after the code line, so its removal does not move the caret offset.
     val code = if (markerLineEnd < 0) text.substring(0, markerStart - 1) else text.removeRange(markerStart, markerLineEnd + 1)
-    val file = myFixture.configureByText(myTestCaseOptions.testFileName, code)
+    val file = myFixture.configureByText(fileName, code)
     myFixture.editor.caretModel.moveToOffset(marker.codeOffsetStart)
     return file
   }

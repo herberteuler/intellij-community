@@ -789,7 +789,8 @@ open class PyTypeCheckerInspection : PyInspection() {
       val resolved = attribute.getReference(PyResolveContext.defaultContext(myTypeEvalContext)).resolve() as? PyTargetExpression ?: return null
       // A reference can resolve to an assignment `self.field = ...` in a method. The converter is on the class-level declaration.
       val field = if (resolved.isQualified) {
-        resolved.containingClass?.findClassAttribute(resolved.name ?: return null, true, myTypeEvalContext) ?: return null
+        val fieldName = resolved.name ?: return null
+        resolved.containingClass?.findClassAttribute(fieldName, true, myTypeEvalContext) ?: return null
       }
       else {
         resolved

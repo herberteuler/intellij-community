@@ -315,10 +315,12 @@ private fun createTypedDictTypeForClass(cls: PyClass, context: TypeEvalContext):
     else -> typedDictAncestors.firstOrNull()?.isClosed ?: false
   }
 
+  val name = cls.name ?: return null
+  val dictClass = PyBuiltinCache.getInstance(cls).dictType?.pyClass ?: return null
   return PyTypedDictType(
-    cls.name ?: return null,
+    name,
     { evalContext -> collectFields(cls, evalContext) },
-    PyBuiltinCache.getInstance(cls).dictType?.pyClass ?: return null,
+    dictClass,
     true,
     cls,
     closed,
@@ -512,7 +514,10 @@ private fun checkIfClassIsDirectTypedDictInheritor(cls: PyClass, context: TypeEv
     return cls.superClassExpressions.any { isTypedDict(it, context) }
   }
   else {
-    return stub.superClassesText.any { isTypedDict(PyUtil.createExpressionFromFragment(it, cls) ?: return false, context) }
+    return stub.superClassesText.any {
+      val superClassExpression = PyUtil.createExpressionFromFragment(it, cls) ?: return false
+      isTypedDict(superClassExpression, context)
+    }
   }
 }
 

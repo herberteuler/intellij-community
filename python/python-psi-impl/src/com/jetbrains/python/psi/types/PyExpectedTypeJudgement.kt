@@ -326,23 +326,24 @@ object PyExpectedTypeJudgement {
       }
 
       val dictClass = PyBuiltinCache.getInstance(callArgument).getClass("dict") ?: return null
+      // TODO: This is incorrect:
+      // `PyTypedDict` declaration is either a `PyClass` node:
+      // ```
+      // class TD(typing.TypedDict):
+      //   ...
+      // ```
+      //
+      // or a `PyTargetExpression` node:
+      // ```
+      // TD = typing.TypedDict("TD", {})
+      // ```
+      val declaration = mapping.callableType?.callable ?: return null
       val typedDictType = PyTypedDictType(
         name = "Parameters",
         fieldsProvider = { fields },
         dictClass = dictClass,
         isDefinition = false,
-        // TODO: This is incorrect:
-        // `PyTypedDict` declaration is either a `PyClass` node:
-        // ```
-        // class TD(typing.TypedDict):
-        //   ...
-        // ```
-        //
-        // or a `PyTargetExpression` node:
-        // ```
-        // TD = typing.TypedDict("TD", {})
-        // ```
-        declaration = mapping.callableType?.callable ?: return null
+        declaration = declaration,
       )
       return PyUnpackedTypedDictTypeImpl(typedDictType)
     }

@@ -10,7 +10,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
@@ -37,6 +36,7 @@ import com.intellij.python.ruff.ruffFallbackConfig
 import com.intellij.python.ruff.ruffFolderFallback
 import com.intellij.python.ruff.ruffGetsProjectConfig
 import com.intellij.python.ruff.ruffInitializationOptions
+import com.intellij.python.ruff.ruffProjectDir
 import com.jetbrains.python.NON_INTERACTIVE_ROOT_TRACE_CONTEXT
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -114,7 +114,7 @@ class RuffLspClientDescriptor(
   private val getsProjectConfig: Boolean = runReadActionBlocking { ruffGetsProjectConfig(module, project) }
 
   private fun computeFallback(): RuffFolderFallback? =
-    if (getsProjectConfig) ruffFolderFallback(roots.toList(), project.guessProjectDir()) else null
+    if (getsProjectConfig) ruffFolderFallback(roots.toList(), ruffProjectDir(project)) else null
 
   private fun fallbackOfThisStart(): RuffFolderFallback? =
     (startedWith ?: StartedWith(computeFallback()).also { startedWith = it }).fallback

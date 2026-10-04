@@ -4,7 +4,7 @@ package com.intellij.python.ruff
 import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.guessProjectDir
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
@@ -82,7 +82,16 @@ internal fun ruffGetsProjectConfig(module: Module?, project: Project): Boolean =
 
 /** [ruffFallbackConfig] for the project directory of [project]. */
 internal fun ruffFallbackConfig(directory: VirtualFile, project: Project): RuffConfigFile? =
-  ruffFallbackConfig(directory, project.guessProjectDir())
+  ruffFallbackConfig(directory, ruffProjectDir(project))
+
+/**
+ * The project directory of [project], at [Project.getBasePath]. [ruffGetsProjectConfig] compares with the same path.
+ *
+ * Not `guessProjectDir`. It answers the first of the top content roots, and with roots side by side that can be the
+ * root of an attached project. That project would then give its config to the whole project.
+ */
+internal fun ruffProjectDir(project: Project): VirtualFile? =
+  project.basePath?.let { LocalFileSystem.getInstance().findFileByPath(it) }
 
 /**
  * Whether [event] can add, remove or change a Ruff config file.

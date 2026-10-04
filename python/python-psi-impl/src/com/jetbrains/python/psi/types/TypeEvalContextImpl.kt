@@ -147,9 +147,7 @@ open class TypeEvalContextImpl internal constructor(
   }
 
   override fun trace(message: String, vararg args: Any?) {
-    if (myTrace != null) {
-      myTrace!!.add(myTraceIndent + String.format(message, *args))
-    }
+    myTrace?.add(myTraceIndent + String.format(message, *args))
   }
 
   override fun traceIndent() {

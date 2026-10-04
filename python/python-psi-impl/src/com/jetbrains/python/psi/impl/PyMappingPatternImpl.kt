@@ -41,8 +41,9 @@ class PyMappingPatternImpl(astNode: ASTNode?) : PyElementImpl(astNode), PyMappin
     val valueTypes = mutableListOf<PyType?>()
     for (it in elements.filterIsInstance<PyKeyValuePattern>()) {
       keyTypes.add(context.getType(it.keyPattern))
-      if (it.valuePattern != null) {
-        valueTypes.add(context.getType(it.valuePattern!!))
+      val valuePattern = it.valuePattern
+      if (valuePattern != null) {
+        valueTypes.add(context.getType(valuePattern))
       }
     }
 

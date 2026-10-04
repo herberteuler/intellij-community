@@ -1131,8 +1131,9 @@ class PyTypingTypeProvider : PyTypeProviderWithCustomContext<Context?>() {
       if (!isGeneric(cls, context.typeContext)) {
         return emptyList()
       }
-      if (cls.typeParameterList != null) {
-        val typeParameters = cls.typeParameterList!!.typeParameters
+      val typeParameterList = cls.typeParameterList
+      if (typeParameterList != null) {
+        val typeParameters = typeParameterList.typeParameters
         return typeParameters.mapNotNull {
             getTypeParameterTypeFromTypeParameter(it, context)
           }

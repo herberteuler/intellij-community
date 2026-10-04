@@ -333,8 +333,9 @@ object PyInferredVarianceJudgment {
         val refType = PyTypingTypeProvider.getType(element, context)
         val typeParamType = refType?.get() as? PyTypeParameterType
         if (typeParamType == null) {
-          if (element.qualifier != null) {
-            collectReferencesInTypeExpr(element.qualifier!!)
+          val qualifier = element.qualifier
+          if (qualifier != null) {
+            collectReferencesInTypeExpr(qualifier)
           }
           return
         }

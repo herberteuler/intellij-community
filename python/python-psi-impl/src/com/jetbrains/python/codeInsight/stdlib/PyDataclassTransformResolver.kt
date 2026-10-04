@@ -299,10 +299,11 @@ fun buildDataclassTransformStubAndMapping(
 ): Pair<PyDataclassStub, DataclassParameterArgumentMapping>? {
   // Process decorators that have dataclass_transform-compatible keyword arguments.
   cls.decoratorList?.decorators?.forEach { decorator ->
-    if (decorator.qualifiedName != null) {
+    val qualifiedName = decorator.qualifiedName
+    if (qualifiedName != null) {
       val decoratorKeywordArguments = decorator.arguments.filterIsInstance<PyKeywordArgument>()
       if (decoratorKeywordArguments.map { it.name }.any { it in PyDataclassNames.DataclassTransform.DECORATOR_OR_CLASS_PARAMETERS }) {
-        val builder = PyDataclassParametersBuilder(PyDataclassTransformType, decorator.qualifiedName!!)
+        val builder = PyDataclassParametersBuilder(PyDataclassTransformType, qualifiedName)
         decoratorKeywordArguments
           .filter { it.name in PyDataclassNames.DataclassTransform.DECORATOR_OR_CLASS_PARAMETERS }
           .forEach { builder.update(it.keyword, it) }

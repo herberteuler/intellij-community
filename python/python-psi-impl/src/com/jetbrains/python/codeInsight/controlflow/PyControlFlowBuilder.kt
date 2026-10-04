@@ -583,10 +583,11 @@ open class PyControlFlowBuilder(private val myLanguageLevel: LanguageLevel?) : P
   }
 
   override fun visitPyPrefixExpression(node: PyPrefixExpression) {
-    if (myTrueFalseNodes != null && node.operator === PyTokenTypes.NOT_KEYWORD) {
+    val trueFalseNodes = myTrueFalseNodes
+    if (trueFalseNodes != null && node.operator === PyTokenTypes.NOT_KEYWORD) {
       val operand = node.operand
       if (operand != null) {
-        visitCondition(operand, myTrueFalseNodes!!.falseNode, myTrueFalseNodes!!.trueNode)
+        visitCondition(operand, trueFalseNodes.falseNode, trueFalseNodes.trueNode)
       }
     }
     else {
@@ -606,14 +607,15 @@ open class PyControlFlowBuilder(private val myLanguageLevel: LanguageLevel?) : P
       val trueNode: Instruction?
       val falseNode: Instruction?
       val exitNode: Instruction?
-      if (myTrueFalseNodes == null) {
+      val trueFalseNodes = myTrueFalseNodes
+      if (trueFalseNodes == null) {
         exitNode = addTransparentInstruction()
         falseNode = exitNode
         trueNode = falseNode
       }
       else {
-        trueNode = myTrueFalseNodes!!.trueNode
-        falseNode = myTrueFalseNodes!!.falseNode
+        trueNode = trueFalseNodes.trueNode
+        falseNode = trueFalseNodes.falseNode
         exitNode = null
       }
 

@@ -447,13 +447,15 @@ private fun collectDeclaredFields(cls: PyClass, context: TypeEvalContext): TDFie
     if (element is PyTargetExpression) {
       val stub = element.stub
       if (context.maySwitchToAST(cls) || stub == null) {
-        if (element.annotation != null) {
-          fields.add(Pair(element, checkTypeSpecification(element.annotation!!.value, context, totality)))
+        val annotation = element.annotation
+        if (annotation != null) {
+          fields.add(Pair(element, checkTypeSpecification(annotation.value, context, totality)))
         }
       }
       else {
-        if (stub.annotation != null) {
-          val annotation = PyUtil.createExpressionFromFragment(stub.annotation!!, cls)
+        val stubAnnotation = stub.annotation
+        if (stubAnnotation != null) {
+          val annotation = PyUtil.createExpressionFromFragment(stubAnnotation, cls)
           fields.add(Pair(stub.psi, checkTypeSpecification(annotation, context, totality)))
         }
       }

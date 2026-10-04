@@ -144,3 +144,22 @@ fn an_argument_is_quoted_only_when_java_needs_it() {
     assert_eq!(quote_argument("-Da=\"\""), "\"-Da=\\\"\\\"\"");
     assert_eq!(quote_argument("-Da=p\\q#r"), "\"-Da=p\\\\q#r\"");
 }
+
+#[test]
+fn a_windows_path_is_quoted_with_each_backslash_escaped() {
+    // Inside double quotes, `java` reads `\\` as one backslash, and `\t` or `\n` as a control character.
+    assert_eq!(
+        quote_argument(r"-Didea.home.path=C:\Program Files\idea"),
+        r#""-Didea.home.path=C:\\Program Files\\idea""#
+    );
+    assert_eq!(quote_argument(r"-Dx=C:\temp\new\table"), r#""-Dx=C:\\temp\\new\\table""#);
+    assert_eq!(quote_argument(r"-Dx=C:\dir\"), r#""-Dx=C:\\dir\\""#);
+    assert_eq!(quote_argument(r"-Dx=\\?\C:\dir"), r#""-Dx=\\\\?\\C:\\dir""#);
+    assert_eq!(
+        quote_argument(r"C:\home dir\lib\a.jar;C:/out/lib/b.jar"),
+        r#""C:\\home dir\\lib\\a.jar;C:/out/lib/b.jar""#
+    );
+    // A backslash alone is a reason to quote. A drive path with forward slashes and no space stays as it is.
+    assert_eq!(quote_argument(r"-Dx=C:\dev\idea"), r#""-Dx=C:\\dev\\idea""#);
+    assert_eq!(quote_argument("-Dx=C:/dev/idea"), "-Dx=C:/dev/idea");
+}

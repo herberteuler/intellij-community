@@ -109,6 +109,8 @@
 
     <!-- Legacy actions, only available from Search Everywhere -->
     <action id="ComposeShowcase" class="com.intellij.devkit.compose.showcase.ComposeShowcaseAction"/>
+    <action id="SwingComposeShowcase" class="com.intellij.devkit.compose.showcase.swing.SwingComposeShowcaseAction"
+            internal="true"/>
     <action id="JewelActionSystemTest" class="com.intellij.devkit.compose.demo.ActionSystemTestAction"/>
 
     <action id="JewelCustomPopupRenderer"

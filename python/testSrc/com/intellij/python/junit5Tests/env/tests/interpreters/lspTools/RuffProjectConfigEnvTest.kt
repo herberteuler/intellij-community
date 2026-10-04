@@ -17,7 +17,6 @@ import com.intellij.platform.testFramework.junit5.codeInsight.fixture.codeInsigh
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
 import com.intellij.python.junit5Tests.framework.env.pySdkFixture
 import com.intellij.python.junit5Tests.framework.pyModuleFixture
-import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.ruff.RuffConfiguration
 import com.intellij.python.ruff.RuffPyTool
 import com.intellij.python.ruff.server.RuffLspIntegrationProvider
@@ -28,6 +27,7 @@ import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -77,6 +77,10 @@ class RuffProjectConfigEnvTest {
       }
       assertEquals(3, ModuleRootManager.getInstance(module).contentRoots.size)
     }
+    // Not the `PyProject` of the module fixture. Its base dir is the first of the three content roots by URL, and the
+    // names of the temp dirs are random. So the base dir can change when the roots are added, and the old project
+    // then never appears in a snapshot.
+    val pyProject = requireNotNull(module.asPyProject())
     pyProject.enableLspToolAndInstall(project, RuffPyTool.getInstance(), toolInstalled) {
       project.service<RuffConfiguration>().formatting = true
     }
@@ -183,7 +187,6 @@ class RuffProjectConfigEnvTest {
     private val outsideRoot by outsideRootFixture
     private val project by projectFixture
     private val module by moduleFixture
-    private val pyProject by moduleFixture.pyProjectFixture()
     private val outsideModule by outsideModuleFixture
     private val venv by venvFixture
     private val editorFixture by codeInsightFixtureFixture

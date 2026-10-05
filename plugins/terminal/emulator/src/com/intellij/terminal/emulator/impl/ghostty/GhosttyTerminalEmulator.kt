@@ -1420,6 +1420,10 @@ internal class GhosttyTerminalEmulator(
   }
 
   private fun CellData.toCell(): Cell {
+    // Most cells of a screen are blank, so they share one instance.
+    if (codepoint == 0 && wide == GhosttyCellWide.NARROW && style == CellStyle.Default && hyperlink == null) {
+      return Cell.Empty
+    }
     val cellWidth = when (wide) {
       GhosttyCellWide.NARROW -> CellWidth.NARROW
       GhosttyCellWide.WIDE -> CellWidth.WIDE

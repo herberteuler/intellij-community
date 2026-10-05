@@ -58,9 +58,7 @@
     <projectViewPane implementation="com.intellij.platform.ide.nonModalWelcomeScreen.leftPanel.WelcomeScreenLeftPanel"/>
     <projectViewPaneExtractor implementation="com.intellij.platform.ide.nonModalWelcomeScreen.leftPanel.WelcomeScreenLeftPanelModelExtractor"/>
 
-    <advancedSetting id="welcome.screen.non.modal.enabled" default="true"
-                     groupKey="group.advanced.settings.welcome.screen"
-                     bundle="messages.NonModalWelcomeScreenBundle"/>
+    <advancedSetting id="welcome.screen.non.modal.enabled" default="true" groupKey="group.advanced.settings.ide" order="last" bundle="messages.ApplicationBundle"/>
     <statistics.counterUsagesCollector implementationClass="com.intellij.platform.ide.nonModalWelcomeScreen.WelcomeScreenTabUsageCollector"/>
     <statistics.counterUsagesCollector implementationClass="com.intellij.platform.ide.nonModalWelcomeScreen.newProjectNotification.WelcomeScreenSingleFileOpeningCollector"/>
 

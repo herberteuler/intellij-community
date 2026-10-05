@@ -3,6 +3,9 @@ package com.intellij.internal.statistic.utils
 
 import org.jetbrains.annotations.ApiStatus.ScheduledForRemoval
 import org.jetbrains.annotations.TestOnly
+import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.time.ZoneOffset
 import java.util.Calendar
@@ -128,6 +131,24 @@ object StatisticsUtil {
 
     // can't get overflow because second digit in max long (9223372036854775807L) is '2'
     return java.lang.Long.signum(value) * (firstDigit.roundToLong() * tenPowX)
+  }
+
+  /**
+   * Anonymizes a fractional amount, such as a price, by rounding it to [digits] significant digits.
+   * A half rounds away from zero. The relative error is at most `5 * 10^-digits`.
+   *
+   * Special cases:
+   *  - returns `-roundToSignificantDigits(abs(value), digits)` if the value is negative;
+   *  - returns 0 in case of 0;
+   *  - returns the same value if it is NaN or infinite.
+   *
+   * @throws IllegalArgumentException if [digits] is not positive
+   */
+  @JvmStatic
+  fun roundToSignificantDigits(value: Double, digits: Int): Double {
+    require(digits > 0) { "digits must be positive: $digits" }
+    if (!value.isFinite()) return value
+    return BigDecimal.valueOf(value).round(MathContext(digits, RoundingMode.HALF_UP)).toDouble()
   }
 
   /**

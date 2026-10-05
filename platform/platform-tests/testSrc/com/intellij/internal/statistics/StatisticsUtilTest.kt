@@ -9,6 +9,7 @@ import com.intellij.internal.statistic.utils.StatisticsUtil.getTimestampDateInUT
 import com.intellij.internal.statistic.utils.StatisticsUtil.roundLogarithmicTest
 import com.intellij.internal.statistic.utils.StatisticsUtil.roundToHighestDigit
 import com.intellij.internal.statistic.utils.StatisticsUtil.roundToPowerOfTwo
+import com.intellij.internal.statistic.utils.StatisticsUtil.roundToSignificantDigits
 import com.intellij.internal.statistic.utils.StatisticsUtil.roundToUpperBoundInternalTest
 import com.intellij.testFramework.LightPlatformTestCase
 import junit.framework.TestCase
@@ -378,6 +379,36 @@ class StatisticsUtilTest : LightPlatformTestCase() {
   fun roundLogarithmic_huge() {
     2_000_000_001.roundLogarithmicTest() mustBe 2_000_000_000
     Int.MAX_VALUE.roundLogarithmicTest() mustBe 2_000_000_000
+  }
+
+  @Test
+  fun roundToSignificantDigits_regular() {
+    roundToSignificantDigits(0.123456, 3) mustBe 0.123
+    roundToSignificantDigits(0.0012345, 3) mustBe 0.00123
+    roundToSignificantDigits(1.2345, 3) mustBe 1.23
+    roundToSignificantDigits(123.456, 3) mustBe 123.0
+    roundToSignificantDigits(12_345.0, 3) mustBe 12_300.0
+    roundToSignificantDigits(0.25, 3) mustBe 0.25
+  }
+
+  @Test
+  fun roundToSignificantDigits_half() {
+    roundToSignificantDigits(0.1235, 3) mustBe 0.124
+    roundToSignificantDigits(0.9995, 3) mustBe 1.0
+    roundToSignificantDigits(-0.1235, 3) mustBe -0.124
+  }
+
+  @Test
+  fun roundToSignificantDigits_special() {
+    roundToSignificantDigits(0.0, 3) mustBe 0.0
+    roundToSignificantDigits(-1.2345, 3) mustBe -1.23
+    roundToSignificantDigits(Double.NaN, 3).isNaN() mustBe true
+    roundToSignificantDigits(Double.POSITIVE_INFINITY, 3) mustBe Double.POSITIVE_INFINITY
+  }
+
+  @Test
+  fun roundToSignificantDigits_invalidDigits() {
+    Assertions.assertThatThrownBy { roundToSignificantDigits(1.0, 0) }.isInstanceOf(IllegalArgumentException::class.java)
   }
 
   private infix fun <S> S?.mustBe(expected: S): S {

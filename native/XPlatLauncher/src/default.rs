@@ -73,6 +73,7 @@ impl LaunchConfiguration for DefaultLaunchConfiguration {
                 .replace(IDE_CACHE_DIR_MACRO, &ide_caches_path);
         }
 
+        vm_options.push(jvm_property!("idea.home.path", ide_home_path));
         vm_options.push(jvm_property!("ide.native.launcher", "true"));
 
         Ok(vm_options)

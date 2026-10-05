@@ -107,6 +107,7 @@ mod tests {
         assert_eq!(vm_options_file.canonicalize().unwrap(), path.canonicalize().unwrap());
 
         // hardcoded VM options
+        assert_vm_option_presence(&dump, &format!("-Didea.home.path={}", test.dist_root.display()));
         assert_vm_option_presence(&dump, "-Dide.native.launcher=true");
 
         dump.vmOptions.iter().find(|s| s.starts_with("-XX:ErrorFile="))

@@ -16,9 +16,11 @@ import com.intellij.openapi.util.io.NioFiles
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.WatchRoots
 import com.intellij.openapi.vfs.impl.local.FileWatcher
 import com.intellij.openapi.vfs.impl.local.LocalFileSystemImpl
 import com.intellij.openapi.vfs.impl.local.NativeFileWatcherImpl
+import com.intellij.openapi.vfs.impl.local.WatchRootsServiceImpl
 import com.intellij.openapi.vfs.local.FileWatcherTestUtil.INTER_RESPONSE_DELAY
 import com.intellij.openapi.vfs.local.FileWatcherTestUtil.NATIVE_PROCESS_DELAY
 import com.intellij.openapi.vfs.local.FileWatcherTestUtil.SHORT_PROCESS_DELAY
@@ -417,6 +419,23 @@ class FileWatcherTest : BareTestFixtureTestCase() {
     assertEvents({ file.writeText("new content") }, mapOf(fileLink to 'U', file to 'U'))
     assertEvents({ file.deleteExisting() }, mapOf(fileLink to 'D', file to 'D'))
     assertEvents({ file.writeText("re-creation") }, mapOf(fileLink to 'C', file to 'C'))
+  }
+
+  @Test fun testExcludedSymlinkBelowWatchRoot() {
+    assumeSymLinkCreationIsSupported()
+
+    val target = tempDir.newDirectoryPath("target")
+    val file = tempDir.newFileNio("target/dir/test.txt")
+    val top = tempDir.newDirectoryPath("top")
+    val link = Files.createSymbolicLink(top.resolve("link"), target)
+
+    val watchRoots = WatchRoots.getInstance() as WatchRootsServiceImpl
+    @Suppress("UsagesOfObsoleteApi") watchRoots.excludeSymlinks(listOf(link))
+    refresh(target)
+    refresh(top)
+
+    watch(top)
+    assertEvents({ file.writeText("content") }, mapOf())
   }
 
   @Test fun testCircularSymlinkBelowWatchRoot() {

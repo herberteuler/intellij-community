@@ -4,6 +4,7 @@ package com.intellij.terminal.tests.reworked.frontend.session.ghostty
 import com.intellij.openapi.util.SystemInfoRt
 import com.intellij.terminal.tests.reworked.util.LoopbackTtyConnector
 import org.assertj.core.api.Assertions.assertThat
+import org.jetbrains.plugins.terminal.TerminalOptionsProvider
 import org.jetbrains.plugins.terminal.session.impl.dto.KeyEventProcessingResultDto
 import org.junit.Assume
 import org.junit.Test
@@ -50,6 +51,50 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
     assertThat(bytesOf(result)).isEqualTo(Char(1).toString())
     val space = session.processKeyEvent(pressed(KeyEvent.VK_SPACE, ' ', InputEvent.CTRL_DOWN_MASK))
     assertThat(bytesOf(space)).isEqualTo(Char(0).toString())
+  }
+
+  @Test
+  fun `ctrl chords carry the character, so fixterms can tell them apart`() = runSessionTest { session, _, _ ->
+    val ctrl = InputEvent.CTRL_DOWN_MASK
+    val ctrlShift = InputEvent.CTRL_DOWN_MASK or InputEvent.SHIFT_DOWN_MASK
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_M, Char(13), ctrlShift)))).isEqualTo(csi("109;6u"))
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_SPACE, ' ', ctrlShift)))).isEqualTo(Char(0).toString())
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_SEMICOLON, ';', ctrl)))).isEqualTo(csi("59;5u"))
+  }
+
+  @Test
+  fun `ctrl+i, ctrl+m and ctrl+bracket keep their classic bytes outside the Kitty keyboard protocol`() = runSessionTest { session, connector, _ ->
+    // fixterms turns them into CSI u chords, which bash, less and fzf cannot read; the classic bytes
+    // stay until a program asks for the protocol.
+    val ctrl = InputEvent.CTRL_DOWN_MASK
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_I, Char(9), ctrl)))).isEqualTo("\t")
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_M, Char(13), ctrl)))).isEqualTo("\r")
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_OPEN_BRACKET, Char(27), ctrl)))).isEqualTo(Char(27).toString())
+    applyModes(connector, csi(">1u"))
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_OPEN_BRACKET, Char(27), ctrl)))).isEqualTo(csi("91;5u"))
+  }
+
+  @Test
+  fun `ctrl+alt+m keeps the classic byte behind the ESC prefix`() = runSessionTest { session, _, _ ->
+    val options = TerminalOptionsProvider.instance
+    val useOptionAsMetaKey = options.useOptionAsMetaKey
+    options.useOptionAsMetaKey = true // decides the setting on macOS only; elsewhere Alt always sends Escape
+    try {
+      val ctrlAlt = InputEvent.CTRL_DOWN_MASK or InputEvent.ALT_DOWN_MASK
+      assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_M, Char(13), ctrlAlt)))).isEqualTo(Char(27) + "\r")
+    }
+    finally {
+      options.useOptionAsMetaKey = useOptionAsMetaKey
+    }
+  }
+
+  @Test
+  fun `a typed character carries the physical key of its pressed half`() = runSessionTest { session, connector, _ ->
+    applyModes(connector, csi(">13u")) // disambiguate + report alternates + report all
+    assertThat(session.processKeyEvent(pressed(KeyEvent.VK_2, '@', InputEvent.SHIFT_DOWN_MASK))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    val result = session.processKeyEvent(typed('@', InputEvent.SHIFT_DOWN_MASK))
+    assertThat(result).isInstanceOf(KeyEventProcessingResultDto.StringResult::class.java)
+    assertThat((result as KeyEventProcessingResultDto.StringResult).string).isEqualTo(csi("50:64;2u"))
   }
 
   @Test

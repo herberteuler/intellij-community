@@ -8,8 +8,10 @@ import com.intellij.terminal.emulator.TerminalInputModifier
 import com.intellij.terminal.emulator.TerminalKey
 import com.intellij.terminal.emulator.TerminalKeyEvent
 import org.jetbrains.plugins.terminal.session.impl.dto.KeyEventProcessingResultDto
+import java.awt.Toolkit
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Turns AWT key events into PTY bytes for [GhosttyTerminalSession]. The escape
@@ -19,26 +21,45 @@ import java.awt.event.KeyEvent
  * hand-maintained table for the JediTerm session, this class gets from the emulator.
  *
  * What stays at this layer is policy the wire protocol does not know about:
- * - the macOS "natural text editing" chords (Cmd/Option + arrows, Cmd+Backspace),
- *   which the Ghostty app's default keybinds resolve above VT encoding — a VT encoder
- *   reports SUPER as the xterm meta modifier, which shells ignore;
+ * - the macOS "natural text editing" chords (Cmd/Option + arrows, Cmd+Backspace). The
+ *   Ghostty app resolves them above VT encoding too: a VT encoder reports SUPER as the
+ *   xterm meta modifier, which shells ignore;
  * - Alt as an ESC prefix for characters (the `altSendsEscape` setting); the native
  *   encoder cannot apply it on macOS, where its `macos_option_as_alt` option defaults
  *   to off;
- * - splitting AWT's KEY_PRESSED/KEY_TYPED pair so each keystroke is encoded exactly
- *   once.
+ * - splitting AWT's KEY_PRESSED/KEY_TYPED pair so each keystroke is encoded exactly once.
+ *   The typed half has no key code, so the pressed half lends it the physical key;
+ * - the classic bytes of Ctrl+I, Ctrl+M and Ctrl+[ outside the Kitty keyboard protocol.
+ *   The encoder's fixterms rule would turn them into CSI u chords (see [classicControlByte]).
  *
  * Not thread-safe: it drives the lock-protected emulator, so every call must happen
  * under the owning session's lock.
+ *
+ * @param lockingKeys reads the Caps Lock and Num Lock state; a test replaces it.
  */
 internal class TerminalEmulatorKeyEventEncoder(
   private val emulator: TerminalEmulator,
   private val settings: JBTerminalSystemSettingsProviderBase,
+  private val lockingKeys: () -> Set<TerminalInputModifier> = LockingKeys::current,
 ) {
-  fun encodeKeyEvent(e: KeyEvent): KeyEventProcessingResultDto = when (e.id) {
-    KeyEvent.KEY_PRESSED -> keyPressed(e)
-    KeyEvent.KEY_TYPED -> keyTyped(e)
-    else -> KeyEventProcessingResultDto.Unhandled
+  /** The KEY_PRESSED that still waits for the KEY_TYPED half of its keystroke. */
+  private class PendingPress(val keyCode: Int)
+
+  private var pendingPress: PendingPress? = null
+
+  /** The lock state at the last KEY_PRESSED; the typed and the released halves reuse it. */
+  private var locks: Set<TerminalInputModifier> = emptySet()
+
+  fun encodeKeyEvent(e: KeyEvent): KeyEventProcessingResultDto {
+    return when (e.id) {
+      KeyEvent.KEY_PRESSED -> {
+        locks = lockingKeys()
+        pendingPress = PendingPress(e.keyCode)
+        keyPressed(e)
+      }
+      KeyEvent.KEY_TYPED -> keyTyped(e)
+      else -> KeyEventProcessingResultDto.Unhandled
+    }
   }
 
   private fun keyPressed(e: KeyEvent): KeyEventProcessingResultDto {
@@ -57,8 +78,12 @@ internal class TerminalEmulatorKeyEventEncoder(
 
     val functionalKey = functionalKey(e.keyCode)
     if (functionalKey != null) {
-      val bytes = emulator.encodeKeyEvent(TerminalKeyEvent(functionalKey, modifiers = terminalModifiers(e)))
-      return if (bytes.isNotEmpty()) bytesResult(bytes, e) else KeyEventProcessingResultDto.Unhandled
+      val event = TerminalKeyEvent(functionalKey, modifiers = terminalModifiers(e))
+      val bytes = emulator.encodeKeyEvent(event)
+      if (bytes.isEmpty()) {
+        return KeyEventProcessingResultDto.Unhandled
+      }
+      return bytesResult(bytes, e)
     }
 
     if (isAltPressedOnly(e) && Character.isDefined(e.keyChar) && settings.altSendsEscape()) {
@@ -79,38 +104,56 @@ internal class TerminalEmulatorKeyEventEncoder(
       return KeyEventProcessingResultDto.Unhandled
     }
 
-    // Ctrl chords arrive as KEY_PRESSED (AWT reduces their keyChar to a control
-    // character, or to a plain space for Ctrl+Space). Hand the encoder the physical key
-    // and its unmodified codepoint, so modes like the Kitty keyboard protocol can
-    // encode the chord instead of a lone control byte.
+    // Ctrl chords arrive as KEY_PRESSED (AWT reduces their keyChar to a control character,
+    // or to a plain space for Ctrl+Space). Hand the encoder the physical key, the text the
+    // key produces without Ctrl, and its unmodified codepoint, so it can derive the control
+    // byte, a fixterms CSI u chord, or a Kitty sequence.
     if (e.isControlDown) {
       val writingKey = writingKey(e.keyCode)
       if (writingKey != null) {
-        val event = TerminalKeyEvent(writingKey.key, modifiers = terminalModifiers(e), unshiftedCodepoint = writingKey.codepoint)
-        val bytes = emulator.encodeKeyEvent(event)
-        if (bytes.isNotEmpty()) {
+        classicControlByte(writingKey, e)?.let { bytes ->
           return KeyEventProcessingResultDto.BytesResult(bytes, settings.scrollToBottomOnTyping())
         }
+        val modifiers = terminalModifiers(e)
+        val event = TerminalKeyEvent(
+          writingKey.key,
+          modifiers = modifiers,
+          text = ctrlChordText(writingKey, e, capsLock = TerminalInputModifier.CAPS_LOCK in modifiers),
+          unshiftedCodepoint = writingKey.codepoint,
+        )
+        encodeChord(event)?.let { return it }
       }
     }
 
-    // A control character this layer cannot map to a key (a chord on a layout the
-    // tables above don't cover): send it the way AWT computed it. Printable characters
-    // are left to KEY_TYPED.
-    if (Character.isISOControl(e.keyChar)) {
-      return typedCharacter(e)
+    // A control character the encoder produced nothing for (a chord on a layout the tables
+    // above don't cover): send it the way AWT computed it. The encoder's text must never carry
+    // a control byte, so this bypasses it. Printable characters are left to KEY_TYPED.
+    if (isControlByte(e.keyChar)) {
+      return KeyEventProcessingResultDto.BytesResult(byteArrayOf(e.keyChar.code.toByte()), settings.scrollToBottomOnTyping())
     }
     return KeyEventProcessingResultDto.Unhandled
   }
 
+  /** Encodes a chord of the pressed half; null when the encoder produced nothing for it. */
+  private fun encodeChord(event: TerminalKeyEvent): KeyEventProcessingResultDto? {
+    val bytes = emulator.encodeKeyEvent(event)
+    if (bytes.isEmpty()) return null
+    return KeyEventProcessingResultDto.BytesResult(bytes, settings.scrollToBottomOnTyping())
+  }
+
   private fun keyTyped(e: KeyEvent): KeyEventProcessingResultDto {
-    if (Character.isISOControl(e.keyChar)) {
+    if (isControlByte(e.keyChar)) {
       return KeyEventProcessingResultDto.Unhandled // the KEY_PRESSED half of the pair owns control characters
     }
     return typedCharacter(e)
   }
 
   private fun typedCharacter(e: KeyEvent): KeyEventProcessingResultDto {
+    // The pressed half of this keystroke named the physical key; a typed event carries none.
+    val pending = pendingPress
+    pendingPress = null
+    val writingKey = pending?.let { writingKey(it.keyCode) }
+
     if (isAltPressedOnly(e) && settings.altSendsEscape()) {
       return KeyEventProcessingResultDto.Unhandled // the KEY_PRESSED path sent ESC + base character
     }
@@ -118,21 +161,13 @@ internal class TerminalEmulatorKeyEventEncoder(
       return KeyEventProcessingResultDto.Unhandled // Cmd+backtick cycles macOS windows; never type it
     }
 
-    // Only shift and command reach the encoder: the character already reflects the
-    // keyboard layout, and passing Ctrl/Alt would make the encoder re-derive chords
-    // (AltGr text arrives with Ctrl+Alt down on some platforms). SUPER lets it apply
-    // the macOS rule that command chords never type text.
-    val modifiers = buildSet {
-      if (e.isShiftDown) add(TerminalInputModifier.SHIFT)
-      if (e.isMetaDown) add(TerminalInputModifier.SUPER)
-    }
     // Shift is consumed: the character already includes it. Otherwise, the Kitty keyboard
     // protocol reports Shift+2 as a CSI u chord instead of typing "@".
     val event = TerminalKeyEvent(
-      TerminalKey.UNIDENTIFIED,
-      modifiers = modifiers,
+      writingKey?.key ?: TerminalKey.UNIDENTIFIED,
+      modifiers = typedModifiers(e),
       text = e.keyChar.toString(),
-      unshiftedCodepoint = e.keyChar.lowercaseChar().code,
+      unshiftedCodepoint = unshiftedCodepoint(writingKey, e.keyChar, e.isShiftDown),
       consumedModifiers = if (e.isShiftDown) setOf(TerminalInputModifier.SHIFT) else emptySet(),
     )
     val bytes = emulator.encodeKeyEvent(event)
@@ -141,6 +176,67 @@ internal class TerminalEmulatorKeyEventEncoder(
     }
     return KeyEventProcessingResultDto.StringResult(bytes.toString(Charsets.UTF_8), settings.scrollToBottomOnTyping())
   }
+
+  /**
+   * The text a Ctrl chord produces without Ctrl, as the Ghostty hosts report it: "M" for
+   * Ctrl+Shift+M. AWT reports the control character instead, so the text comes from the US
+   * table whenever the character is not printable.
+   */
+  private fun ctrlChordText(writingKey: WritingKey, e: KeyEvent, capsLock: Boolean): String {
+    val ch = e.keyChar
+    // A printable keyChar is the platform's own answer, except a space on a key other than
+    // Space: macOS reports Ctrl+Shift+2 (Ctrl+@, a NUL) as a space, the way it reports
+    // Ctrl+Space.
+    if (isPrintable(ch) && (ch != ' ' || writingKey.key == TerminalKey.SPACE)) return ch.toString()
+    return usText(writingKey, e, capsLock)
+  }
+
+  /**
+   * The classic byte of Ctrl+I, Ctrl+M and Ctrl+[ outside the Kitty keyboard protocol; null
+   * for every other chord. An Alt chord gets the ESC prefix. The fixterms rule in the encoder
+   * turns the three into CSI u chords. Every classic terminal sends Tab, Enter and Escape
+   * instead, and bash, less and fzf expect those. Under a Kitty flag the encoder gets the
+   * chord like any other. Under `modifyOtherKeys` state 2 the classic byte stays too, where
+   * xterm sends `CSI 27;5;105~`. The C API exposes no way to read that mode.
+   */
+  private fun classicControlByte(writingKey: WritingKey, e: KeyEvent): ByteArray? {
+    val byte = CLASSIC_CONTROL_BYTES[writingKey.key] ?: return null
+    if (e.isShiftDown || emulator.kittyKeyboardFlags.isNotEmpty()) return null
+    return if (e.isAltDown && settings.altSendsEscape()) byteArrayOf(ESC, byte) else byteArrayOf(byte)
+  }
+
+  /** The character the key produces on the US layout with the Shift and Caps Lock state of [e]. */
+  private fun usText(writingKey: WritingKey, e: KeyEvent, capsLock: Boolean): String {
+    val base = writingKey.codepoint.toChar()
+    return when {
+      base.isLetter() -> (if (e.isShiftDown != capsLock) base.uppercaseChar() else base).toString()
+      e.isShiftDown -> writingKey.shiftedCodepoint.toChar().toString()
+      else -> base.toString()
+    }
+  }
+
+  /**
+   * The code point the pressed key produces with no modifier. When the typed character is
+   * what the US layout puts on that key, the table answers: '2' for '@'. A shifted digit key
+   * has the digit unshifted on every layout but AZERTY, whatever symbol Shift typed. Otherwise
+   * the layout is another one, and the lowercase of the character is the best available
+   * answer: right for a letter in any script, the shifted symbol itself for a symbol.
+   */
+  private fun unshiftedCodepoint(writingKey: WritingKey?, ch: Char, shift: Boolean): Int {
+    if (writingKey != null && (ch.code == writingKey.codepoint || ch.code == writingKey.shiftedCodepoint)) {
+      return writingKey.codepoint
+    }
+    if (writingKey != null && shift && writingKey.codepoint.toChar().isDigit()) {
+      return writingKey.codepoint
+    }
+    return ch.lowercaseChar().code
+  }
+
+  /** A C0 control character or DEL: the bytes the encoder's text must never carry. */
+  private fun isControlByte(ch: Char): Boolean = ch.code < 0x20 || ch.code == 0x7F
+
+  /** A character AWT computed for the key, as opposed to a control byte or none at all. */
+  private fun isPrintable(ch: Char): Boolean = ch != KeyEvent.CHAR_UNDEFINED && !isControlByte(ch)
 
   /**
    * The macOS "natural text editing" chords, resolved above VT encoding like the
@@ -192,31 +288,55 @@ internal class TerminalEmulatorKeyEventEncoder(
   }
 
   /**
-   * A key from the writing-system block: the [TerminalKey] and the codepoint it
-   * produces with no modifiers.
+   * A key from the writing-system block: the [TerminalKey], and the code points it produces
+   * on the US layout with no modifier and with Shift.
    */
-  private class WritingKey(val key: TerminalKey, val codepoint: Int)
+  private class WritingKey(val key: TerminalKey, val codepoint: Int, val shiftedCodepoint: Int)
 
   private fun writingKey(keyCode: Int): WritingKey? = when (keyCode) {
     // VK codes for letters are the uppercase ASCII letters; both key ranges are
     // contiguous blocks.
     in KeyEvent.VK_A..KeyEvent.VK_Z ->
-      WritingKey(TerminalKey.entries[TerminalKey.A.ordinal + (keyCode - KeyEvent.VK_A)], keyCode.toChar().lowercaseChar().code)
+      WritingKey(TerminalKey.entries[TerminalKey.A.ordinal + (keyCode - KeyEvent.VK_A)], keyCode.toChar().lowercaseChar().code, keyCode)
+    // VK codes for digits are the ASCII digits.
     in KeyEvent.VK_0..KeyEvent.VK_9 ->
-      WritingKey(TerminalKey.entries[TerminalKey.DIGIT_0.ordinal + (keyCode - KeyEvent.VK_0)], keyCode)
-    KeyEvent.VK_SPACE -> WritingKey(TerminalKey.SPACE, ' '.code)
-    KeyEvent.VK_OPEN_BRACKET -> WritingKey(TerminalKey.BRACKET_LEFT, '['.code)
-    KeyEvent.VK_CLOSE_BRACKET -> WritingKey(TerminalKey.BRACKET_RIGHT, ']'.code)
-    KeyEvent.VK_BACK_SLASH -> WritingKey(TerminalKey.BACKSLASH, '\\'.code)
-    KeyEvent.VK_MINUS -> WritingKey(TerminalKey.MINUS, '-'.code)
+      WritingKey(TerminalKey.entries[TerminalKey.DIGIT_0.ordinal + (keyCode - KeyEvent.VK_0)], keyCode, US_SHIFTED_DIGITS[keyCode - KeyEvent.VK_0].code)
+    KeyEvent.VK_SPACE -> symbolKey(TerminalKey.SPACE, ' ', ' ')
+    KeyEvent.VK_BACK_QUOTE -> symbolKey(TerminalKey.BACKQUOTE, '`', '~')
+    KeyEvent.VK_MINUS -> symbolKey(TerminalKey.MINUS, '-', '_')
+    KeyEvent.VK_EQUALS -> symbolKey(TerminalKey.EQUAL, '=', '+')
+    KeyEvent.VK_OPEN_BRACKET -> symbolKey(TerminalKey.BRACKET_LEFT, '[', '{')
+    KeyEvent.VK_CLOSE_BRACKET -> symbolKey(TerminalKey.BRACKET_RIGHT, ']', '}')
+    KeyEvent.VK_BACK_SLASH -> symbolKey(TerminalKey.BACKSLASH, '\\', '|')
+    KeyEvent.VK_SEMICOLON -> symbolKey(TerminalKey.SEMICOLON, ';', ':')
+    KeyEvent.VK_QUOTE -> symbolKey(TerminalKey.QUOTE, '\'', '"')
+    KeyEvent.VK_COMMA -> symbolKey(TerminalKey.COMMA, ',', '<')
+    KeyEvent.VK_PERIOD -> symbolKey(TerminalKey.PERIOD, '.', '>')
+    KeyEvent.VK_SLASH -> symbolKey(TerminalKey.SLASH, '/', '?')
     else -> null
   }
+
+  private fun symbolKey(key: TerminalKey, codepoint: Char, shifted: Char) = WritingKey(key, codepoint.code, shifted.code)
 
   private fun terminalModifiers(e: KeyEvent): Set<TerminalInputModifier> = buildSet {
     if (e.isShiftDown) add(TerminalInputModifier.SHIFT)
     if (e.isControlDown) add(TerminalInputModifier.CTRL)
     if (e.isAltDown) add(TerminalInputModifier.ALT)
     if (e.isMetaDown) add(TerminalInputModifier.SUPER)
+    addAll(locks)
+  }
+
+  /**
+   * The modifiers of a typed character, and of its release: Shift, Super and the lock keys.
+   * The character already reflects the keyboard layout, and Ctrl or Alt would make the encoder
+   * derive a chord from it. AltGr text arrives with Ctrl+Alt down on Windows, and Option text
+   * with Alt down on macOS. SUPER lets the encoder apply the macOS rule that a command chord
+   * never types text.
+   */
+  private fun typedModifiers(e: KeyEvent): Set<TerminalInputModifier> = buildSet {
+    if (e.isShiftDown) add(TerminalInputModifier.SHIFT)
+    if (e.isMetaDown) add(TerminalInputModifier.SUPER)
+    addAll(locks)
   }
 
   private fun modifierKeys(e: KeyEvent): Int =
@@ -231,6 +351,7 @@ internal class TerminalEmulatorKeyEventEncoder(
       && (mods and InputEvent.SHIFT_DOWN_MASK) == 0
   }
 
+
   private fun isCodeThatScrolls(keyCode: Int): Boolean = when (keyCode) {
     KeyEvent.VK_UP, KeyEvent.VK_DOWN, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT,
     KeyEvent.VK_BACK_SPACE, KeyEvent.VK_INSERT, KeyEvent.VK_DELETE, KeyEvent.VK_ENTER,
@@ -240,8 +361,43 @@ internal class TerminalEmulatorKeyEventEncoder(
   }
 
   companion object {
+    private const val TAB: Byte = 0x09
     private const val ESC: Byte = 0x1B
     private const val CR: Byte = 0x0D
     private const val NAK: Byte = 0x15  // Ctrl+U: kill line
+
+    /** The US layout's shifted digits, indexed by digit. */
+    private const val US_SHIFTED_DIGITS = ")!@#$%^&*("
+
+    /** The chords fixterms reserves for CSI u, and the bytes a classic terminal sends for them. */
+    private val CLASSIC_CONTROL_BYTES: Map<TerminalKey, Byte> =
+      mapOf(TerminalKey.I to TAB, TerminalKey.M to CR, TerminalKey.BRACKET_LEFT to ESC)
+  }
+}
+
+/**
+ * The Caps Lock and Num Lock state, read from the toolkit. A lock the platform cannot report
+ * (Num Lock on macOS; both on a headless toolkit) is asked once and then skipped.
+ */
+private object LockingKeys {
+  private val locks = mapOf(
+    KeyEvent.VK_CAPS_LOCK to TerminalInputModifier.CAPS_LOCK,
+    KeyEvent.VK_NUM_LOCK to TerminalInputModifier.NUM_LOCK,
+  )
+  private val unsupported: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+
+  fun current(): Set<TerminalInputModifier> {
+    val toolkit = Toolkit.getDefaultToolkit()
+    return buildSet {
+      for ((keyCode, modifier) in locks) {
+        if (keyCode in unsupported) continue
+        try {
+          if (toolkit.getLockingKeyState(keyCode)) add(modifier)
+        }
+        catch (_: UnsupportedOperationException) {
+          unsupported += keyCode
+        }
+      }
+    }
   }
 }

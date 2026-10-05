@@ -238,7 +238,7 @@ enum class TerminalKeyAction {
  *   protocol sends [text] as is only when no unconsumed modifier is left.
  */
 @ApiStatus.Internal
-class TerminalKeyEvent(
+data class TerminalKeyEvent(
   val key: TerminalKey,
   val action: TerminalKeyAction = TerminalKeyAction.PRESS,
   val modifiers: Set<TerminalInputModifier> = emptySet(),

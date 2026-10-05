@@ -12,6 +12,7 @@ import com.intellij.openapi.project.Project
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.jetbrains.kotlin.utils.KotlinExceptionWithAttachments
 import java.nio.file.Path
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.readText
@@ -86,7 +87,10 @@ internal class KotlinProjectOpenerCollector : ProjectUsagesCollector() {
         val event = try {
             json.decodeFromString<KotlinProjectOpenEvent>(text)
         } catch (e: Exception) {
-            Logger.getInstance(this::class.java).error(e)
+            Logger.getInstance(this::class.java).error(
+                KotlinExceptionWithAttachments(e.message, e)
+                    .withAttachment("text.json", text)
+            )
             throw e
         }
 

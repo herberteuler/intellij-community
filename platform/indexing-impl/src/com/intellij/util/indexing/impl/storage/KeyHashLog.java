@@ -44,7 +44,6 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.intellij.concurrency.ConcurrentCollectionFactory.createConcurrentIntObjectMap;
 
@@ -60,9 +59,10 @@ public final class KeyHashLog<Key> implements Closeable {
   private final @NotNull Path myBaseStorageFile;
   private final @Nullable StorageLockContext myStorageLockContext;
   private final @NotNull AppendableObjectStorage<int[]> myKeyHashToVirtualFileMapping;
-  private final @NotNull ConcurrentIntObjectMap<Boolean> myInvalidatedSessionIds = createConcurrentIntObjectMap();
 
-  private volatile int myLastScannedId;
+  private final @NotNull ConcurrentIntObjectMap<Boolean> myInvalidatedSessionIds = createConcurrentIntObjectMap();
+  /// `myKeyHashToVirtualFileMapping.getCurrentLength()` at the last moment the file was scanned;
+  private volatile int myScannedUpToOffsetExclusive;
 
   public KeyHashLog(@NotNull KeyDescriptor<Key> descriptor, @NotNull Path baseStorageFile) throws IOException {
     this(descriptor, baseStorageFile, null);
@@ -110,19 +110,22 @@ public final class KeyHashLog<Key> implements Closeable {
 
   public @NotNull IntSet getSuitableKeyHashes(@NotNull IdFilter filter, @NotNull Project project) throws StorageException {
     IdFilter.FilterScopeType filteringScopeType = filter.getFilteringScopeType();
-    IntSet hashMaskSet = null;
+
     long l = System.currentTimeMillis();
 
-    @NotNull Path sessionProjectCacheFile = getSavedProjectFileValueIds(myLastScannedId,
-                                                                        filteringScopeType == IdFilter.FilterScopeType.OTHER
-                                                                        ? IdFilter.FilterScopeType.PROJECT_AND_LIBRARIES
-                                                                        : filteringScopeType,
-                                                                        project);
-    int id = myKeyHashToVirtualFileMapping.getCurrentLength();
+    @NotNull Path sessionProjectCacheFile = getSavedProjectFileValueIds(
+      myScannedUpToOffsetExclusive,
+      filteringScopeType == IdFilter.FilterScopeType.OTHER ? IdFilter.FilterScopeType.PROJECT_AND_LIBRARIES : filteringScopeType,
+      project
+    );
+    int currentFileLength = myKeyHashToVirtualFileMapping.getCurrentLength();
 
-    boolean useCachedHashIds = ENABLE_CACHED_HASH_IDS;
-    if (useCachedHashIds && id == myLastScannedId && filter.getFilteringScopeType() == IdFilter.FilterScopeType.PROJECT_AND_LIBRARIES) {
-      if (myInvalidatedSessionIds.remove(id) == null) {
+    boolean shouldCacheResult = (filteringScopeType == IdFilter.FilterScopeType.PROJECT_AND_LIBRARIES);
+    IntSet hashMaskSet = null;
+    if (ENABLE_CACHED_HASH_IDS
+        && currentFileLength == myScannedUpToOffsetExclusive
+        && shouldCacheResult) {
+      if (myInvalidatedSessionIds.remove(currentFileLength) == null) {
         try {
           hashMaskSet = loadProjectHashes(sessionProjectCacheFile);
         }
@@ -132,13 +135,11 @@ public final class KeyHashLog<Key> implements Closeable {
     }
 
     if (hashMaskSet == null) {
-      if (useCachedHashIds && myLastScannedId != 0) {
+      if (ENABLE_CACHED_HASH_IDS && myScannedUpToOffsetExclusive != 0) {
         try {
           FileUtil.delete(sessionProjectCacheFile);
         }
-        catch (NoSuchFileException ignored) {
-
-        }
+        catch (NoSuchFileException ignored) { }
         catch (IOException e) {
           LOG.error(e);
         }
@@ -146,8 +147,8 @@ public final class KeyHashLog<Key> implements Closeable {
 
       hashMaskSet = getSuitableKeyHashes(filter);
 
-      if (useCachedHashIds && filteringScopeType == IdFilter.FilterScopeType.PROJECT_AND_LIBRARIES) {
-        saveHashedIds(hashMaskSet, id, filteringScopeType, project);
+      if (ENABLE_CACHED_HASH_IDS && shouldCacheResult) {
+        saveHashedIds(hashMaskSet, currentFileLength, sessionProjectCacheFile);
       }
     }
 
@@ -314,11 +315,11 @@ public final class KeyHashLog<Key> implements Closeable {
 
   private static @NotNull IntSet loadProjectHashes(@NotNull Path fileWithCaches) throws IOException {
     try (DataInputStream inputStream = new DataInputStream(new BufferedInputStream(Files.newInputStream(fileWithCaches)))) {
-      int capacity = DataInputOutputUtil.readINT(inputStream);
-      IntSet hashMaskSet = new IntOpenHashSet(capacity);
-      while (capacity > 0) {
+      int hashesCount = DataInputOutputUtil.readINT(inputStream);
+      IntSet hashMaskSet = new IntOpenHashSet(hashesCount);
+      while (hashesCount > 0) {
         hashMaskSet.add(DataInputOutputUtil.readINT(inputStream));
-        --capacity;
+        --hashesCount;
       }
       return hashMaskSet;
     }
@@ -326,12 +327,9 @@ public final class KeyHashLog<Key> implements Closeable {
 
   private void saveHashedIds(@NotNull IntSet hashMaskSet,
                              int largestId,
-                             @NotNull IdFilter.FilterScopeType scopeType,
-                             @NotNull Project project) {
-    @NotNull Path newFileWithCaches = getSavedProjectFileValueIds(largestId, scopeType, project);
-
+                             @NotNull Path fileToStoreCache) {
     boolean savedSuccessfully = true;
-    try (DataOutputStream stream = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(newFileWithCaches)))) {
+    try (DataOutputStream stream = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(fileToStoreCache)))) {
       DataInputOutputUtil.writeINT(stream, hashMaskSet.size());
       IntIterator iterator = hashMaskSet.iterator();
       while (iterator.hasNext()) {
@@ -342,7 +340,7 @@ public final class KeyHashLog<Key> implements Closeable {
       savedSuccessfully = false;
     }
     if (savedSuccessfully) {
-      myLastScannedId = largestId;
+      myScannedUpToOffsetExclusive = largestId;
     }
   }
 
@@ -373,10 +371,10 @@ public final class KeyHashLog<Key> implements Closeable {
   }
 
   private void invalidateKeyHashToVirtualFileMappingCache() {
-    int lastScannedId = myLastScannedId;
+    int lastScannedId = myScannedUpToOffsetExclusive;
     if (lastScannedId != 0) { // we have write lock
       myInvalidatedSessionIds.putIfAbsent(lastScannedId, Boolean.TRUE);
-      myLastScannedId = 0;
+      myScannedUpToOffsetExclusive = 0;
     }
   }
 

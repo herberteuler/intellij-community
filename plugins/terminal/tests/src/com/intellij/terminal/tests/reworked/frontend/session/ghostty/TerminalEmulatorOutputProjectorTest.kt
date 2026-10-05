@@ -1,8 +1,10 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.terminal.tests.reworked.frontend.session.ghostty
 
+import com.intellij.terminal.emulator.ScreenChange
 import com.intellij.terminal.emulator.TerminalCustomCommandListener
 import com.intellij.terminal.emulator.TerminalEmulator
+import com.intellij.terminal.emulator.TerminalRow
 import com.intellij.terminal.emulator.TerminalSize
 import com.intellij.terminal.emulator.createTerminalEmulator
 import com.intellij.terminal.frontend.session.ghostty.TerminalEmulatorOutputProjector
@@ -1224,22 +1226,208 @@ internal class TerminalEmulatorOutputProjectorTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Updates that start at the changed rows
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `typing reports the typed line alone`() = withProjector {
+    write("first\r\nsecond\r\n$ ")
+    collectUpdate()
+
+    write("x")
+    emulator.rowReads = 0
+    val event = collectUpdate()
+
+    assertThat(emulator.rowReads).describedAs("rows read").isEqualTo(1)
+    assertThat(event.startLineLogicalIndex).isEqualTo(2L)
+    assertThat(event.text).isEqualTo("$ x")
+    assertThat(event.cursorLogicalLineIndex).isEqualTo(2L)
+    assertThat(event.cursorColumnIndex).isEqualTo(3)
+    assertThat(event.screenTopLogicalLineIndex).isEqualTo(0L)
+    assertThat(event.screenTopColumnIndex).isEqualTo(0)
+  }
+
+  @Test
+  fun `a change above the last line reports from that line to the screen bottom`() = withProjector {
+    write("a\r\nb\r\nc")
+    collectUpdate()
+
+    write(csi("2;1H") + "B")
+    val event = collectUpdate()
+
+    assertThat(event.startLineLogicalIndex).isEqualTo(1L)
+    assertThat(event.text).isEqualTo("B\nc")
+    assertThat(event.cursorLogicalLineIndex).isEqualTo(1L)
+    assertThat(event.cursorColumnIndex).isEqualTo(1)
+  }
+
+  @Test
+  fun `a change above other text reads down to the last row with text`() = withProjector {
+    write("a\r\nb\r\nc" + csi("1;2H"))
+    collectUpdate()
+
+    write("A")
+    emulator.rowReads = 0
+    val event = collectUpdate()
+
+    // The model replaces the document from the changed line to its end, so the rows with text below it go along.
+    // The 21 blank rows below them are not read.
+    assertThat(emulator.rowReads).describedAs("rows read").isEqualTo(3)
+    assertThat(event.startLineLogicalIndex).isEqualTo(0L)
+    assertThat(event.text).isEqualTo("aA\nb\nc")
+  }
+
+  @Test
+  fun `the update starts at the cursor row when it is above the changed rows`() = withProjector {
+    write("a\r\nb\r\nc")
+    collectUpdate()
+
+    // Change the last row, then park the cursor after "a" on the first row. Ghostty also marks the rows that the
+    // cursor moves between, so the change names the changed row alone to stand for an engine that does not.
+    write(csi("3;2H") + "C" + csi("1;2H"))
+    val event = collectUpdate(ScreenChange.Rows(intArrayOf(2)))
+
+    assertThat(event.startLineLogicalIndex).isEqualTo(0L)
+    assertThat(event.text).isEqualTo("a\nb\ncC")
+    assertThat(event.cursorLogicalLineIndex).isEqualTo(0L)
+    assertThat(event.cursorColumnIndex).isEqualTo(1)
+  }
+
+  @Test
+  fun `a line that soft-wraps after the last update is reported whole`() = withProjector(columns = 80) {
+    // 80 characters fill the first row exactly, so the row soft-wraps only when the next character arrives.
+    // Ghostty sets the wrap flag of that row without a change mark on it.
+    write("A".repeat(80))
+    collectUpdate()
+
+    write("B")
+    val event = collectUpdate()
+
+    assertThat(event.startLineLogicalIndex).isEqualTo(0L)
+    assertThat(event.text).isEqualTo("A".repeat(80) + "B")
+    assertThat(event.cursorLogicalLineIndex).isEqualTo(0L)
+    assertThat(event.cursorColumnIndex).isEqualTo(81)
+  }
+
+  @Test
+  fun `a change on a line that straddles the screen top reports the line from the scrollback`() =
+    withProjector(columns = 80, rows = 3) {
+      // 300 characters take four rows, so the first row of the line is in the scrollback.
+      write("A".repeat(300))
+      collectUpdate()
+
+      write("B")
+      val event = collectUpdate()
+
+      assertThat(event.startLineLogicalIndex).isEqualTo(0L)
+      assertThat(event.text).isEqualTo("A".repeat(300) + "B")
+      assertThat(event.cursorLogicalLineIndex).isEqualTo(0L)
+      assertThat(event.cursorColumnIndex).isEqualTo(301)
+      assertThat(event.screenTopLogicalLineIndex).isEqualTo(0L)
+      assertThat(event.screenTopColumnIndex).isEqualTo(80)
+    }
+
+  @Test
+  fun `typing on the alternate screen reports from the typed line`() = withProjector(rows = 5) {
+    write(csi("?1049h") + "a\r\nb\r\nc")
+    collectUpdate()
+
+    write(csi("2;2H") + "X")
+    val event = collectUpdate()
+
+    assertThat(event.startLineLogicalIndex).isEqualTo(1L)
+    assertThat(event.text).isEqualTo("bX\nc")
+    assertThat(event.cursorLogicalLineIndex).isEqualTo(1L)
+    assertThat(event.cursorColumnIndex).isEqualTo(2)
+    assertThat(event.screenTopLogicalLineIndex).isEqualTo(0L)
+  }
+
+  @Test
+  fun `rows that scrolled into the scrollback are reported even when only the bottom row is changed`() =
+    withProjector(rows = 3) {
+      write("a\r\nb\r\nc")
+      collectUpdate()
+
+      // Change the first row, then scroll it into the scrollback with a new line at the bottom.
+      write(csi("1;2H") + "A" + csi("3;2H") + "\r\nd")
+      // Ghostty reports the whole screen after a scroll. The update must not depend on that: an engine that
+      // reports only the new bottom row says nothing about the changed row that left the screen.
+      val event = collectUpdate(ScreenChange.Rows(intArrayOf(2)))
+
+      assertThat(event.startLineLogicalIndex).isEqualTo(0L)
+      assertThat(event.text).isEqualTo("aA\nb\nc\nd")
+      assertThat(event.cursorLogicalLineIndex).isEqualTo(3L)
+      assertThat(event.screenTopLogicalLineIndex).isEqualTo(1L)
+    }
+
+  @Test
+  fun `a wrap flag that changed without a change mark moves the start up to its row`() =
+    withProjector(columns = 10, rows = 4) {
+      // The first two rows are one soft-wrapped line.
+      write("0123456789ab\r\nx")
+      assertThat(collectUpdate().text).isEqualTo("0123456789ab\nx")
+
+      // Erase the end of the first row, which also ends its soft wrap, then change the third row.
+      write(csi("1;10H") + csi("K") + csi("3;1H") + "y")
+      // The change names the third row alone, so only the wrap flag tells that the line structure above it changed.
+      val event = collectUpdate(ScreenChange.Rows(intArrayOf(2)))
+
+      assertThat(event.startLineLogicalIndex).isEqualTo(0L)
+      assertThat(event.text).isEqualTo("012345678\nab\ny")
+      assertThat(event.cursorLogicalLineIndex).isEqualTo(2L)
+    }
+
+  @Test
+  fun `a switch of the active screen reports the whole screen even when only some rows are changed`() =
+    withProjector(rows = 5) {
+      write(csi("?1049h") + csi("H") + "A1\r\nA2\r\nA3")
+      collectUpdate()
+      write(csi("?1049l"))
+      collectUpdate()
+
+      // The output model of the alternate screen still holds the first program's frame, so a second program must
+      // report its frame from the top, even when the change names only the row it wrote.
+      write(csi("?1049h") + csi("3;1H") + "B3")
+      val event = collectUpdate(ScreenChange.Rows(intArrayOf(2)))
+
+      assertThat(event.startLineLogicalIndex).isEqualTo(0L)
+      assertThat(event.text).isEqualTo("\n\nB3")
+    }
+
+  @Test
+  fun `computeCursor counts the scrollback part of a line that straddles the screen top`() =
+    withProjector(columns = 80, rows = 3) {
+      // 300 characters take four rows, so the first 80 are in the scrollback and the cursor is at column 60
+      // of the last screen row.
+      write("A".repeat(300))
+      collectUpdate()
+
+      assertThat(projector.computeCursor()).isEqualTo(0L to 300)
+    }
+
+  // ---------------------------------------------------------------------------
   // Harness
   // ---------------------------------------------------------------------------
 
-  private class Fixture(val emulator: TerminalEmulator, val projector: TerminalEmulatorOutputProjector) {
+  /** Counts the row reads, which cost one FFI round trip per cell, to check how much of the screen an update reads. */
+  private class RowReadCounter(private val emulator: TerminalEmulator) : TerminalEmulator by emulator {
+    var rowReads: Int = 0
+
+    override fun screenLine(row: Int): TerminalRow = emulator.screenLine(row).also { rowReads++ }
+
+    override fun scrollbackLine(row: Int): TerminalRow = emulator.scrollbackLine(row).also { rowReads++ }
+  }
+
+  private class Fixture(val emulator: RowReadCounter, val projector: TerminalEmulatorOutputProjector) {
     fun write(text: String) = emulator.write(text)
 
-    fun collectUpdate(): TerminalContentUpdatedEvent {
-      return projector.buildContentUpdate().also {
+    /** Projects the changes the emulator reports since the last call, the same way the session does. */
+    fun collectUpdate(): TerminalContentUpdatedEvent = collectUpdate(emulator.takeChanges())
+
+    /** Projects [change] instead of what the emulator reports, to stand for an engine that reports fewer rows. */
+    fun collectUpdate(change: ScreenChange): TerminalContentUpdatedEvent {
+      return projector.buildContentUpdate(change).also {
         assertThat(it.startLineLogicalIndex).describedAs("startLineLogicalIndex of $it").isNotNegative()
-        assertThat(it.cursorLogicalLineIndex)
-          .describedAs("cursorLogicalLineIndex of $it")
-          .isGreaterThanOrEqualTo(it.startLineLogicalIndex)
-        // The emitted window starts at or above the screen top: the rows before it are finalized history.
-        assertThat(it.screenTopLogicalLineIndex)
-          .describedAs("screenTopLogicalLineIndex of $it")
-          .isGreaterThanOrEqualTo(it.startLineLogicalIndex)
         // The cursor lives on the screen, so it never precedes the screen top.
         assertThat(it.cursorLogicalLineIndex)
           .describedAs("cursorLogicalLineIndex vs screenTopLogicalLineIndex of $it")
@@ -1258,7 +1446,7 @@ internal class TerminalEmulatorOutputProjectorTest {
     maxScrollbackBytes: Int = 1024 * 1024,
     body: Fixture.() -> Unit,
   ) {
-    val emulator = createTerminalEmulator(TerminalSize(columns, rows), maxScrollbackBytes)
+    val emulator = RowReadCounter(createTerminalEmulator(TerminalSize(columns, rows), maxScrollbackBytes))
     val projector = TerminalEmulatorOutputProjector(emulator)
     try {
       Fixture(emulator, projector).body()

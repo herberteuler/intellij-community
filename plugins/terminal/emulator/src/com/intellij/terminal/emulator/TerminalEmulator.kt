@@ -214,10 +214,19 @@ interface TerminalEmulator : AutoCloseable {
   fun screenLine(row: Int): TerminalRow
 
   /**
+   * Whether row [row] of the active screen soft-wraps into the next one: the [TerminalRow.wrapped] of
+   * [screenLine], but without reading the cells. Out-of-range indices yield `false`.
+   */
+  fun isScreenLineWrapped(row: Int): Boolean
+
+  /**
    * Row [row] of scrollback, 0-based from the oldest retained line (valid range:
    * `0 until scrollbackRows`). Out-of-range indices yield a row of empty cells rather than throwing.
    */
   fun scrollbackLine(row: Int): TerminalRow
+
+  /** The same as [isScreenLineWrapped], for row [row] of [scrollbackLine]. */
+  fun isScrollbackLineWrapped(row: Int): Boolean
 
   // change tracking (pull); resets the pending set
   fun takeChanges(): ScreenChange

@@ -768,7 +768,17 @@ internal class GhosttyTerminalEmulator(
 
   override fun screenLine(row: Int): TerminalRow = buildRow(GhosttyPointTag.ACTIVE, row)
 
+  override fun isScreenLineWrapped(row: Int): Boolean {
+    ensureOpen()
+    return readRowWrapped(GhosttyPointTag.ACTIVE, row)
+  }
+
   override fun scrollbackLine(row: Int): TerminalRow = buildRow(GhosttyPointTag.HISTORY, row)
+
+  override fun isScrollbackLineWrapped(row: Int): Boolean {
+    ensureOpen()
+    return readRowWrapped(GhosttyPointTag.HISTORY, row)
+  }
 
   private fun buildRow(pointTag: GhosttyPointTag, y: Int): TerminalRow {
     ensureOpen()

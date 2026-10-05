@@ -647,7 +647,7 @@ class GhosttyTerminalSession internal constructor(
     lastScrollbackRows = scrollbackRows
 
     if (contentChanged) {
-      val content = projector.buildContentUpdate()
+      val content = projector.buildContentUpdate(change)
       events.add(content)
       lastCursorLine = content.cursorLogicalLineIndex
       lastCursorColumn = content.cursorColumnIndex

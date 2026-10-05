@@ -19,6 +19,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.application.ApplicationBundle
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.command.undo.UndoUtil
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
@@ -369,6 +370,7 @@ private fun deleteFile(project: Project, file: VirtualFile) {
   if (file.isValid()) {
     val psiFile = PsiManager.getInstance(project).findFile(file)
     if (psiFile != null) {
+      UndoUtil.disableUndoFor(file)
       DeleteHandler.deletePsiElement(arrayOf(psiFile), project, false)
     }
   }

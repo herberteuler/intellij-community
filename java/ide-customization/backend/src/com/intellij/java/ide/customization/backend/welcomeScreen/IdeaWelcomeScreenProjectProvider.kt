@@ -16,6 +16,7 @@ internal class IdeaWelcomeScreenProjectProvider : WelcomeScreenProjectProvider()
   override fun doGetCreateNewFileProjectPrefix() = "awesomeProject"
 
   override fun getToolWindowIdsToExclusiveShowing(): Set<String> {
-    return setOf("Project", "Terminal")
+    // "air.threads" is Agent Sessions and "air.chat" is the AI chat; both are registered only with the AIR plugin
+    return setOf("Project", "Terminal", "Notifications", "air.threads", "air.chat")
   }
 }

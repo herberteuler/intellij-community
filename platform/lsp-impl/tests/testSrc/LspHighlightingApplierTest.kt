@@ -181,7 +181,7 @@ internal class LspHighlightingApplierTest {
     serverSession.expectRequest(serverSession.SEMANTIC_TOKENS_FULL, { it.textDocument.uri == uri }) {
       SemanticTokens(listOf(0, 0, 5, 0, 0))
     }
-    withContext(Dispatchers.IO) { readAction { client.getSemanticTokens(virtualFile) } }
+    withContext(Dispatchers.IO) { readAction { client.highlightingCacheRegistry.semanticTokensCache.getHighlightings(virtualFile) } }
     waitUntilAssertSucceeds(message = "the initial semantic token must reach the markup") {
       assertEquals(listOf(TextRange(0, 5)), semanticTokenRanges(document))
     }

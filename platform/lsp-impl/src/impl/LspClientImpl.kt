@@ -20,7 +20,6 @@ import com.intellij.platform.lsp.api.LspCommunicationChannel
 import com.intellij.platform.lsp.api.LspCommunicationChannel.StdIO
 import com.intellij.platform.lsp.api.LspIntegrationProvider
 import com.intellij.platform.lsp.api.LspServerState
-import com.intellij.platform.lsp.api.customization.LspInheritanceMarker
 import com.intellij.platform.lsp.api.customization.LspInheritanceMarkersSupport
 import com.intellij.platform.lsp.impl.connector.Lsp4jServerConnector
 import com.intellij.platform.lsp.impl.connector.Lsp4jServerConnectorSocket
@@ -29,10 +28,7 @@ import com.intellij.platform.lsp.impl.connector.LspInitializationException
 import com.intellij.platform.lsp.impl.documentSync.LspDocumentSyncManager
 import com.intellij.platform.lsp.impl.features.LspFeaturesRefreshing
 import com.intellij.platform.lsp.impl.features.highlighting.DiagnosticAndQuickFixes
-import com.intellij.platform.lsp.impl.features.highlighting.LspDocumentLink
 import com.intellij.platform.lsp.impl.features.highlighting.LspHighlightingApplier
-import com.intellij.platform.lsp.impl.features.highlighting.LspSemanticToken
-import com.intellij.platform.lsp.impl.features.highlightingCommon.LspCachedHighlighting
 import com.intellij.platform.lsp.impl.features.highlightingCommon.LspHighlightingCacheRegistry
 import com.intellij.platform.lsp.impl.features.inlayCommon.LspInlayApplier
 import com.intellij.platform.lsp.impl.features.navigation.LspDynamicFiles
@@ -43,13 +39,9 @@ import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.concurrency.annotations.RequiresReadLock
 import com.intellij.util.text.nullize
 import kotlinx.coroutines.launch
-import org.eclipse.lsp4j.CodeLens
-import org.eclipse.lsp4j.Color
 import org.eclipse.lsp4j.Command
 import org.eclipse.lsp4j.ExecuteCommandParams
-import org.eclipse.lsp4j.FoldingRange
 import org.eclipse.lsp4j.InitializeResult
-import org.eclipse.lsp4j.InlayHint
 import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.SaveOptions
 import org.eclipse.lsp4j.ServerCapabilities
@@ -103,7 +95,7 @@ class LspClientImpl internal constructor(
   internal val watchedFiles = LspWatchedFiles(this)
   internal val dynamicFiles = LspDynamicFiles(this)
   private val unsupportedFilePaths: MutableSet<String> = Collections.synchronizedSet(HashSet())
-  private val highlightingCacheRegistry = LspHighlightingCacheRegistry(this)
+  internal val highlightingCacheRegistry = LspHighlightingCacheRegistry(this)
 
   private lateinit var lsp4jServerConnector: Lsp4jServerConnector
   private val connectorLock = Any()
@@ -267,44 +259,9 @@ class LspClientImpl internal constructor(
   }
 
   @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)
-  internal fun getSemanticTokens(file: VirtualFile): List<LspCachedHighlighting<LspSemanticToken>> =
-    highlightingCacheRegistry.semanticTokensCache.getHighlightings(file)
-
-  @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
   @VisibleForTesting
   fun getDiagnosticsAndQuickFixes(file: VirtualFile): List<DiagnosticAndQuickFixes> =
     highlightingCacheRegistry.getDiagnosticsAndQuickFixes(file)
-
-  @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)
-  internal fun getColorInfos(file: VirtualFile): List<LspCachedHighlighting<Color>> =
-    highlightingCacheRegistry.documentColorCache.getHighlightings(file)
-
-  @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)
-  internal fun getDocumentLinkInfos(file: VirtualFile): List<LspCachedHighlighting<LspDocumentLink>> =
-    highlightingCacheRegistry.documentLinkCache.getHighlightings(file)
-
-  @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)
-  internal fun getFoldingRangeInfos(file: VirtualFile): List<LspCachedHighlighting<FoldingRange>> =
-    highlightingCacheRegistry.foldingRangeCache.getHighlightings(file)
-
-  @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)
-  internal fun getInlayHints(file: VirtualFile): List<LspCachedHighlighting<InlayHint>> =
-    highlightingCacheRegistry.inlayHintsCache.getHighlightings(file)
-
-  @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)
-  internal fun getCodeLens(file: VirtualFile): List<LspCachedHighlighting<CodeLens>> =
-    highlightingCacheRegistry.codeLensCache.getHighlightings(file)
-
-  @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
-  @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)
-  internal fun getInheritanceMarkers(file: VirtualFile): List<LspCachedHighlighting<LspInheritanceMarker>> =
-    highlightingCacheRegistry.inheritanceMarkersCache.getHighlightings(file)
 
   internal fun notifyDocumentLinksReceived(file: VirtualFile) = eventBroadcaster.documentLinksReceived(this, file)
 

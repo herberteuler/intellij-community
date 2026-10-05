@@ -204,7 +204,7 @@ internal class LspHighlightingApplier(private val project: Project) {
   ) {
     val semanticTokensSupport = client.descriptor.lspCustomization.semanticTokensCustomizer
                                   as? LspSemanticTokensSupport ?: return
-    val tokens = client.getSemanticTokens(file)
+    val tokens = client.highlightingCacheRegistry.semanticTokensCache.getHighlightings(file)
     for (token in tokens) {
       val textAttributesKey = semanticTokensSupport.getTextAttributesKey(
         token.highlightingInfo.tokenType, token.highlightingInfo.tokenModifiers
@@ -225,7 +225,7 @@ internal class LspHighlightingApplier(private val project: Project) {
   ) {
     val customizer = client.descriptor.lspCustomization.documentLinkCustomizer
     if (customizer is LspDocumentLinkDisabled) return
-    val documentLinks = client.getDocumentLinkInfos(file)
+    val documentLinks = client.highlightingCacheRegistry.documentLinkCache.getHighlightings(file)
     for (link in documentLinks) {
       val info = HighlightInfo.newHighlightInfo(HighlightInfoType.INFORMATION)
         .range(link.textRange)

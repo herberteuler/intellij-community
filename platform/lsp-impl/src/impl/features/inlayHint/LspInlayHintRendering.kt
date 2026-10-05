@@ -38,7 +38,7 @@ internal fun collectInlayHintItems(project: Project, virtualFile: VirtualFile): 
     if (customizer is LspInlayHintSupport) {
       val raw = customizer.getMaxInlayHintChars()
       val maxChars = raw.coerceIn(MIN_ALLOWED_INLAY_HINT_LENGTH, MAX_ALLOWED_INLAY_HINT_LENGTH)
-      client.getInlayHints(virtualFile)
+      client.highlightingCacheRegistry.inlayHintsCache.getHighlightings(virtualFile)
         .filter { customizer.shouldDisplayInlayHint(virtualFile, it.highlightingInfo) }
         .map { LspInlayHintItem(project, client.descriptor, it.highlightingInfo, it.textRange.startOffset, maxChars) }
     }

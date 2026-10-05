@@ -29,7 +29,7 @@ import kotlin.math.roundToInt
 internal fun collectColorInlayItems(project: Project, virtualFile: VirtualFile): List<LspInlayItem> {
   return LspClientManagerImpl.getInstanceImpl(project)
     .getClientsWithThisFileOpen(virtualFile)
-    .flatMap { it.getColorInfos(virtualFile) }
+    .flatMap { it.highlightingCacheRegistry.documentColorCache.getHighlightings(virtualFile) }
     .mapNotNull { cached ->
       val r: Int = (cached.highlightingInfo.red * 255).roundToInt()
       val g: Int = (cached.highlightingInfo.green * 255).roundToInt()

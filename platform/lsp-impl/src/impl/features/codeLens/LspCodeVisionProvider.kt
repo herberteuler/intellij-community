@@ -34,7 +34,7 @@ internal class LspCodeVisionProvider : CodeVisionProvider<Unit>, DumbAware {
     val clients = LspClientManagerImpl.getInstanceImpl(project).getClientsWithThisFileOpen(virtualFile)
 
     val lenses = clients.flatMap { client ->
-        client.getCodeLens(virtualFile).map { it to client }
+        client.highlightingCacheRegistry.codeLensCache.getHighlightings(virtualFile).map { it to client }
       }
 
     if (lenses.isEmpty()) return CodeVisionState.Ready(emptyList())

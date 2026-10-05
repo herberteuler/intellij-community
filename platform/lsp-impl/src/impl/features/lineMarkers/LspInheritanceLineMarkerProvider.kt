@@ -58,7 +58,7 @@ internal class LspInheritanceLineMarkerProvider : LineMarkerProviderDescriptor()
 
     for (client in LspClientManagerImpl.getInstanceImpl(psiFile.project).getClientsWithThisFileOpen(virtualFile)) {
       if (client.descriptor.lspCustomization.inheritanceMarkersCustomizer !is LspInheritanceMarkersSupport) continue
-      for (cached in client.getInheritanceMarkers(virtualFile)) {
+      for (cached in client.highlightingCacheRegistry.inheritanceMarkersCache.getHighlightings(virtualFile)) {
         ProgressManager.checkCanceled()
         val marker = cached.highlightingInfo
 

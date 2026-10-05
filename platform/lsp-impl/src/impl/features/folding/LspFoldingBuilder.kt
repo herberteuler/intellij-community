@@ -25,7 +25,7 @@ internal class LspFoldingBuilder : FoldingBuilderEx(), DumbAware {
 
     val foldingRangeInfos = LspClientManagerImpl.getInstanceImpl(psiFile.project)
       .getClientsWithThisFileOpen(file)
-      .flatMap { it.getFoldingRangeInfos(file) }
+      .flatMap { it.highlightingCacheRegistry.foldingRangeCache.getHighlightings(file) }
 
     if (foldingRangeInfos.isEmpty()) {
       return emptyArray()

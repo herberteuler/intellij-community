@@ -37,7 +37,8 @@ internal class LspDocumentLinkReferenceProvider : ImplicitReferenceProvider {
     if (file is VirtualFileWindow) return null
 
     LspClientManagerImpl.getInstanceImpl(psiFile.project).getClientsWithThisFileOpen(file).forEach { lspClient ->
-      val documentLinkInfo = lspClient.getDocumentLinkInfos(file).find { it.textRange.contains(offsetInElement) }
+      val cache = lspClient.highlightingCacheRegistry.documentLinkCache
+      val documentLinkInfo = cache.getHighlightings(file).find { it.textRange.contains(offsetInElement) }
       if (documentLinkInfo != null) {
         return LspDocumentLinkSymbolReference(lspClient, psiFile, documentLinkInfo.textRange, documentLinkInfo.highlightingInfo)
       }

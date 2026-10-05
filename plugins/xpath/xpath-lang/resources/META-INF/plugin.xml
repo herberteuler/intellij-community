@@ -65,7 +65,7 @@
   </extensionPoints>
 
   <extensions defaultExtensionNs="com.intellij">
-    <colorSettingsPage implementation="org.intellij.lang.xpath.XPathColorSettingsPage" />
+    <colorSettings implementation="org.intellij.lang.xpath.XPathColorSettingsPage" displayName="XPath"/>
 
     <configurationType implementation="org.intellij.lang.xpath.xslt.run.XsltRunConfigType" />
     <runConfigurationProducer implementation="org.intellij.lang.xpath.xslt.run.XsltConfigurationProducer" />
@@ -191,7 +191,8 @@
     <annotator language="XML" implementationClass="org.intellij.lang.xpath.xslt.validation.XsltXmlAnnotator"/>
 
     <xml.nsColorProvider implementation="org.intellij.lang.xpath.xslt.validation.XsltNSColorProvider"/>
-    <colorSettingsPage implementation="org.intellij.lang.xpath.xslt.validation.XsltColorPage"/>
+    <colorSettings implementation="org.intellij.lang.xpath.xslt.validation.XsltColorPage"
+                   bundle="messages.XPathBundle" key="configurable.xslt.display.name"/>
 
     <lang.documentationProvider language="XML" implementationClass="org.intellij.lang.xpath.xslt.impl.XsltDocumentationProvider"/>
     <lang.documentationProvider language="XPath" implementationClass="org.intellij.lang.xpath.xslt.impl.XsltDocumentationProvider"/>

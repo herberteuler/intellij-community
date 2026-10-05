@@ -41,7 +41,8 @@
     <lang.quoteHandler language="JSONPath" implementationClass="com.intellij.jsonpath.JsonPathQuoteHandler"/>
     <lang.syntaxHighlighterFactory language="JSONPath" implementationClass="com.intellij.jsonpath.JsonPathSyntaxHighlighterFactory"/>
     <annotator language="JSONPath" implementationClass="com.intellij.jsonpath.JsonPathFunctionCallAnnotator"/>
-    <colorSettingsPage implementation="com.intellij.jsonpath.JsonPathColorSettingsPage"/>
+    <colorSettings implementation="com.intellij.jsonpath.JsonPathColorSettingsPage"
+                   bundle="messages.JsonPathBundle" key="settings.display.name.jsonpath"/>
     <completion.contributor language="JSONPath" order="last" implementationClass="com.intellij.jsonpath.JsonPathCompletionContributor"/>
     <spellchecker.support language="JSONPath" implementationClass="com.intellij.jsonpath.JsonPathSpellcheckerStrategy"/>
 

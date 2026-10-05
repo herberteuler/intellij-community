@@ -6,9 +6,9 @@ import com.intellij.execution.filters.InvisibleHyperlinkFilterProvider
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.terminal.backend.hyperlinks.filter.TerminalNioFileLookup
+import com.intellij.terminal.backend.hyperlinks.filter.createTerminalGenericFileFilter
 import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFilterScope
-import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalNioFileLookup
-import org.jetbrains.plugins.terminal.hyperlinks.filter.createTerminalGenericFileFilter
 
 /**
  * Provides the file path filter for the hovered terminal output line.

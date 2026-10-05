@@ -81,7 +81,6 @@
     <registryKey key="terminal.prefer.image.path.paste.over.text" defaultValue="true"
                  description="When pasting in the terminal, prefer inserting an image path if it is available in the clipboard
                   even if text representation is available."/>
-    <consoleFilterProvider implementation="org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalGenericFileFilterProvider"/>
 
     <experimentalFeature id="terminal.shell.command.handling" percentOfUsers="100"/>
     <terminal.shellCommandHandler implementation="org.jetbrains.plugins.terminal.RunAnythingTerminalBridge"/>

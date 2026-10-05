@@ -4,8 +4,8 @@ package com.intellij.terminal.tests.reworked.hyperlinks
 import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.EelOsFamily
 import com.intellij.platform.eel.path.EelPath
-import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFileKind
-import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFileLookup
+import com.intellij.terminal.backend.hyperlinks.filter.TerminalFileKind
+import com.intellij.terminal.backend.hyperlinks.filter.TerminalFileLookup
 
 /**
  * A descriptor of a fake environment. Paths of either OS family parse on any host.

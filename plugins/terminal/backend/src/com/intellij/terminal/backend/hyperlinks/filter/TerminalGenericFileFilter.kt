@@ -1,5 +1,5 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.plugins.terminal.hyperlinks.filter
+package com.intellij.terminal.backend.hyperlinks.filter
 
 import com.intellij.execution.filters.ConsoleFilterProviderEx
 import com.intellij.execution.filters.Filter
@@ -12,6 +12,8 @@ import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.provider.LocalEelDescriptor
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.annotations.ApiStatus
+import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFilterScope
+import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalHyperlinkFilterContext
 
 internal enum class ParsingState {
   NORMAL, PATH, CANCELED_PATH

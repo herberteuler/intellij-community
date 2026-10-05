@@ -3,9 +3,11 @@
   <dependencies>
     <module name="intellij.platform.backend"/>
     <module name="fleet.rhizomedb"/>
+    <module name="intellij.libraries.fastutil"/>
     <module name="intellij.libraries.jediterm.core"/>
     <module name="intellij.libraries.jediterm.ui"/>
     <module name="intellij.libraries.pty4j"/>
+    <module name="intellij.platform.analysis"/>
     <module name="intellij.platform.consoleView"/>
     <module name="intellij.platform.consoleView.impl"/>
     <module name="intellij.platform.core"/>
@@ -41,6 +43,7 @@
       serviceInterface="org.jetbrains.plugins.terminal.hyperlinks.menu.BackendHyperlinkInfoService"
       serviceImplementation="com.intellij.terminal.backend.hyperlinks.BackendHyperlinkInfoServiceImpl"/>
     <invisibleHyperlinkFilterProvider implementation="com.intellij.terminal.backend.hyperlinks.TerminalHoverHyperlinkFilterProvider"/>
+    <consoleFilterProvider implementation="com.intellij.terminal.backend.hyperlinks.filter.TerminalGenericFileFilterProvider"/>
     <statistics.applicationUsagesCollector implementation="com.intellij.terminal.backend.CliUtilInstallCollector"/>
   </extensions>
 

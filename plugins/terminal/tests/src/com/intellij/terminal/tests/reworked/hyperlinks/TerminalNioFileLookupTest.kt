@@ -4,9 +4,9 @@ package com.intellij.terminal.tests.reworked.hyperlinks
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.platform.eel.path.EelPath
 import com.intellij.platform.eel.provider.LocalEelDescriptor
+import com.intellij.terminal.backend.hyperlinks.filter.TerminalFileKind
+import com.intellij.terminal.backend.hyperlinks.filter.TerminalNioFileLookup
 import org.assertj.core.api.Assertions.assertThat
-import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFileKind
-import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalNioFileLookup
 import org.junit.Assume
 import org.junit.Rule
 import org.junit.Test

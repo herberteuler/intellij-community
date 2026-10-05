@@ -19,12 +19,12 @@ import com.intellij.execution.filters.Filter
 import com.intellij.openapi.project.Project
 import com.intellij.platform.eel.path.EelPath
 import com.intellij.terminal.backend.hyperlinks.TerminalHyperlinkFilterContextImpl
+import com.intellij.terminal.backend.hyperlinks.filter.FILENAME_MAX
+import com.intellij.terminal.backend.hyperlinks.filter.TerminalFileKind
+import com.intellij.terminal.backend.hyperlinks.filter.TerminalGenericFileFilter
 import org.apache.commons.lang3.RandomStringUtils
 import org.assertj.core.api.Assertions
 import org.jetbrains.plugins.terminal.hyperlinks.TerminalFileHyperlinkInfo
-import org.jetbrains.plugins.terminal.hyperlinks.filter.FILENAME_MAX
-import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFileKind
-import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalGenericFileFilter
 import org.junit.Test
 import org.mockito.Mockito.mock
 import kotlin.random.Random

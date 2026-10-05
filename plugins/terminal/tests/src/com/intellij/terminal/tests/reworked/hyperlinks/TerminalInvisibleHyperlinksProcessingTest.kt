@@ -8,11 +8,11 @@ import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.terminal.backend.hyperlinks.filter.TerminalGenericFileFilter
 import com.intellij.terminal.frontend.view.hyperlinks.HOVER_CACHED_LINES
 import com.intellij.testFramework.LoggedErrorProcessor
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFilterScope
-import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalGenericFileFilter
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4

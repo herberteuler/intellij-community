@@ -5228,12 +5228,6 @@ f:com.intellij.ui.dsl.builder.LabelKt
 f:com.intellij.ui.dsl.builder.components.ValidationTooltipKt
 - sf:validationTooltip(com.intellij.ui.dsl.builder.Row,java.lang.String,com.intellij.ui.components.ActionLink,com.intellij.ui.components.ActionLink,com.intellij.ui.dsl.builder.components.ValidationType,Z):com.intellij.ui.dsl.builder.Cell
 - bs:validationTooltip$default(com.intellij.ui.dsl.builder.Row,java.lang.String,com.intellij.ui.components.ActionLink,com.intellij.ui.components.ActionLink,com.intellij.ui.dsl.builder.components.ValidationType,Z,I,java.lang.Object):com.intellij.ui.dsl.builder.Cell
-c:com.intellij.ui.layout.migLayout.patched.MigLayout
-- java.awt.LayoutManager2
-- <init>():V
-- <init>(net.miginfocom.layout.LC):V
-- f:getComponentConstraints():java.util.Map
-- f:getLayoutConstraints():net.miginfocom.layout.LC
 f:com.intellij.ui.list.TargetPopup
 - sf:createTargetPresentationRenderer(java.util.function.Function):javax.swing.ListCellRenderer
 f:com.intellij.ui.mac.touchbar.TouchbarSupport

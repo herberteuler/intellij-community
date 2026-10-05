@@ -953,6 +953,7 @@ platform/platform-impl/internal/jcef
 platform/platform-impl/jcef
 platform/platform-impl/json
 platform/platform-impl/learn-ide
+platform/platform-impl/mig-layout
 platform/platform-impl/os-certificates
 platform/platform-impl/playback
 platform/platform-impl/plugin-signature-verifier

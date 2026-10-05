@@ -1,0 +1,6 @@
+c:com.intellij.ui.layout.migLayout.patched.MigLayout
+- java.awt.LayoutManager2
+- <init>():V
+- <init>(net.miginfocom.layout.LC):V
+- f:getComponentConstraints():java.util.Map
+- f:getLayoutConstraints():net.miginfocom.layout.LC

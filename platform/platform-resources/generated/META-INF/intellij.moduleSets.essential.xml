@@ -426,6 +426,7 @@
     <module name="intellij.platform.ide.presentationAssistant"/>
     <module name="intellij.platform.ide.socketConnection"/>
     <module name="intellij.platform.ide.filterField"/>
+    <module name="intellij.platform.ide.migLayout"/>
     <module name="intellij.platform.pluginManager.shared.base"/>
     <module name="intellij.platform.pluginManager.shared"/>
     <module name="intellij.platform.pluginManager.backend"/>

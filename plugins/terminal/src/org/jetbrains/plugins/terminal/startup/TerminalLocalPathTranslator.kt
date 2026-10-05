@@ -100,7 +100,7 @@ class TerminalLocalPathTranslator(private val descriptor: EelDescriptor) {
    * @return The translated [EelPath] representing the native path within [descriptor], or `null` if
    *         [absolutePath] is not absolute, or it cannot be translated.
    */
-  fun translateAbsoluteLocalPathToRemote(absolutePath: @NioPath Path): EelPath? {
+  fun translateAbsoluteLocalPathToRemote(absolutePath: Path): EelPath? {
     if (!absolutePath.isAbsolute) {
       LOG.debug { "Failed to translate not absolute $absolutePath, skipping" }
       return null

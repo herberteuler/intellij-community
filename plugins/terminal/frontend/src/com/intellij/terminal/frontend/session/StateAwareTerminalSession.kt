@@ -162,6 +162,8 @@ internal class StateAwareTerminalSession(
 
   override fun processKeyEvent(e: KeyEvent): KeyEventProcessingResultDto = delegate.processKeyEvent(e)
 
+  override fun focusLost() = delegate.focusLost()
+
   companion object {
     private val LOG = logger<StateAwareTerminalSession>()
   }

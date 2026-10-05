@@ -248,6 +248,9 @@ internal class EchoingTerminalSession(
   }
 
   override fun processKeyEvent(e: KeyEvent): KeyEventProcessingResultDto {
+    if (e.id == KeyEvent.KEY_RELEASED) {
+      return KeyEventProcessingResultDto.Unhandled
+    }
     if (e.id == KeyEvent.KEY_TYPED && !Character.isISOControl(e.keyChar)) {
       return KeyEventProcessingResultDto.StringResult(e.keyChar.toString(), shouldScrollToBottom = true)
     }

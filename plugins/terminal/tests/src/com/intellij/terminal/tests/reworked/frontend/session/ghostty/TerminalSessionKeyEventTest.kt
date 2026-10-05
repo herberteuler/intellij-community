@@ -241,6 +241,15 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
     assertThat(bytesOf(session.processKeyEvent(released(KeyEvent.VK_Q, '@', altGr)))).isEqualTo(csi("64;1:3u"))
   }
 
+  @Test
+  fun `a focus loss forgets the held keys`() = runSessionTest { session, connector, _ ->
+    applyModes(connector, csi(">3u"))
+    assertThat(session.processKeyEvent(pressed(KeyEvent.VK_A, 'a'))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    assertThat(session.processKeyEvent(typed('a'))).isInstanceOf(KeyEventProcessingResultDto.StringResult::class.java)
+    session.focusLost()
+    assertThat(session.processKeyEvent(released(KeyEvent.VK_A, 'a'))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+  }
+
   // ---- mode wiring: a mode the program sets reaches the encoder through the live terminal state ----
 
   @Test

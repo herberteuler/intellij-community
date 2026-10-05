@@ -7,13 +7,18 @@ import java.awt.event.KeyEvent
 interface TerminalKeyEventsHandler {
   fun keyTyped(e: KeyEvent) {}
   fun keyPressed(e: KeyEvent) {}
+
+  /** A release reaches the shell only under the Kitty keyboard protocol; the handler consumes it only then. */
+  fun keyReleased(e: KeyEvent) {}
+
+  /** The terminal lost the keyboard focus: the releases of the keys held now go to another component. */
+  fun focusLost() {}
 }
 
 internal fun TerminalKeyEventsHandler.handleKeyEvent(e: KeyEvent) {
-  if (e.id == KeyEvent.KEY_TYPED) {
-    keyTyped(e)
-  }
-  else if (e.id == KeyEvent.KEY_PRESSED) {
-    keyPressed(e)
+  when (e.id) {
+    KeyEvent.KEY_TYPED -> keyTyped(e)
+    KeyEvent.KEY_PRESSED -> keyPressed(e)
+    KeyEvent.KEY_RELEASED -> keyReleased(e)
   }
 }

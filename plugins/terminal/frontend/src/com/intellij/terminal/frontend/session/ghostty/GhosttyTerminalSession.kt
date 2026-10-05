@@ -434,6 +434,12 @@ class GhosttyTerminalSession internal constructor(
     if (disposed) KeyEventProcessingResultDto.Unhandled else keyEncoder.encodeKeyEvent(e)
   }
 
+  override fun focusLost() {
+    emulatorLock.withLock {
+      if (!disposed) keyEncoder.focusLost()
+    }
+  }
+
   override suspend fun getInputChannel(): SendChannel<TerminalInputEvent> {
     if (isClosed) {
       return Channel<TerminalInputEvent>(capacity = 0).also { it.close() }

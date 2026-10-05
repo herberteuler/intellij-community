@@ -2,6 +2,7 @@
 package com.intellij.terminal.frontend.view.impl
 
 import com.intellij.codeInsight.lookup.LookupManager
+import com.intellij.diagnostic.rethrowControlFlowException
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.UI
 import com.intellij.openapi.application.asContextElement
@@ -131,6 +132,33 @@ open class TerminalKeyEventsHandlerImpl(
     }
   }
 
+  override fun keyReleased(e: KeyEvent) {
+    LOG.trace { "Key released event received: ${e}" }
+
+    // A release produces bytes only under the Kitty keyboard protocol and never types text, so it
+    // skips the listeners, the type-ahead and the key typed pairing. The IDE keeps it when the
+    // shell does not take it.
+    try {
+      val session = readySession
+      if (session == null) {
+        bufferedEvents.addLast(e)
+        LOG.trace { "Key event buffered until session is ready: ${e}" }
+      }
+      else if (processKeyEventResult(processKeyEvent(e, session), e)) {
+        e.consume()
+        LOG.trace { "Key event consumed: ${e}" }
+      }
+    }
+    catch (ex: Exception) {
+      rethrowControlFlowException(ex)
+      LOG.error("Error sending released key to emulator", ex)
+    }
+  }
+
+  override fun focusLost() {
+    readySession?.focusLost()
+  }
+
   private fun drainBufferedEvents(readySession: TerminalSession) {
     while (bufferedEvents.isNotEmpty()) {
       val bufferedEvent = bufferedEvents.removeFirst()
@@ -140,6 +168,9 @@ open class TerminalKeyEventsHandlerImpl(
           continue
         }
         val result = processKeyEventResult(processKeyEvent(bufferedEvent, readySession), bufferedEvent)
+        if (bufferedEvent.id == KeyEvent.KEY_RELEASED) {
+          continue // a release pairs with no key typed event
+        }
         if (result && bufferedEvent.id == KeyEvent.KEY_PRESSED) {
           ignoreNextKeyTypedEvent = true
         }

@@ -158,6 +158,65 @@ internal class TerminalKeyEventsHandlerTest : BasePlatformTestCase() {
       }
     }
 
+  @Test
+  fun `handled keyReleased sends bytes and consumes the event, without the listeners and the type-ahead`(): Unit =
+    timeoutRunBlocking(context = Dispatchers.EDT) {
+      createFixture().use { fixture ->
+        val released = releasedKeyEvent(fixture.editor.contentComponent, KeyEvent.VK_A, 'a')
+        fixture.session.enqueueResult(KeyEventProcessingResultDto.BytesResult("\u001B[97;1:3u".toByteArray(), shouldScrollToBottom = false))
+
+        fixture.handler.keyReleased(released)
+
+        assertThat(released.isConsumed).isTrue()
+        assertThat(fixture.session.processedEvents).containsExactly(released)
+        assertThat(awaitWrittenString(fixture.session)).isEqualTo("\u001B[97;1:3u")
+        assertThat(fixture.typeAhead!!.typedStrings).isEmpty()
+        assertThat(fixture.afterKeyEvents).isEmpty()
+      }
+    }
+
+  @Test
+  fun `unhandled keyReleased is left to the IDE`(): Unit =
+    timeoutRunBlocking(context = Dispatchers.EDT) {
+      createFixture().use { fixture ->
+        val released = releasedKeyEvent(fixture.editor.contentComponent, KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED)
+
+        fixture.handler.keyReleased(released)
+
+        assertThat(released.isConsumed).isFalse()
+        assertThat(fixture.session.processedEvents).containsExactly(released)
+        assertThat(fixture.afterKeyEvents).isEmpty()
+      }
+    }
+
+  @Test
+  fun `buffered keyReleased is replayed in order and keeps the keyTyped pairing`(): Unit =
+    timeoutRunBlocking(context = Dispatchers.EDT) {
+      createFixture(completeSessionImmediately = false).use { fixture ->
+        val component = fixture.editor.contentComponent
+        val pressedA = pressedKeyEvent(component, KeyEvent.VK_A, 'a')
+        val typedA = typedKeyEvent(component, 'a')
+        val releasedA = releasedKeyEvent(component, KeyEvent.VK_A, 'a')
+        val pressedB = pressedKeyEvent(component, KeyEvent.VK_B, 'b')
+        val typedB = typedKeyEvent(component, 'b')
+        fixture.session.enqueueResult(KeyEventProcessingResultDto.StringResult("a", shouldScrollToBottom = false)) // pressedA: suppresses typedA
+        fixture.session.enqueueResult(KeyEventProcessingResultDto.Unhandled) // releasedA
+        fixture.session.enqueueResult(KeyEventProcessingResultDto.Unhandled) // pressedB: typedB goes through
+        fixture.session.enqueueResult(KeyEventProcessingResultDto.StringResult("b", shouldScrollToBottom = false)) // typedB
+
+        fixture.handler.keyPressed(pressedA)
+        fixture.handler.keyTyped(typedA)
+        fixture.handler.keyReleased(releasedA)
+        fixture.handler.keyPressed(pressedB)
+        fixture.handler.keyTyped(typedB)
+        fixture.activateSession()
+
+        assertThat(fixture.session.processedEvents).containsExactly(pressedA, releasedA, pressedB, typedB)
+        assertThat(awaitWrittenString(fixture.session)).isEqualTo("a")
+        assertThat(awaitWrittenString(fixture.session)).isEqualTo("b")
+      }
+    }
+
   // Special pressed keys update type-ahead in addition to sending terminal input.
 
   @Test
@@ -545,6 +604,10 @@ internal class TerminalKeyEventsHandlerTest : BasePlatformTestCase() {
 
     private fun typedKeyEvent(source: Component, keyChar: Char): KeyEvent {
       return KeyEvent(source, KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, keyChar)
+    }
+
+    private fun releasedKeyEvent(source: Component, keyCode: Int, keyChar: Char): KeyEvent {
+      return KeyEvent(source, KeyEvent.KEY_RELEASED, System.currentTimeMillis(), 0, keyCode, keyChar)
     }
 
     private suspend fun awaitWrittenBytes(session: RecordingTerminalSession): ByteArray {

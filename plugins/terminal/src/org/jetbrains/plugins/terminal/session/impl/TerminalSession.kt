@@ -76,4 +76,11 @@ interface TerminalSession {
 
   /** Called on the EDT, so it must not wait for the output flow collector. */
   fun processKeyEvent(e: KeyEvent): KeyEventProcessingResultDto
+
+  /**
+   * Tells the session that the terminal view lost the keyboard focus. The releases of the keys
+   * held at that moment go to another component, so a session that pairs presses with releases
+   * forgets them. Called on the EDT.
+   */
+  fun focusLost() {}
 }

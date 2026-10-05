@@ -204,6 +204,43 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
     }
   }
 
+  @Test
+  fun `key releases and bare modifier keys reach the shell only when the Kitty protocol asks`() = runSessionTest { session, connector, _ ->
+    fun leftShift(id: Int = KeyEvent.KEY_PRESSED): KeyEvent {
+      val modifiers = if (id == KeyEvent.KEY_PRESSED) InputEvent.SHIFT_DOWN_MASK else 0
+      return KeyEvent(eventSource, id, 0, modifiers, KeyEvent.VK_SHIFT, KeyEvent.CHAR_UNDEFINED, KeyEvent.KEY_LOCATION_LEFT)
+    }
+    fun typeA() {
+      assertThat(session.processKeyEvent(pressed(KeyEvent.VK_A, 'a'))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+      assertThat(session.processKeyEvent(typed('a'))).isInstanceOf(KeyEventProcessingResultDto.StringResult::class.java)
+    }
+
+    assertThat(session.processKeyEvent(leftShift())).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    assertThat(session.processKeyEvent(leftShift(KeyEvent.KEY_RELEASED))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    typeA()
+    assertThat(session.processKeyEvent(released(KeyEvent.VK_A, 'a'))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+
+    applyModes(connector, csi(">3u")) // disambiguate + report events
+    assertThat(session.processKeyEvent(leftShift())).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    assertThat(session.processKeyEvent(leftShift(KeyEvent.KEY_RELEASED))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    typeA()
+    assertThat(bytesOf(session.processKeyEvent(released(KeyEvent.VK_A, 'a')))).isEqualTo(csi("97;1:3u"))
+
+    applyModes(connector, csi(">11u")) // + report all
+    assertThat(bytesOf(session.processKeyEvent(leftShift()))).isEqualTo(csi("57441;2u"))
+  }
+
+  @Test
+  fun `the release of AltGr text carries no Ctrl+Alt, as its press did not`() = runSessionTest { session, connector, _ ->
+    applyModes(connector, csi(">3u")) // disambiguate + report events
+    val altGr = InputEvent.CTRL_DOWN_MASK or InputEvent.ALT_DOWN_MASK or InputEvent.ALT_GRAPH_DOWN_MASK
+    assertThat(session.processKeyEvent(pressed(KeyEvent.VK_Q, '@', altGr))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    val typed = session.processKeyEvent(typed('@', altGr))
+    assertThat(typed).isInstanceOf(KeyEventProcessingResultDto.StringResult::class.java)
+    assertThat((typed as KeyEventProcessingResultDto.StringResult).string).isEqualTo("@")
+    assertThat(bytesOf(session.processKeyEvent(released(KeyEvent.VK_Q, '@', altGr)))).isEqualTo(csi("64;1:3u"))
+  }
+
   // ---- mode wiring: a mode the program sets reaches the encoder through the live terminal state ----
 
   @Test
@@ -270,6 +307,9 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
 
   private fun typed(keyChar: Char, modifiers: Int = 0): KeyEvent =
     KeyEvent(eventSource, KeyEvent.KEY_TYPED, 0, modifiers, KeyEvent.VK_UNDEFINED, keyChar)
+
+  private fun released(keyCode: Int, keyChar: Char = KeyEvent.CHAR_UNDEFINED, modifiers: Int = 0): KeyEvent =
+    KeyEvent(eventSource, KeyEvent.KEY_RELEASED, 0, modifiers, keyCode, keyChar)
 
   /**
    * Feeds [sequences] to the emulator and waits until they are applied, using a DSR

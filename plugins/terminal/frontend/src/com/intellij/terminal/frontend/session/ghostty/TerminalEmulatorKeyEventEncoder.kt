@@ -6,6 +6,7 @@ import com.intellij.terminal.JBTerminalSystemSettingsProviderBase
 import com.intellij.terminal.emulator.TerminalEmulator
 import com.intellij.terminal.emulator.TerminalInputModifier
 import com.intellij.terminal.emulator.TerminalKey
+import com.intellij.terminal.emulator.TerminalKeyAction
 import com.intellij.terminal.emulator.TerminalKeyEvent
 import org.jetbrains.plugins.terminal.session.impl.dto.KeyEventProcessingResultDto
 import java.awt.Toolkit
@@ -28,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap
  *   gets it as its `macos_option_as_alt` option and applies the active protocol;
  * - splitting AWT's KEY_PRESSED/KEY_TYPED pair so each keystroke is encoded exactly once.
  *   The typed half has no key code, so the pressed half lends it the physical key;
+ * - telling a repeat from a press, which AWT does not report (see [pressAction]);
+ * - reporting a release only for a key whose press the program saw (see [keyReleased]);
  * - the classic bytes of Ctrl+I, Ctrl+M and Ctrl+[ outside the Kitty keyboard protocol.
  *   The encoder's fixterms rule would turn them into CSI u chords (see [classicControlByte]).
  *
@@ -41,9 +44,25 @@ internal class TerminalEmulatorKeyEventEncoder(
   private val settings: JBTerminalSystemSettingsProviderBase,
   private val lockingKeys: () -> Set<TerminalInputModifier> = LockingKeys::current,
 ) {
-  /** The KEY_PRESSED that still waits for the KEY_TYPED half of its keystroke. */
-  private class PendingPress(val keyCode: Int)
+  /** What this layer knows about a key that is held down. */
+  private class DownKey {
+    /**
+     * The event the encoder encoded for the press or its typed half; null when the program
+     * never saw the press.
+     */
+    var press: TerminalKeyEvent? = null
 
+    /** Whether a flag of the Kitty keyboard protocol was active when the press went out. */
+    var underKittyProtocol = false
+
+    /** Whether the typed half reported the press, with the modifiers of [typedModifiers]. */
+    var typed = false
+  }
+
+  /** The KEY_PRESSED that still waits for the KEY_TYPED half of its keystroke. */
+  private class PendingPress(val keyCode: Int, val action: TerminalKeyAction, val downKey: DownKey)
+
+  private val downKeys = HashMap<Int, DownKey>()
   private var pendingPress: PendingPress? = null
 
   /** The lock state at the last KEY_PRESSED; the typed and the released halves reuse it. */
@@ -55,15 +74,43 @@ internal class TerminalEmulatorKeyEventEncoder(
     return when (e.id) {
       KeyEvent.KEY_PRESSED -> {
         locks = lockingKeys()
-        pendingPress = PendingPress(e.keyCode)
-        keyPressed(e)
+        val downKey = DownKey()
+        val pending = PendingPress(e.keyCode, pressAction(e, downKey), downKey)
+        pendingPress = pending
+        val result = keyPressed(e, pending)
+        if (result != KeyEventProcessingResultDto.Unhandled) {
+          pendingPress = null // the handler swallows the typed half of a handled press
+        }
+        result
       }
       KeyEvent.KEY_TYPED -> keyTyped(e)
+      KeyEvent.KEY_RELEASED -> {
+        if (pendingPress?.keyCode == e.keyCode) {
+          pendingPress = null // the keystroke ended without a typed half: a bare modifier, a dead key
+        }
+        keyReleased(e)
+      }
       else -> KeyEventProcessingResultDto.Unhandled
     }
   }
 
-  private fun keyPressed(e: KeyEvent): KeyEventProcessingResultDto {
+  /**
+   * Forgets the held keys when the terminal loses the keyboard focus. Their releases go to the
+   * component that took the focus, so the next press of such a key would count as a repeat.
+   */
+  fun focusLost() {
+    downKeys.clear()
+    pendingPress = null
+  }
+
+  /** Remembers the press the program saw, so [keyReleased] can pair the release with it. */
+  private fun DownKey.record(event: TerminalKeyEvent, typed: Boolean = false) {
+    press = event
+    underKittyProtocol = emulator.kittyKeyboardFlags.isNotEmpty()
+    this.typed = typed
+  }
+
+  private fun keyPressed(e: KeyEvent, pending: PendingPress): KeyEventProcessingResultDto {
     // Numpad Delete with NumLock on: the key code says Delete, but the key types '.'.
     if (e.keyCode == KeyEvent.VK_DELETE && e.keyChar == '.') {
       return bytesResult(byteArrayOf('.'.code.toByte()), e)
@@ -75,11 +122,12 @@ internal class TerminalEmulatorKeyEventEncoder(
 
     val functionalKey = functionalKey(e)
     if (functionalKey != null) {
-      val event = TerminalKeyEvent(functionalKey, modifiers = terminalModifiers(e))
+      val event = TerminalKeyEvent(functionalKey, pending.action, modifiers = terminalModifiers(e))
       val bytes = emulator.encodeKeyEvent(event)
       if (bytes.isEmpty()) {
         return KeyEventProcessingResultDto.Unhandled
       }
+      pending.downKey.record(event)
       return bytesResult(bytes, e)
     }
 
@@ -95,12 +143,14 @@ internal class TerminalEmulatorKeyEventEncoder(
       val event = when {
         writingKey != null -> TerminalKeyEvent(
           writingKey.key,
+          pending.action,
           modifiers = modifiers,
           text = usText(writingKey, e, capsLock = TerminalInputModifier.CAPS_LOCK in modifiers),
           unshiftedCodepoint = writingKey.codepoint,
         )
         isPrintable(e.keyChar) -> TerminalKeyEvent(
           TerminalKey.UNIDENTIFIED,
+          pending.action,
           modifiers = modifiers,
           text = e.keyChar.toString(),
           unshiftedCodepoint = e.keyChar.lowercaseChar().code,
@@ -108,7 +158,7 @@ internal class TerminalEmulatorKeyEventEncoder(
         else -> null
       }
       if (event != null) {
-        encodeChord(event)?.let { return it }
+        encodeChord(event, pending)?.let { return it }
       }
     }
 
@@ -135,11 +185,12 @@ internal class TerminalEmulatorKeyEventEncoder(
         val modifiers = terminalModifiers(e)
         val event = TerminalKeyEvent(
           writingKey.key,
+          pending.action,
           modifiers = modifiers,
           text = ctrlChordText(writingKey, e, capsLock = TerminalInputModifier.CAPS_LOCK in modifiers),
           unshiftedCodepoint = writingKey.codepoint,
         )
-        encodeChord(event)?.let { return it }
+        encodeChord(event, pending)?.let { return it }
       }
     }
 
@@ -153,15 +204,17 @@ internal class TerminalEmulatorKeyEventEncoder(
   }
 
   /** Encodes a chord of the pressed half; null when the encoder produced nothing for it. */
-  private fun encodeChord(event: TerminalKeyEvent): KeyEventProcessingResultDto? {
+  private fun encodeChord(event: TerminalKeyEvent, pending: PendingPress): KeyEventProcessingResultDto? {
     val bytes = emulator.encodeKeyEvent(event)
     if (bytes.isEmpty()) return null
+    pending.downKey.record(event)
     return KeyEventProcessingResultDto.BytesResult(bytes, settings.scrollToBottomOnTyping())
   }
 
   private fun keyTyped(e: KeyEvent): KeyEventProcessingResultDto {
     if (isControlByte(e.keyChar)) {
-      return KeyEventProcessingResultDto.Unhandled // the KEY_PRESSED half of the pair owns control characters
+      pendingPress = null // the KEY_PRESSED half of the pair owns control characters
+      return KeyEventProcessingResultDto.Unhandled
     }
     return typedCharacter(e)
   }
@@ -184,6 +237,7 @@ internal class TerminalEmulatorKeyEventEncoder(
     // modifier and a program can bind the chord.
     val event = TerminalKeyEvent(
       writingKey?.key ?: TerminalKey.UNIDENTIFIED,
+      pending?.action ?: TerminalKeyAction.PRESS,
       modifiers = typedModifiers(e),
       text = e.keyChar.toString(),
       unshiftedCodepoint = unshiftedCodepoint(writingKey, e.keyChar, e.isShiftDown),
@@ -193,7 +247,54 @@ internal class TerminalEmulatorKeyEventEncoder(
     if (bytes.isEmpty()) {
       return KeyEventProcessingResultDto.Unhandled
     }
+    pending?.downKey?.record(event, typed = true)
     return KeyEventProcessingResultDto.StringResult(bytes.toString(Charsets.UTF_8), settings.scrollToBottomOnTyping())
+  }
+
+  /**
+   * A release reaches the program only under the Kitty keyboard protocol, and only for a key
+   * whose press the program saw through the encoder under that protocol. A press that a policy
+   * of this layer, a key-event listener or the IDE took never reached the encoder, so its
+   * release would be an orphan. So would the release of a press that went out in legacy mode,
+   * before the program enabled the protocol. The release repeats the key, the code point and
+   * the text of the press, so a program can pair the two events.
+   */
+  private fun keyReleased(e: KeyEvent): KeyEventProcessingResultDto {
+    val downKey = downKeys.remove(downKeyId(e)) ?: return KeyEventProcessingResultDto.Unhandled
+    val press = downKey.press
+    if (press == null || !downKey.underKittyProtocol) {
+      return KeyEventProcessingResultDto.Unhandled
+    }
+    val event = TerminalKeyEvent(
+      press.key,
+      TerminalKeyAction.RELEASE,
+      modifiers = if (downKey.typed) typedModifiers(e) else terminalModifiers(e),
+      text = press.text,
+      unshiftedCodepoint = press.unshiftedCodepoint,
+      consumedModifiers = if (e.isShiftDown) press.consumedModifiers else emptySet(),
+    )
+    val bytes = emulator.encodeKeyEvent(event)
+    if (bytes.isEmpty()) {
+      return KeyEventProcessingResultDto.Unhandled
+    }
+    return KeyEventProcessingResultDto.BytesResult(bytes, shouldScrollToBottom = false)
+  }
+
+  /**
+   * Whether a KEY_PRESSED is a repeat. AWT has no repeat flag, so a second press of a key
+   * still held is one. [focusLost] forgets the held keys whose releases the terminal never saw.
+   */
+  private fun pressAction(e: KeyEvent, downKey: DownKey): TerminalKeyAction =
+    if (downKeys.put(downKeyId(e), downKey) != null) TerminalKeyAction.REPEAT else TerminalKeyAction.PRESS
+
+  /**
+   * The identity of a key in [downKeys]: the two Shift keys are different keys. So are the
+   * keys AWT reports as VK_UNDEFINED, such as Ö and Ä on a German layout. The extended key
+   * code tells them apart.
+   */
+  private fun downKeyId(e: KeyEvent): Int {
+    val keyCode = if (e.keyCode == KeyEvent.VK_UNDEFINED) e.extendedKeyCode else e.keyCode
+    return (keyCode shl 3) or (e.keyLocation and 7)
   }
 
   /**
@@ -386,7 +487,6 @@ internal class TerminalEmulatorKeyEventEncoder(
 
   /** Alt held without AltGr and without Ctrl; a Ctrl+Alt chord belongs to the Ctrl path. */
   private fun isAltChord(e: KeyEvent): Boolean = e.isAltDown && !e.isAltGraphDown && !e.isControlDown
-
 
   private fun isCodeThatScrolls(keyCode: Int): Boolean = when (keyCode) {
     KeyEvent.VK_UP, KeyEvent.VK_DOWN, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT,

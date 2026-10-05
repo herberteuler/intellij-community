@@ -161,6 +161,43 @@ internal class TerminalKeyEventDerivationTest {
   }
 
   @Test
+  fun `a press without a typed half lends nothing to a later typed character`() {
+    // A bare Shift has no typed half, and the encoder produces nothing for it outside the Kitty
+    // protocol. Its release ends the keystroke. The typed half of Ctrl+Shift+2 is a control
+    // character, which ends the keystroke too. A typed character that arrives on its own
+    // afterwards must not inherit the key or the repeat state of either press.
+    press(KeyEvent.VK_SHIFT, modifiers = SHIFT_MASK, location = KeyEvent.KEY_LOCATION_LEFT)
+    hold(KeyEvent.VK_SHIFT, modifiers = SHIFT_MASK, location = KeyEvent.KEY_LOCATION_LEFT)
+    release(KeyEvent.VK_SHIFT, location = KeyEvent.KEY_LOCATION_LEFT)
+    type('x')
+    press(KeyEvent.VK_2, ' ', CTRL_MASK or SHIFT_MASK)
+    type(Char(0), CTRL_MASK or SHIFT_MASK)
+    type('y')
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.SHIFT_LEFT, modifiers = setOf(SHIFT)),
+      TerminalKeyEvent(TerminalKey.SHIFT_LEFT, TerminalKeyAction.REPEAT, modifiers = setOf(SHIFT)),
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, text = "x", unshiftedCodepoint = 'x'.code),
+      TerminalKeyEvent(TerminalKey.DIGIT_2, modifiers = setOf(CTRL, SHIFT), text = "@", unshiftedCodepoint = '2'.code),
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, text = "y", unshiftedCodepoint = 'y'.code),
+    )
+  }
+
+  @Test
+  fun `a handled press lends nothing to a later typed character`() {
+    // The handler swallows the typed half of a handled press. A typed character that arrives on its
+    // own afterwards (a robot stream, a commit) must not inherit that press's key or repeat state.
+    emulator.encodesEverything = true
+    press(KeyEvent.VK_C, Char(3), CTRL_MASK)
+    hold(KeyEvent.VK_C, Char(3), CTRL_MASK)
+    type('x')
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.C, modifiers = setOf(CTRL), text = "c", unshiftedCodepoint = 'c'.code),
+      TerminalKeyEvent(TerminalKey.C, TerminalKeyAction.REPEAT, modifiers = setOf(CTRL), text = "c", unshiftedCodepoint = 'c'.code),
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, text = "x", unshiftedCodepoint = 'x'.code),
+    )
+  }
+
+  @Test
   fun `a ctrl chord carries the character without ctrl`() {
     press(KeyEvent.VK_C, Char(3), CTRL_MASK)
     press(KeyEvent.VK_M, Char(13), CTRL_MASK or SHIFT_MASK)
@@ -255,7 +292,151 @@ internal class TerminalKeyEventDerivationTest {
     )
   }
 
+  // ---- releases and repeats: the program sees them only under the Kitty protocol ----
+
+  @Test
+  fun `a release repeats the key, the code point and the text of its press`() {
+    emulator.reportEvents()
+    press(KeyEvent.VK_A, 'A', SHIFT_MASK)
+    type('A', SHIFT_MASK)
+    release(KeyEvent.VK_A, 'A', SHIFT_MASK)
+    press(KeyEvent.VK_LEFT)
+    release(KeyEvent.VK_LEFT)
+    press(KeyEvent.VK_SHIFT, modifiers = SHIFT_MASK, location = KeyEvent.KEY_LOCATION_LEFT)
+    release(KeyEvent.VK_SHIFT, location = KeyEvent.KEY_LOCATION_LEFT)
+    // Option+F: the press reports the US character f, and the release must name the same key.
+    press(KeyEvent.VK_F, 'ƒ', ALT_MASK)
+    release(KeyEvent.VK_F, 'ƒ', ALT_MASK)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.A, modifiers = setOf(SHIFT), text = "A", unshiftedCodepoint = 'a'.code, consumedModifiers = setOf(SHIFT)),
+      TerminalKeyEvent(TerminalKey.A, TerminalKeyAction.RELEASE, modifiers = setOf(SHIFT), text = "A", unshiftedCodepoint = 'a'.code, consumedModifiers = setOf(SHIFT)),
+      TerminalKeyEvent(TerminalKey.ARROW_LEFT),
+      TerminalKeyEvent(TerminalKey.ARROW_LEFT, TerminalKeyAction.RELEASE),
+      TerminalKeyEvent(TerminalKey.SHIFT_LEFT, modifiers = setOf(SHIFT)),
+      TerminalKeyEvent(TerminalKey.SHIFT_LEFT, TerminalKeyAction.RELEASE),
+      TerminalKeyEvent(TerminalKey.F, modifiers = setOf(ALT), text = "f", unshiftedCodepoint = 'f'.code),
+      TerminalKeyEvent(TerminalKey.F, TerminalKeyAction.RELEASE, modifiers = setOf(ALT), text = "f", unshiftedCodepoint = 'f'.code),
+    )
+  }
+
+  @Test
+  fun `a release is reported only for a key whose press the program saw`() {
+    emulator.reportEvents()
+    release(KeyEvent.VK_UP) // no press at all: the key went down before the terminal had the focus
+    emulator.encodesEverything = false
+    press(KeyEvent.VK_UP) // the encoder produced nothing for the press
+    release(KeyEvent.VK_UP)
+    events.clear()
+    emulator.encodesEverything = true
+    press(KeyEvent.VK_DOWN)
+    release(KeyEvent.VK_DOWN)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.ARROW_DOWN),
+      TerminalKeyEvent(TerminalKey.ARROW_DOWN, TerminalKeyAction.RELEASE),
+    )
+  }
+
+  @Test
+  fun `a release is not even encoded outside the Kitty protocol`() {
+    emulator.encodesEverything = true
+    press(KeyEvent.VK_UP)
+    events.clear()
+    assertThat(release(KeyEvent.VK_UP)).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    assertThat(events).isEmpty()
+  }
+
+  @Test
+  fun `a release is not reported for a press that went out before the program enabled the protocol`() {
+    // The shell got a legacy Enter. The program it started enabled the protocol before the key came up.
+    emulator.encodesEverything = true
+    press(KeyEvent.VK_ENTER, '\n')
+    emulator.reportEvents()
+    events.clear()
+    assertThat(release(KeyEvent.VK_ENTER, '\n')).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    assertThat(events).isEmpty()
+  }
+
+  @Test
+  fun `the release of a typed character leaves Ctrl and Alt out, as its press did`() {
+    emulator.reportEvents()
+    // Windows reports AltGr as Ctrl+Alt down. The typed half drops them, and so must the release.
+    val altGr = CTRL_MASK or ALT_MASK or InputEvent.ALT_GRAPH_DOWN_MASK
+    press(KeyEvent.VK_Q, '@', altGr)
+    type('@', altGr)
+    release(KeyEvent.VK_Q, '@', altGr)
+    // On macOS, Option composes text when it does not act as Alt.
+    altSendsEscape = false
+    press(KeyEvent.VK_A, 'å', ALT_MASK)
+    type('å', ALT_MASK)
+    release(KeyEvent.VK_A, 'å', ALT_MASK)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.Q, text = "@", unshiftedCodepoint = '@'.code),
+      TerminalKeyEvent(TerminalKey.Q, TerminalKeyAction.RELEASE, text = "@", unshiftedCodepoint = '@'.code),
+      TerminalKeyEvent(TerminalKey.A, text = "å", unshiftedCodepoint = 'å'.code),
+      TerminalKeyEvent(TerminalKey.A, TerminalKeyAction.RELEASE, text = "å", unshiftedCodepoint = 'å'.code),
+    )
+  }
+
+  @Test
+  fun `keys AWT reports as VK_UNDEFINED are held apart`() {
+    // Ö and Ä on a German layout both come as VK_UNDEFINED. A rollover of the two must not make
+    // the second press a repeat, nor swap their releases.
+    emulator.reportEvents()
+    undefinedKey(KeyEvent.KEY_PRESSED, 'ö')
+    type('ö')
+    undefinedKey(KeyEvent.KEY_PRESSED, 'ä')
+    type('ä')
+    undefinedKey(KeyEvent.KEY_RELEASED, 'ö')
+    undefinedKey(KeyEvent.KEY_RELEASED, 'ä')
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, text = "ö", unshiftedCodepoint = 'ö'.code),
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, text = "ä", unshiftedCodepoint = 'ä'.code),
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, TerminalKeyAction.RELEASE, text = "ö", unshiftedCodepoint = 'ö'.code),
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, TerminalKeyAction.RELEASE, text = "ä", unshiftedCodepoint = 'ä'.code),
+    )
+  }
+
+  @Test
+  fun `a second press of a held key is a repeat, and so is its typed character`() {
+    emulator.reportEvents()
+    press(KeyEvent.VK_A, 'a')
+    type('a')
+    hold(KeyEvent.VK_A, 'a')
+    type('a')
+    release(KeyEvent.VK_A, 'a')
+    press(KeyEvent.VK_A, 'a')
+    type('a')
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.A, text = "a", unshiftedCodepoint = 'a'.code),
+      TerminalKeyEvent(TerminalKey.A, TerminalKeyAction.REPEAT, text = "a", unshiftedCodepoint = 'a'.code),
+      TerminalKeyEvent(TerminalKey.A, TerminalKeyAction.RELEASE, text = "a", unshiftedCodepoint = 'a'.code),
+      TerminalKeyEvent(TerminalKey.A, text = "a", unshiftedCodepoint = 'a'.code),
+    )
+  }
+
+  @Test
+  fun `a focus loss forgets the held keys`() {
+    // The release went to the component that took the focus. The next press is a new press, and
+    // the release the terminal sees later pairs with no press.
+    emulator.reportEvents()
+    press(KeyEvent.VK_A, 'a')
+    type('a')
+    encoder.focusLost()
+    press(KeyEvent.VK_A, 'a')
+    type('a')
+    encoder.focusLost()
+    assertThat(release(KeyEvent.VK_A, 'a')).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.A, text = "a", unshiftedCodepoint = 'a'.code),
+      TerminalKeyEvent(TerminalKey.A, text = "a", unshiftedCodepoint = 'a'.code),
+    )
+  }
+
   private fun press(keyCode: Int, keyChar: Char = KeyEvent.CHAR_UNDEFINED, modifiers: Int = 0, location: Int = KeyEvent.KEY_LOCATION_STANDARD): KeyEventProcessingResultDto =
+    encode(KeyEvent.KEY_PRESSED, keyCode, keyChar, modifiers, location)
+
+  /** A press of a key that is still held down: autorepeat. */
+  private fun hold(keyCode: Int, keyChar: Char = KeyEvent.CHAR_UNDEFINED, modifiers: Int = 0, location: Int = KeyEvent.KEY_LOCATION_STANDARD): KeyEventProcessingResultDto =
     encode(KeyEvent.KEY_PRESSED, keyCode, keyChar, modifiers, location)
 
   private fun release(keyCode: Int, keyChar: Char = KeyEvent.CHAR_UNDEFINED, modifiers: Int = 0, location: Int = KeyEvent.KEY_LOCATION_STANDARD): KeyEventProcessingResultDto =
@@ -266,6 +447,12 @@ internal class TerminalKeyEventDerivationTest {
 
   private fun encode(id: Int, keyCode: Int, keyChar: Char, modifiers: Int, location: Int): KeyEventProcessingResultDto =
     encoder.encodeKeyEvent(KeyEvent(source, id, 0, modifiers, keyCode, keyChar, location))
+
+  /** A key outside the AWT table: the key code is VK_UNDEFINED, and the extended key code names the character. */
+  private fun undefinedKey(id: Int, keyChar: Char): KeyEventProcessingResultDto =
+    encoder.encodeKeyEvent(object : KeyEvent(source, id, 0, 0, VK_UNDEFINED, keyChar, KEY_LOCATION_STANDARD) {
+      override fun getExtendedKeyCode(): Int = getExtendedKeyCodeForChar(keyChar.code)
+    })
 }
 
 private const val SHIFT_MASK = InputEvent.SHIFT_DOWN_MASK

@@ -7,6 +7,7 @@ import com.intellij.credentialStore.kdbx.IncorrectMainPasswordException
 import com.intellij.credentialStore.keePass.DB_FILE_NAME
 import com.intellij.credentialStore.keePass.KeePassFileManager
 import com.intellij.credentialStore.keePass.MainKeyFileStorage
+import com.intellij.credentialStore.keePass.UnsupportedKdbxFileException
 import com.intellij.credentialStore.keePass.getDefaultDbFile
 import com.intellij.credentialStore.keePass.getDefaultMainPasswordFile
 import com.intellij.ide.IdeBundle
@@ -241,6 +242,10 @@ class PasswordSafeConfigurableUi(private val settings: PasswordSafeSettings) : C
     }
     catch (e: IncorrectMainPasswordException) {
       throw ConfigurationException(CredentialStoreBundle.message("settings.password.master.password.for.keepass.database.is.not.correct"))
+    }
+    catch (e: UnsupportedKdbxFileException) {
+      LOG.warn(e)
+      throw ConfigurationException(CredentialStoreBundle.message("kee.pass.dialog.message.unsupported.file", e.file.fileName))
     }
     catch (e: CancellationException) {
       throw e

@@ -5339,6 +5339,11 @@ public abstract class K2JavaToKotlinConverterSingleFileTestGenerated extends Abs
             runTest("../../shared/tests/testData/newJ2k/nullabilityGenerics/notNullIterationParameterCollections.java");
         }
 
+        @TestMetadata("notNullIterationParameterMapViews.java")
+        public void testNotNullIterationParameterMapViews() throws Exception {
+            runTest("../../shared/tests/testData/newJ2k/nullabilityGenerics/notNullIterationParameterMapViews.java");
+        }
+
         @TestMetadata("notNullIterationParameterMethodCall.java")
         public void testNotNullIterationParameterMethodCall() throws Exception {
             runTest("../../shared/tests/testData/newJ2k/nullabilityGenerics/notNullIterationParameterMethodCall.java");

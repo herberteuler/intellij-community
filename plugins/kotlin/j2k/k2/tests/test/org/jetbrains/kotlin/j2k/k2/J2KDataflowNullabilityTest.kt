@@ -44,6 +44,46 @@ class J2KDataflowNullabilityTest : KotlinLightCodeInsightFixtureTestCase() {
         assertEquals(Nullability.NotNull, decisions["boxed"])
     }
 
+    fun testThrowingContractBranchGivesNoValue() {
+        val decisions = decisionsByName(
+            """
+            import java.util.List;
+
+            class C {
+                void test(List<String> list) {
+                    String first = list.get(0);
+                }
+            }
+            """
+        )
+        assertEquals(Nullability.Default, decisions["first"])
+    }
+
+    fun testWildcardElementsLinkOneWay() {
+        val decisions = decisionsByName(
+            """
+            import java.util.List;
+
+            class C {
+                void test(List<String> withNull, List<String> clean, List<String> target) {
+                    withNull.add(null);
+                    List<? extends String> either = withNull;
+                    either = clean;
+                    String fromEither = either.get(0);
+                    String fromClean = clean.get(0);
+
+                    List<? super String> sink = target;
+                    sink.add(null);
+                    String fromTarget = target.get(0);
+                }
+            }
+            """
+        )
+        assertEquals(Nullability.Nullable, decisions["fromEither"])
+        assertEquals(Nullability.Default, decisions["fromClean"])
+        assertEquals(Nullability.Nullable, decisions["fromTarget"])
+    }
+
     fun testPackagePrivateMembersUseTheWholePackage() {
         myFixture.addFileToProject(
             "p/Other.java", """

@@ -23,6 +23,7 @@ import com.intellij.platform.lsp.api.LspBundle
 import com.intellij.platform.lsp.api.LspServerNotificationsHandler
 import com.intellij.platform.lsp.api.LspServerState
 import com.intellij.platform.lsp.impl.features.LspFeaturesRefreshing
+import com.intellij.platform.lsp.impl.features.executeCommandExpectingWorkspaceEdit
 import com.intellij.platform.lsp.impl.serviceView.LspClientConsole
 import com.intellij.platform.lsp.impl.serviceView.LspServiceViewSupport
 import com.intellij.platform.lsp.impl.util.LspWorkspaceEditApplier
@@ -75,7 +76,7 @@ internal class LspServerNotificationsHandlerImpl(private val lspClient: LspClien
   private val ansiDecoder = AnsiEscapeDecoder()
 
   /**
-   * When set (by [LspClientImpl.executeCommandExpectingWorkspaceEdit]), incoming `workspace/applyEdit` requests are handled by
+   * When set (by [executeCommandExpectingWorkspaceEdit]), incoming `workspace/applyEdit` requests are handled by
    * this handler instead of being applied in the usual way. Written and read on different threads, hence `@Volatile`.
    */
   @Volatile

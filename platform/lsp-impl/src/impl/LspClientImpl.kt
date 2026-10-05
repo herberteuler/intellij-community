@@ -7,8 +7,6 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.fileEditor.FileDocumentManager
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.util.ProgressIndicatorUtils
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.util.io.FileUtilRt
@@ -34,18 +32,13 @@ import com.intellij.platform.lsp.impl.features.inlayCommon.LspInlayApplier
 import com.intellij.platform.lsp.impl.features.navigation.LspDynamicFiles
 import com.intellij.platform.lsp.impl.fileEvents.LspWatchedFiles
 import com.intellij.serviceContainer.AlreadyDisposedException
-import com.intellij.util.concurrency.Semaphore
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.concurrency.annotations.RequiresReadLock
 import com.intellij.util.text.nullize
-import kotlinx.coroutines.launch
-import org.eclipse.lsp4j.Command
-import org.eclipse.lsp4j.ExecuteCommandParams
 import org.eclipse.lsp4j.InitializeResult
 import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentIdentifier
-import org.eclipse.lsp4j.WorkspaceEdit
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.VisibleForTesting
@@ -148,46 +141,6 @@ class LspClientImpl internal constructor(
 
     return descriptor.isSupportedFile(file)
       .also { if (!it) unsupportedFilePaths.add(file.path) }
-  }
-
-  /**
-   * Sends a [workspace/executeCommand](https://microsoft.github.io/language-server-protocol/specification/#workspace_executeCommand)
-   * request to the server and waits for whichever comes first:
-   *  - a `workspace/applyEdit` request from the server - in this case this function returns the corresponding [WorkspaceEdit],
-   *  and it is up to the caller to apply it;
-   *  - a response to the `executeCommand` request (any response, including an error) - in this case this function returns `null`.
-   *
-   * Waiting is cancellable, so this function is safe to call inside a cancellable read action.
-   */
-  @RequiresBackgroundThread
-  internal fun executeCommandExpectingWorkspaceEdit(command: Command): WorkspaceEdit? {
-    // Released as soon as either the server sends a `workspace/applyEdit` request or the `executeCommand` request gets a response.
-    val semaphore = Semaphore(1)
-    var workspaceEdit: WorkspaceEdit? = null
-
-    try {
-      serverNotificationsHandler.nextApplyEditHandler = { edit ->
-        workspaceEdit = edit
-        semaphore.up()
-      }
-
-      LspCoroutineScopeService.getInstance(project).cs.launch {
-        try {
-          sendRequest { it.workspaceService.executeCommand(ExecuteCommandParams(command.command, command.arguments)) }
-        }
-        finally {
-          semaphore.up()
-        }
-      }
-
-      @Suppress("UsagesOfObsoleteApi")
-      ProgressIndicatorUtils.awaitWithCheckCanceled(semaphore, ProgressManager.getInstance().progressIndicator)
-    }
-    finally {
-      serverNotificationsHandler.nextApplyEditHandler = null
-    }
-
-    return workspaceEdit
   }
 
   internal fun diagnosticsReceived(params: PublishDiagnosticsParams) {

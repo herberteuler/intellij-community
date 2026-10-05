@@ -12,6 +12,7 @@ import com.intellij.platform.lsp.api.customization.LspOptimizeImportsSupport
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
 import com.intellij.platform.lsp.impl.documentMapping
+import com.intellij.platform.lsp.impl.features.executeCommandExpectingWorkspaceEdit
 import com.intellij.platform.lsp.impl.features.intention.toCodeAction
 import com.intellij.platform.lsp.impl.util.LspWorkspaceEditApplier
 import com.intellij.psi.PsiFile

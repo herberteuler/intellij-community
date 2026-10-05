@@ -151,6 +151,34 @@ fn the_program_arguments_follow_the_main_class_in_their_order() {
 }
 
 #[test]
+fn the_writer_refuses_an_argument_with_a_line_break() {
+    for argument in ["--program-arg=a\nb", "--program-arg=a\rb"] {
+        let directory = tempfile::tempdir().unwrap();
+        let args = write_inputs(directory.path(), &[], &[argument]);
+        let (code, errors) = run(&args);
+        assert_eq!(code, 1, "{argument:?}");
+        assert!(errors.contains("holds a line break"), "{errors}");
+        assert!(
+            !directory.path().join("out/idea.jvm.args").exists(),
+            "the writer wrote a file for {argument:?}"
+        );
+    }
+}
+
+#[test]
+fn the_distribution_states_the_runtime_module_repository_first() {
+    let property = RUNTIME_MODULE_REPOSITORY_PROPERTY;
+    let mut distribution = IndexMap::from([(property.to_owned(), "/product-info.dat".to_owned())]);
+    add_runtime_module_repository(&mut distribution, "/home/modules/module-descriptors.dat", &IndexMap::new());
+    assert_eq!(distribution.get(property).map(String::as_str), Some("/product-info.dat"));
+
+    let mut distribution = IndexMap::new();
+    let caller = IndexMap::from([(property.to_owned(), "/custom.dat".to_owned())]);
+    add_runtime_module_repository(&mut distribution, "/home/modules/module-descriptors.dat", &caller);
+    assert!(distribution.is_empty(), "the home overrode the caller flag: {distribution:?}");
+}
+
+#[test]
 fn a_program_argument_needs_a_value() {
     let directory = tempfile::tempdir().unwrap();
     let args = write_inputs(directory.path(), &[], &["--program-arg"]);

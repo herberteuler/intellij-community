@@ -1,5 +1,5 @@
 [package]
-name = "dev-launcher"
+name = "dev-launch-args"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,23 +12,11 @@ workspace = true
 [dependencies]
 cli.workspace = true
 component.workspace = true
-distpath.workspace = true
-filemeta.workspace = true
-fscopy.workspace = true
 indexmap.workspace = true
 java-properties.workspace = true
-same-file.workspace = true
-sha2.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 
-[target.'cfg(unix)'.dependencies]
-libc.workspace = true
-
-[target.'cfg(windows)'.dependencies]
-windows-sys.workspace = true
-
 [dev-dependencies]
 tempfile.workspace = true
-testkit.workspace = true

@@ -382,7 +382,7 @@ fn local_composition_rejects_unsafe_and_conflicting_paths() {
     }
 }
 
-// The `local-home` step reads this exact shape, so the bytes are pinned.
+// The test pins the bytes of the layout file.
 #[test]
 fn local_layout_bytes() {
     let directory = TempDir::new();

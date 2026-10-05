@@ -258,7 +258,7 @@ alias(
 )
 
 # The plain `Idea` run configuration on the split path, `:idea_community`. The first test checks that the launch-only
-# distribution states its home. The second test checks that the launchers of the row build.
+# distribution states its home. The second test checks that the row builds.
 dev_dist_local_launch_test(
     name = "idea_community_local_launch_test",
     target_under_test = ":idea_community_dist_launch",

@@ -1,5 +1,4 @@
-//! The writer of `local-layout.json` for local launch metadata. [`component::layout`] holds the types and the reader,
-//! and the launcher links a local home from the file.
+//! The writer of `local-layout.json` for local launch metadata. [`component::layout`] holds the types and the reader.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

@@ -1,5 +1,5 @@
 //! `local-layout.json`: the file that names the runfile of each distribution file instead of a copy. The composer
-//! writes it for local launch metadata, and the launcher reads it with [`read_local_layout`].
+//! writes it for local launch metadata. [`read_local_layout`] reads it.
 
 use std::path::Path;
 

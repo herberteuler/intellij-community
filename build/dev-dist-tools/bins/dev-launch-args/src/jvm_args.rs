@@ -1,23 +1,27 @@
 //! The JVM arguments of a distribution, and the command `jvm-args`, which writes them as a `java` argument file.
 //!
-//! A launch prepares the arguments from the home that it starts. The rule `intellij_dev_java_launcher` runs `jvm-args`
-//! at build time instead. Then `java` starts with `@<file>`, and no process runs before the JVM. The arguments are
-//! the same in both forms: the caller flags, three fixed properties, the distribution properties, the class path and
-//! the main class. The argument file then holds the program arguments of the row. `java` reads each argument after the
-//! main class as a program argument, so it expands no `@<file>` there.
+//! The rule `intellij_dev_java_launcher` runs `jvm-args` at build time. Then `java` starts with `@<file>`, and no
+//! process runs before the JVM. The file holds the caller flags, three fixed properties, the distribution properties,
+//! the class path and the main class. Then it holds the program arguments of the row. `java` reads each argument after
+//! the main class as a program argument, so it expands no `@<file>` there.
 
 use std::ffi::OsString;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use anyhow::{Context as _, bail};
+use anyhow::{Context as _, anyhow, bail};
 use component::paths::from_slash;
 use indexmap::IndexMap;
 
 use crate::properties::{
     ProductInfo, RUNTIME_MODULE_REPOSITORY_PROPERTY, custom_command, properties_of_files, put_system_property, read_lines,
 };
-use crate::{PATH_LIST_SEPARATOR, is_caller_owned_property, path_string, read_ide_config};
+
+/// The class path separator of the JVM on the host.
+#[cfg(windows)]
+pub(crate) const PATH_LIST_SEPARATOR: &str = ";";
+#[cfg(not(windows))]
+pub(crate) const PATH_LIST_SEPARATOR: &str = ":";
 
 /// What a distribution adds to the command line of `java`.
 pub(crate) struct Distribution {
@@ -83,10 +87,22 @@ pub(crate) fn java_arguments(command_line: Vec<String>, distribution: Distributi
     Ok(arguments)
 }
 
+/// The properties that the caller flags keep against the properties of the distribution, as
+/// `PreBuiltDevMain.isCallerOwnedProperty` does.
+fn is_caller_owned_property(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    lower.starts_with("rider.")
+        || lower.starts_with("resharper.")
+        || matches!(
+            name,
+            "idea.platform.prefix" | "idea.suppressed.plugins.set.selector" | "awt.toolkit.name"
+        )
+}
+
 /// Adds the runtime module repository `file` of the home to `properties`, as
 /// `PreBuiltDevMain.addRuntimeModuleRepository` does.
 ///
-/// The distribution states the property through `product-info.json` when its launch model asks. So the launcher adds
+/// The distribution states the property through `product-info.json` when its launch model asks. So the writer adds
 /// `file` only when neither `properties` nor `caller_properties` state the property.
 pub(crate) fn add_runtime_module_repository(
     properties: &mut IndexMap<String, String>,
@@ -175,7 +191,7 @@ fn parse_jvm_args(args: &[OsString]) -> anyhow::Result<JvmArgsOptions> {
 
 fn write_jvm_args(options: &JvmArgsOptions) -> anyhow::Result<()> {
     let home = &options.home;
-    let (_, main_class) = read_ide_config(&options.ide_config)?;
+    let main_class = read_main_class(&options.ide_config)?;
     let info = ProductInfo::read_file(Path::new(&options.product_info))?;
     let vm_options_path = path_string(Path::new(home).join(from_slash(&options.vm_options_destination).as_ref()))?;
     let properties = properties_of_files(
@@ -203,10 +219,33 @@ fn write_jvm_args(options: &JvmArgsOptions) -> anyhow::Result<()> {
     arguments.extend(options.program_args.iter().cloned());
     let mut text = String::new();
     for argument in &arguments {
+        // `java` ends an unquoted argument at a line break, so the file would split the argument in silence.
+        if argument.contains(['\n', '\r']) {
+            bail!("the argument {argument:?} holds a line break, which a java argument file cannot hold");
+        }
         text.push_str(&quote_argument(argument));
         text.push('\n');
     }
     std::fs::write(&options.output, text).with_context(|| format!("write {}", options.output))
+}
+
+/// Reads the main class of the IDE from the `DevIdeConfig` file.
+///
+/// Java reads the file as ISO-8859-1, and `java_properties` reads it as windows-1252. The composer writes ASCII, so the
+/// difference has no effect.
+fn read_main_class(file: &str) -> anyhow::Result<String> {
+    let data = std::fs::read(file).with_context(|| format!("read {file}"))?;
+    let properties = java_properties::read(data.as_slice()).map_err(|error| anyhow!("{file}: {error}"))?;
+    match properties.get("main.class.name") {
+        Some(main_class) if !main_class.is_empty() => Ok(main_class.clone()),
+        _ => bail!("{file} states no main.class.name"),
+    }
+}
+
+fn path_string(path: PathBuf) -> anyhow::Result<String> {
+    path.into_os_string()
+        .into_string()
+        .map_err(|path| anyhow!("the path is not valid UTF-8: {}", path.display()))
 }
 
 /// One argument of a `java` argument file. An argument with a space, a quote, a number sign or a backslash is in double

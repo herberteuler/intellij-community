@@ -24,7 +24,7 @@ Run a test target from the ultimate root. From `community/`, drop the `@communit
 |---|---|---|
 | `crates/appinfo` | The application info: the descriptor XML round trip, the markers, the frontend merge, and the reader of the facts that `product-info.json` states. | `@community//build/dev-dist-tools/crates/appinfo:appinfo_test` |
 | `crates/cli` | The command line of every tool: the options `--key=value` and `--flag`, the positional arguments, the refusal of every other form, and the `ERROR:` line of a failure. | `@community//build/dev-dist-tools/crates/cli:cli_test` |
-| `crates/component` | The component contract of the collector, the composer and the launcher: the manifest, the types and the reader of the local layout, the core classpath order, and the host paths. | `@community//build/dev-dist-tools/crates/component:component_test` |
+| `crates/component` | The component contract of the collector, the composer and the argument file writer: the manifest, the types and the reader of the local layout, the core classpath order, and the host paths. | `@community//build/dev-dist-tools/crates/component:component_test` |
 | `crates/contentreport` | The reader of an executed packaging recipe and of a built distribution, for `dev-dist` and `content-report`. | `@community//build/dev-dist-tools/crates/contentreport:contentreport_test` |
 | `crates/distpath` | The slash-path rules: the path inside a distribution, the jar entry name, the link target, and the lexical path functions `clean`, `dir` and `join`. | `@community//build/dev-dist-tools/crates/distpath:distpath_test` |
 | `crates/filemeta` | Inventory JSON version 1, the hash of a link target, and the directory creation with the mode 0755. | `@community//build/dev-dist-tools/crates/filemeta:filemeta_test` |
@@ -39,7 +39,7 @@ Run a test target from the ultimate root. From `community/`, drop the `@communit
 | `bins/content-module-packer` | The packer and the inventory of each packed jar. | `@community//build/dev-dist-tools/bins/content-module-packer:content-module-packer_test` |
 | `bins/dev-dist-collector` | The collector: the inventory of a component and the plugin classpath record. | `@community//build/dev-dist-tools/bins/dev-dist-collector:dev-dist-collector_test` |
 | `bins/dev-dist-composer` | The composer: the composition spec, the composition and its copy step, and the local layout writer. It also writes the plugin classpath file and the fingerprint. It checks the home placement. | `@community//build/dev-dist-tools/bins/dev-dist-composer:dev-dist-composer_test` |
-| `bins/dev-launcher` | The launcher of `intellij_dev_launcher`, its local home, and the `jvm-args` command, which writes the argument file of an `intellij_dev_java_launcher` row. | `@community//build/dev-dist-tools/bins/dev-launcher:dev-launcher_test` |
+| `bins/dev-launch-args` | The `jvm-args` command, which writes the argument file of an `intellij_dev_java_launcher` row. | `@community//build/dev-dist-tools/bins/dev-launch-args:dev-launch-args_test` |
 | `bins/plugin-descriptor-writer` | The descriptor writer. | `@community//build/dev-dist-tools/bins/plugin-descriptor-writer:plugin-descriptor-writer_test` and `:descriptor_rule_tests` |
 | `bins/plugin-remainder-packer` | The remainder packer. | `@community//build/dev-dist-tools/bins/plugin-remainder-packer:plugin-remainder-packer_test` and `:plugin-remainder-packer_cli_test` |
 | `bins/product-files` | The tool of `dev_dist_product_files`. | `@community//build/dev-dist-tools/bins/product-files:product-files_test` |
@@ -81,11 +81,11 @@ cd community && ./bazel.cmd test //build/dev-dist-tools/...
   `./bazel.cmd test @community//platform/build-scripts/bazel-rules:bazel_rules_tests`.
 - Before a commit, run `cargo fmt --check` and `cargo clippy --all-targets` in this directory and in
   `build/dev-dist-tools`, and `bun community/build/rust-tools/sync.mjs --check` from the ultimate root.
-- `./build/dev-dist.cmd` runs `//build/dev-dist-tools/bins/dev-dist:dev-dist_opt`, the binary built in `opt`. A row
-  launcher runs `bins/dev-launcher:dev-launcher_opt`, and `replay` runs
-  `bins/content-module-packer:content-module-packer_opt`. The unit test of each binary stays on the `rust_binary`.
-- A row on the java path runs no launcher at start. Its argument file action runs `dev-launcher_opt jvm-args` at build
-  time, and the row executable is a link to `java`.
+- `./build/dev-dist.cmd` runs `//build/dev-dist-tools/bins/dev-dist:dev-dist_opt`, the binary built in `opt`, and
+  `replay` runs `bins/content-module-packer:content-module-packer_opt`. The unit test of each binary stays on the
+  `rust_binary`.
+- A row runs no tool at start. Its argument file action runs `bins/dev-launch-args jvm-args` at build time, and on
+  macOS and Linux the row executable is a link to `java`. On Windows the executable is a `.cmd` stub that starts `java.exe`.
 
 ### The Windows gate
 
@@ -112,7 +112,7 @@ RUSTC_BOOTSTRAP=1 cargo clippy -Zbuild-std=std,panic_abort --target x86_64-pc-wi
 Each action tool under `bins/` has the test `<bin>_closure_test`. It compares the crates that the tool links with
 `closure.txt` of its package. A change to a crate changes the bytes of each tool that links it. Then Bazel reruns every
 action of that tool, and the packer runs once per content-module jar. The test makes each new crate in a closure a
-visible choice. The launcher runs no Bazel action, so it has no closure test.
+visible choice.
 
 `closure.txt` lists the rustc crate names, one per line. It leaves out the proc macros, because the compiler runs them
 and the tool does not link them. It also leaves out the host-only crates of `_HOST_CRATES` in `community/build/rust-tools/defs.bzl`, so one file

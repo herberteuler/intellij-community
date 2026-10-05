@@ -29,10 +29,6 @@ struct CustomCommand {
 }
 
 impl ProductInfo {
-    pub(crate) fn read(home: &Path) -> anyhow::Result<Self> {
-        Self::read_file(&home.join("bin").join("product-info.json"))
-    }
-
     /// Reads a `product-info.json` file at any path.
     pub(crate) fn read_file(file: &Path) -> anyhow::Result<Self> {
         let data = std::fs::read(file).with_context(|| format!("read {}", file.display()))?;
@@ -73,36 +69,12 @@ pub(crate) fn put_system_property(properties: &mut IndexMap<String, String>, arg
 }
 
 /// The system properties of the distribution at `home`, as `getIdeSystemProperties` of `DevLaunchProperties.kt` reads
-/// them. The sources are `bin/idea.properties` and the `-D` lines of the single `bin/*.vmoptions` file. Then come
-/// `jb.vmOptionsFile` with the path of that file and the `-D` arguments of the first launch of `bin/product-info.json`.
+/// them. The sources are `idea_properties` and the `-D` lines of the vmoptions file `vm_options_file`. Then come
+/// `jb.vmOptionsFile` with `vm_options_path` and the `-D` arguments of the first launch of `info`. `vm_options_path` is
+/// the path of the vmoptions file in the home that the IDE starts from.
 ///
 /// Java reads `idea.properties` as ISO-8859-1, and `java_properties` reads it as windows-1252. The two differ only in
-/// the bytes 0x80 to 0x9F. Every file that the launcher reads is ASCII, so the difference has no effect.
-pub(crate) fn distribution_properties(home: &str, info: &ProductInfo) -> anyhow::Result<IndexMap<String, String>> {
-    let bin = Path::new(home).join("bin");
-    let mut vm_options_files = Vec::new();
-    for entry in std::fs::read_dir(&bin).with_context(|| format!("read {}", bin.display()))? {
-        let entry = entry.with_context(|| format!("read {}", bin.display()))?;
-        if entry.file_name().to_string_lossy().ends_with(".vmoptions") {
-            vm_options_files.push(entry.path());
-        }
-    }
-    vm_options_files.sort();
-    let [vm_options_file] = vm_options_files.as_slice() else {
-        let names: Vec<String> = vm_options_files.iter().map(|file| file.display().to_string()).collect();
-        bail!("no single *.vmoptions file in {}: [{}]", bin.display(), names.join(" "));
-    };
-    properties_of_files(
-        &bin.join("idea.properties"),
-        vm_options_file,
-        &vm_options_file.display().to_string(),
-        home,
-        info,
-    )
-}
-
-/// The system properties of [`distribution_properties`] from files at any path. `vm_options_path` is the value of
-/// `jb.vmOptionsFile`: the path of the vmoptions file in the home that the IDE starts from.
+/// the bytes 0x80 to 0x9F. Every file that the writer reads is ASCII, so the difference has no effect.
 pub(crate) fn properties_of_files(
     idea_properties: &Path,
     vm_options_file: &Path,
@@ -166,3 +138,6 @@ pub(crate) fn read_lines(file: &Path) -> anyhow::Result<Vec<String>> {
     let text = std::fs::read_to_string(file).with_context(|| format!("read {}", file.display()))?;
     Ok(text.lines().map(str::to_owned).collect())
 }
+
+#[cfg(test)]
+mod tests;

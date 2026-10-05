@@ -359,7 +359,7 @@ private fun removeStaleLauncherHomes(devData: Path, warn: (String) -> Unit) {
       Files.delete(homes)
     }
     catch (_: DirectoryNotEmptyException) {
-      // A live home or a launch that makes a home now keeps the directory.
+      // A dev IDE that a launcher started before this change can still hold the directory.
     }
     catch (e: IOException) {
       warn("WARNING: cannot remove the stale dev homes in $homes: $e")

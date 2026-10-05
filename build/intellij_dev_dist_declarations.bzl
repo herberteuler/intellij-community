@@ -16,7 +16,7 @@ load("//platform/build-scripts/bazel-rules:dev_dist_product_files.bzl", "dev_dis
 load("//platform/build-scripts/bazel-rules:dev_dist_runtime_module_repository.bzl", "dev_dist_runtime_layout_parts", "dev_dist_runtime_module_repository")
 load("//platform/build-scripts/bazel-rules:intellij_dev_dist.bzl", "intellij_dev_fragments_dist", "intellij_dev_packed_jars_component")
 load(":dev_launch_dependencies.bzl", "HOST_PLATFORMS", "platform_parts")
-load(":intellij_dev.bzl", "intellij_dev_dist_config", "intellij_dev_java_launcher_binary", "intellij_dev_launcher_binary")
+load(":intellij_dev.bzl", "intellij_dev_java_launcher_binary")
 
 def _plugin_component_entries(platform_prefix, tier, entries):
     """Reads one tier of the generated component map as `struct(main_module, label, labels)` entries.
@@ -616,11 +616,10 @@ def _distribution_groups(rows):
     return groups
 
 def _declare_run_distribution(tables, name, product, additional_modules, runtime_module_repository, catalogue, visibility):
-    """The distribution of one or more launchers: `<name>_dist`, `<name>_dist_launch`, and the pair a launcher reads.
+    """The distribution of one or more launchers: the self-contained `<name>_dist` and the local launch `<name>_dist_launch`.
 
-    `<name>_distribution` is the self-contained `_dist` on Windows and the metadata-only `_dist_launch` elsewhere, which a
-    launcher links into a local home from the component runfiles. `<name>_ide_config` is its config file. A distribution
-    with `runtime_module_repository` composes the `platform_runtime_module_repository` component of its product, which
+    A row starts over the placement of `_dist_launch`, and on Windows over the home of `_dist`. A distribution with
+    `runtime_module_repository` composes the `platform_runtime_module_repository` component of its product, which
     places the `modules/` files of `dev_dist_runtime_module_repository`.
     """
     _check_plan(tables, name, product)
@@ -636,22 +635,6 @@ def _declare_run_distribution(tables, name, product, additional_modules, runtime
         target_platform = "",
         create_local_launch = True,
         catalogue = catalogue,
-    )
-    dist = "//%s:%s_dist" % (native.package_name(), name)
-    native.alias(
-        name = name + "_distribution",
-        actual = select({
-            "@platforms//os:windows": dist,
-            "//conditions:default": dist + "_launch",
-        }),
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
-    )
-    intellij_dev_dist_config(
-        name = name + "_ide_config",
-        dist = "//%s:%s_distribution" % (native.package_name(), name),
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
     )
 
 def _check_before_run(tables, name, jvm_flags, compile_clion_backend_before_run):
@@ -680,8 +663,7 @@ def _declare_run_launcher(
     """The launcher `name`, the launcher over the distribution `_declare_run_distribution` declared as `distribution`.
 
     The row is an `intellij_dev_java_launcher` over `<distribution>_dist_launch`, with the home `<distribution>_dist` on
-    Windows. It also keeps the launcher of ADR 0014 as `<name>_launcher`, over the same dev data, for a comparison of the
-    two launches.
+    Windows.
     """
     for flag in jvm_flags:
         if flag.startswith("-Dadditional.modules="):
@@ -710,26 +692,12 @@ def _declare_run_launcher(
         program_args = program_args,
     )
 
-    # The distribution states its prefix: the launcher reads `-Didea.platform.prefix` from `product-info.json`, as a
-    # production launcher does, and a caller's value would win over it.
-    intellij_dev_launcher_binary(
-        name = name + "_launcher",
-        data_name = name,
-        visibility = visibility,
-        dist = "//%s:%s_distribution" % (native.package_name(), distribution),
-        ide_config = "//%s:%s_ide_config" % (native.package_name(), distribution),
-        jvm_flags = jvm_flags,
-        env = env,
-        data = data,
-        program_args = program_args,
-    )
-
 def _launch_assembles_test(name, rows, tags):
     """A `build_test` that builds the launchers of `rows`. The factory result documents it as `launch_assembles_test`."""
     build_test(
         name = name,
         tags = tags,
-        targets = [target for row in rows for target in [row, row + "_launcher"]],
+        targets = rows,
     )
 
 def _run_configurations(tables, rows):
@@ -804,8 +772,8 @@ def _run_configuration(
 _RUN_CONFIGURATION_DOC = """One dev launcher written by hand, `bazel run //<package>:<name>`, over a distribution of its own.
 
     It declares what `run_configurations` declares for one generated row: the distribution `<name>_dist` with
-    `<name>_dist_launch`, `<name>`, an `intellij_dev_java_launcher` over it, and `<name>_launcher`, the launcher of ADR
-    0014 over the same dev data. The rows of `.idea/runConfigurations` do not use this macro:
+    `<name>_dist_launch`, and `<name>`, an `intellij_dev_java_launcher` over it. The rows of `.idea/runConfigurations`
+    do not use this macro:
     `dev_server_run_configurations.bzl` passes them to `run_configurations`, which lets rows share a distribution.
 
     A launcher the generated plan cannot serve fails at load time (`check_plan`): a product that the split
@@ -918,10 +886,7 @@ def intellij_dev_dist_declarations(tables):
         _run_configurations(tables, rows)
 
     def launch_assembles_test(name, rows, tags = []):
-        """A `build_test` `name` that builds the launchers of `rows`, labels of rows of this package or another one.
-
-        It builds each row and its `<row>_launcher`.
-        """
+        """A `build_test` `name` that builds the launchers of `rows`, labels of rows of this package or another one."""
         _launch_assembles_test(name, rows, tags)
 
     def run_configuration_impl(

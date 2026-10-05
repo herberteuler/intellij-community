@@ -2,7 +2,6 @@
 
 load("@dev_launch_paths//:paths.bzl", "HOME", "OUTPUT_BASE", "WORKSPACE_ROOT")
 load("@intellij_add_opens//:intellij_add_opens.bzl", "INTELLIJ_ADD_OPENS")
-load("@rules_java//java:defs.bzl", "java_binary")
 load("//platform/build-scripts/bazel-rules:intellij_dev_dist.bzl", "IntellijDevDistInfo")
 
 # Names the prepared distribution for its consumer: the prebuilt dev-build runner of IDE Starter in a test, and
@@ -40,160 +39,30 @@ DEFAULT_JVM_FLAGS = [
 ]
 
 # The data directories of the IDE. `_runtime_jvm_flags` owns them, and a flag that states one would lose to its defaults.
-_LAUNCHER_DATA_PROPERTIES = ["idea.config.path", "idea.system.path", "idea.log.path"]
+_DATA_PROPERTIES = ["idea.config.path", "idea.system.path", "idea.log.path"]
 
-def _runtime_jvm_flags(name, jvm_flags, data_name = None, manifest_class_path = True):
+def _runtime_jvm_flags(name, jvm_flags):
     """The flags an IDE needs to run, independent of how it was assembled.
 
-    `$${...}` is a literal `${...}`. The launcher expands it at launch, and a `java` launcher resolves it at analysis.
+    `$${...}` is a literal `${...}`, which the rule resolves at analysis.
 
-    The config and system directories are `out/dev-data/<data_name>/config` and `out/dev-data/<data_name>/system`. On
-    macOS `out/dev-data` is a link to a directory outside the workspace. `jvm_flags` must not state a data directory.
-
-    `manifest_class_path` adds the Windows flag of the java stub. A launcher that writes a plain `-cp` passes False.
+    The config and system directories are `out/dev-data/<name>/config` and `out/dev-data/<name>/system`. On macOS
+    `out/dev-data` is a link to a directory outside the workspace. `jvm_flags` must not state a data directory.
     """
     for flag in jvm_flags:
-        for key in _LAUNCHER_DATA_PROPERTIES:
+        for key in _DATA_PROPERTIES:
             if flag.startswith("-D%s=" % key):
-                fail("%s: `%s` states a data directory, which the launcher owns" % (name, flag))
+                fail("%s: `%s` states a data directory, which the rule owns" % (name, flag))
 
-    data_name = data_name or name
-    config_path = "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + data_name + "/config"
-    system_path = "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + data_name + "/system"
-    all_jvm_flags = DEFAULT_JVM_FLAGS + [
+    config_path = "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + name + "/config"
+    system_path = "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + name + "/system"
+    return DEFAULT_JVM_FLAGS + [
         "-Didea.plugins.path=" + config_path + "/plugins",
         "-Didea.log.path=" + system_path + "/log",
     ] + jvm_flags + [
         "-Didea.config.path=" + config_path,
         "-Didea.system.path=" + system_path,
     ]
-    if not manifest_class_path:
-        return all_jvm_flags
-
-    # On Windows the java stub folds a long classpath into one jar with a `Class-Path` manifest attribute.
-    # `PathClassLoader` is the system class loader and expands that jar only with this flag.
-    # https://github.com/bazelbuild/bazel/blob/93cde47ab3236b3b7124b41824f843f3659064de/src/tools/launcher/java_launcher.cc#L385
-    return all_jvm_flags + select({
-        "@bazel_tools//src/conditions:windows": ["-Didea.reset.classpath.from.manifest=true"],
-        "//conditions:default": [],
-    })
-
-def _launcher_runfile_path(ctx, file):
-    path = file.short_path
-    return path[3:] if path.startswith("../") else ctx.workspace_name + "/" + path
-
-def _java_runfile_path(ctx, java_runtime):
-    path = java_runtime.java_executable_runfiles_path
-    if path.startswith("/"):
-        return path
-    return path[3:] if path.startswith("../") else ctx.workspace_name + "/" + path
-
-def _intellij_dev_launcher_impl(ctx):
-    java_runtime = ctx.toolchains["@bazel_tools//tools/jdk:runtime_toolchain_type"].java_runtime
-    windows = ctx.target_platform_has_constraint(ctx.attr._windows[platform_common.ConstraintValueInfo])
-    executable = ctx.actions.declare_file(ctx.label.name + (".exe" if windows else ""))
-    ctx.actions.symlink(output = executable, target_file = ctx.executable._launcher, is_executable = True)
-
-    # `$$` is a literal `$`, and the launcher expands `${NAME}` at launch, as the java stub's shell did.
-    targets = ctx.attr.data + [ctx.attr.dist, ctx.attr.ide_config]
-    jvm_flags = ctx.fragments.java.default_jvm_opts + [
-        ctx.expand_make_variables("jvm_flags", ctx.expand_location(flag, targets), {})
-        for flag in ctx.attr.jvm_flags
-    ] + ["--add-opens=%s=ALL-UNNAMED" % package for package in ctx.attr.add_opens]
-    manifest = ctx.actions.declare_file(ctx.label.name + ".launch.json")
-    ctx.actions.write(manifest, json.encode({
-        "version": 1,
-        "java": _java_runfile_path(ctx, java_runtime),
-        "ideConfig": _launcher_runfile_path(ctx, ctx.file.ide_config),
-        "beforeRun": _launcher_runfile_path(ctx, ctx.executable.before_run) if ctx.attr.before_run else "",
-        "jvmFlags": jvm_flags,
-        "home": ctx.attr.home,
-    }))
-
-    runfiles = ctx.runfiles(files = [executable, manifest, ctx.file.ide_config], transitive_files = java_runtime.files)
-    for target in [ctx.attr.dist, ctx.attr._launcher] + ([ctx.attr.before_run] if ctx.attr.before_run else []) + ctx.attr.data:
-        runfiles = runfiles.merge(ctx.runfiles(transitive_files = target[DefaultInfo].files)).merge(target[DefaultInfo].default_runfiles)
-    return [
-        DefaultInfo(executable = executable, files = depset([executable, manifest]), runfiles = runfiles),
-        RunEnvironmentInfo(environment = ctx.attr.env),
-    ]
-
-intellij_dev_launcher = rule(
-    doc = """Starts a composed dev distribution through the launcher, `bazel run //<package>:<name>`.
-
-The launcher reads `<name>.launch.json`, which this rule writes, links the distribution's local home under
-`$BUILD_WORKSPACE_DIRECTORY/<home>` in its own process, and replaces itself with the IDE's JVM in the workspace. On
-macOS it first makes `out/dev-data` a link to the dev-data root of the checkout. It takes the java stub's wrapper
-options, so the IDE's Bazel plugin can debug it. See `community/build/dev-dist-tools/bins/dev-launcher`.""",
-    implementation = _intellij_dev_launcher_impl,
-    executable = True,
-    fragments = ["java"],
-    toolchains = ["@bazel_tools//tools/jdk:runtime_toolchain_type"],
-    attrs = {
-        "dist": attr.label(mandatory = True, doc = "The composed distribution, whose runfiles hold its home or its components."),
-        "ide_config": attr.label(mandatory = True, allow_single_file = True, doc = "The `intellij_dev_dist_config` of `dist`."),
-        "jvm_flags": attr.string_list(doc = "JVM flags; `$(location)` and make variables expand, and `${NAME}` expands at launch."),
-        "add_opens": attr.string_list(doc = "Packages opened to the unnamed module, as `java_binary.add_opens`."),
-        "env": attr.string_dict(doc = "Environment variables `bazel run` sets for the launcher."),
-        "data": attr.label_list(allow_files = True, doc = "Extra runfiles of the launcher."),
-        "before_run": attr.label(executable = True, cfg = "target", doc = "An executable the launcher runs in the workspace before the IDE, and fails with."),
-        "home": attr.string(mandatory = True, doc = "The workspace-relative directory under which each launch links its home, under `out/dev-data`."),
-        "_launcher": attr.label(default = Label("//build/dev-dist-tools/bins/dev-launcher:dev-launcher_opt"), executable = True, cfg = "target"),
-        "_windows": attr.label(default = Label("@platforms//os:windows")),
-    },
-)
-
-def intellij_dev_launcher_binary(
-        name,
-        dist,
-        ide_config,
-        jvm_flags = [],
-        env = {},
-        program_args = [],
-        data = [],
-        before_run_main_class = "",
-        before_run_runtime_deps = [],
-        data_name = None,
-        visibility = None):
-    """The launcher of a composed dev distribution.
-
-    `dist` and `ide_config` are the distribution and its `intellij_dev_dist_config`. The home is linked under
-    `out/dev-data/<name>/homes`, one directory per launch, beside the launcher's config and system directories. On macOS
-    `out/dev-data` is a link to a directory outside the workspace. With `before_run_main_class`, a `java_binary`
-    `<name>_before_run` runs that class over `before_run_runtime_deps` first. `data_name` replaces `<name>` in the
-    dev data directories, so two launchers of one row can share them.
-    """
-    data_name = data_name or name
-    tags = ["manual"]
-    before_run = None
-    if before_run_main_class:
-        before_run = name + "_before_run"
-        java_binary(
-            name = before_run,
-            main_class = before_run_main_class,
-            runtime_deps = before_run_runtime_deps,
-            tags = tags,
-            visibility = ["//visibility:private"],
-        )
-    intellij_dev_launcher(
-        name = name,
-        visibility = visibility,
-        tags = tags,
-        dist = dist,
-        ide_config = ide_config,
-        before_run = before_run,
-        # The IDE starts in the workspace, so a relative path in a flag resolves as it does for the run configuration.
-        jvm_flags = _runtime_jvm_flags(name, jvm_flags, data_name = data_name) + [
-            # Not a build-time input: `AppMode.getDevIdeaProjectDir` and the webview native bridge read it at runtime,
-            # and a dev launch has it only because `DevMainImpl` sets it from the project root it just built against.
-            "-Didea.dev.project.root=$${BUILD_WORKSPACE_DIRECTORY}",
-        ],
-        add_opens = INTELLIJ_ADD_OPENS,
-        env = env,
-        args = program_args,
-        data = data,
-        home = "out/dev-data/%s/homes" % data_name,
-    )
 
 # The directory of the runfiles tree that holds the home of a `java` launcher.
 _JAVA_LAUNCH_HOME = "ide_home"
@@ -338,7 +207,7 @@ def _intellij_dev_java_launcher_impl(ctx):
         arguments.add("--runtime-module-repository")
     arguments.add(argfile, format = "--output=%s")
     ctx.actions.run(
-        executable = ctx.executable._jvm_args_tool,
+        executable = ctx.executable._launch_args_tool,
         arguments = [arguments],
         inputs = sources.inputs + [flags_file],
         outputs = [argfile],
@@ -360,7 +229,9 @@ def _intellij_dev_java_launcher_impl(ctx):
         runfiles = ctx.runfiles(files = [executable, argfile, export.home, export.ide_config], transitive_files = java_runtime.files)
         environment = dict(ctx.attr.env)
         launch_argfile = _execroot_path(ctx, argfile.path)
-        working_directory = WORKSPACE_ROOT
+
+        # `bazel run` starts the stub in `<name>.cmd.runfiles`, so a debug launch starts there too.
+        working_directory = runfiles_directory
     else:
         ctx.actions.symlink(output = executable, target_file = _java_file(ctx, java_runtime), is_executable = True)
         runfiles = ctx.runfiles(
@@ -370,7 +241,7 @@ def _intellij_dev_java_launcher_impl(ctx):
             root_symlinks = {_JAVA_LAUNCH_HOME + "/" + destination: file for destination, file in _runfiles_home(ctx, placement, dist).items()},
         )
 
-        # The launcher of ADR 0014 gives these two to the IDE, as the java stub does.
+        # The java stub of rules_java gives these two to the IDE.
         environment = dict(ctx.attr.env)
         environment.update({"JAVA_RUNFILES": runfiles_directory, "RUNFILES_DIR": runfiles_directory})
         launch_argfile = "%s/%s/%s.jvm.args" % (runfiles_directory, ctx.workspace_name, ctx.label.name)
@@ -398,18 +269,18 @@ intellij_dev_java_launcher = rule(
     doc = """Starts a composed dev distribution with `java` itself, `bazel run //<package>:<name>`.
 
 The executable is a link to the `java` of the Java runtime. Its `args` are `@<name>.jvm.args`, the argument file that
-`dev-launcher jvm-args` writes at build time. The file ends with the main class and the program arguments of the row.
+`dev-launch-args jvm-args` writes at build time. The file ends with the main class and the program arguments of the row.
 So `bazel run //<package>:<name> -- <argument>` adds a program argument after them. The home is
 `<name>.runfiles/ide_home`, which Bazel links from the placement of the components. So no process runs before the JVM,
 and a launch writes no file. `bazel run` starts the executable in `<name>.runfiles/_main`, so every path of the
 argument file is absolute. A caller adds JVM flags through `JDK_JAVA_OPTIONS`, and `java` reads them before the
-argument file. `<name>.launch.json` states the absolute paths of `java`, the argument file and the runfiles tree, and
-the environment. The devkit Bazel plugin reads it to debug the row.
+argument file. `<name>.launch.json` states the absolute paths of `java`, the argument file and the runfiles tree, the
+working directory and the environment. The devkit Bazel plugin reads it to debug the row.
 
 Windows builds no runfiles tree, and a link to `java.exe` does not start. So on Windows the executable is `<name>.cmd`.
 It runs the `java.exe` of the Java runtime by its absolute path with `@<name>.jvm.args` and its own arguments. The home
-is the directory of `export`. `<name>.launch.json` names the real `java.exe` and the workspace as the working
-directory.""",
+is the directory of `export`. `<name>.launch.json` names the real `java.exe`. Its working directory is
+`<name>.cmd.runfiles`, where `bazel run` starts the stub, so a debug launch starts in the same directory.""",
     implementation = _intellij_dev_java_launcher_impl,
     executable = True,
     fragments = ["java"],
@@ -422,7 +293,7 @@ directory.""",
         "env": attr.string_dict(doc = "Environment variables `bazel run` sets for the IDE."),
         "data": attr.label_list(allow_files = True, doc = "Extra runfiles of the launcher."),
         "program_args": attr.string_list(doc = "The program arguments of the row, which the argument file holds after the main class. Each value is one argument; `$(location)` and make variables expand, and `${BUILD_WORKSPACE_DIRECTORY}` and `${HOME}` resolve at analysis. The first one names a custom command."),
-        "_jvm_args_tool": attr.label(default = Label("//build/dev-dist-tools/bins/dev-launcher:dev-launcher_opt"), executable = True, cfg = "exec"),
+        "_launch_args_tool": attr.label(default = Label("//build/dev-dist-tools/bins/dev-launch-args"), executable = True, cfg = "exec"),
         "_windows": attr.label(default = Label("@platforms//os:windows")),
     },
 )
@@ -436,10 +307,11 @@ def intellij_dev_java_launcher_binary(
         program_args = [],
         data = [],
         visibility = None):
-    """The `java` launcher of a composed dev distribution, with the flags of `intellij_dev_launcher_binary`.
+    """The `java` launcher of a composed dev distribution.
 
     `dist` is the `_dist_launch` target of the distribution, and `export` is its `_dist` target. Only Windows builds
-    `export`. The config and system directories are the ones of `intellij_dev_launcher_binary`, as absolute paths.
+    `export`. The config and system directories are `out/dev-data/<name>/config` and `out/dev-data/<name>/system`, as
+    absolute paths.
     """
     intellij_dev_java_launcher(
         name = name,
@@ -450,8 +322,7 @@ def intellij_dev_java_launcher_binary(
             "@platforms//os:windows": export,
             "//conditions:default": None,
         }),
-        # The argument file has a plain `-cp`, so `PathClassLoader` needs no manifest flag.
-        jvm_flags = _runtime_jvm_flags(name, jvm_flags, manifest_class_path = False) + [
+        jvm_flags = _runtime_jvm_flags(name, jvm_flags) + [
             # Not a build-time input: `AppMode.getDevIdeaProjectDir` and the webview native bridge read it at runtime,
             # and a dev launch has it only because `DevMainImpl` sets it from the project root it just built against.
             "-Didea.dev.project.root=$${BUILD_WORKSPACE_DIRECTORY}",

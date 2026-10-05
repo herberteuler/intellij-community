@@ -209,25 +209,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "dev-launcher"
+name = "dev-launch-args"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "cli",
  "component",
- "distpath",
- "filemeta",
- "fscopy",
  "indexmap",
  "java-properties",
- "libc",
- "same-file",
  "serde",
  "serde_json",
- "sha2",
  "tempfile",
- "testkit",
- "windows-sys",
 ]
 
 [[package]]

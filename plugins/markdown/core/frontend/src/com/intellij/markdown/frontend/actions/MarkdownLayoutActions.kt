@@ -7,7 +7,9 @@ import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.remoting.ActionRemoteBehaviorSpecification
 import com.intellij.openapi.fileEditor.TextEditorWithPreview.Layout
 import com.intellij.openapi.project.DumbAware
+import com.intellij.openapi.util.registry.RegistryManager
 import org.intellij.plugins.markdown.ui.actions.MarkdownActionUtil
+import org.intellij.plugins.markdown.ui.preview.MarkdownEditorWithPreview
 
 /** Shows the Markdown text editor alone with live preview off. */
 internal class MarkdownEditorOnlyLayoutAction :
@@ -29,8 +31,13 @@ internal class MarkdownEditorOnlyLayoutAction :
   override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 }
 
-/** Shows the Markdown text editor alone with live preview on. */
+/** Shows the Markdown text editor alone with live preview on. The `markdown.live.preview.enabled` registry key shows this action. */
 internal class MarkdownLivePreviewLayoutAction : ToggleAction(), DumbAware, ActionRemoteBehaviorSpecification.Frontend {
+  override fun update(event: AnActionEvent) {
+    super.update(event)
+    event.presentation.isEnabledAndVisible = RegistryManager.getInstance().`is`(MarkdownEditorWithPreview.LIVE_PREVIEW_REGISTRY_KEY)
+  }
+
   override fun isSelected(event: AnActionEvent): Boolean {
     return MarkdownActionUtil.findSplitEditor(event)?.isLivePreviewLayout == true
   }

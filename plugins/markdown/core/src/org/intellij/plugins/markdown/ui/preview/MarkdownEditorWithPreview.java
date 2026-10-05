@@ -15,6 +15,7 @@ import com.intellij.openapi.fileEditor.FileEditorState;
 import com.intellij.openapi.fileEditor.TextEditor;
 import com.intellij.openapi.fileEditor.TextEditorWithPreview;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.registry.RegistryManager;
 import com.intellij.ui.JBSplitter;
 import org.intellij.plugins.markdown.MarkdownBundle;
 import org.intellij.plugins.markdown.MarkdownUsageCollector;
@@ -29,6 +30,7 @@ import java.util.Objects;
 public final class MarkdownEditorWithPreview extends TextEditorWithPreview implements MarkdownHeaderNavigationHandler {
   @VisibleForTesting
   public static final String LIVE_PREVIEW_PROPERTY = "markdown.editor.live.preview.layout";
+  public static final String LIVE_PREVIEW_REGISTRY_KEY = "markdown.live.preview.enabled";
   private static final String EDITOR_ONLY_ACTION_ID = "Markdown.Layout.EditorOnly";
   private static final String LIVE_PREVIEW_ACTION_ID = "Markdown.Layout.LivePreview";
 
@@ -68,7 +70,10 @@ public final class MarkdownEditorWithPreview extends TextEditorWithPreview imple
 
     this.settings = settings;
     this.previewAvailable = previewAvailable;
-    MarkdownLivePreviewSpecKt.setLivePreviewEnabledness(editor.getEditor(), PropertiesComponent.getInstance().getBoolean(LIVE_PREVIEW_PROPERTY));
+    MarkdownLivePreviewSpecKt.setLivePreviewEnabledness(
+      editor.getEditor(),
+      RegistryManager.getInstance().is(LIVE_PREVIEW_REGISTRY_KEY) && PropertiesComponent.getInstance().getBoolean(LIVE_PREVIEW_PROPERTY)
+    );
 
     // allow launching actions while in preview mode;
     // FIXME: better solution IDEA-354102

@@ -7,6 +7,7 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
 import com.intellij.openapi.actionSystem.ToggleAction
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.actions.AbstractToggleUseSoftWrapsAction
@@ -16,6 +17,7 @@ import com.intellij.openapi.fileEditor.TextEditorWithPreview.Layout
 import com.intellij.openapi.fileEditor.TextEditorWithPreview.MyFileEditorState
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.PersistentFSConstants
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.limits.FileSizeLimit
@@ -38,6 +40,7 @@ class MarkdownEditorWithPreviewLivePreviewTest : BasePlatformTestCase() {
     super.setUp()
     val properties = PropertiesComponent.getInstance()
     Disposer.register(testRootDisposable) { properties.unsetValue(MarkdownEditorWithPreview.LIVE_PREVIEW_PROPERTY) }
+    Registry.get(MarkdownEditorWithPreview.LIVE_PREVIEW_REGISTRY_KEY).setValue(true, testRootDisposable)
     ExtensionTestUtil.maskExtensions(MarkdownHtmlPanelProvider.EP_NAME, listOf(panelProvider), testRootDisposable)
     myFixture.configureByText("test.md", "# Heading\n\ntext\n")
   }
@@ -63,6 +66,17 @@ class MarkdownEditorWithPreviewLivePreviewTest : BasePlatformTestCase() {
   fun testNewEditorStartsInTheLastChosenLivePreviewLayout() {
     createEditor().setLivePreviewLayout()
     assertTrue(createEditor().editor.isLivePreviewEnabled())
+  }
+
+  fun testDisabledRegistryKeyHidesLivePreview() {
+    assertTrue(createEditor().isViewActionVisible(LIVE_PREVIEW_ACTION_ID))
+    createEditor().setLivePreviewLayout()
+    Registry.get(MarkdownEditorWithPreview.LIVE_PREVIEW_REGISTRY_KEY).setValue(false, testRootDisposable)
+
+    val editorWithPreview = createEditor()
+
+    assertFalse("A new editor must ignore the saved live preview layout", editorWithPreview.editor.isLivePreviewEnabled())
+    assertFalse("The live preview action must be hidden", editorWithPreview.isViewActionVisible(LIVE_PREVIEW_ACTION_ID))
   }
 
   fun testRestoredLayoutWithPreviewTurnsLivePreviewOff() {
@@ -262,6 +276,13 @@ class MarkdownEditorWithPreviewLivePreviewTest : BasePlatformTestCase() {
     return viewActions()
       .filter { it is ToggleAction && it.isSelected(TestActionEvent.createTestEvent(it, context)) }
       .map { ActionManager.getInstance().getId(it) }
+  }
+
+  private fun MarkdownEditorWithPreview.isViewActionVisible(actionId: String): Boolean {
+    val action = ActionManager.getInstance().getAction(actionId)
+    val event = TestActionEvent.createTestEvent(action, SimpleDataContext.getSimpleContext(PlatformCoreDataKeys.FILE_EDITOR, this))
+    ActionUtil.updateAction(action, event)
+    return event.presentation.isVisible
   }
 
   private class StubHtmlPanelProvider : MarkdownHtmlPanelProvider() {

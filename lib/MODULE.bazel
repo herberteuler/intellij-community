@@ -365,17 +365,17 @@ http_file(
 )
 
 http_file(
-    name = "com_jetbrains_fus_reporting-fus-api-2_0_247_http",
-    downloaded_file_path = "fus-api-2.0.247.jar",
+    name = "com_jetbrains_fus_reporting-fus-api-2_0_248_http",
+    downloaded_file_path = "fus-api-2.0.248.jar",
     sha256 = "7dcc4cf5e60009850dbbf9208f878f309ed0a54c8b81c67b299256078feb826b",
-    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/fus-api/2.0.247/fus-api-2.0.247.jar",
+    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/fus-api/2.0.248/fus-api-2.0.248.jar",
 )
 
 http_file(
-    name = "com_jetbrains_fus_reporting-fus-api-2_0_247-sources_http",
-    downloaded_file_path = "fus-api-2.0.247-sources.jar",
-    sha256 = "c4ef234ce6b4fc36a3d6d477b86e0bfd124a30a047b4bee93f5796da4c0ac226",
-    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/fus-api/2.0.247/fus-api-2.0.247-sources.jar",
+    name = "com_jetbrains_fus_reporting-fus-api-2_0_248-sources_http",
+    downloaded_file_path = "fus-api-2.0.248-sources.jar",
+    sha256 = "2297ad74de14211f3aa6bfbb26cefaa980d7b69741f2ba003aeccce6e9bb1926",
+    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/fus-api/2.0.248/fus-api-2.0.248-sources.jar",
 )
 
 http_file(
@@ -3487,17 +3487,17 @@ http_file(
 )
 
 http_file(
-    name = "com_jetbrains_fus_reporting-fus-api-jvm-2_0_247_http",
-    downloaded_file_path = "fus-api-jvm-2.0.247.jar",
-    sha256 = "7b11d5ab927d5c0c4e397ab29e2d4e4529d4f5683abb826a2691d06a62c43032",
-    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/fus-api-jvm/2.0.247/fus-api-jvm-2.0.247.jar",
+    name = "com_jetbrains_fus_reporting-fus-api-jvm-2_0_248_http",
+    downloaded_file_path = "fus-api-jvm-2.0.248.jar",
+    sha256 = "b6c3742967fc3656eb8f35e7b4864b9abc2fe283edee4648222090dcbacc9196",
+    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/fus-api-jvm/2.0.248/fus-api-jvm-2.0.248.jar",
 )
 
 http_file(
-    name = "com_jetbrains_fus_reporting-fus-api-jvm-2_0_247-sources_http",
-    downloaded_file_path = "fus-api-jvm-2.0.247-sources.jar",
-    sha256 = "31c6ed4f3b97d8480171b0ada797af9875b73ce8d2098a04f81e96e1638d8197",
-    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/fus-api-jvm/2.0.247/fus-api-jvm-2.0.247-sources.jar",
+    name = "com_jetbrains_fus_reporting-fus-api-jvm-2_0_248-sources_http",
+    downloaded_file_path = "fus-api-jvm-2.0.248-sources.jar",
+    sha256 = "5d6c8fa98aa4a7d34755ce0e41f21bdd3b5b537a66414bfa013d53a1fa142585",
+    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/fus-api-jvm/2.0.248/fus-api-jvm-2.0.248-sources.jar",
 )
 
 http_file(
@@ -7050,17 +7050,17 @@ http_file(
 )
 
 http_file(
-    name = "com_jetbrains_fus_reporting-ap-validation-all-2_0_247_http",
-    downloaded_file_path = "ap-validation-all-2.0.247.jar",
-    sha256 = "636d68a0db359da33bb9d3d42cd7321dc32e01fbe22de71b0edc211227f25ce0",
-    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/ap-validation-all/2.0.247/ap-validation-all-2.0.247.jar",
+    name = "com_jetbrains_fus_reporting-ap-validation-all-2_0_248_http",
+    downloaded_file_path = "ap-validation-all-2.0.248.jar",
+    sha256 = "70cd74003718ba3ac8e8d3cd18089dabd9bad7f54de17fadbe432680d5998e21",
+    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/ap-validation-all/2.0.248/ap-validation-all-2.0.248.jar",
 )
 
 http_file(
-    name = "com_jetbrains_fus_reporting-ap-validation-all-2_0_247-sources_http",
-    downloaded_file_path = "ap-validation-all-2.0.247-sources.jar",
-    sha256 = "3f91560a8881dcc38aa12fc815930416d6af3ad25b6522f1f65e919fe8fa63d8",
-    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/ap-validation-all/2.0.247/ap-validation-all-2.0.247-sources.jar",
+    name = "com_jetbrains_fus_reporting-ap-validation-all-2_0_248-sources_http",
+    downloaded_file_path = "ap-validation-all-2.0.248-sources.jar",
+    sha256 = "1eceae32ebad6ffbab9619f91f73ae7812fa3d65d57b20959ed84e01f057079e",
+    url = "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/ij/intellij-dependencies/com/jetbrains/fus/reporting/ap-validation-all/2.0.248/ap-validation-all-2.0.248-sources.jar",
 )
 
 http_file(

@@ -2,17 +2,13 @@
 package com.intellij.python.sdk.backend
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.platform.backend.workspace.WorkspaceModel
-import com.intellij.platform.workspace.jps.entities.ContentRootEntity
-import com.intellij.platform.workspace.jps.entities.ModuleEntity
-import com.jetbrains.python.project.PyProject.Companion.getPyProjects
 import com.jetbrains.python.sdk.PythonSdkAdditionalData
-import com.jetbrains.python.sdk.associatedModuleNioPath
 import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
@@ -20,37 +16,40 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import org.jetbrains.annotations.ApiStatus
+import com.intellij.openapi.projectRoots.SdkType
+import com.intellij.openapi.projectRoots.impl.SdkConfigurationUtil
+import com.intellij.util.concurrency.annotations.RequiresWriteLock
+import com.jetbrains.python.PyNames
+import com.jetbrains.python.PythonBinary
+import com.jetbrains.python.sdk.PyRemoteSdkAdditionalDataMarker
+import com.jetbrains.python.sdk.pythonBinaryPath
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.nio.file.Path
+import org.jetbrains.annotations.ApiStatus
+import org.jetbrains.annotations.TestOnly
 
 /**
- * The interpreters this project can use.
+ * The interpreters this project can use, and the one way to add or remove a Python SDK.
  *
- * The set holds the interpreters of the SDK table that are shared, with no associated module, or that are associated
- * with a Python project of this one. An SDK whose interpreter is not here is broken or belongs to another project.
- *
- * For now it is a view of the SDK table. It will become the storage of the interpreters of this project. A global
- * registry will hold the shared ones.
+ * For now it holds every Python SDK of the SDK table, and [addSdk] and [removeSdk] write that table. It will become the
+ * storage of the interpreters of this project. A global registry will hold the shared ones.
  */
 @Service(Service.Level.PROJECT)
 @ApiStatus.Internal
-class PythonInterpreterProjectRegistry(private val project: Project, scope: CoroutineScope) {
+class PythonInterpreterProjectRegistry(@Suppress("UNUSED_PARAMETER") project: Project, scope: CoroutineScope) {
   private val state = MutableStateFlow<Set<PythonInterpreter>?>(null)
 
   init {
+    // A change made outside this registry, for example by the platform Settings, reaches the set through this listener.
     scope.launch {
-      // A module or a content root change can move a base dir, so it changes which associated SDKs this project can use.
-      val baseDirChanges = WorkspaceModel.getInstance(project).eventLog
-        .filter { change -> BASE_DIR_ENTITIES.any { change.getChanges(it).isNotEmpty() } }
-        .map { }
-      merge(baseDirChanges, sdkTableChanges())
+      sdkTableChanges()
         .onStart { emit(Unit) }
         .conflate()
         .collect { state.value = compute() }
@@ -63,12 +62,90 @@ class PythonInterpreterProjectRegistry(private val project: Project, scope: Coro
   /** The current set, or `null` while the first computation is still running. */
   fun interpretersOrNull(): Set<PythonInterpreter>? = state.value
 
-  private suspend fun compute(): Set<PythonInterpreter> {
-    val baseDirs = project.getPyProjects().mapTo(mutableSetOf()) { it.baseDir }
-    return PythonSdkUtil.getAllSdks()
-      .filter { it.sdkAdditionalData is PythonSdkAdditionalData && it.isAvailableFor(baseDirs) }
-      .mapTo(mutableSetOf()) { it.pythonInterpreterAsync() }
+  /**
+   * Creates a Python SDK for the interpreter at [homePath] and adds it. [homePath] is a local path or a path on a target.
+   *
+   * A local interpreter that already has an SDK keeps it. That SDK takes [data] and keeps its name. A remote one always
+   * gets a new SDK, because its path does not say which machine holds the file.
+   *
+   * With [setupPaths], it also sets up the SDK paths. When that fails, it removes the SDK it added.
+   *
+   * [associate] decides the association of a local SDK with its working directory: `true` associates it, `false`
+   * makes it shared, and `null` lets its environment decide, see [PythonEnvironment.requiresAssociation].
+   */
+  suspend fun addPythonInterpreter(
+    homePath: String,
+    data: PythonSdkAdditionalData,
+    suggestedName: String? = null,
+    setupPaths: Boolean = true,
+    associate: Boolean? = null,
+  ): PythonInterpreter {
+    val sdkType = SdkType.findByName(PyNames.PYTHON_SDK_ID_NAME) ?: error("The Python SDK type is not registered")
+    val existingSdks = PythonSdkUtil.getAllSdks()
+    if (data !is PyRemoteSdkAdditionalDataMarker) {
+      data.associate(Path.of(homePath), associate)
+      findSdkToAdopt(Path.of(homePath), existingSdks) { suggestedName ?: sdkType.suggestSdkName(null, homePath) }?.let { sdk ->
+        edtWriteAction {
+          val modificator = sdk.sdkModificator
+          modificator.sdkAdditionalData = data
+          modificator.commitChanges()
+        }
+        return sdk.pythonInterpreterAsync()
+      }
+    }
+
+    @Suppress("SETUP_SDK_DIRECTLY") // The registry is the only place that creates a Python SDK.
+    val sdk = SdkConfigurationUtil.createSdk(existingSdks, homePath, sdkType, data, suggestedName)
+    val interpreter = addSdk(sdk)
+    if (setupPaths) {
+      try {
+        sdkType.setupSdkPaths(sdk)
+      }
+      catch (e: Throwable) {
+        // Do not leave a broken SDK in the table.
+        withContext(NonCancellable) { removeSdk(sdk) }
+        throw e
+      }
+    }
+    return interpreter
   }
+
+  /**
+   * Adds a prebuilt mock [sdk] for a test. A mock SDK has no real interpreter, so [addPythonInterpreter] cannot create
+   * it. Remove it with [removePythonInterpreter].
+   */
+  @TestOnly
+  suspend fun addMockPythonInterpreter(sdk: Sdk): PythonInterpreter = addSdk(sdk)
+
+  /** Removes [interpreter] from the SDK table. Returns when the set no longer holds it. */
+  suspend fun removePythonInterpreter(interpreter: PythonInterpreter) {
+    removeSdk(interpreter.sdk)
+  }
+
+  /**
+   * Adds [sdk] to the SDK table and returns its interpreter. The table event recomputes the set, and this function
+   * returns when the set holds the interpreter, so a caller that reads the set next finds it.
+   *
+   * The name check and the add are one write action, so two parallel calls cannot add two SDKs with one name.
+   */
+  private suspend fun addSdk(sdk: Sdk): PythonInterpreter {
+    edtWriteAction {
+      makeSureNameIsUnique(sdk)
+      ProjectJdkTable.getInstance().addJdk(sdk)
+    }
+    return state.mapNotNull { set -> set?.firstOrNull { it.isFor(sdk) } }.first()
+  }
+
+  /** Removes [sdk] from the SDK table. Returns when the set no longer holds its interpreter. */
+  private suspend fun removeSdk(sdk: Sdk) {
+    edtWriteAction { ProjectJdkTable.getInstance().removeJdk(sdk) }
+    state.first { set -> set != null && set.none { it.isFor(sdk) } }
+  }
+
+  private suspend fun compute(): Set<PythonInterpreter> =
+    PythonSdkUtil.getAllSdks()
+      .filter { it.sdkAdditionalData is PythonSdkAdditionalData }
+      .mapTo(mutableSetOf()) { it.pythonInterpreterAsync() }
 
   /** An event for each change of the SDK table. The table is small, so every change starts a recompute. */
   private fun sdkTableChanges(): Flow<Unit> = callbackFlow {
@@ -85,21 +162,12 @@ class PythonInterpreterProjectRegistry(private val project: Project, scope: Coro
 
   companion object {
     fun getInstance(project: Project): PythonInterpreterProjectRegistry = project.service()
-
-    private val BASE_DIR_ENTITIES = listOf(ModuleEntity::class.java, ContentRootEntity::class.java)
   }
-}
-
-/** Whether this SDK is shared, with no associated module, or is associated with one of [baseDirs]. */
-private fun Sdk.isAvailableFor(baseDirs: Set<Path>): Boolean {
-  val associatedPath = associatedModuleNioPath
-  return associatedPath == null || associatedPath in baseDirs
 }
 
 /**
  * The interpreter of [sdk], from [PythonInterpreterProjectRegistry]. Waits for the first computation.
- * For a caller that the platform passes an [Sdk]. `null` means that this project cannot use [sdk]: it is broken, or it
- * is associated with another project.
+ * For a caller that the platform passes an [Sdk]. `null` means that this project cannot use [sdk].
  */
 @ApiStatus.Internal
 suspend fun Project.findPythonInterpreter(sdk: Sdk): PythonInterpreter? =
@@ -109,3 +177,52 @@ suspend fun Project.findPythonInterpreter(sdk: Sdk): PythonInterpreter? =
 @ApiStatus.Internal
 fun Project.findPythonInterpreterIfReady(sdk: Sdk): PythonInterpreter? =
   PythonInterpreterProjectRegistry.getInstance(this).interpretersOrNull()?.firstOrNull { it.isFor(sdk) }
+
+/**
+ * The usual SDK that already stands for the interpreter at [pythonBinaryPath], or `null` when none does. A usual SDK is
+ * one whose data carries no [PyRemoteSdkAdditionalDataMarker].
+ *
+ * The IDE keeps one usual SDK for each interpreter, not one for each interpreter and tool. A `.venv` that poetry
+ * created, and uv then adopted, is one environment. A second SDK for it reads as a second interpreter in every list the
+ * IDE shows.
+ *
+ * Older builds also keyed on the tool, so one path can carry several SDKs already. The SDK named [preferredName] wins,
+ * because that is the name a new SDK gets here. If no SDK has that name, the first one wins, so the answer is stable.
+ * [preferredName] is read only when there is more than one candidate, because it reads the file system.
+ */
+private fun findSdkToAdopt(pythonBinaryPath: PythonBinary, existingSdks: List<Sdk>, preferredName: () -> String): Sdk? {
+  // Compared as paths, not as strings, because `c:\windows` and `c:/Windows` name one file.
+  val candidates = existingSdks.filter {
+    it.sdkAdditionalData !is PyRemoteSdkAdditionalDataMarker && it.pythonBinaryPath().successOrNull == pythonBinaryPath
+  }
+  if (candidates.size < 2) return candidates.firstOrNull()
+  val name = preferredName()
+  return candidates.firstOrNull { it.name == name } ?: candidates.first()
+}
+
+/**
+ * Associates a new local SDK with its working directory, or makes it shared, as [associate] says. With `null`, the
+ * environment decides: an environment that belongs to one project is associated, and a system Python or a base conda
+ * install is shared. See [PythonEnvironment.requiresAssociation].
+ *
+ * A remote SDK is associated by the [PythonSdkAdditionalData] constructor.
+ */
+private suspend fun PythonSdkAdditionalData.associate(pythonBinaryPath: PythonBinary, associate: Boolean?) {
+  if (!hasValidWorkingDirectory()) return
+  val requiresAssociation = associate ?: withContext(Dispatchers.IO) {
+    pythonBinaryPath.detectPythonEnvironment().successOrNull?.requiresAssociation
+  } ?: false
+  setAssociatedModulePath(if (requiresAssociation) workingDirectory.toString() else null)
+}
+
+@RequiresWriteLock(generateAssertion = false /* IJPL-115548 */)
+private fun makeSureNameIsUnique(sdk: Sdk) {
+  val name = sdk.name
+  var i = 1
+  while (ProjectJdkTable.getInstance().findJdk(sdk.name) != null) {
+    val m = sdk.sdkModificator
+    m.name = "$name@$i"
+    i += 1
+    m.commitChanges()
+  }
+}

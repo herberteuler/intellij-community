@@ -149,6 +149,8 @@
 
     <advancedSetting id="terminal.show.application.title" default="false" groupKey="group.advanced.settings.terminal" visible="false"/>
 
+    <colorSettingsPage implementation="com.intellij.openapi.options.colors.pages.ANSIColoredConsoleColorsPage" id="ansi"/>
+
     <registryKey defaultValue="false"
                  description="Run implementation for split mode."
                  key="run.toolwindow.split.enabled"

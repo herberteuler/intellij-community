@@ -253,6 +253,21 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
   // ---- mode wiring: a mode the program sets reaches the encoder through the live terminal state ----
 
   @Test
+  fun `DECBKM switches Backspace between DEL and BS`() = runSessionTest { session, connector, _ ->
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_BACK_SPACE, Char(8))))).isEqualTo(Char(127).toString())
+    applyModes(connector, csi("?67h"))
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_BACK_SPACE, Char(8))))).isEqualTo(Char(8).toString())
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_BACK_SPACE, Char(8), InputEvent.CTRL_DOWN_MASK)))).isEqualTo(Char(127).toString())
+  }
+
+  @Test
+  fun `modifyOtherKeys state 2 encodes a modified character as CSI 27`() = runSessionTest { session, connector, _ ->
+    applyModes(connector, csi(">4;2m"))
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_H, Char(8), InputEvent.CTRL_DOWN_MASK or InputEvent.SHIFT_DOWN_MASK)))).isEqualTo(csi("27;6;72~"))
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_P, Char(16), InputEvent.CTRL_DOWN_MASK)))).isEqualTo(csi("27;5;112~"))
+  }
+
+  @Test
   fun `mode 1036 reset drops the ESC prefix of an alt chord`() = runSessionTest { session, connector, _ ->
     val options = TerminalOptionsProvider.instance
     val useOptionAsMetaKey = options.useOptionAsMetaKey
@@ -267,7 +282,39 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
     }
   }
 
+  @Test
+  fun `kitty flags push and pop`() = runSessionTest { session, connector, _ ->
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_ESCAPE, Char(27))))).isEqualTo(Char(27).toString())
+    applyModes(connector, csi(">1u"))
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_ESCAPE, Char(27))))).isEqualTo(csi("27u"))
+    applyModes(connector, csi("<u"))
+    assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_ESCAPE, Char(27))))).isEqualTo(Char(27).toString())
+  }
+
   // ---- policy of this layer ----
+
+  @Test
+  fun `the scroll-to-bottom flag follows the result path`() = runSessionTest { session, connector, _ ->
+    // "Scroll to the bottom on typing" is on by default: a navigation key, typed text and a chord scroll,
+    // a function key and a release do not.
+    assertThat(session.processKeyEvent(pressed(KeyEvent.VK_UP)).shouldScrollToBottom).isTrue()
+    assertThat(session.processKeyEvent(pressed(KeyEvent.VK_F5)).shouldScrollToBottom).isFalse()
+    assertThat(session.processKeyEvent(typed('a')).shouldScrollToBottom).isTrue()
+    assertThat(session.processKeyEvent(pressed(KeyEvent.VK_C, Char(3), InputEvent.CTRL_DOWN_MASK)).shouldScrollToBottom).isTrue()
+    applyModes(connector, csi(">3u"))
+    assertThat(session.processKeyEvent(pressed(KeyEvent.VK_A, 'a'))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    assertThat(session.processKeyEvent(typed('a')).shouldScrollToBottom).isTrue()
+    assertThat(session.processKeyEvent(released(KeyEvent.VK_A, 'a')).shouldScrollToBottom).isFalse()
+  }
+
+  @Test
+  fun `a command chord types nothing on macOS and stays with the IDE`() {
+    Assume.assumeTrue(SystemInfoRt.isMac)
+    runSessionTest { session, _, _ ->
+      assertThat(session.processKeyEvent(pressed(KeyEvent.VK_B, 'b', InputEvent.META_DOWN_MASK))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+      assertThat(session.processKeyEvent(typed('b', InputEvent.META_DOWN_MASK))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    }
+  }
 
   @Test
   fun `key releases are left to the IDE`() = runSessionTest { session, _, _ ->

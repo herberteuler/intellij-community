@@ -57,8 +57,8 @@
       ExportSettings
       <separator>
       RestoreDefaultSettings
-      SaveAsNewFormat
       SettingsSyncOpenSettingsAction
+      SaveAsNewFormat
     FileOtherSettingsGroup
       TemplateProjectProperties
       RunConfigurationTemplatesForNewProjects
@@ -878,13 +878,6 @@
         DumpGroovyControlFlowAction
       DetectProjectLeaks
       TestJbProtocolCommand
-      FeatureUsage.Internal
-        OpenStatisticsEventLogAction
-        RecordStateCollectors
-        AddGroupToTestSchemeAction
-        CollectFUStatisticsAction
-      PythonPsiInternalGroup
-        PyTypeBenchmarkAction
       Vcs.Internal
         Vcs.Log.Internal
           Vcs.Log.InvalidateCaches
@@ -894,6 +887,13 @@
           Git.Log.Internal
             Git.Log.Show.Command
         Git.Cleanup.Branches
+      FeatureUsage.Internal
+        OpenStatisticsEventLogAction
+        RecordStateCollectors
+        AddGroupToTestSchemeAction
+        CollectFUStatisticsAction
+      PythonPsiInternalGroup
+        PyTypeBenchmarkAction
       IFTInternalActions
         DumpFeaturesTrainerText
         AutorunAllLessons
@@ -922,10 +922,6 @@
         TopAnomalies
         KeymapToCsv
         CompareKeymaps
-      PythonGenerateDictionaries
-      Internal.Python
-        PyUpdateProjectSdk
-        PySetPropertyAction
       ShowUpdateDialogAction
       TriggerProjectIndexableFilesFilterHealthCheck
       ImageDuplicates
@@ -937,6 +933,10 @@
       UastInternal
         DumpUastLog
         DumpUastLogByElement
+      PythonGenerateDictionaries
+      Internal.Python
+        PyUpdateProjectSdk
+        PySetPropertyAction
       Internal1
         <separator>
         Merge3Files
@@ -1877,13 +1877,13 @@
   Code.Review.Editor.Show.Diff
   Code.Review.Editor.New.Comment
   XmlGenerateToolsGroup
-  OpenInSceneBuilder
-  Maven.GlobalProjectMenu
   Git.Stage.Index.File.Menu
   GitLab.Create.Snippet
   Github.Create.Gist
   Github.PullRequest.Changed.MarkViewed.Toggle
   Mermaid.ExportDiagram
+  OpenInSceneBuilder
+  Maven.GlobalProjectMenu
   JsonPathEvaluateAction
   ChangeTemplateDataLanguage
   XPathView.EditorPopup
@@ -1970,12 +1970,12 @@
   ReopenClosedTab
   popup@ExpandableBookmarkContextMenu
   EditorTabPopupMenuEx
-  ConvertJavaToKotlin
-  ConvertJavaToKotlinGroup
-  ExcludeFromStubGeneration
-  OpenInSceneBuilder
   GitLab.Create.Snippet
   Github.Create.Gist
+  ConvertJavaToKotlin
+  ConvertJavaToKotlinGroup
+  OpenInSceneBuilder
+  ExcludeFromStubGeneration
 [group EditorTabPopupMenuEx]
   <separator>
   Scratch.ChangeLanguage
@@ -2070,8 +2070,8 @@
   ExportSettings
   <separator>
   RestoreDefaultSettings
-  SaveAsNewFormat
   SettingsSyncOpenSettingsAction
+  SaveAsNewFormat
 [group ExternalToolsGroup]
 [group ExtractMethodToolWindow.TreePopup]
   EditSource
@@ -2223,17 +2223,17 @@
   KotlinGenerateGroup
   JavaGenerateGroup1
   GroovyGenerateGroup1
-  GenerateXmlTag
   Gradle.GenerateGroup
+  GenerateXmlTag
   ShGenerateGroup
   OverrideMethods
   ImplementMethods
   DelegateMethods
   GenerateFromTestCreatorsGroup
   Markdown.InsertGroup
-  GenerateCopyright
   HtmlAddTableColumnBefore
   HtmlAddTableColumnAfter
+  GenerateCopyright
   org.editorconfig.configmanagement.generate.EditorConfigGenerateLanguagePropertiesAction
   JavaGenerateGroup2
   KotlinMavenGenerate
@@ -2344,7 +2344,7 @@
   <separator>
   VersionControlsGroup
   <separator>
-  ExternalToolsGroup
+  ExternalToolsGroupInHierarchyPopupMenu
   <separator>
   CompareTwoFiles
   CompareFileWithEditor
@@ -2728,11 +2728,14 @@
   ExternalToolsGroup
   <separator>
   ProjectViewPopupMenuSettingsGroup
-  UpdateCopyright
   DissociateResourceBundleAction
   CombinePropertiesFilesAction
   Images.SetBackgroundImage
   XmlGenerateToolsGroup
+  UpdateCopyright
+  GitLab.Create.Snippet
+  Github.Create.Gist
+  Mermaid.ExportDiagram
   ConvertJavaToKotlin
   ConvertJavaToKotlinGroup
   OpenInSceneBuilder
@@ -2740,12 +2743,9 @@
   Maven.GlobalProjectMenu
   AddAntBuildFile
   XPathView.XSLT.Associations
-  GitLab.Create.Snippet
-  Github.Create.Gist
-  Mermaid.ExportDiagram
-  Gradle.ProjectViewDependencyAnalyzer
   Images.EditExternally
   Images.ConvertSvgToPng
+  Gradle.ProjectViewDependencyAnalyzer
   PackageFile
   Maven.ProjectViewDependencyAnalyzer
   PluginDeployActions
@@ -2832,10 +2832,10 @@
   OpenInAssociatedApplication
   OpenInBrowserGroup
   ShowFilePath
-  PyOpenInPythonConsole
   Terminal.OpenInTerminal
   Terminal.OpenInReworkedTerminal
   Git.Hosting.Open.In.Browser.Group
+  PyOpenInPythonConsole
 [group RightToolbarSideGroup]
   CompileDirty
   SettingsEntryPoint

@@ -74,6 +74,7 @@ internal fun AnActionEvent.projectCreationPresenter(forNewProject: Boolean): PyP
               ?: return null
 
   val module = LangDataKeys.MODULE.getData(dataContext) ?: return null
+  // The action's update cannot suspend, so it peeks at the snapshot. Before the first one, the action stays hidden.
   val snapshot = EvoPyProjectModel.getInstance(module.project).snapshotOrNull() ?: return null
   val interpreter = snapshot.evoPyProjects.firstOrNull { it.pyProject.residesOnModule == module }?.interpreter ?: return null
   return PyProjectPresenter.create(where = vPath, interpreter = interpreter, forNewProject = forNewProject)

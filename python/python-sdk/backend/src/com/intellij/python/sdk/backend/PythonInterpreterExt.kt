@@ -30,10 +30,7 @@ import com.jetbrains.python.Result
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.run.PythonInterpreterTargetEnvironmentFactory
 import com.jetbrains.python.run.target.HelpersAwareTargetEnvironmentRequest
-import com.jetbrains.python.project.PyProject
-import com.jetbrains.python.sdk.PythonSdkAdditionalData
 import com.jetbrains.python.sdk.associatedModuleDir
-import com.jetbrains.python.sdk.pythonSdk
 import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
 import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import com.jetbrains.python.sdk.pySdkAdditionalData
@@ -167,16 +164,6 @@ val PythonInterpreter.addedPathFiles: Set<VirtualFile>
 /** The directory of the module this interpreter was created for, or `null` when it records none. */
 val PythonInterpreter.associatedModuleDir: VirtualFile?
   get() = sdk.associatedModuleDir
-
-/**
- * Makes [interpreter] the interpreter of this project. The project stores it on its module.
- *
- * Must be called under [com.jetbrains.python.sdk.withSdkConfigurationLock] to prevent concurrent Module/SDK changes.
- */
-@Internal
-fun PyProject.setInterpreter(interpreter: PythonInterpreter) {
-  residesOnModule.pythonSdk = interpreter.sdk
-}
 
 /**
  * Whether this interpreter wraps [sdk].

@@ -19,7 +19,10 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.ListPopup
 import com.intellij.openapi.util.Condition
 import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.intellij.python.sdk.backend.asInterpreterRef
+import com.intellij.python.sdk.backend.pythonInterpreterAsync
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
 import com.intellij.python.sdk.common.PyInterpreterItem
 import com.intellij.ui.popup.ActionPopupOptions
 import com.intellij.ui.popup.ActionPopupStep
@@ -205,7 +208,12 @@ class PySdkPopupFactory(val module: Module) {
       }
     }
 
-    override fun actionPerformed(e: AnActionEvent) = runWithSdkConfigurationLock(module.project) { module.pythonSdk = sdk }
+    override fun actionPerformed(e: AnActionEvent) {
+      runWithSdkConfigurationLock(module.project) {
+        // The popup does not read the snapshot back.
+        module.asPyProject()?.setPythonInterpreter(sdk.pythonInterpreterAsync(), waitForSnapshot = false)
+      }
+    }
   }
 
   private inner class InterpreterSettingsAction : DumbAwareAction(PyBundle.messagePointer("python.sdk.popup.interpreter.settings")) {

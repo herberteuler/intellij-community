@@ -96,7 +96,6 @@ import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.errorProcessing.emit
 import com.jetbrains.python.getOrNull
 import com.jetbrains.python.impl.getRootModuleOrNull
-import com.jetbrains.python.module.PyModuleService
 import com.jetbrains.python.packaging.PyVersionSpecifiers
 import com.jetbrains.python.packaging.management.PythonPackageManager
 import com.jetbrains.python.project.project
@@ -118,7 +117,8 @@ import com.jetbrains.python.sdk.configuration.CreateSdkInfoWithTool
 import com.jetbrains.python.sdk.configuration.PyProjectSdkConfigurationExtension
 import com.jetbrains.python.sdk.configuration.VENV_TOOL_ID
 import com.jetbrains.python.sdk.configuration.getInterpreterCreator
-import com.jetbrains.python.sdk.configurePythonSdk
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
 import com.jetbrains.python.sdk.evolution.PyEvoSdkApiImpl.applySdk
 import com.jetbrains.python.sdk.evolution.PyEvoSdkApiImpl.dependencyFileContext
 import com.jetbrains.python.sdk.evolution.PyEvoSdkApiImpl.doSelectInterpreter
@@ -951,14 +951,14 @@ private object PyEvoSdkApiImpl : PyEvoSdkApi {
    * ([EvoWorkspace.members]), since a uv/poetry workspace has a single shared environment and leaving the siblings
    * on their previous interpreter would make the same environment disagree with itself across the project.
    *
-   * Uses `configurePythonSdk` (the setter the inspection's fix and the add-interpreter dialog use): it does the EDT
+   * Uses [setPythonInterpreter] (the setter the inspection's fix and the add-interpreter dialog use): it does the EDT
    * write, promotes the SDK to the project level when the module is the project root, and excludes the inner venv.
-   * Must be called under the SDK-configuration lock.
+   * The widget does not read the snapshot back, so it does not wait for it. Must be called under the SDK-configuration
+   * lock.
    */
-  private fun EvoWorkspace.applySdk(pythonInterpreter: PythonInterpreter) {
+  private suspend fun EvoWorkspace.applySdk(pythonInterpreter: PythonInterpreter) {
     for (member in members) {
-      val module = member.pyProject.residesOnModule
-      configurePythonSdk(module.project, module, pythonInterpreter)
+      member.pyProject.setPythonInterpreter(pythonInterpreter, waitForSnapshot = false)
     }
   }
 
@@ -1038,7 +1038,7 @@ private object PyEvoSdkApiImpl : PyEvoSdkApi {
     }
     // A tool root outside the widget's own workspace (a differently-scoped tool) still gets the SDK, as before. The
     // widget's workspace is tool-agnostic, so a tool that declares another root is not covered by [EvoWorkspace].
-    module.getRootModuleOrNull(option.toolId)?.also { configurePythonSdk(it.project, it, sdk) }
+    module.getRootModuleOrNull(option.toolId)?.asPyProject()?.setPythonInterpreter(sdk, waitForSnapshot = false)
     applySdk(sdk)
     // Same continuity argument as in doSelectInterpreter: a "Shortcuts" row configures an interpreter too, and the
     // `python.sdk.configuration` events these options already emit describe the env creation, not the SDK that landed.
@@ -1242,10 +1242,11 @@ private object PyEvoSdkApiImpl : PyEvoSdkApi {
     // creates with the module — and with the rest of its workspace (target wizards report the new SDK via this
     // callback; the local dialog also self-associates).
     val actions = collectAddInterpreterActions(ModuleOrProject.ModuleAndProject(target.pyProject.pyProject)) { sdk ->
-      // setPythonSdk → ModuleRootModificationUtil.setModuleSdk does its own EDT write (invokeAndWait); calling it inside
-      // a write action deadlocks, so run it plainly on a background coroutine.
+      // The callback may run inside a write action, and the setter does its own EDT write, so it runs on a background
+      // coroutine. The widget does not read the snapshot back.
       widgetScope.launch {
-        for (member in target.workspace.members) PyModuleService.getInstance(project).setPythonSdk(member.pyProject.residesOnModule, sdk)
+        val interpreter = sdk.pythonInterpreterAsync()
+        for (member in target.workspace.members) member.pyProject.setPythonInterpreter(interpreter, waitForSnapshot = false)
       }
     }
     val action = actions.getOrNull(index) ?: run {

@@ -2,7 +2,6 @@
 package com.jetbrains.python.sdk
 
 import com.intellij.execution.target.sdkMatchesEel
-import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.ProjectJdkTable
@@ -86,11 +85,6 @@ fun Project.renameSdk(oldName: String, newName: String): PyResult<Unit> {
  */
 @Internal
 fun ModuleOrProject.getAssignablePythonSdks(): List<Sdk> = filterAssignablePythonSdks(PythonSdkUtil.getAllSdks())
-
-/** First module in this project whose configured Python SDK equals [sdk], or `null` if none matches. */
-@Internal
-fun Project.findModuleForSdk(sdk: Sdk): Module? =
-  ModuleManager.getInstance(this).modules.find { PythonSdkUtil.findPythonSdk(it) == sdk }
 
 /**
  * Filters and sorts [sdks] the same way [getAssignablePythonSdks] does. The "Python Interpreters" dialog passes the editable

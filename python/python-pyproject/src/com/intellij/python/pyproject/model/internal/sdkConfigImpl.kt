@@ -11,8 +11,8 @@ import com.intellij.python.pyproject.model.api.autoConfigureSdkExistingOnly
 import com.intellij.python.pyproject.model.api.getModuleSdkState
 import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
 import com.intellij.python.pyproject.statistics.PyProjectTomlCollector
-import com.intellij.python.sdk.backend.getSdkAPI
-import com.intellij.python.sdk.backend.setInterpreter
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
+import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.jetbrains.python.Result
 import com.jetbrains.python.errorProcessing.PyError
 import com.jetbrains.python.sdk.configuration.CreateInterpreterInfo
@@ -20,8 +20,6 @@ import com.jetbrains.python.sdk.configuration.CreateInterpreterInfoWithInterpret
 import com.jetbrains.python.sdk.configuration.CreateSdkInfoWithToolBase
 import com.jetbrains.python.sdk.configuration.getInterpreterCreator
 import com.jetbrains.python.sdk.findPythonSdk
-import com.jetbrains.python.sdk.pythonSdk
-import com.jetbrains.python.sdk.setAssociationToModule
 import com.jetbrains.python.sdk.withSdkConfigurationLock
 
 /**
@@ -117,11 +115,8 @@ private suspend fun <T : Any> SdkForModuleConfigInstruction.autoConfigureSdkImpl
                 // Creation failed
                 is Result.Failure -> ConfigOutcome.Failed(InterpreterConfigurationResult.NotConfigured(sdkSetup.sdkResultMapper(createSdk.error)))
                 is Result.Success -> {
-                  // Creation success, save it
-                  val pythonInterpreter = createSdk.result
-                  module.pythonSdk = pythonInterpreter.getSdkAPI().also {
-                    it.setAssociationToModule(module)
-                  }
+                  // Creation success, save it. autoConfigureSdk waits for the snapshot once, after the lock.
+                  pyProject.setPythonInterpreter(createSdk.result, waitForSnapshot = false)
                   PyProjectTomlCollector.sdkCreatedAutomatically(toolId)
                   ConfigOutcome.Configured()
                 }
@@ -139,7 +134,9 @@ private suspend fun <T : Any> SdkForModuleConfigInstruction.autoConfigureSdkImpl
 
       // Save the parent SDK, but do not associate it with this module, as it belongs to the parent
       suspend fun inheritFromParent(): ConfigOutcome.Configured<T> {
-        module.pythonSdk = parent.residesOnModule.findPythonSdk()
+        parent.residesOnModule.findPythonSdk()?.pythonInterpreterAsync()?.let {
+          pyProject.setPythonInterpreter(it, waitForSnapshot = false)
+        }
         return ConfigOutcome.Configured()
       }
 
@@ -149,7 +146,7 @@ private suspend fun <T : Any> SdkForModuleConfigInstruction.autoConfigureSdkImpl
       when (val parentSdkResult = parent.getModuleSdkState(fresh = true)) {
         is ModuleSdkState.HasSdk -> {
           // Parent already has SDK
-          pyProject.setInterpreter(parentSdkResult.interpreter)
+          pyProject.setPythonInterpreter(parentSdkResult.interpreter, waitForSnapshot = false)
           ConfigOutcome.Configured()
         }
         is ModuleSdkState.NoSdk -> {

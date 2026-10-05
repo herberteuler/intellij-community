@@ -15,7 +15,6 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.options.ex.Settings
 import com.intellij.openapi.project.DumbAwareAction
@@ -32,8 +31,10 @@ import com.intellij.ui.dsl.listCellRenderer.listCellRenderer
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.JBUI.CurrentTheme.Popup.Selection.LEFT_RIGHT_INSET
 import com.jetbrains.python.PyBundle
-import com.jetbrains.python.PyInternalExecApi
-import com.jetbrains.python.module.PyModuleService
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
+import com.intellij.python.sdk.backend.pythonInterpreterAsync
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
+import com.jetbrains.python.sdk.runWithSdkConfigurationLock
 import com.jetbrains.python.packaging.utils.PyPackageCoroutine
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.sdk.collectAddInterpreterActions
@@ -280,14 +281,14 @@ internal class PyModuleDetailsPane(
     sourcesHolder.repaint()
   }
 
-  @OptIn(PyInternalExecApi::class)
   private fun applySdkChange(inherited: Boolean, chosen: Sdk?) {
     if (inherited) {
       ModuleRootModificationUtil.updateModel(module) { it.inheritSdk() }
     }
     else {
-      WriteAction.run<RuntimeException> {
-        PyModuleService.getInstance(project).setPythonSdk(module, chosen)
+      // Settings applies on the EDT and does not read the snapshot back.
+      runWithSdkConfigurationLock(project) {
+        module.asPyProject()?.setPythonInterpreter(chosen?.pythonInterpreterAsync(), waitForSnapshot = false)
       }
     }
   }

@@ -1,9 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.newProjectWizard
 
+import com.jetbrains.python.sdk.asPyProjectAddingFacet
 import com.intellij.openapi.GitRepositoryInitializer
 import com.intellij.openapi.module.Module
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.ide.progress.withBackgroundProgress
@@ -15,7 +15,7 @@ import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.newProject.collector.InterpreterStatisticsInfo
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.sdk.add.v2.PySdkCreator
-import com.jetbrains.python.sdk.configurePythonSdk
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.jetbrains.python.sdk.withSdkConfigurationLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -53,7 +53,7 @@ class PyV3BaseProjectSettings(var createGitRepository: Boolean = false) {
     val sdkResult = withSdkConfigurationLock(module.project) {
       val (pythonInterpreter: PythonInterpreter, interpreterStatistics: InterpreterStatisticsInfo) = getSdkAndInterpreter(module).getOr { return@withSdkConfigurationLock it }
 
-      configurePythonSdk(project, module, pythonInterpreter)
+      module.asPyProjectAddingFacet()?.setPythonInterpreter(pythonInterpreter)
       Result.success(Pair(pythonInterpreter, interpreterStatistics))
     }
     return@coroutineScope sdkResult

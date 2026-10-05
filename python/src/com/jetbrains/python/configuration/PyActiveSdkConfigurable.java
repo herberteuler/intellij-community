@@ -61,7 +61,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static com.jetbrains.python.configuration.SdkConfigurationProgressObserverKt.observeSdkConfigurationInProgress;
-import static com.jetbrains.python.sdk.ModuleExKt.setPythonSdk;
 import static com.jetbrains.python.sdk.PySdkRenderingKt.groupInterpreterItemsByTypesUnderProgress;
 import static com.jetbrains.python.sdk.legacy.PythonSdkUtil.isRemote;
 
@@ -255,7 +254,7 @@ public class PyActiveSdkConfigurable implements UnnamedConfigurable {
 
     if (myModule != null) {
       PyTransferredSdkRootsKt.removeTransferredRoots(myModule, currentSdk);
-      setPythonSdk(myModule, item);
+      PyModuleInterpreterSetter.setPythonInterpreterBlocking(myModule, item);
       PyTransferredSdkRootsKt.transferRoots(myModule, item);
     }
   }

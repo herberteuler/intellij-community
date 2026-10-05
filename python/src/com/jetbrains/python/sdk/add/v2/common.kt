@@ -48,9 +48,6 @@ import com.jetbrains.python.sdk.configuration.PIPENV_TOOL_ID
 import com.jetbrains.python.sdk.configuration.VENV_TOOL_ID
 import com.jetbrains.python.sdk.createSdkGuessingTypeByPath
 import com.jetbrains.python.sdk.excludeInnerVirtualEnv
-import com.jetbrains.python.sdk.moduleIfExists
-import com.jetbrains.python.sdk.pythonSdk
-import com.jetbrains.python.sdk.setAssociationToModule
 import com.jetbrains.python.statistics.InterpreterTarget
 import com.jetbrains.python.statistics.PythonInterpreterInstallationIdsHolder.Companion.PYTHON_INSTALLATION_INTERRUPTED
 import com.jetbrains.python.target.ui.TargetPanelExtension
@@ -87,17 +84,18 @@ abstract class PythonAddEnvironment<P : PathHolder>(open val model: PythonAddInt
    */
   protected abstract suspend fun getOrCreateSdk(moduleOrProject: ModuleOrProject): PyResult<PythonInterpreter>
 
+  /**
+   * Creates the interpreter this panel describes, or finds the one that exists. A new SDK gets its module association
+   * when it is created.
+   *
+   * It does not make the interpreter the interpreter of a project. The caller does that with
+   * [com.intellij.python.pyproject.model.evolution.setPythonInterpreter].
+   */
   @ApiStatus.Internal
   suspend fun setupSdk(moduleOrProject: ModuleOrProject): PyResult<PythonInterpreter> {
     savePathToExecutableToProperties()
     val pythonInterpreter = getOrCreateSdk(moduleOrProject).getOr { return it }
-    val sdk = pythonInterpreter.getSdkAPI()
-    moduleOrProject.project.excludeInnerVirtualEnv(sdk)
-    moduleOrProject.moduleIfExists?.let {
-      it.pythonSdk = sdk
-      sdk.setAssociationToModule(it)
-    }
-
+    moduleOrProject.project.excludeInnerVirtualEnv(pythonInterpreter.getSdkAPI())
     return Result.success(pythonInterpreter)
   }
 

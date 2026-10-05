@@ -33,7 +33,6 @@ import com.intellij.python.pyproject.model.api.InterpreterConfigurationError
 import com.intellij.python.pyproject.model.api.InterpreterConfigurationResult
 import com.intellij.python.pyproject.model.api.autoConfigureSdkDoNotCreateFiles
 import com.intellij.python.pyproject.model.api.getModuleSdkState
-import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
 import com.intellij.python.pyproject.statistics.PyProjectTomlCollector
 import com.intellij.python.pytools.backend.PyTool
 import com.intellij.python.pytools.backend.performToolInstallation
@@ -52,7 +51,7 @@ import com.jetbrains.python.sdk.configuration.CreateInterpreterInfo
 import com.jetbrains.python.sdk.configuration.CreateSdkInfoWithTool
 import com.jetbrains.python.sdk.configuration.getInterpreterCreator
 import com.jetbrains.python.sdk.configuration.suppressors.suppressTipAndInspectionsFor
-import com.jetbrains.python.sdk.configurePythonSdk
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.intellij.python.sdk.backend.PySdkBundle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
@@ -301,11 +300,9 @@ private suspend fun setSdkUsingCreateSdkInfo(module: Module, createSdkInfoWithTo
       return@withContext
     }
 
-    val rootModule = module.getRootModuleOrNull(createSdkInfoWithTool.toolId)?.also { configurePythonSdk(it.project, it, sdk) }
-    configurePythonSdk(module.project, module, sdk)
     // Before the waiter releases its callers, so they read the new interpreter from the snapshot.
-    val written = listOfNotNull(module, rootModule).mapNotNull { it.asPyProject() }
-    EvoPyProjectModel.getInstance(module.project).awaitInterpreterOf(written)
+    module.getRootModuleOrNull(createSdkInfoWithTool.toolId)?.asPyProject()?.setPythonInterpreter(sdk)
+    module.asPyProject()?.setPythonInterpreter(sdk)
     logger.debug("Successfully configured sdk using ${createSdkInfoWithTool.toolId}")
   }
 }

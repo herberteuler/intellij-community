@@ -11,7 +11,7 @@ import com.intellij.python.sdk.backend.getSdkAPI
 import com.jetbrains.python.project.PyProject
 import com.jetbrains.python.project.project
 import com.jetbrains.python.sdk.baseDir
-import com.jetbrains.python.sdk.pythonSdk
+import com.jetbrains.python.sdk.writePythonSdk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
@@ -20,6 +20,8 @@ import org.jetbrains.annotations.ApiStatus
  * Makes [interpreter] the interpreter of this project. It sets the SDK of the module, and of the project when the
  * module is at the project root. It also excludes a virtual environment inside the module. A `null` [interpreter]
  * removes the interpreter.
+ *
+ * It is the one way to set an interpreter. Tests that cannot use it call `Module.setPythonSdkForTests`.
  *
  * With [waitForSnapshot], it returns only when the snapshot holds [interpreter] for this project. Then a caller that
  * reads the snapshot next sees the new interpreter. Pass `false` when nothing reads the snapshot after the call, such
@@ -34,7 +36,7 @@ suspend fun PyProject.setPythonInterpreter(interpreter: PythonInterpreter?, wait
   if (project.basePath == module.baseDir?.path) {
     edtWriteAction { ProjectRootManager.getInstance(project).projectSdk = sdk }
   }
-  module.pythonSdk = sdk
+  module.writePythonSdk(sdk)
   interpreter?.let { excludeInnerVirtualEnv(it) }
   if (waitForSnapshot) EvoPyProjectModel.getInstance(project).awaitInterpreterOf(listOf(this))
 }

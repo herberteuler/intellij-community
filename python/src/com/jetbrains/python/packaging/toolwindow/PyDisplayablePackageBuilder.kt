@@ -9,6 +9,7 @@ import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ModuleOrderEntry
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.python.pyproject.PyDependencyGroup
+import com.intellij.python.pyproject.model.evolution.findModuleFor
 import com.intellij.python.requirements.PyPackageVersionNormalizer
 import com.jetbrains.python.packaging.PyPackageName
 import com.jetbrains.python.packaging.common.PythonOutdatedPackage
@@ -37,7 +38,6 @@ import com.jetbrains.python.packaging.toolwindow.model.UndeclaredPackagesGroup
 import com.jetbrains.python.packaging.toolwindow.model.WorkspaceMember
 import com.jetbrains.python.project.PyProject.Companion.getPyProjects
 import com.jetbrains.python.sdk.ModuleOrProject
-import com.jetbrains.python.sdk.findModuleForSdk
 import org.jetbrains.annotations.ApiStatus
 
 /**
@@ -112,7 +112,7 @@ private suspend fun buildAvailable(
   val packages = buildPackages(ctx, packageTree, packageIndex, declaredPackageNames, projectPackageNames, newNodeSet(), memberFilter)
   val jpsModule = when (moduleOrProject) {
     is ModuleOrProject.ModuleAndProject -> moduleOrProject.module
-    is ModuleOrProject.ProjectOnly -> readAction { project.findModuleForSdk(manager.sdk) }
+    is ModuleOrProject.ProjectOnly -> project.findModuleFor(manager.interpreter)
   }
   val jpsDeps = collectJpsModuleDependencyNames(project, jpsModule)
   return PyDisplayablePackagesResult(packages, aliasNames, jpsDeps, unavailable = null)
@@ -123,8 +123,6 @@ class PyPackageBuildContext(
   val project: Project,
   val manager: PythonPackageManager,
 ) {
-  /** Convenience accessor — [PythonPackageManager] already owns its SDK. */
-  val sdk: Sdk get() = manager.sdk
 }
 
 internal class PyBuilderPackageIndex(

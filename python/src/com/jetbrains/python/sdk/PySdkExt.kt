@@ -27,19 +27,6 @@ import java.nio.file.Path
 import kotlin.io.path.div
 import com.intellij.python.sdk.backend.pythonInterpreter
 
-@Internal
-fun configurePythonSdk(project: Project, module: Module, pythonInterpreter: PythonInterpreter) {
-  val sdk = pythonInterpreter.getSdkAPI()
-  // in case module contains root of the project we consider it as a project wide interpreter
-  if (project.basePath == module.baseDir?.path) {
-    project.pythonSdk = sdk
-  }
-
-  module.pythonSdk = sdk
-  module.excludeInnerVirtualEnv(sdk)
-}
-
-
 internal fun resetSystemWideSdksDetectors() {
   PythonSdkFlavor.getApplicableFlavors(false).forEach(PythonSdkFlavor<*>::dropCaches)
 }

@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.newProject
 
+import com.jetbrains.python.sdk.asPyProjectAddingFacet
 import com.intellij.ide.highlighter.ModuleFileType
 import com.intellij.ide.wizard.AbstractNewProjectWizardStep
 import com.intellij.ide.wizard.GitNewProjectWizardData.Companion.gitData
@@ -24,7 +25,7 @@ import com.jetbrains.python.onFailure
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.sdk.add.v2.PySdkCreator
 import com.jetbrains.python.sdk.add.v2.PythonSdkPanelBuilderAndSdkCreator
-import com.jetbrains.python.sdk.configurePythonSdk
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.jetbrains.python.sdk.moduleIfExists
 import com.jetbrains.python.sdk.runWithSdkConfigurationLock
 import kotlinx.coroutines.flow.Flow
@@ -143,7 +144,7 @@ class NewPythonProjectStep(parent: NewProjectWizardStep, val createPythonModuleS
       }
       pythonSdk = pythonInterpreter.getSdkAPI()
       moduleOrProject.moduleIfExists?.let { module ->
-        configurePythonSdk(project, module, pythonInterpreter)
+        module.asPyProjectAddingFacet()?.setPythonInterpreter(pythonInterpreter)
       }
     }
   }

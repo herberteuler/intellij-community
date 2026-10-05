@@ -12,10 +12,11 @@ import com.intellij.platform.eel.provider.LocalEelDescriptor
 import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.platform.eel.provider.utils.Path
 import com.intellij.util.EnvironmentUtil
+import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.intellij.python.pyproject.model.evolution.getInterpreter
 import com.intellij.python.sdk.backend.detectPythonEnvironment
 import com.intellij.python.sdk.backend.getPythonInfo
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.jetbrains.python.mapResult
 import com.jetbrains.python.PyBundle
 import com.jetbrains.python.PythonBinary
@@ -125,12 +126,14 @@ class PySdkFromEnvironmentVariable private constructor(
 
 
 
-    withSdkConfigurationLock(project) {
-      for (module in modules) {
+    val pyProjects = withSdkConfigurationLock(project) {
+      modules.mapNotNull { module ->
         check(module.project == project) { "Module $module is not in $project" }
-        module.pythonSdk = pythonInterpreter.getSdkAPI()
+        module.asPyProject()?.also { it.setPythonInterpreter(pythonInterpreter, waitForSnapshot = false) }
       }
     }
+    // Once for all modules, so that a caller that reads the snapshot next sees the new interpreter.
+    EvoPyProjectModel.getInstance(project).awaitInterpreterOf(pyProjects)
     return Result.success(Unit)
   }
 

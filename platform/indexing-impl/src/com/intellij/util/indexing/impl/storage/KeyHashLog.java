@@ -146,7 +146,7 @@ public final class KeyHashLog<Key> implements Closeable {
 
       hashMaskSet = getSuitableKeyHashes(filter);
 
-      if (useCachedHashIds && filteringScopeType != IdFilter.FilterScopeType.OTHER) {
+      if (useCachedHashIds && filteringScopeType == IdFilter.FilterScopeType.PROJECT_AND_LIBRARIES) {
         saveHashedIds(hashMaskSet, id, filteringScopeType, project);
       }
     }

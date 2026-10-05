@@ -130,8 +130,8 @@ public final class KeyStrokeMap {
       map.put(new Character((char)entry[0]), stroke);
     }
 
-    //// If the locale is not en_US/GB, provide only a very basic map and
-    //// rely on key_typed events instead
+    // If the locale is not en_US/GB, provide only a very basic map and
+    // rely on key_typed events instead
     //Locale locale = Locale.getDefault();
     //if (!Locale.US.equals(locale) && !Locale.UK.equals(locale)) {
     //  LOG.debug("Not US: " + locale);

@@ -228,6 +228,13 @@ internal class TerminalGenericFileFilterRelativePathTest {
   }
 
   @Test
+  fun `console configuration links absolute paths only`() {
+    // TerminalGenericFileFilterProvider.createConsoleFilter
+    val consoleFilter = TerminalGenericFileFilter(project, descriptor, context = null, fileLookup, relativePaths = false)
+    assertSingleLink(applyFilter("see /project/src/Main.kt and src/Main.kt", consoleFilter), mainKt, 4, 24)
+  }
+
+  @Test
   fun `real world gradle error with relative paths`() {
     val output = """
       > Task :app:compileKotlin FAILED

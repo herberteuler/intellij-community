@@ -10,6 +10,7 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.provider.LocalEelDescriptor
+import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.plugins.terminal.hyperlinks.filter.TerminalFilterScope
@@ -105,14 +106,46 @@ fun createTerminalGenericFileFilter(
   )
 }
 
+/**
+ * Provides the file path filter to a terminal and to a console outside the terminal.
+ *
+ * Every output line is filtered, so only the VFS cache is cheap enough to consult: a path
+ * becomes a link when its file is in the VFS already.
+ */
 internal class TerminalGenericFileFilterProvider : ConsoleFilterProviderEx {
   override fun getDefaultFilters(project: Project, scope: GlobalSearchScope): Array<out Filter> {
-    // In the hover mode, TerminalHoverHyperlinkFilterProvider provides the same links for the hovered line only.
-    if (scope !is TerminalFilterScope || Registry.`is`("terminal.hyperlinks.on.hover", true)) return emptyArray()
-    // Every output line is filtered, so only the VFS cache is cheap enough to consult.
-    val fileLookup = TerminalVfsFileLookup(LocalFileSystem.getInstance())
-    val filter = createTerminalGenericFileFilter(project, scope, fileLookup) ?: return emptyArray()
-    return arrayOf(filter)
+    val filter = if (scope is TerminalFilterScope) {
+      createTerminalFilter(project, scope)
+    }
+    else {
+      createConsoleFilter(project)
+    }
+    return if (filter == null) emptyArray() else arrayOf(filter)
+  }
+
+  /**
+   * The filter of a terminal when the hover mode is off. In the hover mode,
+   * [com.intellij.terminal.backend.hyperlinks.TerminalHoverHyperlinkFilterProvider]
+   * does the job.
+   */
+  private fun createTerminalFilter(project: Project, scope: TerminalFilterScope): TerminalGenericFileFilter? {
+    if (Registry.`is`("terminal.hyperlinks.on.hover", true)) return null
+    return createTerminalGenericFileFilter(project, scope, TerminalVfsFileLookup(LocalFileSystem.getInstance()))
+  }
+
+  /**
+   * The filter of a console outside the terminal, such as the Run console. A console has no
+   * working directory, so only absolute paths of the environment of the project become links.
+   */
+  private fun createConsoleFilter(project: Project): TerminalGenericFileFilter? {
+    if (!Registry.`is`("terminal.generic.hyperlinks.in.consoles", true)) return null
+    return TerminalGenericFileFilter(
+      project = project,
+      eelDescriptor = project.getEelDescriptor(),
+      context = null,
+      fileLookup = TerminalVfsFileLookup(LocalFileSystem.getInstance()),
+      relativePaths = false,
+    )
   }
 
   override fun getDefaultFilters(project: Project): Array<out Filter?> = emptyArray()

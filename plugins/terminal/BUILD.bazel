@@ -85,7 +85,7 @@ dev_dist_complex_plugin(
         "linux_aarch64",
     ],
     remainder_files = {
-        "lib/intellij.libraries.completion.ranking.sh.jar": ["intellij.libraries.completion.ranking.sh"],
+        "lib/modules/intellij.libraries.completion.ranking.sh.jar": ["intellij.libraries.completion.ranking.sh"],
         "lib/intellij.terminal.libraries.completionDbWithExtensions.jar": ["intellij.terminal.libraries.completionDbWithExtensions"],
         "lib/terminal.jar": [
             "intellij.terminal",

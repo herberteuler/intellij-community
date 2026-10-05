@@ -109,6 +109,9 @@ class RefactoringToolsetTest : GeneralMcpToolsetTestBase() {
 
   private val pingCaller by sourceRootFixture.virtualFileFixture("PingCaller.java", pingCallerSource)
 
+  /** A plain-text file that names [pingTarget]. Only a text search finds it. */
+  private val pingNotes by sourceRootFixture.virtualFileFixture("pingNotes.txt", "See PingTarget for the ping.\n")
+
   @BeforeEach
   fun waitForIndexes() {
     DumbService.getInstance(project).waitForSmartMode()
@@ -384,6 +387,52 @@ class RefactoringToolsetTest : GeneralMcpToolsetTestBase() {
     assertThat(result.error).isNull()
     assertThat(result.applied).isTrue()
     assertThat(widget.text()).contains("static Gadget copyOf(Gadget widget)", "Gadget widgetCopy = widget;")
+  }
+
+  @Test
+  fun `rename keeps comments by default`(): Unit = runBlocking(Dispatchers.Default) {
+    val result = callRename(commentHost) {
+      put("symbolName", JsonPrimitive("counter"))
+      put("newName", JsonPrimitive("hitCount"))
+    }
+    assertThat(result.error).isNull()
+    assertThat(result.applied).isTrue()
+    assertThat(commentHost.text()).contains("int hitCount()", "// counter here")
+  }
+
+  @Test
+  fun `rename with searchInComments renames the name in a comment`(): Unit = runBlocking(Dispatchers.Default) {
+    val result = callRename(commentHost) {
+      put("symbolName", JsonPrimitive("counter"))
+      put("newName", JsonPrimitive("hitCount"))
+      put("searchInComments", JsonPrimitive(true))
+    }
+    assertThat(result.error).isNull()
+    assertThat(result.applied).isTrue()
+    assertThat(commentHost.text()).contains("int hitCount()", "// hitCount here")
+  }
+
+  @Test
+  fun `rename keeps text occurrences by default`(): Unit = runBlocking(Dispatchers.Default) {
+    val result = callRename(pingTarget) {
+      put("symbolName", JsonPrimitive("PingTarget"))
+      put("newName", JsonPrimitive("PongTarget"))
+    }
+    assertThat(result.error).isNull()
+    assertThat(result.applied).isTrue()
+    assertThat(pingNotes.text()).isEqualTo("See PingTarget for the ping.\n")
+  }
+
+  @Test
+  fun `rename with searchInText renames the name in a text file`(): Unit = runBlocking(Dispatchers.Default) {
+    val result = callRename(pingTarget) {
+      put("symbolName", JsonPrimitive("PingTarget"))
+      put("newName", JsonPrimitive("PongTarget"))
+      put("searchInText", JsonPrimitive(true))
+    }
+    assertThat(result.error).isNull()
+    assertThat(result.applied).isTrue()
+    assertThat(pingNotes.text()).isEqualTo("See PongTarget for the ping.\n")
   }
 
   @Test

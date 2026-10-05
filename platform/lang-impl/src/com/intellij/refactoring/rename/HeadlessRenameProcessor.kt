@@ -47,7 +47,7 @@ private val LOG = logger<HeadlessRenameProcessor>()
  *
  * Two deliberate differences from a rename in the IDE:
  * - Automatic renamers do not run unless the caller asks for them.
- * - A comment, a string and a plain-text occurrence are never searched.
+ * - A comment, a string and a plain-text occurrence are searched only when the caller asks for them.
  *
  * This adds no rename logic. [HeadlessRenameDriver] drives the platform engine, and replaces only
  * the phases that ask the user, so the platform rename engine stays the single engine.
@@ -85,6 +85,9 @@ object HeadlessRenameProcessor {
    * @param applyAutomaticRenamers true also renames what an [AutomaticRenamer] holds, such as a
    * variable named after a renamed class, or a parameter of an override. It takes the renamers of the
    * rename dialog, with each option of them answered from the settings of the IDE.
+   * @param searchInComments true also renames the old name in a comment and in a string literal
+   * @param searchTextOccurrences true also renames the old name in a plain-text occurrence, such as a
+   * non-code file
    */
   @RequiresReadLock
   @JvmStatic
@@ -95,6 +98,8 @@ object HeadlessRenameProcessor {
     newName: String,
     readOnlyUsages: ReadOnlyUsagePolicy = ReadOnlyUsagePolicy.REFUSE,
     applyAutomaticRenamers: Boolean = false,
+    searchInComments: Boolean = false,
+    searchTextOccurrences: Boolean = false,
   ): HeadlessRenameResult {
     if (!target.isValid) {
       return HeadlessRenameResult.Failed(HeadlessRenameFailure.TARGET_NOT_RENAMABLE, "The target element is no longer valid.")
@@ -134,7 +139,8 @@ object HeadlessRenameProcessor {
     validationResult?.let {
       return HeadlessRenameResult.Failed(HeadlessRenameFailure.NEW_NAME_REFUSED, it)
     }
-    return HeadlessRenameDriver(project, element, newName, readOnlyUsages, applyAutomaticRenamers).plan()
+    return HeadlessRenameDriver(project, element, newName, readOnlyUsages, applyAutomaticRenamers,
+                                searchInComments, searchTextOccurrences).plan()
   }
 
   /**
@@ -258,7 +264,9 @@ internal class HeadlessRenameDriver(
   private val newName: String,
   private val readOnlyUsages: ReadOnlyUsagePolicy,
   private val applyAutomaticRenamers: Boolean,
-) : RenameProcessor(project, primaryElement, newName, false, false) {
+  searchInComments: Boolean,
+  searchTextOccurrences: Boolean,
+) : RenameProcessor(project, primaryElement, newName, searchInComments, searchTextOccurrences) {
   private val collectedConflicts = mutableListOf<HeadlessRenameConflict>()
   private val skippedFiles = mutableListOf<String>()
   private val collectedNotes = mutableListOf<String>()
@@ -513,7 +521,7 @@ internal class HeadlessRenameDriver(
     val collectedUsages = mutableListOf<UsageInfo>()
     val skippedCollisions = mutableListOf<UnresolvableCollisionUsageInfo>()
     for (renamer in renamers) {
-      renamer.findUsages(collectedUsages, false, false, skippedCollisions, myAllRenames)
+      renamer.findUsages(collectedUsages, isSearchInComments, isSearchTextOccurrences, skippedCollisions, myAllRenames)
     }
     // A collision drops the element of the renamer, and AutomaticRenamer states the reason here. The
     // rename of the symbol itself stands, so this is a note and not a refusal. RenameProcessor reports
@@ -544,8 +552,8 @@ internal class HeadlessRenameDriver(
     }
     myAllRenames.putAll(addedRenames)
     for ((element, elementNewName) in addedRenames) {
-      collectedUsages += RenameUtil.findUsages(element, elementNewName, myRefactoringScope, false, false, myAllRenames,
-                                               processorFor(element))
+      collectedUsages += RenameUtil.findUsages(element, elementNewName, myRefactoringScope, isSearchInComments,
+                                               isSearchTextOccurrences, myAllRenames, processorFor(element))
     }
     return collectedUsages
   }

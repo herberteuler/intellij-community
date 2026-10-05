@@ -81,6 +81,9 @@ class RefactoringToolset : McpToolset {
     |
     |applyAutomaticRenamers renames what the IDE renames along with the symbol, such as a variable named after a renamed
     |class, each kind as the settings of the IDE enable it. A library or compiled symbol cannot be renamed.
+    |
+    |By default, the rename changes no comment, no string literal and no plain-text occurrence of the name.
+    |Set searchInComments or searchInText to change them too.
   """)
   suspend fun rename_refactoring(
     @McpDescription(Constants.RELATIVE_PATH_IN_PROJECT_DESCRIPTION)
@@ -101,6 +104,10 @@ class RefactoringToolset : McpToolset {
     preview: Boolean = false,
     @McpDescription("Optional. Also rename what the IDE renames along with the symbol. The default is true.")
     applyAutomaticRenamers: Boolean = true,
+    @McpDescription("Optional. Also rename the name in comments and string literals. The default is false.")
+    searchInComments: Boolean = false,
+    @McpDescription("Optional. Also rename the name in plain-text occurrences, such as non-code files. The default is false.")
+    searchInText: Boolean = false,
   ): RenameResult {
     if (pathInProject.isBlank()) mcpFail("pathInProject is empty")
     if (symbolName.isBlank()) mcpFail("symbolName is empty")
@@ -127,7 +134,8 @@ class RefactoringToolset : McpToolset {
 
     val request = RenameTargetRequest(symbolName, contextSnippet, line, column, targetIndex)
     val (result, partialResultReason) = checkIndexingInProgress(project) {
-      renameFromDisk(project, virtualFile, pathInProject, request, newName, preview, applyAutomaticRenamers)
+      renameFromDisk(project, virtualFile, pathInProject, request, newName, preview, applyAutomaticRenamers,
+                     searchInComments, searchInText)
     }
     return result.copy(partialResultReason = partialResultReason)
   }
@@ -146,9 +154,12 @@ class RefactoringToolset : McpToolset {
     newName: String,
     preview: Boolean,
     applyAutomaticRenamers: Boolean,
+    searchInComments: Boolean,
+    searchInText: Boolean,
   ): RenameResult {
     repeat(MAX_RELOAD_ATTEMPTS) {
-      rename(project, virtualFile, pathInProject, request, newName, preview, applyAutomaticRenamers)?.let { return it }
+      rename(project, virtualFile, pathInProject, request, newName, preview, applyAutomaticRenamers, searchInComments,
+             searchInText)?.let { return it }
       awaitExternalChangesAndIndexing(project)
     }
     val kind = HeadlessRenameFailure.PLAN_STALE
@@ -171,6 +182,8 @@ class RefactoringToolset : McpToolset {
     newName: String,
     preview: Boolean,
     applyAutomaticRenamers: Boolean,
+    searchInComments: Boolean,
+    searchInText: Boolean,
   ): RenameResult? {
     val preparation = readAction { prepare(project, virtualFile, pathInProject, request, newName) }
     val ready = when (preparation) {
@@ -194,7 +207,8 @@ class RefactoringToolset : McpToolset {
           return@readAction HeadlessRenameResult.Failed(HeadlessRenameFailure.PLAN_STALE, null)
         }
         ready.element()?.let {
-          HeadlessRenameProcessor.analyze(project, it, newName, applyAutomaticRenamers = applyAutomaticRenamers)
+          HeadlessRenameProcessor.analyze(project, it, newName, applyAutomaticRenamers = applyAutomaticRenamers,
+                                          searchInComments = searchInComments, searchTextOccurrences = searchInText)
         }
       }
     } ?: return staleTarget(ready.resolvedSymbol)
@@ -203,7 +217,8 @@ class RefactoringToolset : McpToolset {
       // The language states no headless rename support. See legacyRename.
       is HeadlessRenameResult.Failed ->
         if (analysis.kind == HeadlessRenameFailure.LANGUAGE_NOT_SUPPORTED) {
-          return legacyRename(project, virtualFile, pathBefore, relativePathBefore, ready, newName, preview)
+          return legacyRename(project, virtualFile, pathBefore, relativePathBefore, ready, newName, preview,
+                              searchInComments, searchInText)
         } else {
           return outcomeResult(project, analysis, ready.resolvedSymbol)
         }
@@ -256,6 +271,8 @@ class RefactoringToolset : McpToolset {
     ready: Preparation.Ready,
     newName: String,
     preview: Boolean,
+    searchInComments: Boolean,
+    searchInText: Boolean,
   ): RenameResult {
     // A preview reports the affected files and the conflicts, and only the headless engine finds
     // them. This path has no engine to ask, so it refuses instead of answering ok with nothing in
@@ -276,7 +293,7 @@ class RefactoringToolset : McpToolset {
     // The constructor reads the PSI: RenameProcessor builds the command name from the element. So it
     // needs a read action, and the element has to be valid when it runs.
     val processor = readAction {
-      ready.element()?.let { LegacyRenameProcessor(project, it, newName) }
+      ready.element()?.let { LegacyRenameProcessor(project, it, newName, searchInComments, searchInText) }
     } ?: return staleTarget(ready.resolvedSymbol)
     try {
       withContext(Dispatchers.EDT) { writeIntentReadAction { processor.run() } }
@@ -493,7 +510,9 @@ class RefactoringToolset : McpToolset {
     project: Project,
     val element: PsiElement,
     val newName: String,
-  ) : RenameProcessor(project, element, newName, false, false) {
+    searchInComments: Boolean,
+    searchInText: Boolean,
+  ) : RenameProcessor(project, element, newName, searchInComments, searchInText) {
     var applied: Boolean = false
       private set
 

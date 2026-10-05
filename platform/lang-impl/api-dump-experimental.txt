@@ -863,7 +863,9 @@ c:com.intellij.refactoring.memberPushDown.PushDownProcessor
 - sf:analyze(com.intellij.openapi.project.Project,com.intellij.psi.PsiElement,java.lang.String):com.intellij.refactoring.rename.HeadlessRenameResult
 - sf:analyze(com.intellij.openapi.project.Project,com.intellij.psi.PsiElement,java.lang.String,com.intellij.refactoring.rename.ReadOnlyUsagePolicy):com.intellij.refactoring.rename.HeadlessRenameResult
 - sf:analyze(com.intellij.openapi.project.Project,com.intellij.psi.PsiElement,java.lang.String,com.intellij.refactoring.rename.ReadOnlyUsagePolicy,Z):com.intellij.refactoring.rename.HeadlessRenameResult
-- bs:analyze$default(com.intellij.openapi.project.Project,com.intellij.psi.PsiElement,java.lang.String,com.intellij.refactoring.rename.ReadOnlyUsagePolicy,Z,I,java.lang.Object):com.intellij.refactoring.rename.HeadlessRenameResult
+- sf:analyze(com.intellij.openapi.project.Project,com.intellij.psi.PsiElement,java.lang.String,com.intellij.refactoring.rename.ReadOnlyUsagePolicy,Z,Z):com.intellij.refactoring.rename.HeadlessRenameResult
+- sf:analyze(com.intellij.openapi.project.Project,com.intellij.psi.PsiElement,java.lang.String,com.intellij.refactoring.rename.ReadOnlyUsagePolicy,Z,Z,Z):com.intellij.refactoring.rename.HeadlessRenameResult
+- bs:analyze$default(com.intellij.openapi.project.Project,com.intellij.psi.PsiElement,java.lang.String,com.intellij.refactoring.rename.ReadOnlyUsagePolicy,Z,Z,Z,I,java.lang.Object):com.intellij.refactoring.rename.HeadlessRenameResult
 - sf:canRename(com.intellij.psi.PsiElement):Z
 *:com.intellij.refactoring.rename.HeadlessRenameResult
 *f:com.intellij.refactoring.rename.HeadlessRenameResult$Applied

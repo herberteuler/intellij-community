@@ -57,6 +57,7 @@ class KotlinVariableInplaceIntroducer(
     project: Project,
     editor: Editor,
     private val postProcess: KFunction2<KtDeclaration, Editor?, Unit>,
+    private val showVarOption: Boolean,
 ) : AbstractKotlinInplaceIntroducer<KtProperty>(
     localVariable = addedVariable.takeIf { it.isLocal },
     expression = originalExpression,
@@ -72,17 +73,19 @@ class KotlinVariableInplaceIntroducer(
 
     private fun createPopupPanel(): DialogPanel {
         return panel {
-            row {
-                checkBox(KotlinBundle.message("checkbox.text.declare.with.var"))
-                    .selected(KotlinCommonRefactoringSettings.getInstance().INTRODUCE_DECLARE_WITH_VAR)
-                    .actionListener { _, component ->
-                        myProject.executeWriteCommand(commandName, commandName) {
-                            val psiFactory = KtPsiFactory(myProject)
-                            val keyword = if (component.isSelected) psiFactory.createVarKeyword() else psiFactory.createValKeyword()
-                            addedVariable?.valOrVarKeyword?.replace(keyword)
-                            KotlinCommonRefactoringSettings.getInstance().INTRODUCE_DECLARE_WITH_VAR = component.isSelected
+            if (showVarOption) {
+                row {
+                    checkBox(KotlinBundle.message("checkbox.text.declare.with.var"))
+                        .selected(KotlinCommonRefactoringSettings.getInstance().INTRODUCE_DECLARE_WITH_VAR)
+                        .actionListener { _, component ->
+                            myProject.executeWriteCommand(commandName, commandName) {
+                                val psiFactory = KtPsiFactory(myProject)
+                                val keyword = if (component.isSelected) psiFactory.createVarKeyword() else psiFactory.createValKeyword()
+                                addedVariable?.valOrVarKeyword?.replace(keyword)
+                                KotlinCommonRefactoringSettings.getInstance().INTRODUCE_DECLARE_WITH_VAR = component.isSelected
+                            }
                         }
-                    }
+                }
             }
             if (expressionRenderedType != null && !mustSpecifyTypeExplicitly) {
                 row {

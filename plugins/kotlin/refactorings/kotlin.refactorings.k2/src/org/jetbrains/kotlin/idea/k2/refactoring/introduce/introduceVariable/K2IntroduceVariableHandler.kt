@@ -427,7 +427,8 @@ object K2IntroduceVariableHandler : KotlinIntroduceVariableHandler() {
         containers: Containers,
         isVar: Boolean,
         occurrencesToReplace: List<KtExpression>?,
-        onNonInteractiveFinish: ((KtDeclaration) -> Unit)?
+        showVarOption: Boolean,
+        onNonInteractiveFinish: ((KtDeclaration) -> Unit)?,
     ) {
         if (!isRefactoringApplicableByPsi(project, editor, expression)) return
 
@@ -623,6 +624,7 @@ object K2IntroduceVariableHandler : KotlinIntroduceVariableHandler() {
                                 project,
                                 editor,
                                 ::postProcess,
+                                showVarOption,
                             )
                             variableInplaceIntroducer.startInplaceIntroduceTemplate()
                         }

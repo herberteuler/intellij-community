@@ -39,6 +39,34 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
   }
 
   @Test
+  fun `alt chords go through the encoder when Alt sends Escape`() = runSessionTest { session, connector, _ ->
+    val options = TerminalOptionsProvider.instance
+    val useOptionAsMetaKey = options.useOptionAsMetaKey
+    options.useOptionAsMetaKey = true // decides the setting on macOS only; elsewhere Alt always sends Escape
+    try {
+      assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_F, 'ƒ', InputEvent.ALT_DOWN_MASK)))).isEqualTo(Char(27) + "f")
+      assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_F, 'F', InputEvent.ALT_DOWN_MASK or InputEvent.SHIFT_DOWN_MASK)))).isEqualTo(Char(27) + "F")
+      applyModes(connector, csi(">1u"))
+      assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_F, 'ƒ', InputEvent.ALT_DOWN_MASK)))).isEqualTo(csi("102;3u"))
+    }
+    finally {
+      options.useOptionAsMetaKey = useOptionAsMetaKey
+    }
+  }
+
+  @Test
+  fun `option composes text on macOS unless it acts as Alt`() {
+    Assume.assumeTrue(SystemInfoRt.isMac)
+    runSessionTest { session, _, _ ->
+      // "Use Option as Meta key" is off by default, so the pressed half types nothing and the typed half types ƒ.
+      assertThat(session.processKeyEvent(pressed(KeyEvent.VK_F, 'ƒ', InputEvent.ALT_DOWN_MASK))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+      val result = session.processKeyEvent(typed('ƒ', InputEvent.ALT_DOWN_MASK))
+      assertThat(result).isInstanceOf(KeyEventProcessingResultDto.StringResult::class.java)
+      assertThat((result as KeyEventProcessingResultDto.StringResult).string).isEqualTo("ƒ")
+    }
+  }
+
+  @Test
   fun `arrows honor application cursor keys mode`() = runSessionTest { session, connector, _ ->
     assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_UP)))).isEqualTo(csi("A"))
     applyModes(connector, csi("?1h"))
@@ -163,6 +191,23 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
       val result = session.processKeyEvent(typed(ch, InputEvent.SHIFT_DOWN_MASK))
       assertThat(result).isInstanceOf(KeyEventProcessingResultDto.StringResult::class.java)
       assertThat((result as KeyEventProcessingResultDto.StringResult).string).isEqualTo(ch.toString())
+    }
+  }
+
+  // ---- mode wiring: a mode the program sets reaches the encoder through the live terminal state ----
+
+  @Test
+  fun `mode 1036 reset drops the ESC prefix of an alt chord`() = runSessionTest { session, connector, _ ->
+    val options = TerminalOptionsProvider.instance
+    val useOptionAsMetaKey = options.useOptionAsMetaKey
+    options.useOptionAsMetaKey = true
+    try {
+      assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_F, 'ƒ', InputEvent.ALT_DOWN_MASK)))).isEqualTo(Char(27) + "f")
+      applyModes(connector, csi("?1036l"))
+      assertThat(bytesOf(session.processKeyEvent(pressed(KeyEvent.VK_F, 'ƒ', InputEvent.ALT_DOWN_MASK)))).isEqualTo("f")
+    }
+    finally {
+      options.useOptionAsMetaKey = useOptionAsMetaKey
     }
   }
 

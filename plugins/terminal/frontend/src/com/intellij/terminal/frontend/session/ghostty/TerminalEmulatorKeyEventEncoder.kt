@@ -24,9 +24,8 @@ import java.util.concurrent.ConcurrentHashMap
  * - the macOS "natural text editing" chords (Cmd/Option + arrows, Cmd+Backspace). The
  *   Ghostty app resolves them above VT encoding too: a VT encoder reports SUPER as the
  *   xterm meta modifier, which shells ignore;
- * - Alt as an ESC prefix for characters (the `altSendsEscape` setting); the native
- *   encoder cannot apply it on macOS, where its `macos_option_as_alt` option defaults
- *   to off;
+ * - whether Alt is a modifier for the shell (the `altSendsEscape` setting). The encoder
+ *   gets it as its `macos_option_as_alt` option and applies the active protocol;
  * - splitting AWT's KEY_PRESSED/KEY_TYPED pair so each keystroke is encoded exactly once.
  *   The typed half has no key code, so the pressed half lends it the physical key;
  * - the classic bytes of Ctrl+I, Ctrl+M and Ctrl+[ outside the Kitty keyboard protocol.
@@ -51,6 +50,8 @@ internal class TerminalEmulatorKeyEventEncoder(
   private var locks: Set<TerminalInputModifier> = emptySet()
 
   fun encodeKeyEvent(e: KeyEvent): KeyEventProcessingResultDto {
+    // The setting can change at any time; the emulator applies the option on every encode.
+    emulator.setOptionAsAlt(settings.altSendsEscape())
     return when (e.id) {
       KeyEvent.KEY_PRESSED -> {
         locks = lockingKeys()
@@ -86,12 +87,33 @@ internal class TerminalEmulatorKeyEventEncoder(
       return bytesResult(bytes, e)
     }
 
-    if (isAltPressedOnly(e) && Character.isDefined(e.keyChar) && settings.altSendsEscape()) {
-      // The base character, not e.keyChar: on macOS Option+F types 'ƒ' while ESC f is
-      // wanted. Uppercase under shift — zsh distinguishes ESC f from ESC F.
-      val base = e.keyCode.toChar().let { if (e.isShiftDown) it.uppercaseChar() else it.lowercaseChar() }
-      val string = Char(27) + base.toString()
-      return KeyEventProcessingResultDto.StringResult(string, settings.scrollToBottomOnTyping())
+    // Alt chords: with the "Alt sends Escape" setting on, Alt is a modifier for the shell and
+    // the encoder applies the active protocol: an ESC prefix in legacy mode, CSI 27 under
+    // modifyOtherKeys, a CSI u chord under Kitty. The text is the key's US character, not
+    // e.keyChar: on macOS Option+F types 'ƒ' while ESC f is wanted. A key outside the US table
+    // has only the character AWT computed. With the setting off, Option composes text and
+    // KEY_TYPED types it.
+    if (isAltChord(e) && settings.altSendsEscape()) {
+      val writingKey = writingKey(e.keyCode)
+      val modifiers = terminalModifiers(e)
+      val event = when {
+        writingKey != null -> TerminalKeyEvent(
+          writingKey.key,
+          modifiers = modifiers,
+          text = usText(writingKey, e, capsLock = TerminalInputModifier.CAPS_LOCK in modifiers),
+          unshiftedCodepoint = writingKey.codepoint,
+        )
+        isPrintable(e.keyChar) -> TerminalKeyEvent(
+          TerminalKey.UNIDENTIFIED,
+          modifiers = modifiers,
+          text = e.keyChar.toString(),
+          unshiftedCodepoint = e.keyChar.lowercaseChar().code,
+        )
+        else -> null
+      }
+      if (event != null) {
+        encodeChord(event)?.let { return it }
+      }
     }
 
     if ((e.isAltGraphDown || (SystemInfoRt.isWindows && e.isControlDown && e.isAltDown)) &&
@@ -154,10 +176,10 @@ internal class TerminalEmulatorKeyEventEncoder(
     pendingPress = null
     val writingKey = pending?.let { writingKey(it.keyCode) }
 
-    if (isAltPressedOnly(e) && settings.altSendsEscape()) {
-      return KeyEventProcessingResultDto.Unhandled // the KEY_PRESSED path sent ESC + base character
+    if (isAltChord(e) && settings.altSendsEscape()) {
+      return KeyEventProcessingResultDto.Unhandled // the KEY_PRESSED half owns Alt chords
     }
-    if (e.keyChar == '`' && (e.modifiersEx and InputEvent.META_DOWN_MASK) != 0) {
+    if (SystemInfoRt.isMac && e.keyChar == '`' && (e.modifiersEx and InputEvent.META_DOWN_MASK) != 0) {
       return KeyEventProcessingResultDto.Unhandled // Cmd+backtick cycles macOS windows; never type it
     }
 
@@ -351,13 +373,8 @@ internal class TerminalEmulatorKeyEventEncoder(
     e.modifiersEx and (InputEvent.SHIFT_DOWN_MASK or InputEvent.CTRL_DOWN_MASK or InputEvent.ALT_DOWN_MASK
       or InputEvent.META_DOWN_MASK or InputEvent.ALT_GRAPH_DOWN_MASK)
 
-  private fun isAltPressedOnly(e: KeyEvent): Boolean {
-    val mods = e.modifiersEx
-    return (mods and InputEvent.ALT_DOWN_MASK) != 0
-      && (mods and InputEvent.ALT_GRAPH_DOWN_MASK) == 0
-      && (mods and InputEvent.CTRL_DOWN_MASK) == 0
-      && (mods and InputEvent.SHIFT_DOWN_MASK) == 0
-  }
+  /** Alt held without AltGr and without Ctrl; a Ctrl+Alt chord belongs to the Ctrl path. */
+  private fun isAltChord(e: KeyEvent): Boolean = e.isAltDown && !e.isAltGraphDown && !e.isControlDown
 
 
   private fun isCodeThatScrolls(keyCode: Int): Boolean = when (keyCode) {

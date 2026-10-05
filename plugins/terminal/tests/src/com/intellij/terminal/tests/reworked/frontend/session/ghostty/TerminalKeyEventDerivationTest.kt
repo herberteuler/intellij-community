@@ -203,6 +203,39 @@ internal class TerminalKeyEventDerivationTest {
     assertThat(events).containsExactly(TerminalKeyEvent(TerminalKey.ENTER))
   }
 
+  @Test
+  fun `an alt chord carries the key's US character and the Alt modifier when Alt sends Escape`() {
+    // macOS types ƒ for Option+F; the shell wants f, and the encoder adds the ESC prefix.
+    press(KeyEvent.VK_F, 'ƒ', ALT_MASK)
+    release(KeyEvent.VK_F, 'ƒ', ALT_MASK)
+    press(KeyEvent.VK_F, 'F', ALT_MASK or SHIFT_MASK)
+    press(KeyEvent.VK_PERIOD, '>', ALT_MASK or SHIFT_MASK)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.F, modifiers = setOf(ALT), text = "f", unshiftedCodepoint = 'f'.code),
+      TerminalKeyEvent(TerminalKey.F, modifiers = setOf(ALT, SHIFT), text = "F", unshiftedCodepoint = 'f'.code),
+      TerminalKeyEvent(TerminalKey.PERIOD, modifiers = setOf(ALT, SHIFT), text = ">", unshiftedCodepoint = '.'.code),
+    )
+  }
+
+  @Test
+  fun `an alt chord on a key outside the US table carries the character AWT computed`() {
+    // Alt+Ö on a German layout: AWT names no key, so the character is all there is.
+    press(KeyEvent.VK_UNDEFINED, 'ö', ALT_MASK)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, modifiers = setOf(ALT), text = "ö", unshiftedCodepoint = 'ö'.code),
+    )
+  }
+
+  @Test
+  fun `an alt chord types its composed character when Alt does not send Escape`() {
+    altSendsEscape = false
+    press(KeyEvent.VK_F, 'ƒ', ALT_MASK)
+    type('ƒ', ALT_MASK)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.F, text = "ƒ", unshiftedCodepoint = 'ƒ'.code),
+    )
+  }
+
   private fun press(keyCode: Int, keyChar: Char = KeyEvent.CHAR_UNDEFINED, modifiers: Int = 0, location: Int = KeyEvent.KEY_LOCATION_STANDARD): KeyEventProcessingResultDto =
     encode(KeyEvent.KEY_PRESSED, keyCode, keyChar, modifiers, location)
 

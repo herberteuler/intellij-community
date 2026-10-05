@@ -21,22 +21,10 @@
 - a:getFile():com.intellij.openapi.vfs.VirtualFile
 *:com.intellij.find.FindInProjectSearchEngine
 - a:createSearcher(com.intellij.find.FindModel,com.intellij.openapi.project.Project):com.intellij.find.FindInProjectSearchEngine$FindInProjectSearcher
-*e:com.intellij.find.FindInProjectSearchEngine$Coverage
-- java.lang.Enum
-- sf:ALL_CANDIDATES:com.intellij.find.FindInProjectSearchEngine$Coverage
-- sf:INDEXED_ONLY:com.intellij.find.FindInProjectSearchEngine$Coverage
-- sf:STOPPED:com.intellij.find.FindInProjectSearchEngine$Coverage
-- s:valueOf(java.lang.String):com.intellij.find.FindInProjectSearchEngine$Coverage
-- s:values():com.intellij.find.FindInProjectSearchEngine$Coverage[]
 *:com.intellij.find.FindInProjectSearchEngine$FindInProjectSearcher
 - a:isCovered(com.intellij.openapi.vfs.VirtualFile):Z
 - a:isReliable():Z
-- *:isStreaming():Z
-- *:processOccurrences(com.intellij.util.Processor):com.intellij.find.FindInProjectSearchEngine$Coverage
 - a:searchForOccurrences():java.util.Collection
-*:com.intellij.find.FindInProjectSearchEngine$ScanObserver
-- fileScanned(com.intellij.openapi.vfs.VirtualFile,java.lang.CharSequence):V
-- nonIndexedScanCompleted():V
 *c:com.intellij.refactoring.RefactoringUiService
 - <init>():V
 - createConflictsDialog(com.intellij.openapi.project.Project,com.intellij.util.containers.MultiMap,java.lang.Runnable,Z,Z):com.intellij.refactoring.ConflictsDialogBase

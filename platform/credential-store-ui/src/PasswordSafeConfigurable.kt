@@ -15,6 +15,8 @@ import com.intellij.ide.passwordSafe.impl.BasePasswordSafe
 import com.intellij.ide.passwordSafe.impl.createPersistentCredentialStore
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.logger
@@ -92,13 +94,33 @@ class PasswordSafeConfigurableUi(private val settings: PasswordSafeSettings) : C
   private val secureRandom = lazy { createSecureRandom() }
 
   override fun reset(settings: PasswordSafeSettings) {
-    val secretKeys = pgp.listKeys()
-    pgpListModel.replaceAll(secretKeys)
-    usePgpKey.text = usePgpKeyText()
+    // The key list arrives asynchronously. Show the saved key id at once,
+    // so the checkbox and the combo open in a consistent state.
+    val savedKeyId = settings.state.pgpKeyId
+    if (savedKeyId != null && pgpListModel.items.none { it.keyId == savedKeyId }) {
+      pgpListModel.add(PgpKey(savedKeyId, savedKeyId))
+      usePgpKey.text = usePgpKeyText()
+    }
 
     panel.reset()
 
     keePassDbFile?.text = settings.keepassDb ?: getDefaultDbFile().toString()
+
+    // listKeys starts the gpg process. Run it in the background to keep the EDT free (IJPL-254062).
+    ApplicationManager.getApplication().executeOnPooledThread {
+      val secretKeys = pgp.listKeys()
+      ApplicationManager.getApplication().invokeLater(
+        {
+          val selectedKeyId = (pgpKeyCombo.selectedItem as? PgpKey)?.keyId
+          pgpListModel.replaceAll(secretKeys)
+          usePgpKey.text = usePgpKeyText()
+          // reselect by the key id: the placeholder left the model, and the user could change the selection
+          pgpKeyCombo.selectedItem = secretKeys.firstOrNull { it.keyId == selectedKeyId }
+                                     ?: getSelectedPgpKey()
+                                     ?: pgpListModel.items.firstOrNull()
+        },
+        ModalityState.stateForComponent(panel))
+    }
   }
 
   override fun isModified(settings: PasswordSafeSettings): Boolean {
@@ -125,6 +147,8 @@ class PasswordSafeConfigurableUi(private val settings: PasswordSafeSettings) : C
     val oldProviderType = this.settings.providerType
 
     panel.apply()
+    // the checkbox and combo bindings can race with the asynchronous reset, so persist the final value explicitly
+    this.settings.state.pgpKeyId = getNewPgpKey()?.keyId
     val providerType = this.settings.providerType
     val passwordSafe = PasswordSafe.instance as BasePasswordSafe
 
@@ -292,13 +316,16 @@ class PasswordSafeConfigurableUi(private val settings: PasswordSafeSettings) : C
           }
           row {
             usePgpKey = checkBox(usePgpKeyText())
-              .bindSelected({ !pgpListModel.isEmpty && settings.state.pgpKeyId != null },
+              // the getter must not read pgpListModel: the list arrives asynchronously,
+              // and a getter that changes over time breaks the modified state of the panel
+              .bindSelected({ settings.state.pgpKeyId != null },
                             { if (!it) settings.state.pgpKeyId = null })
               .gap(RightGap.SMALL)
               .component
 
             pgpKeyCombo = comboBox<PgpKey>(pgpListModel, renderer = textListCellRenderer {
-              it?.let { "${it.userId} (${it.keyId})" }
+              // the placeholder from reset() carries the key id in both fields
+              it?.let { if (it.userId == it.keyId) it.keyId else "${it.userId} (${it.keyId})" }
             }).bindItem({ getSelectedPgpKey() ?: pgpListModel.items.firstOrNull() },
                         { settings.state.pgpKeyId = if (usePgpKey.isSelected) it?.keyId else null })
               .columns(COLUMNS_MEDIUM)
@@ -341,7 +368,8 @@ class PasswordSafeConfigurableUi(private val settings: PasswordSafeSettings) : C
     }
   }
 
-  private fun getNewPgpKey() = pgpKeyCombo.selectedItem as? PgpKey
+  // the combo keeps the last selection even when the user turns the checkbox off, so check the checkbox too
+  private fun getNewPgpKey(): PgpKey? = if (usePgpKey.isSelected) pgpKeyCombo.selectedItem as? PgpKey else null
 
   private inner class ClearKeePassDatabaseAction : DumbAwareAction(CredentialStoreBundle.message("action.text.password.safe.clear")) {
     override fun actionPerformed(event: AnActionEvent) {

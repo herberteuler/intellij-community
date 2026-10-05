@@ -7,6 +7,7 @@ import com.intellij.openapi.application.readAction
 import com.intellij.openapi.command.writeCommandAction
 import com.intellij.openapi.editor.impl.DocumentImpl
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.StreamUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -810,6 +811,48 @@ internal class LspDiagnosticsTest {
         .getClients(FakeLspIntegrationProvider::class.java)
         .single()
         .invalidateServerResults()
+
+      val expected = createExpectedDataFromText("""<error descr="fresh">hello</error> world""")
+      waitUntilAssertSucceeds {
+        (codeInsightFixture as CodeInsightTestFixtureImpl).collectAndCheckHighlighting(expected)
+      }
+    }
+
+    /**
+     * The reopened document keeps its stamp, so only `didClose` tells the client that the server may answer
+     * differently now, for example after a change in another file.
+     */
+    @Test
+    @TestFor(issues = ["IJPL-256855"])
+    fun `reopened file triggers a full re-pull`(): Unit = timeoutRunBlocking {
+      (codeInsightFixture as CodeInsightTestFixtureImpl).canChangeDocumentDuringHighlighting(true)
+
+      // No highlighting markup in the file: stripping it would leave the document unsaved, and no didClose is sent for that.
+      val virtualFile = codeInsightFixture.configureByText("test.txt", "hello world").virtualFile
+      val serverSession = configureServerSession(project, virtualFile)
+      val uri = serverSession.fileUri(virtualFile)
+
+      serverSession.expectRequest(serverSession.DIAGNOSTIC, { it.textDocument.uri == uri && it.previousResultId == null }) {
+        DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(listOf(
+          Diagnostic(Range(Position(0, 0), Position(0, 5)), "stale", DiagnosticSeverity.Error, null)
+        )).apply { resultId = "r1" })
+      }
+      checkHighlightingByPolling(createExpectedDataFromText("""<error descr="stale">hello</error> world"""))
+
+      val didClose = serverSession.expectNotification(serverSession.DID_CLOSE) { it.textDocument.uri == uri }
+      withContext(Dispatchers.EDT) {
+        FileEditorManager.getInstance(project).closeFile(virtualFile)
+      }
+      didClose.await()
+
+      serverSession.expectRequest(serverSession.DIAGNOSTIC, { it.textDocument.uri == uri && it.previousResultId == null }) {
+        DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(listOf(
+          Diagnostic(Range(Position(0, 0), Position(0, 5)), "fresh", DiagnosticSeverity.Error, null)
+        )))
+      }
+      withContext(Dispatchers.EDT) {
+        codeInsightFixture.openFileInEditor(virtualFile)
+      }
 
       val expected = createExpectedDataFromText("""<error descr="fresh">hello</error> world""")
       waitUntilAssertSucceeds {

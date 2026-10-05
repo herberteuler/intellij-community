@@ -48,6 +48,14 @@ internal class LspHighlightingCacheRegistry(private val lspClient: LspClientImpl
   }
 
   /**
+   * Forgets every result the IDE pulled for [file] once the client has closed it, so a reopened file is pulled again.
+   * Pushed diagnostics are left alone: the server owns those and clears them itself.
+   */
+  internal fun fileClosed(file: VirtualFile) {
+    allCaches.forEach { if (it.supportsPull) it.fileClosed(file) }
+  }
+
+  /**
    * Marks every result the IDE pulled for [file] stale, so the next read re-requests it while the current results
    * stay on screen. Pushed diagnostics are left alone: the server resends those itself.
    */

@@ -218,6 +218,10 @@ class LspClientImpl internal constructor(
     }
   }
 
+  internal fun fileClosed(file: VirtualFile) {
+    highlightingCacheRegistry.fileClosed(file)
+  }
+
   override fun invalidateServerResults() {
     requestExecutor.clearCaches()
     forEachOpenedFile { file ->

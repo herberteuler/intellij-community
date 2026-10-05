@@ -225,6 +225,10 @@ internal class LspInheritanceMarkersCache(
     synchronized(capLoggedFiles) { capLoggedFiles.clear() }
   }
 
+  override fun clearAdditionalCache(file: VirtualFile) {
+    synchronized(capLoggedFiles) { capLoggedFiles.remove(file) }
+  }
+
   private data class SymbolWithParent(val symbol: DocumentSymbol, val parent: DocumentSymbol?)
 
   private class SymbolScope(

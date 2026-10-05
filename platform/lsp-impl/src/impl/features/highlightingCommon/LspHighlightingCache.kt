@@ -272,6 +272,21 @@ internal abstract class LspHighlightingCache<T>(protected val project: Project) 
   protected open fun clearAdditionalCache() {}
 
   /**
+   * Drops everything cached for [file] and cancels its running request. Called once the client has closed the file.
+   * A reopened file keeps its document stamp, so the old results would look fresh,
+   * while the server may answer differently by then, for example after a change in another file.
+   */
+  internal fun fileClosed(file: VirtualFile) = synchronized(this) {
+    fileToCachedHighlightingsSnapshot.remove(file)
+    fileToPendingEdits.remove(file)
+    fileToStampWhenRequestSent.remove(file)
+    fileToInFlightRequest.remove(file)?.cancel()
+    clearAdditionalCache(file)
+  }
+
+  protected open fun clearAdditionalCache(file: VirtualFile) {}
+
+  /**
    * Marks [file] stale like [invalidate]. It also forgets the per-file protocol state that would let the server
    * answer "unchanged", a stored result id for example, because what changed is the answer itself.
    */

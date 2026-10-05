@@ -112,6 +112,10 @@ internal class LspPullDiagnosticsCache(private val lspClient: LspClientImpl) : L
     fileToResultIds.clear()
   }
 
+  override fun clearAdditionalCache(file: VirtualFile) {
+    fileToResultIds.remove(file)
+  }
+
   override suspend fun onResponseReceived(file: VirtualFile) {
     LspHighlightingApplier.getInstance(lspClient.project).scheduleHighlightingRefresh(file)
     lspClient.notifyDiagnosticsReceived(file)

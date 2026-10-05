@@ -124,6 +124,7 @@ internal class LspDocumentSyncManager(private val client: LspClientImpl) {
       return
     }
     documentVersions.remove(file)
+    client.fileClosed(file)
 
     val document = FileDocumentManager.getInstance().getDocument(file)
     if (document == null) {

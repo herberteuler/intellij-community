@@ -132,4 +132,35 @@ internal class LspHighlightingCacheTest {
     }
     releasePendingRequests(cache)
   }
+
+  @Test
+  fun `closed file drops its results and is pulled again`() = timeoutRunBlocking {
+    val cache = TestCache(project)
+    val file = createFile("a.txt", "hello")
+
+    readAction { cache.getHighlightings(file) }
+    waitUntilAssertSucceeds { assertEquals(1, cache.sendCalls.get()) }
+    cache.pendingRequests.poll()!!.complete(Unit)
+    waitUntilAssertSucceeds { assertEquals(1, readAction { cache.getHighlightings(file) }.size) }
+
+    cache.fileClosed(file)
+
+    assertEquals(0, readAction { cache.getHighlightings(file) }.size, "a closed file must not keep its results")
+    waitUntilAssertSucceeds { assertEquals(2, cache.sendCalls.get(), "the unchanged document must be pulled again") }
+    releasePendingRequests(cache)
+  }
+
+  @Test
+  fun `closing a file cancels its running request`() = timeoutRunBlocking {
+    val cache = TestCache(project)
+    val file = createFile("a.txt", "hello")
+
+    readAction { cache.getHighlightings(file) }
+    waitUntilAssertSucceeds { assertEquals(1, cache.sendCalls.get()) }
+
+    cache.fileClosed(file)
+
+    waitUntilAssertSucceeds { assertEquals(1, cache.cancellations.get()) }
+    releasePendingRequests(cache)
+  }
 }

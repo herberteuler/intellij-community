@@ -7,6 +7,8 @@ import org.jetbrains.annotations.ApiStatus
  * This annotation should be applied to strings that could be directly used to construct [java.nio.file.Path] instances.
  * These strings are either local to the IDE process or have prefix pointing to the specific environment.
  * This environment could be, for example, a WSL machine or a Docker container.
+ *
+ * Obsolete: use [com.intellij.platform.util.annotations.paths.NioPath] instead.
  */
 @Retention(AnnotationRetention.SOURCE)
 @Target(
@@ -19,6 +21,7 @@ import org.jetbrains.annotations.ApiStatus
   AnnotationTarget.TYPE,
 )
 @ApiStatus.Internal
+@ApiStatus.Obsolete
 annotation class MultiRoutingFileSystemPath
 
 /**
@@ -27,6 +30,8 @@ annotation class MultiRoutingFileSystemPath
  * and for a path in a Docker container it would be a path within this Docker container.
  *
  * It should not be directly used in the [java.nio.file.Path] constructions methods [java.nio.file.Path.of] and [java.nio.file.Paths.get].
+ *
+ * Obsolete: use [com.intellij.platform.util.annotations.paths.OsPath] instead.
  *
  * @see NativeContext
  */
@@ -41,6 +46,7 @@ annotation class MultiRoutingFileSystemPath
   AnnotationTarget.TYPE,
 )
 @ApiStatus.Internal
+@ApiStatus.Obsolete
 annotation class NativePath
 
 /**
@@ -53,6 +59,8 @@ annotation class NativePath
  *
  * Applicable targets include properties, fields, local variables, value parameters,
  * property getters, property setters, and type usage.
+ *
+ * Obsolete: use [com.intellij.platform.util.annotations.paths.Filename] instead.
  */
 
 @Retention(AnnotationRetention.SOURCE)
@@ -66,8 +74,12 @@ annotation class NativePath
   AnnotationTarget.TYPE,
 )
 @ApiStatus.Internal
+@ApiStatus.Obsolete
 annotation class Filename
 
+/**
+ * Obsolete: use [com.intellij.platform.util.annotations.paths.LocalPath] instead.
+ */
 @Retention(AnnotationRetention.SOURCE)
 @Target(
   AnnotationTarget.PROPERTY,
@@ -79,4 +91,5 @@ annotation class Filename
   AnnotationTarget.TYPE,
 )
 @ApiStatus.Internal
+@ApiStatus.Obsolete
 annotation class LocalPath

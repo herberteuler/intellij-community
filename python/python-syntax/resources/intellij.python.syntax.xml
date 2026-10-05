@@ -45,7 +45,9 @@
     <typedHandler implementation="com.jetbrains.python.codeInsight.PyKeywordTypedHandler" id="pyCommaAfterKwd"/>
     <typedHandler implementation="com.jetbrains.python.editor.PythonSpaceHandler"/>
     <backspaceHandlerDelegate implementation="com.jetbrains.python.codeInsight.editorActions.PyTripleQuoteBackspaceDelegate"/>
-    <colorSettingsPage implementation="com.jetbrains.python.highlighting.PythonColorsPage"/>
+    <colorSettings implementation="com.jetbrains.python.highlighting.PythonColorsPage"
+                   bundle="messages.PySyntaxBundle" key="python.colors.python"
+                   keyLanguageIn="Python,PyCharmCore,PyCharmEdu"/>
     <statementUpDownMover implementation="com.jetbrains.python.codeInsight.editorActions.moveUpDown.PyStatementMover" id="pyStatementMover"
                           order="before line"/>
     <joinLinesHandler implementation="com.jetbrains.python.editor.PyJoinLinesHandler"/>

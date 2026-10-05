@@ -1894,7 +1894,8 @@ a:com.intellij.openapi.vfs.encoding.EncodingRegistry
 - s:getInstance():com.intellij.openapi.vfs.encoding.EncodingRegistry
 com.intellij.openapi.vfs.encoding.Utf8BomOptionProvider
 - sf:EP_NAME:com.intellij.openapi.extensions.ExtensionPointName
-- a:shouldAddBOMForNewUtf8File(com.intellij.openapi.vfs.VirtualFile):Z
+- getBOMDecisionForNewUtf8File(com.intellij.openapi.vfs.VirtualFile):com.intellij.util.ThreeState
+- shouldAddBOMForNewUtf8File(com.intellij.openapi.vfs.VirtualFile):Z
 a:com.intellij.openapi.vfs.impl.ArchiveHandler
 - p:<init>(java.lang.String):V
 - clearCaches():V

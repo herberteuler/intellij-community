@@ -98,6 +98,7 @@ import com.intellij.util.ExceptionUtil;
 import com.intellij.util.ExceptionUtilRt;
 import com.intellij.util.SmartList;
 import com.intellij.util.Suppressions;
+import com.intellij.util.ThreeState;
 import com.intellij.util.UriUtil;
 import com.intellij.util.concurrency.ThreadingAssertions;
 import com.intellij.util.concurrency.annotations.RequiresWriteLock;
@@ -1010,9 +1011,10 @@ public final class PersistentFSImpl extends PersistentFS implements Disposable {
   }
 
   private static boolean isUtf8BomRequired(@NotNull VirtualFile file) {
-    for (Utf8BomOptionProvider encodingProvider : Utf8BomOptionProvider.EP_NAME.getIterable()) {
-      if (encodingProvider.shouldAddBOMForNewUtf8File(file)) {
-        return true;
+    for (Utf8BomOptionProvider encodingProvider : Utf8BomOptionProvider.EP_NAME.getExtensionList()) {
+      ThreeState decision = encodingProvider.getBOMDecisionForNewUtf8File(file);
+      if (decision != ThreeState.UNSURE) {
+        return decision.toBoolean();
       }
     }
     Project project = ProjectLocator.getInstance().guessProjectForFile(file);

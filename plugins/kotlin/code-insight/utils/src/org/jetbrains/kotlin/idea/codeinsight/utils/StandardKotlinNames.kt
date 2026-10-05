@@ -39,6 +39,8 @@ object StandardKotlinNames {
         @JvmField val map: FqName = BASE_COLLECTIONS_PACKAGE + "map"
         @JvmField val mapIndexed: FqName = BASE_COLLECTIONS_PACKAGE + "mapIndexed"
         @JvmField val mapNotNull: FqName = BASE_COLLECTIONS_PACKAGE + "mapNotNull"
+        @JvmField val onEach: FqName = BASE_COLLECTIONS_PACKAGE + "onEach"
+        @JvmField val onEachIndexed: FqName = BASE_COLLECTIONS_PACKAGE + "onEachIndexed"
         @JvmField val emptyList: FqName = BASE_COLLECTIONS_PACKAGE + "emptyList"
         @JvmField val emptyMap: FqName = BASE_COLLECTIONS_PACKAGE + "emptyMap"
         @JvmField val emptySet: FqName = BASE_COLLECTIONS_PACKAGE + "emptySet"

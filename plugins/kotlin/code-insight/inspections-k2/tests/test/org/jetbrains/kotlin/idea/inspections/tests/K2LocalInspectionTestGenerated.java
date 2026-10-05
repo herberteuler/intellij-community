@@ -30918,6 +30918,16 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
             runTest("../../../idea/tests/testData/inspectionsLocal/mapToForEach/notLastInChain.kt");
         }
 
+        @TestMetadata("onEachIndexedWithReturnValueChecker.kt")
+        public void testOnEachIndexedWithReturnValueChecker() throws Exception {
+            runTest("../../../idea/tests/testData/inspectionsLocal/mapToForEach/onEachIndexedWithReturnValueChecker.kt");
+        }
+
+        @TestMetadata("onEachWithReturnValueChecker.kt")
+        public void testOnEachWithReturnValueChecker() throws Exception {
+            runTest("../../../idea/tests/testData/inspectionsLocal/mapToForEach/onEachWithReturnValueChecker.kt");
+        }
+
         @TestMetadata("reference.kt")
         public void testReference() throws Exception {
             runTest("../../../idea/tests/testData/inspectionsLocal/mapToForEach/reference.kt");

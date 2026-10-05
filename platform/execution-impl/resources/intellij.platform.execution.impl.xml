@@ -166,6 +166,8 @@
     <projectSettings service="com.intellij.execution.impl.IprRunManagerImpl"/>
     <projectSettings service="com.intellij.execution.ui.RunConfigurationStartHistory"/>
     <projectSettings service="com.intellij.execution.runToolbar.RunToolbarSettings"/>
+    <applicationService serviceInterface="com.intellij.terminal.TerminalUtilsBridge"
+                        serviceImplementation="com.intellij.terminal.TerminalUtilsBridgeImpl"/>
     <applicationSettings service="com.intellij.terminal.TerminalUiSettingsManager"/>
     <projectSettings service="com.intellij.ide.actions.runAnything.RunAnythingCache"/>
     <projectSettings service="com.intellij.ide.actions.runAnything.RunAnythingContextRecentDirectoryCache"/>

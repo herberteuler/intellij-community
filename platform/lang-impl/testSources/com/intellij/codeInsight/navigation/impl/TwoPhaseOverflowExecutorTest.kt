@@ -5,15 +5,19 @@ import com.intellij.platform.ide.navigation.impl.TwoPhaseOverflowExecutor
 import com.intellij.testFramework.assertions.Assertions.assertThat
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.common.waitUntil
+import com.intellij.util.ref.GCWatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
@@ -23,6 +27,7 @@ import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
+import java.lang.ref.Reference
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -33,6 +38,66 @@ import kotlin.time.Duration.Companion.seconds
  */
 class TwoPhaseOverflowExecutorTest {
   private val executor = TwoPhaseOverflowExecutor()
+
+  @Test
+  fun `a newer submission cancels a scope that still waits for its child`(): Unit = timeoutRunBlocking {
+    val started = CompletableDeferred<Job>()
+    val release = CompletableDeferred<Unit>()
+    val older = async {
+      executor.submit(prepare = {}) {
+        CoroutineScope(currentCoroutineContext()).launch {
+          started.complete(currentCoroutineContext().job)
+          release.await()
+        }
+      }
+    }
+    try {
+      val child = started.await()
+
+      assertThat(older.isCompleted).isFalse()
+      assertThat(executor.submit(prepare = { "newer" }) { it }).isEqualTo("newer")
+      assertThat(child.isCancelled).isTrue()
+    }
+    finally {
+      release.complete(Unit)
+      older.join()
+    }
+    assertThat(older.isCancelled).isTrue()
+  }
+
+  @Test
+  fun `a completed submission releases its job`() {
+    val watcher = timeoutRunBlocking {
+      executor.submit(prepare = {}) { trackCurrentJob() }!!
+    }
+
+    watcher.ensureCollected()
+    Reference.reachabilityFence(executor)
+  }
+
+  @ParameterizedTest
+  @EnumSource(UnsuccessfulApply::class)
+  fun `restoring a completed turn keeps its job released`(outcome: UnsuccessfulApply) {
+    val watcher = timeoutRunBlocking {
+      executor.submit(prepare = {}) { trackCurrentJob() }!!
+    }
+    timeoutRunBlocking {
+      when (outcome) {
+        UnsuccessfulApply.EMPTY -> assertThat(executor.submit<Unit, Unit>(prepare = { Unit }) { null }).isNull()
+        UnsuccessfulApply.FAILURE -> assertThrows<IllegalStateException> {
+          executor.submit(prepare = { Unit }) { error("The action failed") }
+        }
+        UnsuccessfulApply.CANCELLATION -> {
+          val task = submitParkedInApply()
+          task.awaitParked()
+          task.cancel()
+        }
+      }
+    }
+
+    watcher.ensureCollected()
+    Reference.reachabilityFence(executor)
+  }
 
   @Test
   @Timeout(30)
@@ -511,8 +576,13 @@ class TwoPhaseOverflowExecutorTest {
   }
 
   enum class Phase { PREPARE, ACTION }
+  enum class UnsuccessfulApply { EMPTY, FAILURE, CANCELLATION }
   // marker value that parked job went through apply completely
   enum class Applied { TOKEN }
+
+  private suspend fun trackCurrentJob(): GCWatcher = GCWatcher.tracking(currentCoroutineContext().job).apply {
+    setGenerateHeapDump(false)
+  }
 
   /**
    * A task parked in one of [Phase]. Until [release] called it is parked,

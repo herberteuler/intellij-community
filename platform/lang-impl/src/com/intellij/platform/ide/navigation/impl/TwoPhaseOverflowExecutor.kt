@@ -2,7 +2,6 @@
 package com.intellij.platform.ide.navigation.impl
 
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -76,10 +75,14 @@ class TwoPhaseOverflowExecutor {
       if (prepared == null) {
         return@coroutineScope null
       }
-      val turn = RunningTask(id, currentCoroutineContext().job)
+      val job = currentCoroutineContext().job
+      val turn = RunningTask(id, job)
+      job.invokeOnCompletion {
+        turn.job = null
+      }
       val replaced = tryClaimTurnIfNewest(turn) ?: return@coroutineScope null
       // the replaced task cannot win anymore, and it must not wait behind a slow 'apply' phase
-      replaced.job.cancel("Superseded by a newer submission")
+      replaced.job?.cancel("Superseded by a newer submission")
 
       var applied = false
       try {
@@ -139,14 +142,14 @@ class TwoPhaseOverflowExecutor {
     }
   }
 
-  private class RunningTask(@JvmField val id: Int, @JvmField val job: Job)
+  private class RunningTask(@JvmField val id: Int, @Volatile @JvmField var job: Job?)
   private class KeyOwner(val key: Any, val preparation: Preparation)
 
   private companion object {
     /**
      * Turn which nobody holds: older than any submission, and it has nothing to cancel.
      */
-    private val NO_TASK: RunningTask = RunningTask(id = 0, job = NonCancellable)
+    private val NO_TASK: RunningTask = RunningTask(id = 0, job = null)
   }
 
   /**

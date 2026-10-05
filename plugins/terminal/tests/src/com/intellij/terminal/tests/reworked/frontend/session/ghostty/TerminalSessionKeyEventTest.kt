@@ -230,6 +230,11 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
   }
 
   @Test
+  fun `the Menu key is left to the IDE, which opens the context menu`() = runSessionTest { session, _, _ ->
+    assertThat(session.processKeyEvent(pressed(KeyEvent.VK_CONTEXT_MENU))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+  }
+
+  @Test
   fun `cmd and option arrows follow macOS natural text editing`() {
     Assume.assumeTrue(SystemInfoRt.isMac)
     runSessionTest { session, _, _ ->

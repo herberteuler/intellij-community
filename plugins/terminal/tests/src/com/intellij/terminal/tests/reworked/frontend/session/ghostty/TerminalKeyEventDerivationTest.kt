@@ -197,6 +197,13 @@ internal class TerminalKeyEventDerivationTest {
   }
 
   @Test
+  fun `the Menu key stays with the IDE`() {
+    emulator.encodesEverything = true
+    assertThat(press(KeyEvent.VK_CONTEXT_MENU)).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+    assertThat(events).isEmpty()
+  }
+
+  @Test
   fun `a control character is never the text`() {
     press(KeyEvent.VK_ENTER, Char(10))
     type(Char(10))
@@ -233,6 +240,18 @@ internal class TerminalKeyEventDerivationTest {
     type('ƒ', ALT_MASK)
     assertThat(events).containsExactly(
       TerminalKeyEvent(TerminalKey.F, text = "ƒ", unshiftedCodepoint = 'ƒ'.code),
+    )
+  }
+
+  @Test
+  fun `a bare modifier key names its side`() {
+    press(KeyEvent.VK_SHIFT, modifiers = SHIFT_MASK, location = KeyEvent.KEY_LOCATION_LEFT)
+    press(KeyEvent.VK_SHIFT, modifiers = SHIFT_MASK, location = KeyEvent.KEY_LOCATION_RIGHT)
+    press(KeyEvent.VK_CONTROL, modifiers = CTRL_MASK, location = KeyEvent.KEY_LOCATION_LEFT)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.SHIFT_LEFT, modifiers = setOf(SHIFT)),
+      TerminalKeyEvent(TerminalKey.SHIFT_RIGHT, modifiers = setOf(SHIFT)),
+      TerminalKeyEvent(TerminalKey.CONTROL_LEFT, modifiers = setOf(CTRL)),
     )
   }
 

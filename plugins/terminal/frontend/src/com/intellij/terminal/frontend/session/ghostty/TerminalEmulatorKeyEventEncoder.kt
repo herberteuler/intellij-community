@@ -73,7 +73,7 @@ internal class TerminalEmulatorKeyEventEncoder(
       return bytesResult(chord, e)
     }
 
-    val functionalKey = functionalKey(e.keyCode)
+    val functionalKey = functionalKey(e)
     if (functionalKey != null) {
       val event = TerminalKeyEvent(functionalKey, modifiers = terminalModifiers(e))
       val bytes = emulator.encodeKeyEvent(event)
@@ -290,27 +290,42 @@ internal class TerminalEmulatorKeyEventEncoder(
   }
 
   /**
-   * A key from the functional block that encodes on KEY_PRESSED and produces no typed
-   * text of interest.
+   * A key from the functional block that encodes on KEY_PRESSED and produces no typed text
+   * of interest. A modifier or lock key is one too: the encoder reports it under the Kitty
+   * "report all keys" flag and stays silent otherwise.
    */
-  private fun functionalKey(keyCode: Int): TerminalKey? = when (keyCode) {
-    KeyEvent.VK_ENTER -> TerminalKey.ENTER
-    KeyEvent.VK_BACK_SPACE -> TerminalKey.BACKSPACE
-    KeyEvent.VK_TAB -> TerminalKey.TAB
-    KeyEvent.VK_ESCAPE -> TerminalKey.ESCAPE
-    KeyEvent.VK_INSERT -> TerminalKey.INSERT
-    KeyEvent.VK_DELETE -> TerminalKey.DELETE
-    KeyEvent.VK_HOME -> TerminalKey.HOME
-    KeyEvent.VK_END -> TerminalKey.END
-    KeyEvent.VK_PAGE_UP -> TerminalKey.PAGE_UP
-    KeyEvent.VK_PAGE_DOWN -> TerminalKey.PAGE_DOWN
-    KeyEvent.VK_UP -> TerminalKey.ARROW_UP
-    KeyEvent.VK_DOWN -> TerminalKey.ARROW_DOWN
-    KeyEvent.VK_LEFT -> TerminalKey.ARROW_LEFT
-    KeyEvent.VK_RIGHT -> TerminalKey.ARROW_RIGHT
-    // Both VK_F1..VK_F12 and TerminalKey.F1..F12 are contiguous blocks.
-    in KeyEvent.VK_F1..KeyEvent.VK_F12 -> TerminalKey.entries[TerminalKey.F1.ordinal + (keyCode - KeyEvent.VK_F1)]
-    else -> null
+  private fun functionalKey(e: KeyEvent): TerminalKey? {
+    val right = e.keyLocation == KeyEvent.KEY_LOCATION_RIGHT
+    return when (e.keyCode) {
+      KeyEvent.VK_ENTER -> TerminalKey.ENTER
+      KeyEvent.VK_BACK_SPACE -> TerminalKey.BACKSPACE
+      KeyEvent.VK_TAB -> TerminalKey.TAB
+      KeyEvent.VK_ESCAPE -> TerminalKey.ESCAPE
+      KeyEvent.VK_INSERT -> TerminalKey.INSERT
+      KeyEvent.VK_DELETE -> TerminalKey.DELETE
+      KeyEvent.VK_HOME -> TerminalKey.HOME
+      KeyEvent.VK_END -> TerminalKey.END
+      KeyEvent.VK_PAGE_UP -> TerminalKey.PAGE_UP
+      KeyEvent.VK_PAGE_DOWN -> TerminalKey.PAGE_DOWN
+      KeyEvent.VK_UP -> TerminalKey.ARROW_UP
+      KeyEvent.VK_DOWN -> TerminalKey.ARROW_DOWN
+      KeyEvent.VK_LEFT -> TerminalKey.ARROW_LEFT
+      KeyEvent.VK_RIGHT -> TerminalKey.ARROW_RIGHT
+      // Both VK_F1..VK_F12 and TerminalKey.F1..F12 are contiguous blocks.
+      in KeyEvent.VK_F1..KeyEvent.VK_F12 -> TerminalKey.entries[TerminalKey.F1.ordinal + (e.keyCode - KeyEvent.VK_F1)]
+      KeyEvent.VK_SHIFT -> if (right) TerminalKey.SHIFT_RIGHT else TerminalKey.SHIFT_LEFT
+      KeyEvent.VK_CONTROL -> if (right) TerminalKey.CONTROL_RIGHT else TerminalKey.CONTROL_LEFT
+      KeyEvent.VK_ALT -> if (right) TerminalKey.ALT_RIGHT else TerminalKey.ALT_LEFT
+      KeyEvent.VK_ALT_GRAPH -> TerminalKey.ALT_RIGHT
+      KeyEvent.VK_META, KeyEvent.VK_WINDOWS -> if (right) TerminalKey.META_RIGHT else TerminalKey.META_LEFT
+      KeyEvent.VK_CAPS_LOCK -> TerminalKey.CAPS_LOCK
+      KeyEvent.VK_NUM_LOCK -> TerminalKey.NUM_LOCK
+      KeyEvent.VK_SCROLL_LOCK -> TerminalKey.SCROLL_LOCK
+      // VK_CONTEXT_MENU is left out: the Menu key opens the IDE context menu.
+      KeyEvent.VK_PRINTSCREEN -> TerminalKey.PRINT_SCREEN
+      KeyEvent.VK_PAUSE -> TerminalKey.PAUSE
+      else -> null
+    }
   }
 
   /**

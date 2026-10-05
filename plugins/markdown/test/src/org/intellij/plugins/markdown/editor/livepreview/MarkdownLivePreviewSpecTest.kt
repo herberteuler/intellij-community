@@ -110,8 +110,17 @@ class MarkdownLivePreviewSpecTest : BasePlatformTestCase() {
     assertEquals("file:///project/image.png", image.destination)
   }
 
-  fun testReferenceLinksAreNotConcealed() {
-    assertEmpty(concealed("[text][label] and [label]\n\n[label]: https://example.org"))
+  fun testReferenceLinksAreConcealed() {
+    val content = """
+      |[Markdown Guide][docs] [IntelliJ IDEA][] [GitHub]
+      |
+      |[docs]: https://example.org
+      |[IntelliJ IDEA]: https://www.jetbrains.com/idea/
+      |[GitHub]: https://github.com
+    """.trimMargin()
+
+    assertEquals(listOf("[", "][docs]", "[", "][]", "[", "]"), concealed(content))
+    assertEquals(listOf("[Markdown Guide][docs]", "[IntelliJ IDEA][]", "[GitHub]"), revealRanges(content))
   }
 
   fun testCodeFenceContentIsNotConcealed() {

@@ -90,6 +90,7 @@ private fun PsiElement.toDecorationSpecs(editor: Editor): MarkdownLivePreviewSpe
     MarkdownElementTypes.STRIKETHROUGH -> delimiterConceals(MarkdownTokenTypes.TILDE)
     MarkdownElementTypes.CODE_SPAN -> delimiterConceals(MarkdownTokenTypes.BACKTICK)
     MarkdownElementTypes.INLINE_LINK -> toInlineLinkSpecs()
+    MarkdownElementTypes.FULL_REFERENCE_LINK, MarkdownElementTypes.SHORT_REFERENCE_LINK -> toReferenceLinkSpecs()
     MarkdownElementTypes.IMAGE -> if (isInsideTable()) null else toImageSpec(editor)
     // `<https://example.org>` becomes a composite holding the brackets, while `<name@example.org>` stays
     // flat and keeps them as siblings, so the two forms need different lookups.
@@ -370,6 +371,30 @@ private fun PsiElement.toInlineLinkSpecs(): MarkdownLivePreviewSpec.Conceal? {
   if (closeBracket.textRange.startOffset <= openBracket.textRange.endOffset || end <= closeBracket.textRange.startOffset) {
     return null
   }
+  return inlineConceal(openBracket.textRange, TextRange(closeBracket.textRange.startOffset, end))
+}
+
+/** Hides the markup of a full, collapsed, or shortcut reference link. */
+private fun PsiElement.toReferenceLinkSpecs(): MarkdownLivePreviewSpec.Conceal? {
+  val children = childList()
+  val linkText = children.firstOrNull { PsiUtilCore.getElementType(it) == MarkdownElementTypes.LINK_TEXT }
+  val linkLabel = children.firstOrNull { PsiUtilCore.getElementType(it) == MarkdownElementTypes.LINK_LABEL } ?: return null
+  val visiblePart = linkText ?: linkLabel
+  val visibleChildren = visiblePart.childList()
+  val openBracket = visibleChildren.firstOrNull() ?: return null
+  if (PsiUtilCore.getElementType(openBracket) != MarkdownTokenTypes.LBRACKET) return null
+  val closeBracket = visibleChildren.lastOrNull() ?: return null
+  if (PsiUtilCore.getElementType(closeBracket) != MarkdownTokenTypes.RBRACKET) return null
+  if (closeBracket.textRange.startOffset <= openBracket.textRange.endOffset) return null
+
+  if (linkText == null) {
+    // The parser stores the empty label of a collapsed link as trailing children.
+    val end = if (children.size > 1) textRange.endOffset else closeBracket.textRange.endOffset
+    return inlineConceal(openBracket.textRange, TextRange(closeBracket.textRange.startOffset, end))
+  }
+
+  val end = textRange.endOffset
+  if (end <= closeBracket.textRange.startOffset) return null
   return inlineConceal(openBracket.textRange, TextRange(closeBracket.textRange.startOffset, end))
 }
 

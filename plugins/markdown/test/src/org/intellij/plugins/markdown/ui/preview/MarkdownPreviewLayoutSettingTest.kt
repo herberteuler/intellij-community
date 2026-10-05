@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.plugins.markdown.ui.preview
 
+import com.intellij.openapi.fileEditor.FileEditorStateLevel
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.fileEditor.TextEditorWithPreview
 import com.intellij.openapi.util.Disposer
@@ -42,6 +43,20 @@ class MarkdownPreviewLayoutSettingTest : BasePlatformTestCase() {
     )
 
     assertTrue("global setting must win over restored per-file orientation", splitter.orientation)
+  }
+
+  fun testUndoKeepsManuallySelectedOrientation() {
+    val settings = MarkdownSettings.getInstance()
+    settings.update { it.isVerticalSplit = false }
+
+    val editorWithPreview = createEditor(settings)
+    val splitter = UIUtil.findComponentOfType(editorWithPreview.component, JBSplitter::class.java)!!
+    editorWithPreview.setVerticalSplit(false)
+
+    val undoState = editorWithPreview.getState(FileEditorStateLevel.UNDO)
+    editorWithPreview.setState(undoState)
+
+    assertFalse("undo must keep the manually selected orientation", splitter.orientation)
   }
 
   private fun splitterOf(settings: MarkdownSettings): JBSplitter =

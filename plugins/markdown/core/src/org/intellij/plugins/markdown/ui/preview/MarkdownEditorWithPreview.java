@@ -125,9 +125,11 @@ public final class MarkdownEditorWithPreview extends TextEditorWithPreview imple
       }
     }
     super.setState(restoredState);
-    // "Preview layout" is a global default, so it must win over the per-file orientation
-    // that super.setState() restores from the editor state. See IJPL-253568.
-    handleLayoutChange(!settings.isVerticalSplit());
+    if (state instanceof MyFileEditorState editorState && editorState.getSplitLayout() != null) {
+      // "Preview layout" is a global default, so it must win over the per-file orientation
+      // restored from a full editor state. See IJPL-253568.
+      handleLayoutChange(!settings.isVerticalSplit());
+    }
   }
 
   @Override

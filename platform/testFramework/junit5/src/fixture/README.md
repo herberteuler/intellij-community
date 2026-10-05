@@ -665,6 +665,19 @@ Representative usages:
 - Java code insight wrapper: `community/java/java-tests/testSrc/com/siyeh/ig/migration/ForCanBeForeachInspectionTest.java`
 - Java-specific helper API: `community/java/testFramework/src/com/intellij/testFramework/javaCodeInsightFixture.kt`
 
+`codeInsightProjectFixture()` creates the same project, module, and temporary directory in one fixture.
+Use it with the `codeInsightFixture(projectFixture)` overload, which takes the project directory as the temporary directory:
+
+```kotlin
+companion object {
+  private val projectFixture = codeInsightProjectFixture()
+}
+
+private val fixture by codeInsightFixture(projectFixture)
+```
+
+Showcase: `community/platform/testFramework/junit5/codeInsight/test/com/intellij/platform/testFramework/junit5/codeInsight/fixture/CodeInsightProjectFixtureTest.kt`
+
 ## SDK And Interpreter Setup
 
 There are three main patterns.

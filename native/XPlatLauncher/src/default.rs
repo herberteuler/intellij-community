@@ -252,7 +252,7 @@ impl DefaultLaunchConfiguration {
         debug!("[1] Reading main VM options file: {:?}", self.vm_options_path);
         let (dist_vm_options, corrupted) = read_vm_options(&self.vm_options_path)?;
         if corrupted {
-            bail!("Invalid character ('\\0') found in VM options file: {}", &self.vm_options_path.display());
+            bail!("Invalid character ('\\0') found in VM options file: {}", self.vm_options_path.display());
         }
 
         debug!("[2] Looking for user VM options file");

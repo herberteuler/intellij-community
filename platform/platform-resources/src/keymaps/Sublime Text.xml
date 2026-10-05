@@ -265,13 +265,7 @@
     <keyboard-shortcut first-keystroke="control b"/>
   </action>
   <action id="GotoTypeDeclaration"/>
-  <action id="StartStopMacroRecording">
-    <keyboard-shortcut first-keystroke="control q"/>
-  </action>
   <action id="QuickJavaDoc"/>
-  <action id="PlaybackLastMacro">
-    <keyboard-shortcut first-keystroke="control shift q"/>
-  </action>
   <!--END TOOLS-->
 
   <action id="EditorAddOrRemoveCaret">

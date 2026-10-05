@@ -1,9 +1,8 @@
 //! The local home: a fresh directory that links each file of `local-layout.json` to its Bazel runfile.
 //!
-//! The `local-home` command calls [`link_local_home`] for `PreBuiltDevMain`, and a launch calls
-//! [`link_local_home_with`] with the runfiles of the launcher. The home links ordinary files to the component artifacts
-//! and keeps the declared relative links. It copies the launch metadata and each file whose runfile lacks the mode that
-//! the file needs. It never changes the permissions of a runfile.
+//! A launch calls [`link_local_home_with`] with the runfiles of the launcher. The home links ordinary files to the
+//! component artifacts and keeps the declared relative links. It copies the launch metadata and each file whose runfile
+//! lacks the mode that the file needs. It never changes the permissions of a runfile.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -16,24 +15,12 @@ use component::paths::from_slash;
 use component::plugin_classpath::PLUGIN_CLASSPATH;
 use filemeta::{Entry, EntryType};
 
-/// The runfiles variables of the process. An empty variable is an absent one.
+/// The runfiles roots of a lookup, as the runfiles variables name them.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct RunfilesEnv {
     pub(crate) java_runfiles: Option<PathBuf>,
     pub(crate) runfiles_dir: Option<PathBuf>,
     pub(crate) runfiles_manifest_file: Option<PathBuf>,
-}
-
-impl RunfilesEnv {
-    /// Reads `JAVA_RUNFILES`, `RUNFILES_DIR` and `RUNFILES_MANIFEST_FILE`.
-    pub(crate) fn from_process() -> Self {
-        let variable = |name: &str| std::env::var_os(name).filter(|value| !value.is_empty()).map(PathBuf::from);
-        Self {
-            java_runfiles: variable("JAVA_RUNFILES"),
-            runfiles_dir: variable("RUNFILES_DIR"),
-            runfiles_manifest_file: variable("RUNFILES_MANIFEST_FILE"),
-        }
-    }
 }
 
 /// Finds a runfile: in `JAVA_RUNFILES`, then in `RUNFILES_DIR`, then by the longest prefix in the runfiles manifest.
@@ -115,12 +102,6 @@ fn unescape_manifest_text(text: &str) -> String {
         }
     }
     result
-}
-
-/// Links the files of the layout into `output_dir`, which must be absent or empty. The runfiles come from `env`.
-pub(crate) fn link_local_home(layout_path: &Path, output_dir: &Path, env: &RunfilesEnv) -> Result<()> {
-    let lookup = RunfilesLookup::new(env)?;
-    link_local_home_with(layout_path, output_dir, &|name| lookup.resolve(name))
 }
 
 /// Links the files of the layout into `output_dir` with a runfile lookup. It checks the whole layout before it

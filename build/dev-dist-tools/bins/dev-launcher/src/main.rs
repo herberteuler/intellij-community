@@ -7,9 +7,6 @@
 //! changes to `BUILD_WORKSPACE_DIRECTORY` and replaces itself with the JVM of the IDE. Thus the IDE runs with the
 //! process ID of the launcher.
 //!
-//! The command `local-home --layout=<file> --output-dir=<directory>` links the local home of `PreBuiltDevMain`
-//! (`build/BUILD.bazel`, `local_home_tool`) by the same rules, and exits.
-//!
 //! The command `jvm-args` writes the same JVM arguments as a `java` argument file at build time, see [`jvm_args`].
 
 mod devdata;
@@ -69,13 +66,6 @@ fn main() {
     if args.get(1).is_some_and(|arg| arg == "jvm-args") {
         std::process::exit(i32::from(jvm_args::run_jvm_args(&args[2..], &mut std::io::stderr())));
     }
-    if args.get(1).is_some_and(|arg| arg == "local-home") {
-        std::process::exit(i32::from(run_local_home(
-            &args[2..],
-            &mut std::io::stdout(),
-            &mut std::io::stderr(),
-        )));
-    }
     let args: Vec<String> = match args.into_iter().map(OsString::into_string).collect() {
         Ok(args) => args,
         Err(arg) => {
@@ -91,34 +81,6 @@ fn main() {
             std::process::exit(1);
         }
     }
-}
-
-/// `local-home --layout=<file> --output-dir=<directory>`: links the local home of `PreBuiltDevMain`. It returns the exit
-/// code: 2 for an option error, 1 for any other error.
-fn run_local_home(args: &[OsString], output: &mut dyn Write, errors: &mut dyn Write) -> u8 {
-    let (layout, output_dir) = match parse_local_home(args) {
-        Ok(options) => options,
-        Err(error) => {
-            cli::report(errors, &error);
-            return 2;
-        }
-    };
-    let env = local_home::RunfilesEnv::from_process();
-    if let Err(error) = local_home::link_local_home(Path::new(&layout), Path::new(&output_dir), &env) {
-        cli::report(errors, &error);
-        return 1;
-    }
-    let _ = writeln!(output, "Prepared the local dev home");
-    0
-}
-
-/// Reads `--layout=<file>` and `--output-dir=<directory>`, the two options of `local-home`.
-fn parse_local_home(args: &[OsString]) -> anyhow::Result<(String, String)> {
-    let mut options = cli::parse(args.iter().cloned())?;
-    let layout = options.require("--layout")?;
-    let output_dir = options.require("--output-dir")?;
-    options.finish()?;
-    Ok((layout, output_dir))
 }
 
 /// Reads the launch manifest and the distribution, and returns the JVM command line. `getenv` returns an empty string

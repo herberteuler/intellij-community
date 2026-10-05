@@ -519,25 +519,6 @@ fn runfiles_lookup_decodes_escaped_manifest_lines() {
     require_error(lookup.resolve("_main/empty"), "missing local dev runfile");
 }
 
-#[cfg(unix)]
-#[test]
-fn link_local_home_resolves_runfiles_from_the_environment() {
-    let root = TempDir::new();
-    write_file(root.path().join("_main/packed.jar"), "packed");
-    let layouts = TempDir::new();
-    let layout_file = write_layout(&layouts, &layout(vec![runfile("lib/packed.jar", "_main/packed.jar")]));
-    let home = TempDir::new();
-    let env = RunfilesEnv {
-        runfiles_dir: Some(root.path().into()),
-        ..RunfilesEnv::default()
-    };
-    link_local_home(&layout_file, home.path(), &env).unwrap();
-    assert_eq!(
-        fs::read_link(home.path().join("lib/packed.jar")).unwrap(),
-        root.path().join("_main/packed.jar")
-    );
-}
-
 #[test]
 fn link_targets_find_the_directories_of_the_layout() {
     let layout = layout(vec![

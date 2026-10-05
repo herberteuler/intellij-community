@@ -5,9 +5,9 @@ load("@intellij_add_opens//:intellij_add_opens.bzl", "INTELLIJ_ADD_OPENS")
 load("@rules_java//java:defs.bzl", "java_binary")
 load("//platform/build-scripts/bazel-rules:intellij_dev_dist.bzl", "IntellijDevDistInfo")
 
-# Names the prepared distribution for whoever consumes one - `PreBuiltDevMain` when it is a launcher, the IDE Starter's
-# prebuilt dev-build runner when it is a test. Keep in sync with `DevIdeConfig.CONFIG_PATH_PROPERTY`, which is where the
-# reading side of this contract lives.
+# Names the prepared distribution for its consumer: the prebuilt dev-build runner of IDE Starter in a test, and
+# `PreBuiltDevMain` in the docker run configuration. Keep in sync with `DevIdeConfig.CONFIG_PATH_PROPERTY`, which is
+# where the reading side of this contract lives.
 DEV_IDE_CONFIG_PATH_PROPERTY = "idea.ide.config.path"
 
 def intellij_dev_dist_config(name, dist, visibility = None, tags = []):
@@ -42,39 +42,30 @@ DEFAULT_JVM_FLAGS = [
 # The data directories of the IDE. `_runtime_jvm_flags` owns them, and a flag that states one would lose to its defaults.
 _LAUNCHER_DATA_PROPERTIES = ["idea.config.path", "idea.system.path", "idea.log.path"]
 
-def _runtime_jvm_flags(name, jvm_flags, platform_prefix, config_path, system_path, data_name = None, manifest_class_path = True):
+def _runtime_jvm_flags(name, jvm_flags, data_name = None, manifest_class_path = True):
     """The flags an IDE needs to run, independent of how it was assembled.
 
-    `$${...}` is a literal `${...}` the java stub expands at launch; `BUILD_WORKSPACE_DIRECTORY` is set by `bazel run`,
-    so a launcher started any other way must export it itself.
+    `$${...}` is a literal `${...}`. The launcher expands it at launch, and a `java` launcher resolves it at analysis.
 
-    The config and system directories are `out/dev-data/<name>/config` and `out/dev-data/<name>/system` unless
-    `config_path` and `system_path` say otherwise. On macOS the launcher makes `out/dev-data` a link to a directory
-    outside the workspace. `jvm_flags` must not state a data directory.
+    The config and system directories are `out/dev-data/<data_name>/config` and `out/dev-data/<data_name>/system`. On
+    macOS `out/dev-data` is a link to a directory outside the workspace. `jvm_flags` must not state a data directory.
 
     `manifest_class_path` adds the Windows flag of the java stub. A launcher that writes a plain `-cp` passes False.
     """
     for flag in jvm_flags:
         for key in _LAUNCHER_DATA_PROPERTIES:
             if flag.startswith("-D%s=" % key):
-                fail("%s: `%s` states a data directory, which the launcher owns; use `config_path` or `system_path`" % (name, flag))
+                fail("%s: `%s` states a data directory, which the launcher owns" % (name, flag))
 
-    # Use provided paths or defaults based on target name
     data_name = data_name or name
-    effective_config_path = config_path if config_path else "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + data_name + "/config"
-    effective_system_path = system_path if system_path else "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + data_name + "/system"
-
+    config_path = "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + data_name + "/config"
+    system_path = "$${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/" + data_name + "/system"
     all_jvm_flags = DEFAULT_JVM_FLAGS + [
-        "-Didea.plugins.path=" + effective_config_path + "/plugins",
-        "-Didea.log.path=" + effective_system_path + "/log",
-    ] + jvm_flags
-
-    if platform_prefix:
-        all_jvm_flags = all_jvm_flags + ["-Didea.platform.prefix=" + platform_prefix]
-
-    all_jvm_flags = all_jvm_flags + [
-        "-Didea.config.path=" + effective_config_path,
-        "-Didea.system.path=" + effective_system_path,
+        "-Didea.plugins.path=" + config_path + "/plugins",
+        "-Didea.log.path=" + system_path + "/log",
+    ] + jvm_flags + [
+        "-Didea.config.path=" + config_path,
+        "-Didea.system.path=" + system_path,
     ]
     if not manifest_class_path:
         return all_jvm_flags
@@ -86,60 +77,6 @@ def _runtime_jvm_flags(name, jvm_flags, platform_prefix, config_path, system_pat
         "@bazel_tools//src/conditions:windows": ["-Didea.reset.classpath.from.manifest=true"],
         "//conditions:default": [],
     })
-
-_PREBUILT_DEV_MAIN_CLASS = "com.intellij.platform.bootstrap.dev.PreBuiltDevMain"
-
-# `PreBuiltDevMain`. The module carries no build scripts.
-_LAUNCHER_MODULE = "@community//platform/bootstrap/dev"
-
-def intellij_dev_prebuilt_binary(
-        name,
-        dist,
-        platform_prefix = None,
-        jvm_flags = [],
-        env = {},
-        config_path = None,
-        system_path = None,
-        program_args = [],
-        visibility = None,
-        local_home_tool = None,
-        data = []):
-    """Launches a built distribution or a linked local home without packaging it.
-
-    The distribution declares its product and additional modules.
-    When it supplies local metadata, local_home_tool prepares a temporary home from its component runfiles.
-    `data` is the launcher's extra runfiles, on top of the distribution and its config.
-    """
-
-    # Manual, like the distribution in `data`: a wildcard build must not compose it. `bazel run` names the launcher and
-    # is not affected.
-    tags = ["manual"]
-
-    ide_config = name + "_ide_config"
-    dist_target = name + "_distribution"
-    native.alias(name = dist_target, actual = dist, tags = tags, visibility = ["//visibility:private"])
-    intellij_dev_dist_config(name = ide_config, dist = dist_target, tags = tags, visibility = ["//visibility:private"])
-
-    local_home_data = [local_home_tool] if local_home_tool else []
-    local_home_flags = ["-Didea.dev.local.home.tool=$(rlocationpath %s)" % local_home_tool] if local_home_tool else []
-
-    java_binary(
-        name = name,
-        visibility = visibility,
-        runtime_deps = [_LAUNCHER_MODULE],
-        main_class = _PREBUILT_DEV_MAIN_CLASS,
-        tags = tags,
-        data = data + [dist_target, ide_config] + local_home_data,
-        jvm_flags = _runtime_jvm_flags(name, jvm_flags, platform_prefix, config_path, system_path) + local_home_flags + [
-            "-D%s=$(rlocationpath %s)" % (DEV_IDE_CONFIG_PATH_PROPERTY, ide_config),
-            # Not a build-time input: `AppMode.getDevIdeaProjectDir` and the webview native bridge read it at runtime,
-            # and a dev launch has it only because `DevMainImpl` sets it from the project root it just built against.
-            "-Didea.dev.project.root=$${BUILD_WORKSPACE_DIRECTORY}",
-        ],
-        env = env,
-        add_opens = INTELLIJ_ADD_OPENS,
-        args = program_args,
-    )
 
 def _launcher_runfile_path(ctx, file):
     path = file.short_path
@@ -218,7 +155,7 @@ def intellij_dev_launcher_binary(
         before_run_runtime_deps = [],
         data_name = None,
         visibility = None):
-    """The launcher of a composed dev distribution, with the flags `intellij_dev_prebuilt_binary` gives its java stub.
+    """The launcher of a composed dev distribution.
 
     `dist` and `ide_config` are the distribution and its `intellij_dev_dist_config`. The home is linked under
     `out/dev-data/<name>/homes`, one directory per launch, beside the launcher's config and system directories. On macOS
@@ -246,7 +183,7 @@ def intellij_dev_launcher_binary(
         ide_config = ide_config,
         before_run = before_run,
         # The IDE starts in the workspace, so a relative path in a flag resolves as it does for the run configuration.
-        jvm_flags = _runtime_jvm_flags(name, jvm_flags, platform_prefix = None, config_path = None, system_path = None, data_name = data_name) + [
+        jvm_flags = _runtime_jvm_flags(name, jvm_flags, data_name = data_name) + [
             # Not a build-time input: `AppMode.getDevIdeaProjectDir` and the webview native bridge read it at runtime,
             # and a dev launch has it only because `DevMainImpl` sets it from the project root it just built against.
             "-Didea.dev.project.root=$${BUILD_WORKSPACE_DIRECTORY}",
@@ -514,7 +451,7 @@ def intellij_dev_java_launcher_binary(
             "//conditions:default": None,
         }),
         # The argument file has a plain `-cp`, so `PathClassLoader` needs no manifest flag.
-        jvm_flags = _runtime_jvm_flags(name, jvm_flags, platform_prefix = None, config_path = None, system_path = None, manifest_class_path = False) + [
+        jvm_flags = _runtime_jvm_flags(name, jvm_flags, manifest_class_path = False) + [
             # Not a build-time input: `AppMode.getDevIdeaProjectDir` and the webview native bridge read it at runtime,
             # and a dev launch has it only because `DevMainImpl` sets it from the project root it just built against.
             "-Didea.dev.project.root=$${BUILD_WORKSPACE_DIRECTORY}",

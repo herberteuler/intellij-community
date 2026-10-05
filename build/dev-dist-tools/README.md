@@ -39,7 +39,7 @@ Run a test target from the ultimate root. From `community/`, drop the `@communit
 | `bins/content-module-packer` | The packer and the inventory of each packed jar. | `@community//build/dev-dist-tools/bins/content-module-packer:content-module-packer_test` |
 | `bins/dev-dist-collector` | The collector: the inventory of a component and the plugin classpath record. | `@community//build/dev-dist-tools/bins/dev-dist-collector:dev-dist-collector_test` |
 | `bins/dev-dist-composer` | The composer: the composition spec, the composition and its copy step, and the local layout writer. It also writes the plugin classpath file and the fingerprint. It checks the home placement. | `@community//build/dev-dist-tools/bins/dev-dist-composer:dev-dist-composer_test` |
-| `bins/dev-launcher` | The launcher of `intellij_dev_launcher`, the local home, the `local-home` command of `PreBuiltDevMain`, and the `jvm-args` command, which writes the argument file of an `intellij_dev_java_launcher` row. | `@community//build/dev-dist-tools/bins/dev-launcher:dev-launcher_test` |
+| `bins/dev-launcher` | The launcher of `intellij_dev_launcher`, its local home, and the `jvm-args` command, which writes the argument file of an `intellij_dev_java_launcher` row. | `@community//build/dev-dist-tools/bins/dev-launcher:dev-launcher_test` |
 | `bins/plugin-descriptor-writer` | The descriptor writer. | `@community//build/dev-dist-tools/bins/plugin-descriptor-writer:plugin-descriptor-writer_test` and `:descriptor_rule_tests` |
 | `bins/plugin-remainder-packer` | The remainder packer. | `@community//build/dev-dist-tools/bins/plugin-remainder-packer:plugin-remainder-packer_test` and `:plugin-remainder-packer_cli_test` |
 | `bins/product-files` | The tool of `dev_dist_product_files`. | `@community//build/dev-dist-tools/bins/product-files:product-files_test` |
@@ -82,7 +82,7 @@ cd community && ./bazel.cmd test //build/dev-dist-tools/...
 - Before a commit, run `cargo fmt --check` and `cargo clippy --all-targets` in this directory and in
   `build/dev-dist-tools`, and `bun community/build/rust-tools/sync.mjs --check` from the ultimate root.
 - `./build/dev-dist.cmd` runs `//build/dev-dist-tools/bins/dev-dist:dev-dist_opt`, the binary built in `opt`. A row
-  launcher and `PreBuiltDevMain` run `bins/dev-launcher:dev-launcher_opt`, and `replay` runs
+  launcher runs `bins/dev-launcher:dev-launcher_opt`, and `replay` runs
   `bins/content-module-packer:content-module-packer_opt`. The unit test of each binary stays on the `rust_binary`.
 - A row on the java path runs no launcher at start. Its argument file action runs `dev-launcher_opt jvm-args` at build
   time, and the row executable is a link to `java`.

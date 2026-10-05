@@ -23,16 +23,17 @@ sealed class SdkCreationRequest {
 }
 
 /**
- * Adds an interpreter to [project], either local or remote (always vanilla). Closing the returned [AutoCloseable] removes it.
+ * Adds a shared interpreter to [project], either local or remote (always vanilla). Closing the returned [AutoCloseable]
+ * removes it.
  */
 suspend fun PyEnvironmentFactory.createSdk(project: Project, request: SdkCreationRequest): Pair<PythonInterpreter, AutoCloseable> = withContext(Dispatchers.IO) {
   val registry = PythonInterpreterProjectRegistry.getInstance(project)
   when (request) {
     is SdkCreationRequest.LocalPython -> {
       val environment = createEnvironment(PredefinedPyEnvironments.VENV_3_12)
-      val interpreter = environment.prepareSdk(project)
+      val interpreter = environment.prepareSharedSdk(project)
       Pair(interpreter, AutoCloseable {
-        runBlocking { registry.removePythonInterpreter(interpreter) }
+        runBlocking { registry.removeSharedPythonInterpreter(interpreter) }
         environment.close()
       })
     }
@@ -46,8 +47,8 @@ suspend fun PyEnvironmentFactory.createSdk(project: Project, request: SdkCreatio
       catch (e: RemoteSdkException) {
         throw RuntimeException("Error running $PYTHON_PATH_ON_TARGET", e)
       }
-      val interpreter = registry.addPythonInterpreter(PYTHON_PATH_ON_TARGET, targetData, PYTHON_PATH_ON_TARGET, setupPaths = false)
-      Pair(interpreter, AutoCloseable { runBlocking { registry.removePythonInterpreter(interpreter) } })
+      val interpreter = registry.addSharedPythonInterpreter(PYTHON_PATH_ON_TARGET, targetData, PYTHON_PATH_ON_TARGET, setupPaths = false)
+      Pair(interpreter, AutoCloseable { runBlocking { registry.removeSharedPythonInterpreter(interpreter) } })
     }
   }
 }

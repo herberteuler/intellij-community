@@ -26,6 +26,6 @@ class PyEnvWithVenvShowCaseTest {
   fun venvTest(): Unit = timeoutRunBlocking {
     val venv = venvFixture.get()
     val registry = PythonInterpreterProjectRegistry.getInstance(projectFixture.get())
-    Assertions.assertTrue(venv in registry.interpreters(), "The venv interpreter must be in the registry")
+    Assertions.assertTrue(venv in registry.interpreters(pyProjectFixture.get()), "The venv interpreter must be in the registry")
   }
 }

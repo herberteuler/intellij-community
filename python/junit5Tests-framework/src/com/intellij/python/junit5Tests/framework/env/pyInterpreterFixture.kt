@@ -14,6 +14,9 @@ import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
 import com.intellij.testFramework.junit5.fixture.TestFixture
 import com.intellij.testFramework.junit5.fixture.testFixture
 import com.jetbrains.python.sdk.PythonSdkAdditionalData
+import com.jetbrains.python.project.PyProject
+import com.jetbrains.python.project.project
+import com.intellij.openapi.projectRoots.Sdk
 import org.jetbrains.annotations.ApiStatus
 import java.nio.file.Path
 
@@ -30,13 +33,33 @@ class PyInterpreterFixture<ENV : Any>(val interpreter: PythonInterpreter, val en
 }
 
 /**
- * Creates a mock interpreter: not a real python, but with [homePath]. It is added through
+ * Creates a mock interpreter of this [PyProject]: not a real python, but with [homePath]. It is added through
  * [PythonInterpreterProjectRegistry]. The SDK has [PythonSdkAdditionalData], because the product treats a Python SDK
  * without it as broken.
  */
+@JvmName("pyProjectMockInterpreterFixture")
+fun TestFixture<PyProject>.pyMockInterpreterFixture(homePath: TestFixture<Path>): TestFixture<PythonInterpreter> = testFixture {
+  val pyProject = this@pyMockInterpreterFixture.init()
+  val registry = PythonInterpreterProjectRegistry.getInstance(pyProject.project)
+  val interpreter = registry.addMockPythonInterpreter(pyProject, createMockSdk(pyProject.project, homePath.init()))
+  initialized(interpreter) {
+    registry.removePythonInterpreter(pyProject, interpreter)
+  }
+}
+
+/**
+ * Creates a shared mock interpreter in this project: one that belongs to no [PyProject]. See the [PyProject] overload.
+ */
 fun TestFixture<Project>.pyMockInterpreterFixture(homePath: TestFixture<Path>): TestFixture<PythonInterpreter> = testFixture {
   val project = this@pyMockInterpreterFixture.init()
-  val path = homePath.init()
+  val registry = PythonInterpreterProjectRegistry.getInstance(project)
+  val interpreter = registry.addSharedMockPythonInterpreter(createMockSdk(project, homePath.init()))
+  initialized(interpreter) {
+    registry.removeSharedPythonInterpreter(interpreter)
+  }
+}
+
+private suspend fun createMockSdk(project: Project, path: Path): Sdk {
   val sdk = ProjectJdkTable.getInstance(project).createSdk("PyMockSDK" + System.currentTimeMillis().toString(), PyMockSdkTypeId)
   val root = withContext(Dispatchers.IO) { VfsUtil.findFile(path, true) } ?: error("No $path")
   edtWriteAction {
@@ -46,9 +69,5 @@ fun TestFixture<Project>.pyMockInterpreterFixture(homePath: TestFixture<Path>): 
     modificator.sdkAdditionalData = PythonSdkAdditionalData(null)
     modificator.commitChanges()
   }
-  val registry = PythonInterpreterProjectRegistry.getInstance(project)
-  val interpreter = registry.addMockPythonInterpreter(sdk)
-  initialized(interpreter) {
-    registry.removePythonInterpreter(interpreter)
-  }
+  return sdk
 }

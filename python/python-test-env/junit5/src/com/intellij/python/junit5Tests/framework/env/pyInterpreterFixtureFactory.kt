@@ -11,22 +11,51 @@ import com.intellij.python.test.env.junit5.getOrCreatePyEnvironmentFactory
 import com.intellij.testFramework.junit5.fixture.TestFixture
 import com.intellij.testFramework.junit5.fixture.TestFixtureInitializer
 import com.intellij.testFramework.junit5.fixture.testFixture
+import com.jetbrains.python.project.PyProject
+import com.jetbrains.python.project.project
 
 /**
  * Creates an interpreter fixture using tags from [@PyEnvTestCase][com.intellij.python.junit5Tests.framework.env.PyEnvTestCase] annotation.
- * Requires test class to be annotated with @PyEnvTestCase. The interpreter belongs to this project.
+ * Requires test class to be annotated with @PyEnvTestCase. The interpreter belongs to this [PyProject].
+ *
+ * @throws IllegalStateException if @PyEnvTestCase annotation is not found on the test class
+ */
+@JvmName("pyProjectInterpreterFixture")
+fun TestFixture<PyProject>.pyInterpreterFixture(): TestFixture<PyInterpreterFixture<PyEnvironment>> = testFixture { context ->
+  val pyProject = this@pyInterpreterFixture.init()
+  initializedTestFixture(pyProject, RunOnEnvironmentsExtension.getPythonEnvironment(context.extensionContext))
+}
+
+/**
+ * Creates an interpreter (if you only need a python path, use [com.intellij.python.junit5Tests.framework.env.PythonBinaryPath]
+ * or [com.intellij.python.community.junit5Tests.framework.conda.CondaEnv]). The interpreter belongs to this [PyProject].
+ */
+@JvmName("pyProjectInterpreterFixture")
+fun TestFixture<PyProject>.pyInterpreterFixture(
+  env: PredefinedPyEnvironments,
+): TestFixture<PyInterpreterFixture<PyEnvironment>> = pyInterpreterFixture(env.spec)
+
+@JvmName("pyProjectInterpreterFixture")
+fun TestFixture<PyProject>.pyInterpreterFixture(
+  envSpec: PyEnvironmentSpec<*>,
+): TestFixture<PyInterpreterFixture<PyEnvironment>> = testFixture { context ->
+  val pyProject = this@pyInterpreterFixture.init()
+  val factory = getOrCreatePyEnvironmentFactory(context.extensionContext)
+  initializedTestFixture(pyProject, factory.createEnvironment(envSpec))
+}
+
+/**
+ * Creates a shared interpreter fixture using tags from [@PyEnvTestCase][com.intellij.python.junit5Tests.framework.env.PyEnvTestCase]
+ * annotation. A shared interpreter belongs to no [PyProject] of this project.
  *
  * @throws IllegalStateException if @PyEnvTestCase annotation is not found on the test class
  */
 fun TestFixture<Project>.pyInterpreterFixture(): TestFixture<PyInterpreterFixture<PyEnvironment>> = testFixture { context ->
   val project = this@pyInterpreterFixture.init()
-  initializedTestFixture(project, RunOnEnvironmentsExtension.getPythonEnvironment(context.extensionContext))
+  initializedSharedTestFixture(project, RunOnEnvironmentsExtension.getPythonEnvironment(context.extensionContext))
 }
 
-/**
- * Creates an interpreter (if you only need a python path, use [com.intellij.python.junit5Tests.framework.env.PythonBinaryPath]
- * or [com.intellij.python.community.junit5Tests.framework.conda.CondaEnv]). The interpreter belongs to this project.
- */
+/** Creates a shared interpreter, which belongs to no [PyProject] of this project. */
 fun TestFixture<Project>.pyInterpreterFixture(
   env: PredefinedPyEnvironments,
 ): TestFixture<PyInterpreterFixture<PyEnvironment>> = pyInterpreterFixture(env.spec)
@@ -36,16 +65,27 @@ fun TestFixture<Project>.pyInterpreterFixture(
 ): TestFixture<PyInterpreterFixture<PyEnvironment>> = testFixture { context ->
   val project = this@pyInterpreterFixture.init()
   val factory = getOrCreatePyEnvironmentFactory(context.extensionContext)
-  initializedTestFixture(project, factory.createEnvironment(envSpec))
+  initializedSharedTestFixture(project, factory.createEnvironment(envSpec))
 }
 
 private suspend fun TestFixtureInitializer.R<PyInterpreterFixture<PyEnvironment>>.initializedTestFixture(
+  pyProject: PyProject,
+  env: PyEnvironment,
+): TestFixtureInitializer.InitializedTestFixture<PyInterpreterFixture<PyEnvironment>> {
+  val interpreter = env.prepareSdk(pyProject)
+  return initialized(PyInterpreterFixture(interpreter, env, pyProject.project)) {
+    PythonInterpreterProjectRegistry.getInstance(pyProject.project).removePythonInterpreter(pyProject, interpreter)
+    env.close()
+  }
+}
+
+private suspend fun TestFixtureInitializer.R<PyInterpreterFixture<PyEnvironment>>.initializedSharedTestFixture(
   project: Project,
   env: PyEnvironment,
 ): TestFixtureInitializer.InitializedTestFixture<PyInterpreterFixture<PyEnvironment>> {
-  val interpreter = env.prepareSdk(project)
+  val interpreter = env.prepareSharedSdk(project)
   return initialized(PyInterpreterFixture(interpreter, env, project)) {
-    PythonInterpreterProjectRegistry.getInstance(project).removePythonInterpreter(interpreter)
+    PythonInterpreterProjectRegistry.getInstance(project).removeSharedPythonInterpreter(interpreter)
     env.close()
   }
 }

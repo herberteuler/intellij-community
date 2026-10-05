@@ -92,11 +92,22 @@ fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyVenvFixture(
   // With no Python project this fixture stands for a *shared* venv, so its SDK gets no association:
   // sortForExistingEnvironment only treats an unassociated SDK as SHARED_VENVS.
   val opts = SdkCreationAdvancedOpts(associate = if (pyProject == null) false else null)
-  val interpreter = createSdk(project, PathHolder.Eel(venvPython), additionalData, advancedOpts = opts).orThrow()
+  val interpreter = if (pyProject != null) {
+    createSdk(pyProject, PathHolder.Eel(venvPython), additionalData, advancedOpts = opts).orThrow()
+  }
+  else {
+    createSdk(project, PathHolder.Eel(venvPython), additionalData, advancedOpts = opts).orThrow()
+  }
   pyProject?.setPythonInterpreter(interpreter)
   initialized(interpreter) {
-    pyProject?.setPythonInterpreter(null)
-    PythonInterpreterProjectRegistry.getInstance(project).removePythonInterpreter(interpreter)
+    val registry = PythonInterpreterProjectRegistry.getInstance(project)
+    if (pyProject != null) {
+      pyProject.setPythonInterpreter(null)
+      registry.removePythonInterpreter(pyProject, interpreter)
+    }
+    else {
+      registry.removeSharedPythonInterpreter(interpreter)
+    }
   }
 }
 

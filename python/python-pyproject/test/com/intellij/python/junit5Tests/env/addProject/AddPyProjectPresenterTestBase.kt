@@ -47,8 +47,9 @@ abstract class AddPyProjectPresenterTestBase protected constructor(
 ) {
   private val pathFixture = tempPathFixture()
   private val projectFixture = projectFixture(pathFixture)
-  private val sdkFixture by projectFixture.pyInterpreterFixture()
-  private val pyProject by projectFixture.pyProjectFixture(pathFixture)
+  private val pyProjectFixture = projectFixture.pyProjectFixture(pathFixture)
+  private val sdkFixture by pyProjectFixture.pyInterpreterFixture()
+  private val pyProject by pyProjectFixture
   private val module: Module get() = pyProject.residesOnModule
 
   /**

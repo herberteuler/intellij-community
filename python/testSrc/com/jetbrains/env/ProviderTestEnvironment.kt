@@ -28,7 +28,7 @@ private class ProviderTestEnvironment(private val factory: PyEnvironmentFactory,
   }
 
   override fun prepareSdk(project: Project): Sdk = runBlocking(Dispatchers.IO) {
-    factory.createEnvironment(spec).prepareSdk(project).getSdkAPI()
+    factory.createEnvironment(spec).prepareSharedSdk(project).getSdkAPI()
   }
 
   override fun close() {

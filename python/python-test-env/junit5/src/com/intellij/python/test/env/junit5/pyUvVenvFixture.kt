@@ -129,6 +129,6 @@ fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyUvVenvFixture(
 
   initialized(interpreter) {
     pyProject.setPythonInterpreter(null)
-    PythonInterpreterProjectRegistry.getInstance(project).removePythonInterpreter(interpreter)
+    PythonInterpreterProjectRegistry.getInstance(project).removePythonInterpreter(pyProject, interpreter)
   }
 }

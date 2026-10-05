@@ -28,6 +28,8 @@ import com.jetbrains.python.PyNames
 import com.jetbrains.python.PythonBinary
 import com.jetbrains.python.sdk.PyRemoteSdkAdditionalDataMarker
 import com.jetbrains.python.sdk.pythonBinaryPath
+import com.jetbrains.python.project.PyProject
+import com.jetbrains.python.project.project
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -36,10 +38,11 @@ import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.TestOnly
 
 /**
- * The interpreters this project can use, and the one way to add or remove a Python SDK.
+ * The interpreters of each [PyProject] of this project, and the one way to add or remove a Python SDK.
  *
- * For now it holds every Python SDK of the SDK table, and [addSdk] and [removeSdk] write that table. It will become the
- * storage of the interpreters of this project. A global registry will hold the shared ones.
+ * Every function takes the [PyProject] that the interpreter belongs to. The interpreters will be stored for each
+ * [PyProject]. For now the storage is the SDK table of the application, so each [PyProject] sees every Python SDK, and
+ * [addSdk] and [removeSdk] write that table. A global registry will hold the shared interpreters.
  */
 @Service(Service.Level.PROJECT)
 @ApiStatus.Internal
@@ -56,14 +59,19 @@ class PythonInterpreterProjectRegistry(@Suppress("UNUSED_PARAMETER") project: Pr
     }
   }
 
-  /** The current set, awaiting the first computation when it has not landed yet. */
-  suspend fun interpreters(): Set<PythonInterpreter> = state.filterNotNull().first()
+  /** The interpreters of [pyProject]. Waits for the first computation. */
+  suspend fun interpreters(@Suppress("UNUSED_PARAMETER") pyProject: PyProject): Set<PythonInterpreter> =
+    state.filterNotNull().first()
 
-  /** The current set, or `null` while the first computation is still running. */
-  fun interpretersOrNull(): Set<PythonInterpreter>? = state.value
+  /** The interpreters of every [PyProject]. Waits for the first computation. For [Project.findPythonInterpreter]. */
+  internal suspend fun allInterpreters(): Set<PythonInterpreter> = state.filterNotNull().first()
+
+  /** [allInterpreters] without the wait, or `null` while the first computation is still running. */
+  internal fun allInterpretersOrNull(): Set<PythonInterpreter>? = state.value
 
   /**
-   * Creates a Python SDK for the interpreter at [homePath] and adds it. [homePath] is a local path or a path on a target.
+   * Creates a Python SDK for the interpreter at [homePath] and adds it to [pyProject]. [homePath] is a local path or a
+   * path on a target.
    *
    * A local interpreter that already has an SDK keeps it. That SDK takes [data] and keeps its name. A remote one always
    * gets a new SDK, because its path does not say which machine holds the file.
@@ -74,11 +82,33 @@ class PythonInterpreterProjectRegistry(@Suppress("UNUSED_PARAMETER") project: Pr
    * makes it shared, and `null` lets its environment decide, see [PythonEnvironment.requiresAssociation].
    */
   suspend fun addPythonInterpreter(
+    @Suppress("UNUSED_PARAMETER") pyProject: PyProject,
     homePath: String,
     data: PythonSdkAdditionalData,
     suggestedName: String? = null,
     setupPaths: Boolean = true,
     associate: Boolean? = null,
+  ): PythonInterpreter = addInterpreter(homePath, data, suggestedName, setupPaths, associate)
+
+  /**
+   * [addPythonInterpreter] for a shared interpreter, which belongs to no [PyProject]. A global registry will hold these.
+   * Remove it with [removeSharedPythonInterpreter].
+   */
+  @ApiStatus.Obsolete
+  suspend fun addSharedPythonInterpreter(
+    homePath: String,
+    data: PythonSdkAdditionalData,
+    suggestedName: String? = null,
+    setupPaths: Boolean = true,
+    associate: Boolean? = null,
+  ): PythonInterpreter = addInterpreter(homePath, data, suggestedName, setupPaths, associate)
+
+  private suspend fun addInterpreter(
+    homePath: String,
+    data: PythonSdkAdditionalData,
+    suggestedName: String?,
+    setupPaths: Boolean,
+    associate: Boolean?,
   ): PythonInterpreter {
     val sdkType = SdkType.findByName(PyNames.PYTHON_SDK_ID_NAME) ?: error("The Python SDK type is not registered")
     val existingSdks = PythonSdkUtil.getAllSdks()
@@ -111,14 +141,25 @@ class PythonInterpreterProjectRegistry(@Suppress("UNUSED_PARAMETER") project: Pr
   }
 
   /**
-   * Adds a prebuilt mock [sdk] for a test. A mock SDK has no real interpreter, so [addPythonInterpreter] cannot create
-   * it. Remove it with [removePythonInterpreter].
+   * Adds a prebuilt mock [sdk] to [pyProject] for a test. A mock SDK has no real interpreter, so [addPythonInterpreter]
+   * cannot create it. Remove it with [removePythonInterpreter].
    */
   @TestOnly
-  suspend fun addMockPythonInterpreter(sdk: Sdk): PythonInterpreter = addSdk(sdk)
+  suspend fun addMockPythonInterpreter(@Suppress("UNUSED_PARAMETER") pyProject: PyProject, sdk: Sdk): PythonInterpreter =
+    addSdk(sdk)
 
-  /** Removes [interpreter] from the SDK table. Returns when the set no longer holds it. */
-  suspend fun removePythonInterpreter(interpreter: PythonInterpreter) {
+  /** [addMockPythonInterpreter] for a shared interpreter. Remove it with [removeSharedPythonInterpreter]. */
+  @TestOnly
+  suspend fun addSharedMockPythonInterpreter(sdk: Sdk): PythonInterpreter = addSdk(sdk)
+
+  /** Removes [interpreter] from [pyProject]. Returns when the interpreters of [pyProject] no longer hold it. */
+  suspend fun removePythonInterpreter(@Suppress("UNUSED_PARAMETER") pyProject: PyProject, interpreter: PythonInterpreter) {
+    removeSdk(interpreter.sdk)
+  }
+
+  /** Removes a shared [interpreter]. Returns when the registry no longer holds it. */
+  @ApiStatus.Obsolete
+  suspend fun removeSharedPythonInterpreter(interpreter: PythonInterpreter) {
     removeSdk(interpreter.sdk)
   }
 
@@ -166,17 +207,27 @@ class PythonInterpreterProjectRegistry(@Suppress("UNUSED_PARAMETER") project: Pr
 }
 
 /**
- * The interpreter of [sdk], from [PythonInterpreterProjectRegistry]. Waits for the first computation.
- * For a caller that the platform passes an [Sdk]. `null` means that this project cannot use [sdk].
+ * The interpreter of [sdk] among the interpreters of this [PyProject]. Waits for the first computation.
+ * For a caller that the platform passes an [Sdk]. `null` means that this [PyProject] cannot use [sdk].
+ */
+@ApiStatus.Internal
+suspend fun PyProject.findPythonInterpreter(sdk: Sdk): PythonInterpreter? =
+  PythonInterpreterProjectRegistry.getInstance(project).interpreters(this).firstOrNull { it.isFor(sdk) }
+
+/**
+ * The interpreter of [sdk] in any [PyProject] of this project. Waits for the first computation.
+ *
+ * A bridge for a caller that has an [Sdk] and no [PyProject]. Prefer [PyProject.findPythonInterpreter]. While the
+ * storage is the SDK table, it also finds [sdk] in a project with no [PyProject].
  */
 @ApiStatus.Internal
 suspend fun Project.findPythonInterpreter(sdk: Sdk): PythonInterpreter? =
-  PythonInterpreterProjectRegistry.getInstance(this).interpreters().firstOrNull { it.isFor(sdk) }
+  PythonInterpreterProjectRegistry.getInstance(this).allInterpreters().firstOrNull { it.isFor(sdk) }
 
-/** [findPythonInterpreter] for [sdk] without the wait. `null` also before the first computation. */
+/** [Project.findPythonInterpreter] for [sdk] without the wait. `null` also before the first computation. */
 @ApiStatus.Internal
 fun Project.findPythonInterpreterIfReady(sdk: Sdk): PythonInterpreter? =
-  PythonInterpreterProjectRegistry.getInstance(this).interpretersOrNull()?.firstOrNull { it.isFor(sdk) }
+  PythonInterpreterProjectRegistry.getInstance(this).allInterpretersOrNull()?.firstOrNull { it.isFor(sdk) }
 
 /**
  * The usual SDK that already stands for the interpreter at [pythonBinaryPath], or `null` when none does. A usual SDK is

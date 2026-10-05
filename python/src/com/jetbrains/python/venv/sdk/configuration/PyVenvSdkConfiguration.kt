@@ -72,7 +72,7 @@ internal class PyVenvSdkConfiguration : PyProjectSdkConfigurationExtension {
     val additionalData = createVenvAdditionalData(pyProject.baseDir)
     val pythonInterpreter = withContext(Dispatchers.IO) {
       createSdk(
-        pyProject.project,
+        pyProject,
         PathHolder.Eel(pythonBinary.toNioPath()),
         additionalData,
         null,

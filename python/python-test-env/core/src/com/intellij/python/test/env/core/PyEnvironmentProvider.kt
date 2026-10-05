@@ -11,6 +11,8 @@ import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.jetbrains.python.PyNames
 import com.jetbrains.python.PythonBinary
 import com.jetbrains.python.sdk.PythonSdkAdditionalData
+import com.jetbrains.python.project.PyProject
+import com.jetbrains.python.project.project
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
@@ -50,14 +52,23 @@ interface PyEnvironment : AutoCloseable {
   }
 
   /**
-   * Adds the SDK of this environment to [project] through [PythonInterpreterProjectRegistry] and returns its interpreter.
-   * Remove it with [PythonInterpreterProjectRegistry.removePythonInterpreter].
+   * Adds the SDK of this environment to [pyProject] through [PythonInterpreterProjectRegistry] and returns its
+   * interpreter. Remove it with [PythonInterpreterProjectRegistry.removePythonInterpreter].
    */
-  suspend fun prepareSdk(project: Project): PythonInterpreter {
-    val vfsFile = withContext(Dispatchers.IO) { VfsUtil.findFile(pythonPath, true) } ?: error("Cannot find Python executable: ${pythonPath}")
-    return PythonInterpreterProjectRegistry.getInstance(project)
-      .addPythonInterpreter(vfsFile.path, PythonSdkAdditionalData(osSpecificSdkFlavorAndData, envPath))
-  }
+  suspend fun prepareSdk(pyProject: PyProject): PythonInterpreter =
+    PythonInterpreterProjectRegistry.getInstance(pyProject.project)
+      .addPythonInterpreter(pyProject, pythonHomePathInVfs(), PythonSdkAdditionalData(osSpecificSdkFlavorAndData, envPath))
+
+  /**
+   * Adds the SDK of this environment to [project] as a shared interpreter, one that belongs to no [PyProject]. Remove it
+   * with [PythonInterpreterProjectRegistry.removeSharedPythonInterpreter].
+   */
+  suspend fun prepareSharedSdk(project: Project): PythonInterpreter =
+    PythonInterpreterProjectRegistry.getInstance(project)
+      .addSharedPythonInterpreter(pythonHomePathInVfs(), PythonSdkAdditionalData(osSpecificSdkFlavorAndData, envPath))
+
+  private suspend fun pythonHomePathInVfs(): String =
+    withContext(Dispatchers.IO) { VfsUtil.findFile(pythonPath, true) }?.path ?: error("Cannot find Python executable: ${pythonPath}")
 
   /**
    * Unwrap this environment to get the concrete implementation type.

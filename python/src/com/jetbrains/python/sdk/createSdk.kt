@@ -28,6 +28,8 @@ import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
 import com.jetbrains.python.sdk.flavors.UnixPythonSdkFlavor
 import com.jetbrains.python.target.PyTargetAwareAdditionalData
 import com.jetbrains.python.target.ui.TargetPanelExtension
+import com.jetbrains.python.project.PyProject
+import com.jetbrains.python.project.project
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
@@ -78,7 +80,35 @@ data class SdkCreationAdvancedOpts(
 }
 
 /**
- * Kinda low-level API to create SDK. Use [com.jetbrains.python.sdk.add.v2.FileSystem.setupSdk] if possible.
+ * Kinda low-level API to create SDK for [pyProject]. Use [com.jetbrains.python.sdk.add.v2.FileSystem.setupSdk] if
+ * possible.
+ */
+@ApiStatus.Internal
+suspend fun createSdk(
+  pyProject: PyProject,
+  pythonBinaryPath: PathHolder.Eel,
+  sdkAdditionalData: PythonSdkAdditionalData,
+  suggestedSdkName: String? = null,
+  advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
+): Result<PythonInterpreter, MessageError> =
+  createSdkImpl(pyProject, SdkCreationRequest.EelSdk(pythonBinaryPath.path, sdkAdditionalData), suggestedSdkName, advancedOpts)
+
+/**
+ * Kinda low-level API to create SDK for [pyProject]. Use [com.jetbrains.python.sdk.add.v2.FileSystem.setupSdk] if
+ * possible.
+ */
+@ApiStatus.Internal
+suspend fun createSdk(
+  pyProject: PyProject,
+  pythonBinaryPath: PathHolder.Target,
+  sdkAdditionalData: PyTargetAwareAdditionalData,
+  suggestedSdkName: String? = null,
+  advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
+): Result<PythonInterpreter, MessageError> =
+  createSdkImpl(pyProject, SdkCreationRequest.TargetSdk(pythonBinaryPath.pathString, sdkAdditionalData), suggestedSdkName, advancedOpts)
+
+/**
+ * [createSdk] for a shared interpreter, or for a caller that has no [PyProject] yet. Prefer the [PyProject] overload.
  */
 @ApiStatus.Internal
 suspend fun createSdk(
@@ -91,7 +121,7 @@ suspend fun createSdk(
   createSdkImpl(project, SdkCreationRequest.EelSdk(pythonBinaryPath.path, sdkAdditionalData), suggestedSdkName, advancedOpts)
 
 /**
- * Kinda low-level API to create SDK. Use [com.jetbrains.python.sdk.add.v2.FileSystem.setupSdk] if possible.
+ * [createSdk] for a shared interpreter, or for a caller that has no [PyProject] yet. Prefer the [PyProject] overload.
  */
 @ApiStatus.Internal
 suspend fun createSdk(
@@ -177,12 +207,41 @@ internal suspend fun <P : PathHolder> createSdkGuessingTypeByPath(
 }
 
 private suspend fun createSdkImpl(
-  project: Project,
+  pyProject: PyProject,
   request: SdkCreationRequest<*, *>,
-  suggestedSdkName: String? = null,
+  suggestedSdkName: String?,
   advancedOpts: SdkCreationAdvancedOpts,
 ): Result<PythonInterpreter, MessageError> {
-  val homePath = when (request) {
+  val homePath = request.homePath().getOr { return it }
+  if (!advancedOpts.persist) return Result.success(createSdkOutsideTable(homePath, request.data, suggestedSdkName, advancedOpts))
+  val interpreter = PythonInterpreterProjectRegistry.getInstance(pyProject.project)
+    .addPythonInterpreter(pyProject, homePath, request.pythonData, suggestedSdkName, advancedOpts.setupPaths, advancedOpts.associate)
+  return Result.success(interpreter)
+}
+
+private suspend fun createSdkImpl(
+  project: Project,
+  request: SdkCreationRequest<*, *>,
+  suggestedSdkName: String?,
+  advancedOpts: SdkCreationAdvancedOpts,
+): Result<PythonInterpreter, MessageError> {
+  val homePath = request.homePath().getOr { return it }
+  if (!advancedOpts.persist) return Result.success(createSdkOutsideTable(homePath, request.data, suggestedSdkName, advancedOpts))
+  val interpreter = PythonInterpreterProjectRegistry.getInstance(project)
+    .addSharedPythonInterpreter(homePath, request.pythonData, suggestedSdkName, advancedOpts.setupPaths, advancedOpts.associate)
+  return Result.success(interpreter)
+}
+
+/** The data of the SDK. Both kinds of request carry [PythonSdkAdditionalData]. */
+private val SdkCreationRequest<*, *>.pythonData: PythonSdkAdditionalData
+  get() = when (this) {
+    is SdkCreationRequest.EelSdk -> data
+    is SdkCreationRequest.TargetSdk -> data
+  }
+
+/** The home path of the SDK: the VFS path of a local binary, or the path on the target. */
+private suspend fun SdkCreationRequest<*, *>.homePath(): Result<String, MessageError> {
+  val homePath = when (val request = this) {
     is SdkCreationRequest.EelSdk -> {
       val pythonBinaryVirtualFile = withContext(Dispatchers.IO) {
         VirtualFileManager.getInstance().refreshAndFindFileByNioPath(request.path)
@@ -191,10 +250,7 @@ private suspend fun createSdkImpl(
     }
     is SdkCreationRequest.TargetSdk -> request.path
   }
-  if (!advancedOpts.persist) return Result.success(createSdkOutsideTable(homePath, request.data, suggestedSdkName, advancedOpts))
-  val interpreter = PythonInterpreterProjectRegistry.getInstance(project)
-    .addPythonInterpreter(homePath, request.data, suggestedSdkName, advancedOpts.setupPaths, advancedOpts.associate)
-  return Result.success(interpreter)
+  return Result.success(homePath)
 }
 
 /** The SDK of [SdkCreationAdvancedOpts.persist] `false`: it is not in the SDK table, so the registry does not know it. */

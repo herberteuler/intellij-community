@@ -44,7 +44,8 @@
     <lang.syntaxHighlighterFactory language="ReST"
                                    implementationClass="com.intellij.restructuredtext.RestHighlighterFactory"/>
     <lang.parserDefinition language="ReST" implementationClass="com.intellij.restructuredtext.parsing.RestParserDefinition"/>
-    <colorSettingsPage implementation="com.intellij.restructuredtext.RestColorsPage"/>
+    <colorSettings implementation="com.intellij.restructuredtext.RestColorsPage"
+                   bundle="messages.RestBundle" key="restructured.text"/>
 
     <completion.contributor language="ReST"
                             implementationClass="com.intellij.restructuredtext.completion.DirectiveCompletionContributor"/>

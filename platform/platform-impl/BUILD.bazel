@@ -69,6 +69,7 @@ jvm_library(
         "//platform/vfs-impl",
         "//platform/platform-impl/json",
         "//platform/platform-impl/dnd",
+        "//platform/platform-impl/editor-skeleton",
     ],
     runtime_deps = [
         # do not sort,
@@ -102,6 +103,7 @@ jvm_library(
         "//platform/vfs-impl",
         "//platform/platform-impl/json",
         "//platform/platform-impl/dnd",
+        "//platform/platform-impl/editor-skeleton",
         "//platform/icons",
         "//platform/welcome-screen",
         "//platform/welcome-screen-impl:welcomeScreen-impl",
@@ -248,6 +250,8 @@ jvm_library(
         "//platform/platform-impl/json:json_test_lib",
         "//platform/platform-impl/dnd",
         "//platform/platform-impl/dnd:dnd_test_lib",
+        "//platform/platform-impl/editor-skeleton",
+        "//platform/platform-impl/editor-skeleton:editor-skeleton_test_lib",
     ],
     runtime_deps = [
         # do not sort,
@@ -264,6 +268,7 @@ jvm_library(
         "//platform/vfs-impl:vfs-impl_test_lib",
         "//platform/platform-impl/json:json_test_lib",
         "//platform/platform-impl/dnd:dnd_test_lib",
+        "//platform/platform-impl/editor-skeleton:editor-skeleton_test_lib",
         "//platform/icons:icons_test_lib",
         "//platform/welcome-screen:welcome-screen_test_lib",
         "//platform/welcome-screen-impl:welcomeScreen-impl_test_lib",

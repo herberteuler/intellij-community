@@ -305,6 +305,7 @@
     <module name="intellij.platform.vfs.impl" loading="embedded"/>
     <module name="intellij.platform.ide.json" loading="embedded"/>
     <module name="intellij.platform.ide.dnd" loading="embedded"/>
+    <module name="intellij.platform.ide.editorSkeleton" loading="embedded"/>
     <module name="intellij.platform.ide.codeinsight.inline" loading="embedded"/>
     <module name="intellij.platform.pasta" loading="embedded"/>
     <module name="intellij.platform.diagnostic.startUpPerformanceReporter" loading="embedded"/>

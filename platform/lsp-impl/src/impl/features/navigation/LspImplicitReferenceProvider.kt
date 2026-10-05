@@ -20,6 +20,8 @@ import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
 import com.intellij.platform.lsp.impl.features.usages.LspSearchTarget
 import com.intellij.platform.lsp.impl.features.usages.isFindReferencesEnabledFor
+import com.intellij.platform.lsp.impl.supportsGotoDefinition
+import com.intellij.platform.lsp.impl.supportsGotoTypeDefinition
 import com.intellij.platform.lsp.util.getLsp4jPosition
 import com.intellij.platform.lsp.util.getOffsetInDocument
 import com.intellij.platform.lsp.util.getRangeInDocument

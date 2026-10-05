@@ -8,6 +8,7 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.platform.lsp.api.customization.LspDocumentHighlightsSupport
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
+import com.intellij.platform.lsp.impl.supportsDocumentHighlights
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.util.Consumer

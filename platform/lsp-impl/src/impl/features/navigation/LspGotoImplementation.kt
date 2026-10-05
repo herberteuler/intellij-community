@@ -11,6 +11,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.TextRange
 import com.intellij.platform.lsp.api.customization.LspGoToImplementationSupport
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
+import com.intellij.platform.lsp.impl.supportsGotoImplementation
 import com.intellij.platform.lsp.util.getOffsetInDocument
 import com.intellij.pom.PomDeclarationSearcher
 import com.intellij.pom.PomNamedTarget

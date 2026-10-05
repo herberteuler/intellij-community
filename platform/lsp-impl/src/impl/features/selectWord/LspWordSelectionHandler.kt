@@ -9,6 +9,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.customization.LspSelectionRangeSupport
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
+import com.intellij.platform.lsp.impl.supportsSelectionRange
 import com.intellij.platform.lsp.util.getRangeInDocument
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile

@@ -10,6 +10,7 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.platform.lsp.api.customization.LspSignatureHelpDisabled
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
+import com.intellij.platform.lsp.impl.supportsSignatureHelp
 import com.intellij.psi.PsiElement
 import org.eclipse.lsp4j.SignatureHelp
 import org.eclipse.lsp4j.SignatureInformation

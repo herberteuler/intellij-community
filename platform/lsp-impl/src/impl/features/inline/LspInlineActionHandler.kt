@@ -11,6 +11,7 @@ import com.intellij.platform.lsp.impl.LspClientManagerImpl
 import com.intellij.platform.lsp.impl.features.codeActions.requestAndApplyCodeActions
 import com.intellij.platform.lsp.impl.features.findPendingLspClient
 import com.intellij.platform.lsp.impl.features.showLspServerNotReadyHint
+import com.intellij.platform.lsp.impl.supportsCodeActionsOfKind
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile

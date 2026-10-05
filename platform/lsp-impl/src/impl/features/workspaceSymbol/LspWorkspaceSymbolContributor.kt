@@ -10,6 +10,7 @@ import com.intellij.platform.lsp.api.LspClient
 import com.intellij.platform.lsp.api.customization.LspWorkspaceSymbolSupport
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
+import com.intellij.platform.lsp.impl.supportsGoToSymbol
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.Processor
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread

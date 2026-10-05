@@ -14,6 +14,7 @@ import com.intellij.platform.lsp.api.LspClientDescriptor
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
 import com.intellij.platform.lsp.impl.getServerId
+import com.intellij.platform.lsp.impl.providesTextDocumentContent
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.io.URLUtil

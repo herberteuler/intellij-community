@@ -9,6 +9,7 @@ import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.aggregateToPullResult
 import com.intellij.platform.lsp.impl.features.highlightingCommon.LspHighlightingCache
 import com.intellij.platform.lsp.impl.features.highlightingCommon.LspPullResult
+import com.intellij.platform.lsp.impl.supportsDocumentLink
 import org.eclipse.lsp4j.DocumentLink
 import org.eclipse.lsp4j.DocumentLinkParams
 import org.eclipse.lsp4j.Range

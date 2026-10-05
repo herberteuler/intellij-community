@@ -6,6 +6,7 @@ import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspDocument
 import com.intellij.platform.lsp.impl.features.highlightingCommon.LspHighlightingCache
 import com.intellij.platform.lsp.impl.features.highlightingCommon.LspPullResult
+import com.intellij.platform.lsp.impl.supportsPullDiagnostics
 import kotlinx.coroutines.withTimeoutOrNull
 import org.eclipse.lsp4j.DocumentDiagnosticParams
 import org.eclipse.lsp4j.Range

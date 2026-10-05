@@ -19,6 +19,7 @@ import com.intellij.platform.lsp.api.customization.LspOnTypeFormattingSupport
 import com.intellij.platform.lsp.impl.LspCoroutineScopeService
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
+import com.intellij.platform.lsp.impl.getOnTypeFormattingTriggerCharacters
 import com.intellij.platform.lsp.util.applyTextEdits
 import com.intellij.psi.PsiFile
 import com.intellij.util.concurrency.annotations.RequiresReadLock

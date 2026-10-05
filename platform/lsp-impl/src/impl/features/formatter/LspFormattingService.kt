@@ -17,6 +17,9 @@ import com.intellij.platform.lsp.api.customization.LspFormattingSupport
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
 import com.intellij.platform.lsp.impl.LspServerNotificationsHandlerImpl
+import com.intellij.platform.lsp.impl.doesServerExplicitlyWantToFormatThisFile
+import com.intellij.platform.lsp.impl.hasFullFileFormattingCapability
+import com.intellij.platform.lsp.impl.hasRangeFormattingCapability
 import com.intellij.platform.lsp.impl.mapTextEdit
 import com.intellij.platform.lsp.util.applyTextEdits
 import com.intellij.platform.lsp.util.getLsp4jRange

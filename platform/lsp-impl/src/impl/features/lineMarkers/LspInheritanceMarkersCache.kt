@@ -16,6 +16,9 @@ import com.intellij.platform.lsp.impl.features.LspFeaturesRefreshing
 import com.intellij.platform.lsp.impl.features.documentSymbol.toDocumentSymbols
 import com.intellij.platform.lsp.impl.features.highlightingCommon.LspHighlightingCache
 import com.intellij.platform.lsp.impl.features.highlightingCommon.LspPullResult
+import com.intellij.platform.lsp.impl.supportsDocumentSymbol
+import com.intellij.platform.lsp.impl.supportsGotoImplementation
+import com.intellij.platform.lsp.impl.supportsTypeHierarchy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async

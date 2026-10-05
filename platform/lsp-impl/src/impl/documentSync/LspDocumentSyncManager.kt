@@ -15,6 +15,8 @@ import com.intellij.platform.lsp.api.LspServerState
 import com.intellij.platform.lsp.impl.LspClientImpl
 import com.intellij.platform.lsp.impl.LspClientManagerImpl
 import com.intellij.platform.lsp.impl.features.highlighting.LspHighlightingApplier
+import com.intellij.platform.lsp.impl.getDidSaveOptions
+import com.intellij.platform.lsp.impl.textDocumentSyncKind
 import com.intellij.util.application
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread

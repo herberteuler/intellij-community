@@ -3,9 +3,9 @@ package org.jetbrains.kotlin.idea.codeInsight.inspections
 
 import com.intellij.codeInspection.CleanupLocalInspectionTool
 import com.intellij.codeInspection.InspectionManager
-import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemHighlightType
+import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.idea.base.analysis.isNotInjectedOrShouldBeAnalyzed
 import org.jetbrains.kotlin.idea.base.codeInsight.ShortenOptionsForIde
 import org.jetbrains.kotlin.idea.base.psi.textRangeIn
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
+import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.idea.codeinsight.api.classic.inspections.AbstractKotlinInspection
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtElement
@@ -116,17 +117,15 @@ internal class RemoveRedundantQualifierNameInspection : AbstractKotlinInspection
         )
     }
 
-    private object RemoveQualifierQuickFix : LocalQuickFix {
+    private object RemoveQualifierQuickFix : KotlinModCommandQuickFix<KtElement>() {
         override fun getFamilyName(): String = KotlinBundle.message("remove.redundant.qualifier.name.quick.fix.text")
 
-        override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-            val elementWithQualifier = descriptor.psiElement ?: return
+        override fun applyFix(project: Project, element: KtElement, updater: ModPsiUpdater) {
+            when (element) {
+                is KtUserType if (element.qualifier != null) -> KtPsiMutationService.getInstance()
+                    .removeQualifier(element)
 
-            when (elementWithQualifier) {
-                is KtUserType if (elementWithQualifier.qualifier != null) -> KtPsiMutationService.getInstance()
-                    .removeQualifier(elementWithQualifier)
-
-                is KtDotQualifiedExpression -> elementWithQualifier.deleteQualifier()
+                is KtDotQualifiedExpression -> element.deleteQualifier()
             }
         }
     }

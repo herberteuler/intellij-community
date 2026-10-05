@@ -5,7 +5,7 @@ idioms: the error model, the command line, the crate rule, the subset rule, the 
 methods. These rules apply to both workspaces, this one and `build/dev-dist-tools` in the ultimate root.
 
 - **Name no implementation language in a spec or in the guide.** Write "the packer", "the composer", "the collector",
-  "the launcher", "the descriptor writer". The language belongs in the ADRs only.
+  "the descriptor writer", "the argument file writer". The language belongs in the ADRs only.
 - **Pass the two gates.** Run `./build/dev-dist.cmd jars` and
   `./bazel.cmd test @community//build/dev-dist-tools/... //build/dev-dist-tools/...` from the ultimate root, then
   `./bazel.cmd test //build/dev-dist-tools/...` in `community/`. The clippy tests of the community crates run only

@@ -665,42 +665,6 @@ def _check_before_run(tables, name, jvm_flags, compile_clion_backend_before_run)
     elif compile_clion_backend_before_run:
         fail("%s: compile_clion_backend_before_run needs the check_before_run hook, and the tables of this half have none" % name)
 
-# The rows that keep only the launcher of ADR 0014. Every other row starts `java` itself, `intellij_dev_java_launcher`
-# (ADR 0056). The distribution of each row here bundles a Rider plugin whose layout puts a tree at the plugin root.
-# Reused content-module jars lie below that tree. The plugins are `intellij.rider.plugins.unity`, `unreal.link`,
-# `dotCover`, `dotTrace.dotMemory` and `dpa`. The composer gives such a plugin no placement, so a java launcher fails at
-# analysis. A fix of the Rider layout removes this list.
-_LAUNCHER_ONLY_ROWS = [
-    "qodana_for_net",
-    "rider",
-    "rider_ai_licensing",
-    "rider_air",
-    "rider_classic_ui",
-    "rider_dev_friendly",
-    "rider_next",
-    "rider_protocol_trace",
-    "rider_remote_dev_backend_dev_build",
-    "rider_remote_dev_backend_dev_build_ij_air",
-    "rider_remote_dev_backend_dev_build_light_mode",
-    "rider_single_file",
-    "rider_traverseui",
-    "rider_warmup",
-    "rider_what_s_new_test",
-    "rider_with_ai_assistant",
-    "rider_with_local_exception_reporter",
-    "rider_with_localization_highlighting",
-    "rider_with_lua",
-    "rider_with_private_plugins",
-    "rider_with_python",
-    "rider_with_staging_exception_reporter",
-    "rider_with_verse",
-    "rider_wizard_screenshot_mode",
-]
-
-def _java_row(name):
-    """Whether the row `name` starts `java` itself. A java row also keeps the launcher of ADR 0014 as `<row>_launcher`."""
-    return name not in _LAUNCHER_ONLY_ROWS
-
 def _declare_run_launcher(
         tables,
         name,
@@ -715,9 +679,9 @@ def _declare_run_launcher(
         visibility):
     """The launcher `name`, the launcher over the distribution `_declare_run_distribution` declared as `distribution`.
 
-    A java row is an `intellij_dev_java_launcher` over `<distribution>_dist_launch`. It also keeps the launcher of ADR
-    0014 as `<name>_launcher`, over the same dev data, for Windows and for a comparison of the two launches. A row of
-    `_LAUNCHER_ONLY_ROWS` is the launcher of ADR 0014 only.
+    The row is an `intellij_dev_java_launcher` over `<distribution>_dist_launch`, with the home `<distribution>_dist` on
+    Windows. It also keeps the launcher of ADR 0014 as `<name>_launcher`, over the same dev data, for a comparison of the
+    two launches.
     """
     for flag in jvm_flags:
         if flag.startswith("-Dadditional.modules="):
@@ -735,22 +699,21 @@ def _declare_run_launcher(
     if tables.launcher_jvm_flags != None:
         jvm_flags = tables.launcher_jvm_flags(product, additional_modules, jvm_flags)
 
-    java_row = _java_row(name)
-    if java_row:
-        intellij_dev_java_launcher_binary(
-            name = name,
-            visibility = visibility,
-            dist = "//%s:%s_dist_launch" % (native.package_name(), distribution),
-            jvm_flags = jvm_flags,
-            env = env,
-            data = data,
-            program_args = program_args,
-        )
+    intellij_dev_java_launcher_binary(
+        name = name,
+        visibility = visibility,
+        dist = "//%s:%s_dist_launch" % (native.package_name(), distribution),
+        export = "//%s:%s_dist" % (native.package_name(), distribution),
+        jvm_flags = jvm_flags,
+        env = env,
+        data = data,
+        program_args = program_args,
+    )
 
     # The distribution states its prefix: the launcher reads `-Didea.platform.prefix` from `product-info.json`, as a
     # production launcher does, and a caller's value would win over it.
     intellij_dev_launcher_binary(
-        name = name + "_launcher" if java_row else name,
+        name = name + "_launcher",
         data_name = name,
         visibility = visibility,
         dist = "//%s:%s_distribution" % (native.package_name(), distribution),
@@ -763,28 +726,10 @@ def _declare_run_launcher(
 
 def _launch_assembles_test(name, rows, tags):
     """A `build_test` that builds the launchers of `rows`. The factory result documents it as `launch_assembles_test`."""
-    windows = []
-    other = []
-    for row in rows:
-        if _java_row(row.split(":")[-1]):
-            windows.append(row + "_launcher")
-            other.extend([row, row + "_launcher"])
-        else:
-            windows.append(row)
-            other.append(row)
-    native.filegroup(
-        name = name + "_launchers",
-        srcs = select({
-            "@platforms//os:windows": windows,
-            "//conditions:default": other,
-        }),
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
-    )
     build_test(
         name = name,
         tags = tags,
-        targets = [":%s_launchers" % name],
+        targets = [target for row in rows for target in [row, row + "_launcher"]],
     )
 
 def _run_configurations(tables, rows):
@@ -975,9 +920,7 @@ def intellij_dev_dist_declarations(tables):
     def launch_assembles_test(name, rows, tags = []):
         """A `build_test` `name` that builds the launchers of `rows`, labels of rows of this package or another one.
 
-        For a java row it builds the row and its `<row>_launcher`. On Windows it builds only `<row>_launcher`, because a
-        java launcher fails at analysis there. For a row of `_LAUNCHER_ONLY_ROWS` it builds the row. The macro also
-        declares the filegroup `<name>_launchers`.
+        It builds each row and its `<row>_launcher`.
         """
         _launch_assembles_test(name, rows, tags)
 

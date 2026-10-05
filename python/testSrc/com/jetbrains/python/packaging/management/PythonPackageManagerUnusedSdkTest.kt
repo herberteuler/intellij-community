@@ -9,7 +9,7 @@ import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ModuleRootModificationUtil
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
@@ -48,13 +48,13 @@ internal class PythonPackageManagerUnusedSdkTest {
   private val projectFixture = projectFixture()
   // With a content root: a module without one is no `PyProject`, so `EvoPyProjectModel` does not see it at all
   private val modulePathFixture = tempPathFixture(prefix = "py-88315-packages")
-  private val moduleFixture = projectFixture.pyModuleFixture(modulePathFixture, addPathToSourceRoot = true)
+  private val pyProjectFixture = projectFixture.pyProjectFixture(modulePathFixture)
 
   @Test
   fun `the manager of an interpreter is cached`(@TempDir home: Path, @TestDisposable disposable: Disposable): Unit =
     timeoutRunBlocking(1.minutes) {
       val project = projectFixture.get()
-      val module = moduleFixture.get()
+      val module = pyProjectFixture.get().residesOnModule
       val interpreter = registerInterpreter("PY-88315 packages cached", home, disposable)
       module.useInterpreter(interpreter)
       val service = project.service<PythonPackageManagerService>()
@@ -68,7 +68,7 @@ internal class PythonPackageManagerUnusedSdkTest {
   fun `the paths of an interpreter in use are watched`(@TempDir home: Path, @TestDisposable disposable: Disposable): Unit =
     timeoutRunBlocking(1.minutes) {
       val project = projectFixture.get()
-      val module = moduleFixture.get()
+      val module = pyProjectFixture.get().residesOnModule
       val interpreter = registerInterpreter("PY-88315 packages watched", home, disposable)
       module.useInterpreter(interpreter)
       val service = project.service<PythonPackageManagerService>()
@@ -84,7 +84,7 @@ internal class PythonPackageManagerUnusedSdkTest {
     @TestDisposable disposable: Disposable,
   ): Unit = timeoutRunBlocking(1.minutes) {
     val project = projectFixture.get()
-    moduleFixture.get()
+    pyProjectFixture.get().residesOnModule
     val interpreter = registerInterpreter("PY-88315 packages of nobody", home, disposable)
     val service = project.service<PythonPackageManagerService>()
 
@@ -104,7 +104,7 @@ internal class PythonPackageManagerUnusedSdkTest {
     @TestDisposable disposable: Disposable,
   ): Unit = timeoutRunBlocking(1.minutes) {
     val project = projectFixture.get()
-    val module = moduleFixture.get()
+    val module = pyProjectFixture.get().residesOnModule
     val interpreter = registerInterpreter("PY-88315 packages attached later", home, disposable)
     val service = project.service<PythonPackageManagerService>()
     val manager = service.forPythonInterpreter(project, interpreter)
@@ -123,7 +123,7 @@ internal class PythonPackageManagerUnusedSdkTest {
     @TestDisposable disposable: Disposable,
   ): Unit = timeoutRunBlocking(1.minutes) {
     val project = projectFixture.get()
-    val module = moduleFixture.get()
+    val module = pyProjectFixture.get().residesOnModule
     val interpreter = registerInterpreter("PY-88315 packages left behind", home.resolve("old"), disposable)
     module.useInterpreter(interpreter)
     val service = project.service<PythonPackageManagerService>()
@@ -148,7 +148,7 @@ internal class PythonPackageManagerUnusedSdkTest {
     @TestDisposable disposable: Disposable,
   ): Unit = timeoutRunBlocking(1.minutes) {
     val project = projectFixture.get()
-    val module = moduleFixture.get()
+    val module = pyProjectFixture.get().residesOnModule
     val interpreter = registerInterpreter("PY-88315 packages of a doomed interpreter", home, disposable)
     module.useInterpreter(interpreter)
     val service = project.service<PythonPackageManagerService>()
@@ -173,7 +173,7 @@ internal class PythonPackageManagerUnusedSdkTest {
     @TestDisposable disposable: Disposable,
   ): Unit = timeoutRunBlocking(1.minutes) {
     val project = projectFixture.get()
-    val module = moduleFixture.get()
+    val module = pyProjectFixture.get().residesOnModule
     val interpreter = registerInterpreter("PY-89433 packages of a closed project", home, disposable)
     module.useInterpreter(interpreter)
     val service = project.service<PythonPackageManagerService>()

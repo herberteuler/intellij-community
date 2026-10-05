@@ -20,8 +20,8 @@ import com.intellij.platform.eel.where
 import com.intellij.python.community.junit5Tests.framework.conda.CondaEnv
 import com.intellij.python.community.junit5Tests.framework.conda.PyEnvTestCaseWithConda
 import com.intellij.python.community.junit5Tests.framework.conda.createCondaEnv
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.junit5Tests.framework.winLockedFile.deleteCheckLocking
 import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.terminal.PyVirtualEnvTerminalCustomizer
@@ -72,13 +72,12 @@ import kotlin.time.Duration.Companion.minutes
 internal class PyVirtualEnvTerminalCustomizerTest {
   private val projectFixture = projectFixture()
   private val tempDirFixture = tempPathFixture(prefix = "some_path_with_underscores")
-  private val moduleFixture = projectFixture.pyModuleFixture(tempDirFixture, addPathToSourceRoot = true)
+  private val pyProjectFixture = projectFixture.pyProjectFixture(tempDirFixture)
 
   @Suppress("unused") // we need venv
-  private val venvFixture = pySdkFixture().pyVenvFixture(
+  private val venvFixture = projectFixture.pyInterpreterFixture().pyVenvFixture(
     where = tempDirFixture,
-    addToSdkTable = true,
-    moduleFixture = moduleFixture
+    pyProjectFixture = pyProjectFixture
   )
 
   private var sdkToDelete: Sdk? = null
@@ -135,10 +134,10 @@ internal class PyVirtualEnvTerminalCustomizerTest {
     val (pythonBinary, venvDirName) =
       if (useConda) {
         val envDir = venvPath.resolve("some_path_with_underscores")
-        val interpreter = createCondaEnv(condaEnv, envDir).createSdkFromThisEnv(moduleFixture.get().project, null, emptyList(), envDir).getOrThrow()
+        val interpreter = createCondaEnv(condaEnv, envDir).createSdkFromThisEnv(projectFixture.get(), null, emptyList(), envDir).getOrThrow()
         val sdk = interpreter.getSdkAPI()
         sdkToDelete = sdk
-        moduleFixture.get().pythonSdk = sdk
+        pyProjectFixture.get().residesOnModule.pythonSdk = sdk
         Pair(Path(sdk.homePath!!), envDir.toRealPath().pathString)
       }
       else {

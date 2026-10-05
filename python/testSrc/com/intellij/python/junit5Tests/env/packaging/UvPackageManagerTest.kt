@@ -3,11 +3,10 @@ package com.intellij.python.junit5Tests.env.packaging
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.python.test.env.junit5.pyUvVenvFixture
 import com.intellij.testFramework.common.timeoutRunBlocking
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.jetbrains.python.getOrThrow
@@ -25,8 +24,8 @@ import com.intellij.python.sdk.backend.PythonInterpreter
 class UvPackageManagerTest {
   private val tempPathFixture = tempPathFixture()
   private val projectFixture = projectFixture()
-  private val moduleFixture = projectFixture.pyModuleFixture(tempPathFixture, addPathToSourceRoot = true)
-  private val sdkFixture = pySdkFixture().pyUvVenvFixture(addToSdkTable = true, moduleFixture = moduleFixture, mode = UvMode.Project)
+  private val pyProjectFixture = projectFixture.pyProjectFixture(tempPathFixture)
+  private val sdkFixture = projectFixture.pyInterpreterFixture().pyUvVenvFixture(pyProjectFixture = pyProjectFixture, mode = UvMode.Project)
 
   @Test
   fun outdatedPackageWithExtrasTest(): Unit = timeoutRunBlocking(1.minutes) {
@@ -40,7 +39,7 @@ class UvPackageManagerTest {
       ]
     """.trimIndent())
 
-    val manager = PythonPackageManager.forPythonInterpreter(projectFixture.get(), sdkFixture.get().pythonInterpreterAsync())
+    val manager = PythonPackageManager.forPythonInterpreter(projectFixture.get(), sdkFixture.get())
 
     val httpxOutdated = CompletableDeferred<Unit>()
     val connection = ApplicationManager.getApplication().messageBus.connect()

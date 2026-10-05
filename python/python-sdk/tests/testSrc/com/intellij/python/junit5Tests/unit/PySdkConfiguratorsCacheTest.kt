@@ -1,13 +1,14 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit
 
+import com.intellij.openapi.module.Module
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.python.community.common.tools.ToolId
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.extensionPointFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
@@ -46,7 +47,8 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class PySdkConfiguratorsCacheTest {
   private val projectFixture = projectFixture()
   private val modulePathFixture = tempPathFixture()
-  private val module by projectFixture.pyModuleFixture()
+  private val pyProject by projectFixture.pyProjectFixture()
+  private val module: Module get() = pyProject.residesOnModule
 
   /** Bumped once per probe of [countingConfigurator] — the number this test is about. */
   private val calls = AtomicInteger()

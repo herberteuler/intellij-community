@@ -1,11 +1,11 @@
 package com.jetbrains.python.testing.autoDetectTests
 
+import com.intellij.openapi.progress.runBlockingCancellable
 import com.jetbrains.python.allure.Subsystems
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Components
-import com.intellij.python.sdk.backend.findPythonInterpreterIfReady
+import com.intellij.python.sdk.backend.findPythonInterpreter
 import com.intellij.testFramework.ExtensionTestUtil
-import com.intellij.testFramework.PlatformTestUtil
 import com.jetbrains.python.fixtures.PyTestCase
 import com.jetbrains.python.packaging.common.PythonPackage
 import com.jetbrains.python.packaging.management.PythonPackageManagerProvider
@@ -44,9 +44,7 @@ class PyAutoDetectionConfigurationFactoryTest : PyTestCase() {
     val sdk = PythonSdkUtil.findPythonSdk(myFixture.module) ?: error("Python SDK not found")
     mockInstalledPackages(*installedPackages)
     // The package lookup does not wait for the interpreter registry, so the test waits until the registry holds the SDK.
-    PlatformTestUtil.waitWithEventsDispatching("The interpreter registry has no ${sdk.name}", {
-      myFixture.project.findPythonInterpreterIfReady(sdk) != null
-    }, 10)
+    checkNotNull(runBlockingCancellable { myFixture.project.findPythonInterpreter(sdk) }) { "The interpreter registry has no ${sdk.name}" }
     val factory = autoDetectFactory.getFactory(sdk, myFixture.project)
 
     assertTrue(expectedFactoryClass.isInstance(factory))

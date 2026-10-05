@@ -66,7 +66,7 @@ class PyLocalInterpreterEditModelTest {
   /**
    * `PythonMockSdk.create()` builds an SDK with proper [com.jetbrains.python.sdk.PythonSdkAdditionalData]
    * — the association helpers ([com.jetbrains.python.sdk.setAssociationToPath]) mutate that data
-   * directly, so the `pyMockSdkFixture` shortcut is unusable here (it skips additional data and
+   * directly, so the `pyMockInterpreterFixture` shortcut is unusable here (it skips additional data and
    * `setAssociationToPath` throws "created by buggy code"). We build the SDK per test and register
    * it in `ProjectJdkTable` under the test disposable so cleanup happens automatically.
    */

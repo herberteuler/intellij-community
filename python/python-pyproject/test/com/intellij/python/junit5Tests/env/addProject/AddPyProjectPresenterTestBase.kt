@@ -1,5 +1,6 @@
 package com.intellij.python.junit5Tests.env.addProject
 
+import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionUiKind
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -9,8 +10,8 @@ import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.application.writeAction
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.util.NlsSafe
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.pyproject.PyProjectToml
 import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
 import com.intellij.python.pyproject.model.internal.addPyProject.AddPyProjectAction
@@ -44,10 +45,11 @@ abstract class AddPyProjectPresenterTestBase protected constructor(
   // For poetry bug workaround https://github.com/python-poetry/poetry/issues/10974
   private val spacesInProjectNamesLeadToBug: Boolean = false,
 ) {
-  private val sdkFixture by pySdkFixture()
   private val pathFixture = tempPathFixture()
   private val projectFixture = projectFixture(pathFixture)
-  private val module by projectFixture.pyModuleFixture(pathFixture, addPathToSourceRoot = true)
+  private val sdkFixture by projectFixture.pyInterpreterFixture()
+  private val pyProject by projectFixture.pyProjectFixture(pathFixture)
+  private val module: Module get() = pyProject.residesOnModule
 
   /**
    * There are two modes: with [projectName] ([AddPyProjectAction] is used) and when [projectName] is `null` -> [ConvertToPyProjectAction]
@@ -57,7 +59,7 @@ abstract class AddPyProjectPresenterTestBase protected constructor(
   @NullSource
   fun testPyProject(projectName: @NlsSafe String?): Unit = timeoutRunBlocking {
 
-    val sdk = sdkFixture.sdk
+    @Suppress("DEPRECATION") val sdk = sdkFixture.interpreter.getSdkAPI()
     val additionalData = additionalChecks?.additionalData?.invoke(module)
     additionalData?.let { additionalDataToSet ->
       writeAction {
@@ -87,7 +89,7 @@ abstract class AddPyProjectPresenterTestBase protected constructor(
   }
 
   private suspend fun ensureActionIsVisibleAndGetPresenter(forNewProject: Boolean): PyProjectPresenter {
-    val sdk = sdkFixture.sdk
+    @Suppress("DEPRECATION") val sdk = sdkFixture.interpreter.getSdkAPI()
     withSdkConfigurationLock(projectFixture.get()) {
       withContext(Dispatchers.IO) {
         module.pythonSdk = sdk

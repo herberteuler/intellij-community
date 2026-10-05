@@ -1,7 +1,6 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.env.python
 
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.use
 import com.intellij.testFramework.ProjectRule
@@ -28,7 +27,7 @@ abstract class PipPackageManagerTestBase {
   @Test
   fun testList(): Unit =  timeoutRunBlocking(5.minutes) {
     disposableFixture().get().use {
-      PipPythonPackageManager(projectRule.project, sdkRule.sdk.pythonInterpreterAsync()).apply {
+      PipPythonPackageManager(projectRule.project, sdkRule.interpreter).apply {
         Disposer.register(it, this)
         assertThat("No packages return", reloadPackages().successOrNull, not(empty()))
         assertThat("Installed packages shouldn't be empty", listInstalledPackages(), not(empty()))

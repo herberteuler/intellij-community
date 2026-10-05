@@ -116,7 +116,8 @@ public abstract class PyExecutionFixtureTestTask extends PyTestTask {
     return Collections.emptyList();
   }
 
-  public Project getProject() {
+  @Override
+  public @NotNull Project getProject() {
     return myFixture.getProject();
   }
 

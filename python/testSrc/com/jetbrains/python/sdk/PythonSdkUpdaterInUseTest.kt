@@ -8,7 +8,7 @@ import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.projectRoots.impl.ProjectJdkImpl
 import com.intellij.openapi.roots.ModuleRootModificationUtil
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.TestDisposable
 import com.intellij.testFramework.junit5.fixture.projectFixture
@@ -27,12 +27,12 @@ import org.junit.jupiter.api.Test
 @Layers.Functional
 internal class PythonSdkUpdaterInUseTest {
   private val projectFixture = projectFixture()
-  private val moduleFixture = projectFixture.pyModuleFixture("py-88315")
+  private val pyProjectFixture = projectFixture.pyProjectFixture()
 
   @Test
   fun `an interpreter that no module uses is not in use`(@TestDisposable disposable: Disposable) {
     val project = projectFixture.get()
-    moduleFixture.get()
+    pyProjectFixture.get().residesOnModule
     val sdk = registerSdk("PY-88315 registered only", disposable)
 
     assertThat(PythonSdkUpdater.isSdkInUse(sdk, project)).isFalse()
@@ -44,7 +44,7 @@ internal class PythonSdkUpdaterInUseTest {
   @Test
   fun `the interpreter of a module is in use`(@TestDisposable disposable: Disposable) {
     val project = projectFixture.get()
-    val module = moduleFixture.get()
+    val module = pyProjectFixture.get().residesOnModule
     val sdk = registerSdk("PY-88315 of the module", disposable)
     module.useSdk(sdk)
 
@@ -57,7 +57,7 @@ internal class PythonSdkUpdaterInUseTest {
   @Test
   fun `an interpreter stops being in use when the module moves to another one`(@TestDisposable disposable: Disposable) {
     val project = projectFixture.get()
-    val module = moduleFixture.get()
+    val module = pyProjectFixture.get().residesOnModule
     val sdk = registerSdk("PY-88315 replaced", disposable)
     module.useSdk(sdk)
     assertThat(PythonSdkUpdater.isSdkInUse(sdk, project)).isTrue()

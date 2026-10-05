@@ -85,7 +85,9 @@ fun TestFixture<SdkFixture<PyEnvironment>>.pyUvVenvFixture(
 }
 
 /**
- * Create virtual env using UV and setting uv as a Package manager via ui pip. The Python project of [pyProjectFixture] gets its interpreter.
+ * Creates a virtual env with `uv venv` and sets uv as the package manager in [mode]. The Python project of
+ * [pyProjectFixture] gets its interpreter. The default is pip mode; a test that writes a `pyproject.toml` passes
+ * [UvMode.Project].
  *
  * Similar to [pyVenvFixture] but uses `uv venv` instead of virtualenv helper.
  * UV is significantly faster for venv creation and package installation.
@@ -94,6 +96,7 @@ fun TestFixture<SdkFixture<PyEnvironment>>.pyUvVenvFixture(
  */
 fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyUvVenvFixture(
   pyProjectFixture: TestFixture<PyProject>,
+  mode: UvMode = UvMode.Pip(),
 ): TestFixture<PythonInterpreter> = testFixture {
   val interpreterFixture = this@pyUvVenvFixture.init()
   val env = interpreterFixture.env
@@ -119,7 +122,7 @@ fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyUvVenvFixture(
   } ?: error("Python executable not found in UV venv: $venvDir")
 
   val interpreter =
-    setupExistingEnvAndSdk(project = project, pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, usePip = true).getOrThrow()
+    setupExistingEnvAndSdk(project = project, pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, mode = mode).getOrThrow()
   pyProject.setPythonInterpreter(interpreter)
   // workaround interesting behavior of VFS_STRUCTURAL_MODIFICATIONS
   interpreter.sitePackagesDirectory()?.getChildren()

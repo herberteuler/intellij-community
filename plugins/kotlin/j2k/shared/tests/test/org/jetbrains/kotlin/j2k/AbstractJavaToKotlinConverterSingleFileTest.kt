@@ -6,6 +6,7 @@ import com.intellij.openapi.components.service
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.codeStyle.JavaCodeStyleSettings
+import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.util.ThrowableRunnable
 import org.jetbrains.kotlin.idea.base.test.IgnoreTests
 import org.jetbrains.kotlin.idea.test.Directives
@@ -32,6 +33,12 @@ abstract class AbstractJavaToKotlinConverterSingleFileTest : AbstractJavaToKotli
         val kotlinText: String,
         val externalCodeProcessing: ExternalCodeProcessing?,
     )
+
+    override fun getProjectDescriptor(): LightProjectDescriptor {
+        val file = dataFile()
+        val usesLombok = file.exists() && KotlinTestUtils.parseDirectives(file.readText()).contains(LOMBOK_ANNOTATIONS_DIRECTIVE)
+        return if (usesLombok) J2K_LOMBOK_PROJECT_DESCRIPTOR else super.getProjectDescriptor()
+    }
 
     override fun setUp() {
         super.setUp()
@@ -98,7 +105,6 @@ abstract class AbstractJavaToKotlinConverterSingleFileTest : AbstractJavaToKotli
         if (directives.contains(KOTLIN_API_DIRECTIVE)) addFile("KotlinApi.kt", "kotlinApi")
         if (directives.contains(JAVA_API_DIRECTIVE)) addFile("JavaApi.java", "javaApi")
         if (directives.contains(JUNIT_ANNOTATIONS_DIRECTIVE)) addJunitTestAnnotations()
-        if (directives.contains(LOMBOK_ANNOTATIONS_DIRECTIVE)) addLombokAnnotations()
     }
 
     private fun addExternalFiles(javaFile: File) {

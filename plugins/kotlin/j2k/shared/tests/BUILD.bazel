@@ -117,6 +117,8 @@ jvm_library(
         "//plugins/kotlin/j2k/k2:kotlin-j2k_test_lib",
         "//plugins/kotlin/base/psi",
         "//plugins/kotlin/base/psi:psi_test_lib",
+        "//plugins/lombok:lombok-tests",
+        "//plugins/lombok:lombok-tests_test_lib",
     ],
 )
 ### auto-generated section `build kotlin.j2k.shared.tests` end

@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.fileEditor.impl
 
+import com.intellij.diff.comparison.CancellationChecker
 import com.intellij.openapi.editor.ex.experimental.DocBranch
 import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.DocText
@@ -347,7 +348,8 @@ class DocTextDiffAutoMergeTest {
     assertEquals(userText, userBranch.string()) { "the ops do not build the stated user text" }
 
     // 3, 4. The agent left only a text behind, so recover a script for it.
-    val ops = DocTextDiff.diff(savedBranch.text(), DocText.createText(diskText))
+    val disk = DocText.createText(diskText)
+    val ops = DocTextDiff.diff(savedBranch.text(), disk, CancellationChecker.EMPTY)
 
     // 5. The script becomes a branch, under an agent of its own.
     var diskBranch = savedBranch.fork(agent("disk"))

@@ -1,11 +1,13 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.fileEditor.impl
 
+import com.intellij.diff.comparison.CancellationChecker
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.DocText
 import com.intellij.openapi.editor.ex.experimental.assertSameText
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -256,7 +258,7 @@ class DocTextDiffTest {
     val target = DocText.createText("a😁b\n")
     var text = base
     assertNoLoneSurrogate(text)
-    for (op in DocTextDiff.diff(base, target)) {
+    for (op in DocTextDiff.diff(base, target, CancellationChecker.EMPTY)) {
       text = text.applyOp(op)
       assertNoLoneSurrogate(text)
     }
@@ -271,7 +273,7 @@ class DocTextDiffTest {
     val base = DocText.createText("$filler😀$filler")
     val target = DocText.createText("$filler😁$filler")
     var text = base
-    val recovered = DocTextDiff.diff(base, target)
+    val recovered = DocTextDiff.diff(base, target, CancellationChecker.EMPTY)
     for (op in recovered) {
       text = text.applyOp(op)
       assertNoLoneSurrogate(text)
@@ -288,7 +290,7 @@ class DocTextDiffTest {
     val base = DocText.createText("$filler\uD83D\uDE00$filler")
     val target = DocText.createText("$filler\uD801\uDE00$filler")
     var text = base
-    val recovered = DocTextDiff.diff(base, target)
+    val recovered = DocTextDiff.diff(base, target, CancellationChecker.EMPTY)
     for (op in recovered) {
       text = text.applyOp(op)
       assertNoLoneSurrogate(text)
@@ -304,7 +306,7 @@ class DocTextDiffTest {
       val base = DocText.createText(randomText(random))
       val ops = randomOps(random, base)
       val version1 = applyOps(base, ops)
-      val recovered = DocTextDiff.diff(base, version1)
+      val recovered = DocTextDiff.diff(base, version1, CancellationChecker.EMPTY)
       val version2 = applyOps(base, recovered)
       assertEquals(version1.string(), version2.string()) {
         "round $round\nbase: ${quote(base.string())}\nops: $ops\nscript:\n${formatOps(base.string(), recovered)}"
@@ -327,7 +329,7 @@ class DocTextDiffTest {
       DocTextOp.insertOp(base.lineStartOffset(120), "  // a note near the top\n"),
     )
     val version1 = applyOps(base, ops)
-    val recovered = DocTextDiff.diff(base, version1)
+    val recovered = DocTextDiff.diff(base, version1, CancellationChecker.EMPTY)
     assertSameText(version1, applyOps(base, recovered))
     val touched = touchedChars(recovered)
     println("the source text: ${base.length()} chars; recovered ${recovered.size} ops over $touched chars")
@@ -335,6 +337,28 @@ class DocTextDiffTest {
     // A whole text replacement also round trips. It must not win here.
     assertTrue(recovered.size <= 2 * ops.size) { formatOps(base.string(), recovered) }
     assertTrue(touched < base.length() / 50) { "touched $touched of ${base.length()} chars" }
+  }
+
+  @Test
+  fun `a cancelled caller stops the line comparison`() {
+    // A whole new line needs no character comparison, so only the line comparison can ask.
+    val base = DocText.createText(document("one\nthree"))
+    val target = DocText.createText(document("one\ntwo\nthree"))
+    val indicator = CancelAfter(answers = 0)
+    assertThrows(Cancelled::class.java) {
+      DocTextDiff.diff(base, target, indicator)
+    }
+  }
+
+  @Test
+  fun `a cancelled caller stops the character comparison`() {
+    // The line comparison asks once, so the second question comes from the character comparison.
+    val base = DocText.createText(document("val first = 1"))
+    val target = DocText.createText(document("val second = 1"))
+    val indicator = CancelAfter(answers = 1)
+    assertThrows(Cancelled::class.java) {
+      DocTextDiff.diff(base, target, indicator)
+    }
   }
 
   /**
@@ -357,7 +381,7 @@ class DocTextDiffTest {
     val expected = applyOps(baseText, ops)
     assertEquals(version1, expected.string()) { "the ops do not build the stated version 1" }
 
-    val recovered = DocTextDiff.diff(baseText, expected)
+    val recovered = DocTextDiff.diff(baseText, expected, CancellationChecker.EMPTY)
     assertEquals(script.trimIndent(), formatOps(base, recovered)) { "the recovered script changed" }
 
     val actual = applyOps(baseText, recovered)
@@ -435,6 +459,25 @@ class DocTextDiffTest {
     val opLength = 1 + random.nextInt(minOf(8, length - offset))
     return DocTextOp.deleteOp(offset, opLength)
   }
+
+  /**
+   * A checker that lets [answers] questions pass, and cancels at the next one.
+   */
+  private class CancelAfter(private val answers: Int) : CancellationChecker {
+    private var asked = 0
+
+    override fun checkCanceled() {
+      asked++
+      if (asked > answers) {
+        throw Cancelled()
+      }
+    }
+  }
+
+  /**
+   * The exception of [CancelAfter]. Its own type proves that the checker threw it.
+   */
+  private class Cancelled : RuntimeException()
 
   private fun hugeTextPath(): Path {
     val testData = Path.of(PathManager.getCommunityHomePath(), "platform/platform-tests/testData")

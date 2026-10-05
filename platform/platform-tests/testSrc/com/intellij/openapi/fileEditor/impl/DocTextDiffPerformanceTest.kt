@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.fileEditor.impl
 
+import com.intellij.diff.comparison.CancellationChecker
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.DocText
@@ -96,7 +97,7 @@ class DocTextDiffPerformanceTest {
    * one applies in microseconds. An attempt then applies about [APPLY_OPS_PER_ATTEMPT] ops in all.
    */
   private fun run(name: String, base: DocText, target: DocText, passes: Int) {
-    val ops = DocTextDiff.diff(base, target)
+    val ops = DocTextDiff.diff(base, target, CancellationChecker.EMPTY)
     assertEquals(target.string(), applied(base, ops).string()) { "the script does not rebuild the target of \"$name\"" }
     val units = units(ops)
     val share = 100.0 * units / maxOf(base.length(), 1)
@@ -104,7 +105,7 @@ class DocTextDiffPerformanceTest {
     val applyColumn = if (applyPasses == 0) "not timed" else "$applyPasses"
     println("  %-56s%9d ops%11d units%8.1f%%%8d%12s".format(name, ops.size, units, share, passes, applyColumn))
     benchmarkSubtest("diff, $name", passes) {
-      DocTextDiff.diff(base, target).size
+      DocTextDiff.diff(base, target, CancellationChecker.EMPTY).size
     }
     if (applyPasses > 0) {
       benchmarkSubtest("apply, $name", applyPasses) {

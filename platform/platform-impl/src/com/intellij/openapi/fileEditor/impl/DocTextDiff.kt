@@ -10,6 +10,7 @@ import com.intellij.diff.util.Range
 import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.DocText
 import com.intellij.util.text.CharSequenceSubSequence
+import org.jetbrains.annotations.ApiStatus
 
 /**
  * Recovers an edit script from two states of one document.
@@ -37,7 +38,8 @@ import com.intellij.util.text.CharSequenceSubSequence
  * slower. `String.substring`, `String.hashCode` and `String.equals` are JDK intrinsics that the JIT
  * turns into vector code, and a scalar Kotlin loop cannot match them. Do not try it again.
  */
-internal object DocTextDiff {
+@ApiStatus.Internal
+object DocTextDiff {
 
   /**
    * The ops that turn [base] into [target]. Apply them in the list order.
@@ -47,8 +49,12 @@ internal object DocTextDiff {
    * The list runs from the last changed region to the first. Every offset then indexes the document
    * that the op applies to, because each later op changes only the text to the right. A replacement
    * becomes a delete and then an insert at the same offset.
+   *
+   * The line comparison and the character comparison both ask [indicator]. An exception from it
+   * leaves this method, so a cancelled caller stops here.
    */
-  fun diff(base: DocText, target: DocText): List<DocTextOp> {
+  @JvmStatic
+  fun diff(base: DocText, target: DocText, indicator: CancellationChecker): List<DocTextOp> {
     // Every phase reads one character at a time. On an ImmutableText that costs a leaf lookup and a
     // virtual call, which measures about twice a String read. cachedChars() hands back the String
     // when the document already holds one, and the rope when it does not, so this never costs more.
@@ -60,7 +66,8 @@ internal object DocTextDiff {
     }
     checkTrimmed(baseChars, targetChars, trimmed)
     val region = snapToLines(baseChars, trimmed) ?: snapToCodePoints(baseChars, targetChars, trimmed)
-    return ops(targetChars, fragments(baseChars, targetChars, region))
+    val fragments = fragments(baseChars, targetChars, region, indicator)
+    return ops(targetChars, fragments)
   }
 
   /**
@@ -79,13 +86,20 @@ internal object DocTextDiff {
    * The changed parts of [region], in the ascending offset order. A part never overlaps its neighbour,
    * and a part is never empty on both sides.
    */
-  private fun fragments(baseChars: CharSequence, targetChars: CharSequence, region: Range): List<Range> {
+  private fun fragments(
+    baseChars: CharSequence,
+    targetChars: CharSequence,
+    region: Range,
+    indicator: CancellationChecker,
+  ): List<Range> {
     val baseLines = split(baseChars, region.start1, region.end1)
     val targetLines = split(targetChars, region.start2, region.end2)
     val lineChanges = try {
-      DiffIterableUtil.diff(baseLines.texts, targetLines.texts, CancellationChecker.EMPTY)
+      DiffIterableUtil.diff(baseLines.texts, targetLines.texts, indicator)
     }
-    catch (_: DiffTooBigException) {
+    catch (@Suppress("IncorrectCancellationExceptionHandling") _: DiffTooBigException) {
+      // The comparison gives up on a large input. That is a size limit and not a cancellation, so
+      // the region stays coarse.
       return listOf(region)
     }
     val fragments = ArrayList<Range>()
@@ -95,6 +109,7 @@ internal object DocTextDiff {
         baseLines.offset(lineChange.start1), baseLines.offset(lineChange.end1),
         targetLines.offset(lineChange.start2), targetLines.offset(lineChange.end2),
         fragments,
+        indicator,
       )
     }
     return fragments
@@ -111,6 +126,7 @@ internal object DocTextDiff {
     start2: Int,
     end2: Int,
     fragments: MutableList<Range>,
+    indicator: CancellationChecker,
   ) {
     if (start1 == end1 || start2 == end2) {
       // A pure insert or a pure delete has nothing to align.
@@ -121,10 +137,11 @@ internal object DocTextDiff {
       ByCharRt.compare(
         CharSequenceSubSequence(baseChars, start1, end1),
         CharSequenceSubSequence(targetChars, start2, end2),
-        CancellationChecker.EMPTY,
+        indicator,
       )
     }
-    catch (_: DiffTooBigException) {
+    catch (@Suppress("IncorrectCancellationExceptionHandling") _: DiffTooBigException) {
+      // A size limit, as in fragments(), so the block stays coarse.
       fragments.add(Range(start1, end1, start2, end2))
       return
     }

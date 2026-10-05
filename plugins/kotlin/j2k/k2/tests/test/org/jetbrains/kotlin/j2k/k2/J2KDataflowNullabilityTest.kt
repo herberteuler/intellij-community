@@ -44,9 +44,46 @@ class J2KDataflowNullabilityTest : KotlinLightCodeInsightFixtureTestCase() {
         assertEquals(Nullability.NotNull, decisions["boxed"])
     }
 
+    fun testPackagePrivateMembersUseTheWholePackage() {
+        myFixture.addFileToProject(
+            "p/Other.java", """
+            package p;
+
+            class Other {
+                void use(C c) {
+                    c.packageMethod("y");
+                    c.publicMethod("y");
+                    c.packageField = null;
+                }
+            }
+            """.trimIndent()
+        )
+        val decisions = decisionsByName(
+            """
+            package p;
+
+            public class C {
+                String packageField = "x";
+
+                void packageMethod(String packageParameter) {}
+
+                public void publicMethod(String publicParameter) {}
+
+                void call() {
+                    packageMethod("x");
+                    publicMethod("x");
+                }
+            }
+            """, "p/C.java"
+        )
+        assertEquals(Nullability.NotNull, decisions["packageParameter"])
+        assertEquals(Nullability.Default, decisions["publicParameter"])
+        assertEquals(Nullability.Nullable, decisions["packageField"])
+    }
+
     @OptIn(KaAllowAnalysisOnEdt::class)
-    private fun decisionsByName(javaCode: String): Map<String?, Nullability> {
-        val file = myFixture.configureByText("C.java", javaCode.trimIndent())
+    private fun decisionsByName(javaCode: String, path: String = "C.java"): Map<String?, Nullability> {
+        val file = myFixture.addFileToProject(path, javaCode.trimIndent())
         return allowAnalysisOnEdt { J2KDataflowNullability(file).decisions }.mapKeys { (it.key as? PsiNamedElement)?.name }
     }
 }

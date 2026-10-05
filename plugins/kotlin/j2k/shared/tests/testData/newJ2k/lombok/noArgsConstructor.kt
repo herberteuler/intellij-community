@@ -10,10 +10,10 @@ internal class OnlyNoArgs {
 }
 
 @NoArgsConstructor
-internal class NoArgsAndRequiredArgs(private val required: String)
+internal class NoArgsAndRequiredArgs(private val required: String?)
 
 @NoArgsConstructor
-internal data class NoArgsAndData(val required: String)
+internal data class NoArgsAndData(val required: String?)
 
 @NoArgsConstructor(force = true)
 internal class ForcedNoArgs {

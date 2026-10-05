@@ -106,7 +106,6 @@ class J2KDataflowNullability(private val file: PsiFile) {
     private val methods = ArrayList<PsiMethod>()
     private val sinks = HashMap<PsiExpression, Slot>()
     private val visited = HashSet<PsiExpression>()
-    private val closedWorld = System.getProperty(CLOSED_WORLD_PROPERTY).toBoolean()
     private val originals = OriginalJavaSemanticResolver()
     private val originalFile by lazy { originals.originalElementOrSelf(file) }
 
@@ -266,20 +265,21 @@ class J2KDataflowNullability(private val file: PsiFile) {
         for (owner in generated) (owner as? PsiMethod)?.body?.accept(visitor)
 
         for (method in methods) {
+            val searchesAllUsers = searchesAllUsers(method)
             slots[method]?.let { slot ->
-                if (method.body == null && !closedWorld) slot.join(Flow.UNKNOWN)
+                if (method.body == null && !searchesAllUsers) slot.join(Flow.UNKNOWN)
                 for (statement in PsiUtil.findReturnStatements(method)) statement.returnValue?.let { addSink(it, slot) }
             }
             addParameterEvidence(method)
             addOverrideEvidence(method)
-            if (closedWorld && !method.hasModifierProperty(PsiModifier.PRIVATE)) addProjectEvidence(method)
+            if (searchesAllUsers) addProjectEvidence(method)
         }
         for ((owner, slot) in slots) {
-            if (owner is PsiField && closedWorld && !owner.hasModifierProperty(PsiModifier.PRIVATE)) {
-                addProjectAssignmentEvidence(owner, slot)
-            }
+            if (owner is PsiField && searchesAllUsers(owner)) addProjectAssignmentEvidence(owner, slot)
         }
     }
+
+    private fun searchesAllUsers(member: PsiMember): Boolean = member.hasModifierProperty(PsiModifier.PACKAGE_LOCAL)
 
     private fun addSink(expression: PsiExpression, slot: Slot) {
         when (val stripped = PsiUtil.skipParenthesizedExprDown(expression) ?: return) {
@@ -321,13 +321,13 @@ class J2KDataflowNullability(private val file: PsiFile) {
         if (getExpressionDfaNullability(reference) == DfaNullability.NOT_NULL) return
         if (DfaPsiUtil.isAssertionEffectively(expression, operation == JavaTokenType.NE)) {
             slot.demand = true
-        } else if (!closedWorld) {
+        } else {
             slot.join(Flow.NULLABLE)
         }
     }
 
     private fun addParameterEvidence(method: PsiMethod) {
-        val hasUnseenCallers = !closedWorld && !method.hasModifierProperty(PsiModifier.PRIVATE)
+        val hasUnseenCallers = !method.hasModifierProperty(PsiModifier.PRIVATE) && !searchesAllUsers(method)
         for (parameter in method.parameterList.parameters) {
             val slot = slots[parameter] ?: continue
             if (hasUnseenCallers) slot.join(Flow.UNKNOWN)
@@ -588,12 +588,6 @@ class J2KDataflowNullability(private val file: PsiFile) {
     }
 
     companion object {
-        const val ENABLED_PROPERTY: String = "kotlin.j2k.dataflow.nullability"
-        const val CLOSED_WORLD_PROPERTY: String = "kotlin.j2k.dataflow.closedWorld"
-
-        val isEnabled: Boolean
-            get() = System.getProperty(ENABLED_PROPERTY).toBoolean()
-
         private val DEREFERENCE_KINDS: Set<NullabilityProblemKind<*>> = setOf(
             NullabilityProblemKind.callNPE,
             NullabilityProblemKind.callMethodRefNPE,

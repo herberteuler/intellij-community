@@ -4,7 +4,7 @@ package test
 
 import test.Facade.ServiceA
 
-class Facade(private val serviceA: ServiceA, private val serviceB: ServiceB, private val serviceC: ServiceC) {
+class Facade(private val serviceA: ServiceA?, private val serviceB: ServiceB?, private val serviceC: ServiceC) {
     private val initialized = "x"
 
     private val notRequired: ServiceD? = null

@@ -2,7 +2,7 @@
 // KTIJ-19423: @AllArgsConstructor takes every field, not only the required ones
 package test
 
-class Everything(private val required: String, private val mutable: String?, private val nonNull: String) {
+class Everything(private val required: String?, private val mutable: String?, private val nonNull: String) {
     private val initialized = "skipped"
 
     companion object {

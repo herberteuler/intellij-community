@@ -5,7 +5,7 @@ package test
 import lombok.EqualsAndHashCode
 import lombok.ToString
 
-data class Levels(val finalField: String) {
+data class Levels(val finalField: String?) {
     var defaultLevels: String? = null
 
     protected var protectedGetter: String? = null

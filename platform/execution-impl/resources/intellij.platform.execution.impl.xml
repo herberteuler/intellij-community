@@ -149,7 +149,8 @@
 
     <advancedSetting id="terminal.show.application.title" default="false" groupKey="group.advanced.settings.terminal" visible="false"/>
 
-    <colorSettingsPage implementation="com.intellij.openapi.options.colors.pages.ANSIColoredConsoleColorsPage" id="ansi"/>
+    <colorSettings implementation="com.intellij.openapi.options.colors.pages.ANSIColoredConsoleColorsPage"
+                   bundle="messages.OptionsBundle" key="color.settings.console.name" priority="COMMON_SETTINGS" id="ansi"/>
 
     <registryKey defaultValue="false"
                  description="Run implementation for split mode."

@@ -34,7 +34,7 @@ private val LOG = Logger.getLogger("com.intellij.platform.eel.provider.EelNioBri
  */
 @Throws(IllegalArgumentException::class)
 @ApiStatus.Experimental
-fun EelPath.asNioPath(): @NioPath Path {
+fun EelPath.asNioPath(): Path {
   if (descriptor === LocalEelDescriptor) {
     return Paths.get(toString())
   }

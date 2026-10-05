@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.testFramework.eelJava
 
-import com.intellij.platform.util.annotations.paths.NioPath
 import com.intellij.platform.util.annotations.paths.OsPath
 import org.jetbrains.annotations.ApiStatus
 import java.nio.file.Path
@@ -30,7 +29,7 @@ object EelTestUtil {
     return path
   }
 
-  fun getTeamcityWslJdkDefinition(): @NioPath Path? {
+  fun getTeamcityWslJdkDefinition(): Path? {
     return System.getenv("TEAMCITY_WSL_JDK_DEFINITION")?.let { Path.of(it) }
   }
 

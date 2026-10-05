@@ -1,14 +1,17 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.Agent
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.Event
+import com.intellij.openapi.editor.impl.DeleteOpImpl
+import com.intellij.openapi.editor.impl.InsertOpImpl
 
 internal class EventImpl(
   private val agent: Agent,
   private val seq: Int,
-  private val op: DocTextOp,
+  private val op: DocumentTextOp,
 ) : Event {
 
   init {
@@ -25,14 +28,14 @@ internal class EventImpl(
 
   override fun agent(): Agent = agent
   override fun seq(): Int = seq
-  override fun op(): DocTextOp = op
+  override fun op(): DocumentTextOp = op
   override fun length(): Int = op.length()
 
   override fun offsetOfUnit(index: Int): Int {
     checkUnitIndex(index)
     return when (op) {
-      is DocTextOp.Insert -> op.offset() + index
-      is DocTextOp.Delete -> op.offset()
+      is DocumentOp.Insert -> op.offset() + index
+      is DocumentOp.Delete -> op.offset()
     }
   }
 
@@ -47,13 +50,15 @@ internal class EventImpl(
   /**
    * The part of [op] from the unit [units] onward. A delete keeps its offset; see [offsetOfUnit].
    */
-  private fun suffixOp(units: Int): DocTextOp {
+  private fun suffixOp(units: Int): DocumentTextOp {
     return when (op) {
-      is DocTextOp.Insert -> {
+      is DocumentOp.Insert -> {
         val fragment = op.fragment()
-        DocTextOp.insertOp(op.offset() + units, fragment.subSequence(units, fragment.length))
+        DocumentOp.insertOp(op.offset() + units, fragment.subSequence(units, fragment.length))
       }
-      is DocTextOp.Delete -> DocTextOp.deleteOp(op.offset(), op.length() - units)
+      is DocumentOp.Delete -> {
+        DocumentOp.deleteOp(op.offset(), op.length() - units)
+      }
     }
   }
 
@@ -84,10 +89,10 @@ internal class EventImpl(
   }
 }
 
-private fun checkKnownOp(op: DocTextOp) {
-  require(op is InsertDocTextOpImpl || op is DeleteDocTextOpImpl) {
-    "Foreign DocTextOp implementation: ${op.javaClass.name}. An event keeps its op forever, " +
-    "so the op must come from DocTextOp.insertOp or DocTextOp.deleteOp."
+private fun checkKnownOp(op: DocumentTextOp) {
+  require(op is InsertOpImpl || op is DeleteOpImpl) {
+    "Foreign DocumentTextOp implementation: ${op.javaClass.name}. An event keeps its op forever, " +
+    "so the op must come from DocumentOp.insertOp or DocumentOp.deleteOp."
   }
 }
 

@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentText
 import com.intellij.openapi.editor.impl.experimental.EventGraphImpl
 
 /**
@@ -78,9 +79,9 @@ interface EventGraph {
    * The replay walks the events in a topological order. It resolves concurrent
    * insertions with the Fugue order, so every replica computes the same text.
    */
-  fun replay(version: Version): DocText
+  fun replay(version: Version): DocumentText
 
-  fun replay(): DocText = replay(version())
+  fun replay(): DocumentText = replay(version())
 
   companion object {
     /**

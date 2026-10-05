@@ -1,8 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.experimental.Agent
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.Event
 import com.intellij.openapi.editor.ex.experimental.EventGraph
 
@@ -73,7 +73,7 @@ internal class StoredRun(
    * Whether the event of this run deletes.
    */
   fun isDelete(): Boolean {
-    return event.op() is DocTextOp.Delete
+    return event.op() is DocumentOp.Delete
   }
 
   /**
@@ -149,17 +149,17 @@ internal class StoredRun(
     }
     val nextOp = next.op()
     val joined = when (val op = event.op()) {
-      is DocTextOp.Insert -> {
-        if (nextOp !is DocTextOp.Insert || !continuesInsert(op, nextOp)) {
+      is DocumentOp.Insert -> {
+        if (nextOp !is DocumentOp.Insert || !continuesInsert(op, nextOp)) {
           return null
         }
-        DocTextOp.insertOp(op.offset(), op.fragment().toString() + nextOp.fragment())
+        DocumentOp.insertOp(op.offset(), op.fragment().toString() + nextOp.fragment())
       }
-      is DocTextOp.Delete -> {
-        if (nextOp !is DocTextOp.Delete || !continuesDelete(op, nextOp)) {
+      is DocumentOp.Delete -> {
+        if (nextOp !is DocumentOp.Delete || !continuesDelete(op, nextOp)) {
           return null
         }
-        DocTextOp.deleteOp(op.offset(), op.length() + nextOp.length())
+        DocumentOp.deleteOp(op.offset(), op.length() + nextOp.length())
       }
     }
     return StoredRun(EventImpl(event.agent(), event.seq(), joined), lvStart, this.parents)
@@ -176,7 +176,7 @@ internal class StoredRun(
   /**
    * An insert walks forward, so [next] continues at the end of [op], within the length limit.
    */
-  private fun continuesInsert(op: DocTextOp.Insert, next: DocTextOp.Insert): Boolean {
+  private fun continuesInsert(op: DocumentOp.Insert, next: DocumentOp.Insert): Boolean {
     return next.offset() == op.offset() + op.length() &&
            next.length() <= EventGraph.MAX_COALESCED_INSERT - op.length()
   }
@@ -186,7 +186,7 @@ internal class StoredRun(
    * still fit the offset space that an event checks, or the append would fail where a new run
    * succeeds.
    */
-  private fun continuesDelete(op: DocTextOp.Delete, next: DocTextOp.Delete): Boolean {
+  private fun continuesDelete(op: DocumentOp.Delete, next: DocumentOp.Delete): Boolean {
     return next.offset() == op.offset() &&
            next.length() <= Int.MAX_VALUE - op.offset() - op.length()
   }
@@ -194,9 +194,9 @@ internal class StoredRun(
   /**
    * The insert op of this run, for a caller that reads its content.
    */
-  private fun insertOp(lv: LV): DocTextOp.Insert {
+  private fun insertOp(lv: LV): DocumentOp.Insert {
     val op = event.op()
-    require(op is DocTextOp.Insert) {
+    require(op is DocumentOp.Insert) {
       "The lv $lv is not an insert"
     }
     return op

@@ -3,8 +3,9 @@ package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.diff.comparison.CancellationChecker
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
-import com.intellij.openapi.editor.ex.experimental.DocText
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.assertSameText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -17,7 +18,7 @@ import java.util.Random
 /**
  * Tests the round trip of [DocTextDiff].
  *
- * Every test follows one use case. A base [DocText] changes to the version 1 through a known op
+ * Every test follows one use case. A base [DocumentText] changes to the version 1 through a known op
  * list. [DocTextDiff] then reads only the base and the version 1, and returns its own op list. The
  * version 2 applies that list to the base. The version 2 must equal the version 1.
  *
@@ -254,8 +255,8 @@ class DocTextDiffTest {
   fun `an edit next to a surrogate pair keeps every pair whole`() {
     // "a<grinning face>b" changes to "a<beaming face>b". The two emoji share the high surrogate, so a
     // character diff can cut the pair in half.
-    val base = DocText.createText("a😀b\n")
-    val target = DocText.createText("a😁b\n")
+    val base = DocumentText.createText("a😀b\n")
+    val target = DocumentText.createText("a😁b\n")
     var text = base
     assertNoLoneSurrogate(text)
     for (op in DocTextDiff.diff(base, target, CancellationChecker.EMPTY)) {
@@ -270,8 +271,8 @@ class DocTextDiffTest {
     // No line feed, so the growth to whole lines would cover the whole document. The limit stops it,
     // and the fallback still moves the boundary off the surrogate pair.
     val filler = "x".repeat(20_000)
-    val base = DocText.createText("$filler😀$filler")
-    val target = DocText.createText("$filler😁$filler")
+    val base = DocumentText.createText("$filler😀$filler")
+    val target = DocumentText.createText("$filler😁$filler")
     var text = base
     val recovered = DocTextDiff.diff(base, target, CancellationChecker.EMPTY)
     for (op in recovered) {
@@ -287,8 +288,8 @@ class DocTextDiffTest {
     // The two characters share the low surrogate and differ in the high one. So the trimmed suffix
     // ends inside the pair, and the fallback moves the end of the region off it.
     val filler = "x".repeat(20_000)
-    val base = DocText.createText("$filler\uD83D\uDE00$filler")
-    val target = DocText.createText("$filler\uD801\uDE00$filler")
+    val base = DocumentText.createText("$filler\uD83D\uDE00$filler")
+    val target = DocumentText.createText("$filler\uD801\uDE00$filler")
     var text = base
     val recovered = DocTextDiff.diff(base, target, CancellationChecker.EMPTY)
     for (op in recovered) {
@@ -303,7 +304,7 @@ class DocTextDiffTest {
   fun `a random op sequence round trips`() {
     val random = Random(20260828)
     repeat(ROUNDS) { round ->
-      val base = DocText.createText(randomText(random))
+      val base = DocumentText.createText(randomText(random))
       val ops = randomOps(random, base)
       val version1 = applyOps(base, ops)
       val recovered = DocTextDiff.diff(base, version1, CancellationChecker.EMPTY)
@@ -321,12 +322,12 @@ class DocTextDiffTest {
 
   @Test
   fun `local edits in a huge file stay local`() {
-    val base = DocText.createText(Files.readString(hugeTextPath()))
+    val base = DocumentText.createText(Files.readString(hugeTextPath()))
     // The ops run from the last offset to the first, so every offset indexes the base.
     val ops = listOf(
-      DocTextOp.insertOp(base.lineStartOffset(5000), "    myScrollingModel.dispose();\n"),
-      DocTextOp.deleteOp(base.lineStartOffset(3000), base.lineEndOffset(3000) - base.lineStartOffset(3000)),
-      DocTextOp.insertOp(base.lineStartOffset(120), "  // a note near the top\n"),
+      DocumentOp.insertOp(base.lineStartOffset(5000), "    myScrollingModel.dispose();\n"),
+      DocumentOp.deleteOp(base.lineStartOffset(3000), base.lineEndOffset(3000) - base.lineStartOffset(3000)),
+      DocumentOp.insertOp(base.lineStartOffset(120), "  // a note near the top\n"),
     )
     val version1 = applyOps(base, ops)
     val recovered = DocTextDiff.diff(base, version1, CancellationChecker.EMPTY)
@@ -342,8 +343,8 @@ class DocTextDiffTest {
   @Test
   fun `a cancelled caller stops the line comparison`() {
     // A whole new line needs no character comparison, so only the line comparison can ask.
-    val base = DocText.createText(document("one\nthree"))
-    val target = DocText.createText(document("one\ntwo\nthree"))
+    val base = DocumentText.createText(document("one\nthree"))
+    val target = DocumentText.createText(document("one\ntwo\nthree"))
     val indicator = CancelAfter(answers = 0)
     assertThrows(Cancelled::class.java) {
       DocTextDiff.diff(base, target, indicator)
@@ -353,8 +354,8 @@ class DocTextDiffTest {
   @Test
   fun `a cancelled caller stops the character comparison`() {
     // The line comparison asks once, so the second question comes from the character comparison.
-    val base = DocText.createText(document("val first = 1"))
-    val target = DocText.createText(document("val second = 1"))
+    val base = DocumentText.createText(document("val first = 1"))
+    val target = DocumentText.createText(document("val second = 1"))
     val indicator = CancelAfter(answers = 1)
     assertThrows(Cancelled::class.java) {
       DocTextDiff.diff(base, target, indicator)
@@ -373,11 +374,11 @@ class DocTextDiffTest {
    */
   private fun assertDiff(
     base: String,
-    ops: List<DocTextOp>,
+    ops: List<DocumentTextOp>,
     version1: String,
     script: String,
   ) {
-    val baseText = DocText.createText(base)
+    val baseText = DocumentText.createText(base)
     val expected = applyOps(baseText, ops)
     assertEquals(version1, expected.string()) { "the ops do not build the stated version 1" }
 
@@ -389,7 +390,7 @@ class DocTextDiffTest {
     assertSameText(expected, actual)
   }
 
-  private fun applyOps(base: DocText, ops: List<DocTextOp>): DocText {
+  private fun applyOps(base: DocumentText, ops: List<DocumentTextOp>): DocumentText {
     var text = base
     for (op in ops) {
       text = text.applyOp(op)
@@ -400,18 +401,18 @@ class DocTextDiffTest {
   /**
    * The number of characters that [ops] insert or delete. A small number means a small event graph.
    */
-  private fun touchedChars(ops: List<DocTextOp>): Int {
+  private fun touchedChars(ops: List<DocumentTextOp>): Int {
     var count = 0
     for (op in ops) {
       count += when (op) {
-        is DocTextOp.Insert -> op.fragment().length
-        is DocTextOp.Delete -> op.length()
+        is DocumentOp.Insert -> op.fragment().length
+        is DocumentOp.Delete -> op.length()
       }
     }
     return count
   }
 
-  private fun assertNoLoneSurrogate(text: DocText) {
+  private fun assertNoLoneSurrogate(text: DocumentText) {
     val chars = text.chars()
     var offset = 0
     while (offset < chars.length) {
@@ -435,8 +436,8 @@ class DocTextDiffTest {
     return text.toString()
   }
 
-  private fun randomOps(random: Random, base: DocText): List<DocTextOp> {
-    val ops = ArrayList<DocTextOp>()
+  private fun randomOps(random: Random, base: DocumentText): List<DocumentTextOp> {
+    val ops = ArrayList<DocumentTextOp>()
     var text = base
     repeat(1 + random.nextInt(8)) {
       val op = randomOp(random, text.length())
@@ -446,18 +447,18 @@ class DocTextDiffTest {
     return ops
   }
 
-  private fun randomOp(random: Random, length: Int): DocTextOp {
+  private fun randomOp(random: Random, length: Int): DocumentTextOp {
     if (length == 0 || random.nextBoolean()) {
       val offset = random.nextInt(length + 1)
       val fragment = StringBuilder()
       repeat(1 + random.nextInt(8)) {
         fragment.append(ALPHABET[random.nextInt(ALPHABET.length)])
       }
-      return DocTextOp.insertOp(offset, fragment.toString())
+      return DocumentOp.insertOp(offset, fragment.toString())
     }
     val offset = random.nextInt(length)
     val opLength = 1 + random.nextInt(minOf(8, length - offset))
-    return DocTextOp.deleteOp(offset, opLength)
+    return DocumentOp.deleteOp(offset, opLength)
   }
 
   /**
@@ -496,11 +497,11 @@ class DocTextDiffTest {
  * Every offset indexes the base, because a script runs from the last changed region to the first.
  * So a delete can show the text that it removes.
  */
-internal fun formatOps(base: String, ops: List<DocTextOp>): String {
+internal fun formatOps(base: String, ops: List<DocumentTextOp>): String {
   return ops.joinToString("\n") { op ->
     when (op) {
-      is DocTextOp.Insert -> "ins ${op.offset()} ${quote(op.fragment().toString())}"
-      is DocTextOp.Delete -> "del ${op.offset()} ${quote(base.substring(op.offset(), op.offset() + op.length()))}"
+      is DocumentOp.Insert -> "ins ${op.offset()} ${quote(op.fragment().toString())}"
+      is DocumentOp.Delete -> "del ${op.offset()} ${quote(base.substring(op.offset(), op.offset() + op.length()))}"
     }
   }
 }
@@ -525,26 +526,26 @@ internal fun document(block: String): String = block.trimIndent() + "\n"
 /**
  * An insert of [fragment] right before the first [anchor] of [base].
  */
-internal fun insertBefore(base: String, anchor: String, fragment: String): DocTextOp {
-  return DocTextOp.insertOp(offsetOf(base, anchor), fragment)
+internal fun insertBefore(base: String, anchor: String, fragment: String): DocumentTextOp {
+  return DocumentOp.insertOp(offsetOf(base, anchor), fragment)
 }
 
 /**
  * An insert of [fragment] at the end of [base].
  */
-internal fun append(base: String, fragment: String): DocTextOp = DocTextOp.insertOp(base.length, fragment)
+internal fun append(base: String, fragment: String): DocumentTextOp = DocumentOp.insertOp(base.length, fragment)
 
 /**
  * A delete of the first [fragment] of [base].
  */
-internal fun delete(base: String, fragment: String): DocTextOp {
-  return DocTextOp.deleteOp(offsetOf(base, fragment), fragment.length)
+internal fun delete(base: String, fragment: String): DocumentTextOp {
+  return DocumentOp.deleteOp(offsetOf(base, fragment), fragment.length)
 }
 
 /**
  * A delete of the whole [base].
  */
-internal fun deleteAll(base: String): DocTextOp = DocTextOp.deleteOp(0, base.length)
+internal fun deleteAll(base: String): DocumentTextOp = DocumentOp.deleteOp(0, base.length)
 
 private fun offsetOf(base: String, fragment: String): Int {
   val offset = base.indexOf(fragment)

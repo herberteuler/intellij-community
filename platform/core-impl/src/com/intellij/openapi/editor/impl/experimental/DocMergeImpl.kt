@@ -1,9 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.DocBranch
 import com.intellij.openapi.editor.ex.experimental.DocMerge
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 
 /**
  * See [DocMerge]. The ops are ready when the merge replayed and recorded them. They are deferred
@@ -17,14 +17,14 @@ import com.intellij.openapi.editor.ex.experimental.DocTextOp
  */
 internal class DocMergeImpl(
   private val branch: DocBranch,
-  private val ops: Lazy<List<DocTextOp>>,
+  private val ops: Lazy<List<DocumentTextOp>>,
 ) : DocMerge {
 
   override fun branch(): DocBranch {
     return branch
   }
 
-  override fun ops(): List<DocTextOp> {
+  override fun ops(): List<DocumentTextOp> {
     return ops.value
   }
 

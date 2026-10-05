@@ -1,8 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentText
 import com.intellij.openapi.editor.ex.experimental.Agent
-import com.intellij.openapi.editor.ex.experimental.DocText
 import com.intellij.openapi.editor.ex.experimental.Event
 import com.intellij.openapi.editor.ex.experimental.EventGraph
 import com.intellij.openapi.editor.ex.experimental.Version
@@ -63,14 +63,14 @@ internal class EventGraphImpl private constructor(
     return mergeFromImpl(implOf(other)).graph()
   }
 
-  override fun replay(version: Version): DocText {
+  override fun replay(version: Version): DocumentText {
     return replayAt(lvVersionOf(version))
   }
 
   /**
    * The replay at this graph's own frontier, which needs no conversion.
    */
-  override fun replay(): DocText {
+  override fun replay(): DocumentText {
     return replayAt(version)
   }
 
@@ -91,10 +91,10 @@ internal class EventGraphImpl private constructor(
     return VersionImpl.implOf(version).lvVersionIn(this)
   }
 
-  private fun replayAt(lvVersion: LvVersion): DocText {
+  private fun replayAt(lvVersion: LvVersion): DocumentText {
     val text = StringBuilder()
     EgWalkerReplay.replay(this, lvVersion, StringBuilderSink(text))
-    return DocText.createText(text)
+    return DocumentText.createText(text)
   }
 
   /**

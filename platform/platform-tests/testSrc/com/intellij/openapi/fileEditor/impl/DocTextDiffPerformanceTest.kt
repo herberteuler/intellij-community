@@ -3,8 +3,9 @@ package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.diff.comparison.CancellationChecker
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
-import com.intellij.openapi.editor.ex.experimental.DocText
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.benchmarkSubtest
 import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
@@ -41,7 +42,7 @@ class DocTextDiffPerformanceTest {
     val unit = Files.readString(hugeTextPath())
     for (copies in COPIES) {
       val text = buildString { repeat(copies) { append(unit) } }
-      val base = DocText.createText(text)
+      val base = DocumentText.createText(text)
       val label = if (copies == 1) "the source file" else "the source file $copies times over"
       println("=== $label: ${base.length()} chars, ${base.lineCount()} lines ===")
       printHeader()
@@ -49,7 +50,7 @@ class DocTextDiffPerformanceTest {
         if (copies > 1 && !scenario.scalesUp) {
           continue
         }
-        run("$label, ${scenario.name}", base, DocText.createText(scenario.target()), scenario.passes)
+        run("$label, ${scenario.name}", base, DocumentText.createText(scenario.target()), scenario.passes)
       }
     }
   }
@@ -62,15 +63,15 @@ class DocTextDiffPerformanceTest {
   @Test
   fun `the diff over one huge line`() {
     val oneLine = Files.readString(hugeTextPath()).replace('\n', ' ')
-    val base = DocText.createText(oneLine)
+    val base = DocumentText.createText(oneLine)
     println("=== one line of ${base.length()} chars ===")
     printHeader()
-    run("one line, one edit in the middle", base, DocText.createText(edited(oneLine, 1)), passes = 100)
-    run("one line, 20 edits", base, DocText.createText(edited(oneLine, 20)), passes = 5)
-    run("one line, 500 edits", base, DocText.createText(edited(oneLine, 500)), passes = 2)
+    run("one line, one edit in the middle", base, DocumentText.createText(edited(oneLine, 1)), passes = 100)
+    run("one line, 20 edits", base, DocumentText.createText(edited(oneLine, 20)), passes = 5)
+    run("one line, 500 edits", base, DocumentText.createText(edited(oneLine, 500)), passes = 2)
   }
 
-  private fun scenarios(base: DocText, text: String): List<Scenario> = listOf(
+  private fun scenarios(base: DocumentText, text: String): List<Scenario> = listOf(
     // The reload cases. A document comes back from disk with a few changes.
     Scenario("no change", passes = 80) { text },
     Scenario("append one line", passes = 80) { "$text  // appended\n" },
@@ -96,7 +97,7 @@ class DocTextDiffPerformanceTest {
    * It times the apply only for a script of [MIN_TIMED_APPLY_OPS] ops or more, because a shorter
    * one applies in microseconds. An attempt then applies about [APPLY_OPS_PER_ATTEMPT] ops in all.
    */
-  private fun run(name: String, base: DocText, target: DocText, passes: Int) {
+  private fun run(name: String, base: DocumentText, target: DocumentText, passes: Int) {
     val ops = DocTextDiff.diff(base, target, CancellationChecker.EMPTY)
     assertEquals(target.string(), applied(base, ops).string()) { "the script does not rebuild the target of \"$name\"" }
     val units = units(ops)
@@ -114,7 +115,7 @@ class DocTextDiffPerformanceTest {
     }
   }
 
-  private fun applied(base: DocText, ops: List<DocTextOp>): DocText {
+  private fun applied(base: DocumentText, ops: List<DocumentTextOp>): DocumentText {
     var result = base
     for (op in ops) {
       result = result.applyOp(op)
@@ -129,12 +130,12 @@ class DocTextDiffPerformanceTest {
   /**
    * The number of characters that [ops] insert or delete. One character is one unit of the graph.
    */
-  private fun units(ops: List<DocTextOp>): Int {
+  private fun units(ops: List<DocumentTextOp>): Int {
     var count = 0
     for (op in ops) {
       count += when (op) {
-        is DocTextOp.Insert -> op.fragment().length
-        is DocTextOp.Delete -> op.length()
+        is DocumentOp.Insert -> op.fragment().length
+        is DocumentOp.Delete -> op.length()
       }
     }
     return count
@@ -143,12 +144,12 @@ class DocTextDiffPerformanceTest {
   /**
    * [base] with [count] new lines, spread evenly over the document.
    */
-  private fun withNewLines(base: DocText, count: Int): String {
+  private fun withNewLines(base: DocumentText, count: Int): String {
     var target = base
     val step = maxOf(base.lineCount() / (count + 1), 1)
     // Back to front, so every offset indexes the base.
     for (index in count downTo 1) {
-      target = target.applyOp(DocTextOp.insertOp(base.lineStartOffset(index * step), "    // edit $index\n"))
+      target = target.applyOp(DocumentOp.insertOp(base.lineStartOffset(index * step), "    // edit $index\n"))
     }
     return target.string()
   }

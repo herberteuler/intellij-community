@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -215,9 +216,9 @@ class TipCoalescingPerformanceTest {
           branch = branch.fork(authors[i % 2])
         }
         val op = if (kinds[i] == INSERT) {
-          DocTextOp.insertOp(offsets[i], typed.subSequence(textStarts[i], textStarts[i] + lengths[i]).toString())
+          DocumentOp.insertOp(offsets[i], typed.subSequence(textStarts[i], textStarts[i] + lengths[i]).toString())
         } else {
-          DocTextOp.deleteOp(offsets[i], lengths[i])
+          DocumentOp.deleteOp(offsets[i], lengths[i])
         }
         branch = branch.applyOp(op)
       }

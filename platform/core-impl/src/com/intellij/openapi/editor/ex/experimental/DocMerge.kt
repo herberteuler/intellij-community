@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.impl.experimental.DocMergeImpl
 
 /**
@@ -25,24 +26,24 @@ interface DocMerge {
    * it. So the text of the receiver, with every op applied in turn, equals the text of [branch]. A
    * text between two ops need not be the text of any version.
    *
-   * Each op comes from [DocTextOp.insertOp] or [DocTextOp.deleteOp], and no op is empty. A merge whose new units change
-   * no text has no ops. Ops that cancel each other can still occur, because the other side can
-   * insert text and delete it later, and only neighbouring ops join. The list cannot change, and
-   * every call returns the same list.
+   * Each op comes from `DocumentOp.insertOp` or `DocumentOp.deleteOp`, and no op is empty. A
+   * merge whose new units change no text has no ops. Ops that cancel each other can still occur,
+   * because the other side can insert text and delete it later, and only neighbouring ops join.
+   * The list cannot change, and every call returns the same list.
    *
    * A fast-forward needs no replay to build its text, so it builds its ops only on the first call.
    * That call costs a replay of the change and one compare of the text, and not a replay of the
    * document. The compare makes sure that the ops build the text of [branch]. It fails only when the
    * two branches broke the agent contract, in a way that the id check of the merge did not sample.
    */
-  fun ops(): List<DocTextOp>
+  fun ops(): List<DocumentTextOp>
 
   companion object {
     /**
      * A merge with [ops] ready. The list must not change after this call.
      */
     @JvmStatic
-    fun ready(branch: DocBranch, ops: List<DocTextOp>): DocMerge {
+    fun ready(branch: DocBranch, ops: List<DocumentTextOp>): DocMerge {
       return DocMergeImpl(branch, lazyOf(ops))
     }
 
@@ -50,7 +51,7 @@ interface DocMerge {
      * A merge whose ops [lazyOps] makes on the first call of [ops]. [lazyOps] must return a list that cannot change.
      */
     @JvmStatic
-    fun deferred(branch: DocBranch, lazyOps: () -> List<DocTextOp>): DocMerge {
+    fun deferred(branch: DocBranch, lazyOps: () -> List<DocumentTextOp>): DocMerge {
       return DocMergeImpl(branch, lazy(LazyThreadSafetyMode.PUBLICATION, lazyOps))
     }
   }

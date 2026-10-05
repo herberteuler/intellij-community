@@ -7,8 +7,11 @@ import com.intellij.openapi.editor.impl.ModStampOpImpl
 import com.intellij.openapi.editor.impl.UnmodifiedLinesOpImpl
 import org.jetbrains.annotations.ApiStatus
 
+/**
+ * An op that changes the text: [DocumentOp.Insert] or [DocumentOp.Delete].
+ */
 @ApiStatus.Internal
-sealed interface DocumentTextOp {
+sealed interface DocumentTextOp : DocumentOp {
   /**
    * The position in the document that this op changes.
    */

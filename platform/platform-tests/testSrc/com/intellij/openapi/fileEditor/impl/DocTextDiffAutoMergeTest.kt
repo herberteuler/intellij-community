@@ -2,9 +2,9 @@
 package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.diff.comparison.CancellationChecker
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.DocBranch
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
-import com.intellij.openapi.editor.ex.experimental.DocText
 import com.intellij.openapi.editor.ex.experimental.agent
 import com.intellij.openapi.editor.ex.experimental.string
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -332,7 +332,7 @@ class DocTextDiffAutoMergeTest {
    */
   private fun assertAutoMerge(
       saved: String,
-      userOps: List<DocTextOp>,
+      userOps: List<DocumentTextOp>,
       userText: String,
       diskText: String,
       merged: String,
@@ -348,7 +348,7 @@ class DocTextDiffAutoMergeTest {
     assertEquals(userText, userBranch.string()) { "the ops do not build the stated user text" }
 
     // 3, 4. The agent left only a text behind, so recover a script for it.
-    val disk = DocText.createText(diskText)
+    val disk = DocumentText.createText(diskText)
     val ops = DocTextDiff.diff(savedBranch.text(), disk, CancellationChecker.EMPTY)
 
     // 5. The script becomes a branch, under an agent of its own.

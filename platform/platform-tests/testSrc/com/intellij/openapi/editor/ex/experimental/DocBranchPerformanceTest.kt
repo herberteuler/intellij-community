@@ -2,6 +2,8 @@
 package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.application.PathManager
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.util.TextRange
 import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
@@ -64,7 +66,7 @@ class DocBranchPerformanceTest {
    * The base case: one user edits the huge file alone, with no forks and no merges.
    *
    * The session is recorded once, and its ops then replay in the timed subtests. Applied to a fresh
-   * branch and to a plain [DocText], they give the price of the history tracking per op. The first
+   * branch and to a plain [DocumentText], they give the price of the history tracking per op. The first
    * and the last [FLAT_COST_BATCHES] batches show whether the cost of an op grows with the history.
    * Each of them applies to a fresh branch that holds the batches before it.
    */
@@ -72,7 +74,7 @@ class DocBranchPerformanceTest {
   fun `a single user edits EditorImpl`() {
     val text = Files.readString(hugeTextPath())
     val random = Random(20260827)
-    val recorded = ArrayList<DocTextOp>()
+    val recorded = ArrayList<DocumentTextOp>()
     val batchEnds = IntArray(SINGLE_USER_BATCHES)
     val user = User(DocBranch.createBranch(text, agent("user")))
     user.recorder = recorded
@@ -87,15 +89,15 @@ class DocBranchPerformanceTest {
     reportHistory(user.branch)
 
     // The history-tracking branch and the plain text agree on every op.
-    val plain = applied(DocText.createText(text), recorded)
+    val plain = applied(DocumentText.createText(text), recorded)
     assertEquals(plain.string(), applied(freshBranch(text), recorded, 0, recorded.size).string())
     assertEquals(plain.string(), user.branch.string())
 
     benchmarkSubtest("apply-only, DocBranch") {
       applied(freshBranch(text), recorded, 0, recorded.size).length()
     }
-    benchmarkSubtest("apply-only, plain DocText") {
-      applied(DocText.createText(text), recorded).length()
+    benchmarkSubtest("apply-only, plain DocumentText") {
+      applied(DocumentText.createText(text), recorded).length()
     }
 
     val firstEnd = batchEnds[FLAT_COST_BATCHES - 1]
@@ -140,7 +142,7 @@ class DocBranchPerformanceTest {
    */
   private fun applied(
     branch: DocBranch,
-    ops: List<DocTextOp>,
+    ops: List<DocumentTextOp>,
     from: Int,
     until: Int,
   ): DocBranch {
@@ -151,7 +153,7 @@ class DocBranchPerformanceTest {
     return result
   }
 
-  private fun applied(text: DocText, ops: List<DocTextOp>): DocText {
+  private fun applied(text: DocumentText, ops: List<DocumentTextOp>): DocumentText {
     var result = text
     for (op in ops) {
       result = result.applyOp(op)
@@ -163,9 +165,9 @@ class DocBranchPerformanceTest {
 
   private class User(var branch: DocBranch) {
     var caret = 0
-    var recorder: ArrayList<DocTextOp>? = null
+    var recorder: ArrayList<DocumentTextOp>? = null
 
-    fun apply(op: DocTextOp) {
+    fun apply(op: DocumentTextOp) {
       branch = branch.applyOp(op)
       recorder?.add(op)
     }

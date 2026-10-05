@@ -1,9 +1,10 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.DocBranch
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.Event
 import com.intellij.openapi.editor.ex.experimental.EventGraph
 import com.intellij.openapi.editor.ex.experimental.Version
@@ -43,7 +44,7 @@ internal class EventGraphInvariantFuzzTest {
           } else {
             val op = randomOp(random, replicas[i].text().length(), carets[i])
             replicas[i] = replicas[i].applyOp(op)
-            carets[i] = if (op is DocTextOp.Insert) op.offset() + op.length() else op.offset()
+            carets[i] = if (op is DocumentOp.Insert) op.offset() + op.length() else op.offset()
           }
           checkGraph(replicas[i].graph()) { "round $round, step $step, replica $i" }
           assertEquals(replicas[i].graph().replay().string(), replicas[i].text().string()) {
@@ -76,7 +77,7 @@ internal class EventGraphInvariantFuzzTest {
             val seq = EventGraphImpl.implOf(graph).nextSeqFor(agents[i])
             val event = randomEvent(random, agents[i], seq, text, caret)
             graphs[i] = graph.append(event, parents)
-            carets[i] = event.op().offset() + if (event.op() is DocTextOp.Insert) event.length() else 0
+            carets[i] = event.op().offset() + if (event.op() is DocumentOp.Insert) event.length() else 0
           }
           versions[i].add(graphs[i].version())
           checkGraph(graphs[i]) { "round $round, step $step, replica $i" }
@@ -126,13 +127,13 @@ internal class EventGraphInvariantFuzzTest {
     }
   }
 
-  private fun randomOp(random: Random, length: Int, caret: Int): DocTextOp {
+  private fun randomOp(random: Random, length: Int, caret: Int): DocumentTextOp {
     val at = if (random.nextInt(4) == 0) random.nextInt(length + 1) else caret.coerceIn(0, length)
     if (length > 0 && random.nextInt(3) == 0) {
       val offset = at.coerceAtMost(length - 1)
-      return DocTextOp.deleteOp(offset, 1 + random.nextInt(minOf(3, length - offset)))
+      return DocumentOp.deleteOp(offset, 1 + random.nextInt(minOf(3, length - offset)))
     }
-    return DocTextOp.insertOp(at, randomText(random, 1 + random.nextInt(3)))
+    return DocumentOp.insertOp(at, randomText(random, 1 + random.nextInt(3)))
   }
 
   /**

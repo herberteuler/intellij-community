@@ -1,6 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -65,7 +68,7 @@ class DocBranchGossipFuzzTest {
           } else {
             val op = randomOp(random, replicas[i].length(), carets[i])
             replicas[i] = replicas[i].applyOp(op)
-            carets[i] = if (op is DocTextOp.Insert) op.offset() + op.length() else op.offset()
+            carets[i] = if (op is DocumentOp.Insert) op.offset() + op.length() else op.offset()
           }
           history[i].add(replicas[i].graph().version() to replicas[i].string())
         }
@@ -96,7 +99,7 @@ class DocBranchGossipFuzzTest {
             assertEquals(text, graph.replay(at).string()) { "round $round, replica $i at $at" }
           }
         }
-        assertSameText(DocText.createText(expected), replicas[0].text())
+        assertSameText(DocumentText.createText(expected), replicas[0].text())
       }
     }
   }
@@ -114,7 +117,7 @@ class DocBranchGossipFuzzTest {
    * press the Delete key at the caret. The rest jump anywhere, as [randomJump] describes. A
    * merge can shorten the text, so the caret is clamped first.
    */
-  private fun randomOp(random: Random, length: Int, caret: Int): DocTextOp {
+  private fun randomOp(random: Random, length: Int, caret: Int): DocumentTextOp {
     val at = minOf(caret, length)
     val roll = random.nextInt(10)
     if (roll < 4) {
@@ -145,7 +148,7 @@ class DocBranchGossipFuzzTest {
   /**
    * An edit anywhere in the text: a keystroke or a paste, a small delete or a wipe.
    */
-  private fun randomJump(random: Random, length: Int): DocTextOp {
+  private fun randomJump(random: Random, length: Int): DocumentTextOp {
     if (length == 0 || random.nextInt(10) < 6) {
       // A mix of single keystrokes and big pastes.
       val fragmentLength = if (random.nextInt(5) == 0) 1 + random.nextInt(12) else 1 + random.nextInt(2)

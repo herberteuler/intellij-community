@@ -1,9 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.DocBranch
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.Event
 import com.intellij.openapi.editor.ex.experimental.EventGraph
 import com.intellij.openapi.editor.ex.experimental.Version
@@ -46,15 +46,15 @@ internal class VersionImplTest {
     // In the graph of u, "b" ends the newest run.
     val base = DocBranch.createBranch("", Agent.createAgent("base"))
     val typed = base.fork(U)
-      .applyOp(DocTextOp.insertOp(0, "a"))
-      .applyOp(DocTextOp.insertOp(1, "b"))
+      .applyOp(DocumentOp.insertOp(0, "a"))
+      .applyOp(DocumentOp.insertOp(1, "b"))
     val atB = VersionImpl.implOf(typed.version())
     // The run grows past "b", and an insert at the front closes it into the trees.
     val later = typed
-      .applyOp(DocTextOp.insertOp(2, "c"))
-      .applyOp(DocTextOp.insertOp(0, "X"))
+      .applyOp(DocumentOp.insertOp(2, "c"))
+      .applyOp(DocumentOp.insertOp(0, "X"))
     // The unit of v comes first in its own graph, so "b" takes the lv 2 there, inside "abc".
-    val other = base.fork(V).applyOp(DocTextOp.insertOp(0, "Y"))
+    val other = base.fork(V).applyOp(DocumentOp.insertOp(0, "Y"))
     val merged = impl(other.merge(later).graph())
     assertEquals(LvVersion(intArrayOf(2)), atB.lvVersionIn(merged))
     // The run of "X" is the tail, so the run of "abc" is closed.

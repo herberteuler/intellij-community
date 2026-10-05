@@ -1,7 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
+import com.intellij.openapi.editor.ex.DocumentOp
 
 /**
  * The greatest number of concurrent runs that one row draws.
@@ -417,8 +417,8 @@ private fun body(run: StoredRun): List<String> {
   val event = run.event
   val op = event.op()
   val head = when (op) {
-    is DocTextOp.Insert -> "insert ${op.fragment().quotedForMessage()}"
-    is DocTextOp.Delete -> "delete ${op.length()} ${if (op.length() == 1) "char" else "chars"}"
+    is DocumentOp.Insert -> "insert ${op.fragment().quotedForMessage()}"
+    is DocumentOp.Delete -> "delete ${op.length()} ${if (op.length() == 1) "char" else "chars"}"
   }
   // A name is free text, so it gets the quoting of a fragment: it can neither break the box nor
   // widen it past the bound.

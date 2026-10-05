@@ -1,6 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.impl.experimental.DocBranchImpl
 
 /**
@@ -28,7 +31,7 @@ interface DocBranch {
   /**
    * The materialized document at this branch's version.
    */
-  fun text(): DocText
+  fun text(): DocumentText
 
   /**
    * The version of [text]. Under the agent contract, it stays valid in every branch that merges
@@ -37,9 +40,9 @@ interface DocBranch {
   fun version(): Version
 
   /**
-   * A branch with [op] applied at this branch's version: the same edit as [DocText.applyOp].
+   * A branch with [op] applied at this branch's version: the same edit as [DocumentText.applyOp].
    */
-  fun applyOp(op: DocTextOp): DocBranch
+  fun applyOp(op: DocumentOp): DocBranch
 
   /**
    * The identity this branch edits under.

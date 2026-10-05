@@ -1,9 +1,10 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.DocBranch
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,7 +15,7 @@ import java.util.Random
  * Tests [ReplayWalker] over histories long enough that its [ItemTree] grows inner levels. The other
  * replay tests walk a few items, so their tree stays one leaf.
  *
- * The text of a branch comes from [DocText][com.intellij.openapi.editor.ex.experimental.DocText] ops,
+ * The text of a branch comes from [DocumentText][com.intellij.openapi.editor.ex.experimental.DocumentText] ops,
  * and not from a walk. So it is an oracle for a full replay of a history of one agent. A merge has
  * no such oracle, and its partial replay must give the text of a full replay. The tests also pin
  * that the replay of a linear history never builds the unit index of the tree.
@@ -57,9 +58,9 @@ internal class ReplayWalkerTest {
     repeat(OPS) {
       if (random.nextInt(5) == 0) {
         caret--
-        branch = branch.applyOp(DocTextOp.deleteOp(caret, 1))
+        branch = branch.applyOp(DocumentOp.deleteOp(caret, 1))
       } else {
-        branch = branch.applyOp(DocTextOp.insertOp(caret, "x"))
+        branch = branch.applyOp(DocumentOp.insertOp(caret, "x"))
         caret++
       }
     }
@@ -73,8 +74,8 @@ internal class ReplayWalkerTest {
     // Each pair of ops leaves one deleted item at the place of the next pair.
     var branch = DocBranch.createBranch("o".repeat(OPS), U)
     for (offset in 0 until OPS) {
-      branch = branch.applyOp(DocTextOp.deleteOp(offset, 1))
-      branch = branch.applyOp(DocTextOp.insertOp(offset, "x"))
+      branch = branch.applyOp(DocumentOp.deleteOp(offset, 1))
+      branch = branch.applyOp(DocumentOp.insertOp(offset, "x"))
     }
     assertEquals("x".repeat(OPS), branch.text().string())
     val walker = replayInFull(branch)
@@ -89,7 +90,7 @@ internal class ReplayWalkerTest {
     val base = DocBranch.createBranch("[]", U)
     var merged = base
     for (i in 0 until AGENTS) {
-      val typed = base.fork(Agent.createAgent("a$i")).applyOp(DocTextOp.insertOp(1, "<$i>"))
+      val typed = base.fork(Agent.createAgent("a$i")).applyOp(DocumentOp.insertOp(1, "<$i>"))
       merged = merged.merge(typed)
     }
     // The runs share the left origin and the right parent, so the tie-break sorts them by agent,
@@ -144,10 +145,10 @@ internal class ReplayWalkerTest {
       val at = random.nextInt(length + 1)
       branch = if (length > 0 && random.nextInt(10) < 3) {
         val deleteAt = minOf(at, length - 1)
-        branch.applyOp(DocTextOp.deleteOp(deleteAt, 1))
+        branch.applyOp(DocumentOp.deleteOp(deleteAt, 1))
       } else {
         val fragment = "ab".substring(0, 1 + random.nextInt(2))
-        branch.applyOp(DocTextOp.insertOp(at, fragment))
+        branch.applyOp(DocumentOp.insertOp(at, fragment))
       }
     }
     return branch

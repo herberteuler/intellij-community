@@ -1,10 +1,11 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.DocBranch
 import com.intellij.openapi.editor.ex.experimental.DocMerge
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -21,7 +22,7 @@ internal class DocMergeImplTest {
 
   @Test
   fun `ready ops come back as given`() {
-    val ops = listOf(DocTextOp.insertOp(0, "x"))
+    val ops = listOf(DocumentOp.insertOp(0, "x"))
     val merge = DocMerge.ready(BRANCH, ops)
     assertSame(BRANCH, merge.branch())
     assertSame(ops, merge.ops())
@@ -31,7 +32,7 @@ internal class DocMergeImplTest {
   @Test
   fun `deferred ops wait for the first call and are built once`() {
     val builds = AtomicInteger()
-    val ops = listOf(DocTextOp.deleteOp(0, 1))
+    val ops = listOf(DocumentOp.deleteOp(0, 1))
     val merge = DocMerge.deferred(BRANCH) {
       builds.incrementAndGet()
       ops
@@ -64,11 +65,11 @@ internal class DocMergeImplTest {
           twoBuilds.countDown()
           // A lock that allowed one build only would time out here, and still give one list.
           twoBuilds.await(BUILD_WAIT_MILLIS, TimeUnit.MILLISECONDS)
-          listOf(DocTextOp.insertOp(0, "x"))
+          listOf(DocumentOp.insertOp(0, "x"))
         }
         val start = CountDownLatch(1)
         val results = (0 until THREADS).map {
-          pool.submit<List<DocTextOp>> {
+          pool.submit<List<DocumentTextOp>> {
             start.await()
             merge.ops()
           }

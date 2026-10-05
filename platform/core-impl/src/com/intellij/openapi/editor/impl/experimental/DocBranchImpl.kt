@@ -1,14 +1,15 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.Agent
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
-import com.intellij.openapi.editor.ex.experimental.DocText
 import com.intellij.openapi.editor.ex.experimental.DocBranch
 import com.intellij.openapi.editor.ex.experimental.DocMerge
 import com.intellij.openapi.editor.ex.experimental.EventGraph
 import com.intellij.openapi.editor.ex.experimental.Version
-import com.intellij.openapi.editor.impl.DocTextImpl
+import com.intellij.openapi.editor.impl.DocumentTextImpl
 import java.util.Collections
 
 /**
@@ -16,22 +17,22 @@ import java.util.Collections
  *
  * The value is a triple: the [graph] that records the history, the [agent] that authors
  * new events, and the [docText] that holds the materialized text. [text] returns [docText]
- * as is, so the text and the line data behave exactly like [DocTextImpl]. A local
+ * as is, so the text and the line data behave exactly like [DocumentTextImpl]. A local
  * [applyOp] appends events at the graph's frontier and edits [docText] directly. The
  * Eg-walker replay runs only inside [merge], and in the ops of a fast-forward.
  *
  * A merge with concurrent history replays only the region above the common ancestor, which is the
  * partial replay of the paper. One placeholder item stands in for the older document, and it splits
- * only where an op needs it. The new units apply to [docText] as ordinary [DocTextOp]s. Those ops are
- * the op stream of [mergeWithOps]. The merge cost depends on the size of the change and of the
- * concurrent region, not on the size of either history.
+ * only where an op needs it. The new units apply to [docText] as ordinary [DocumentTextOp]s. Those
+ * ops are the op stream of [mergeWithOps]. The merge cost depends on the size of the change and of
+ * the concurrent region, not on the size of either history.
  *
  * Prototype limits, deliberate:
  * - A keystroke extends the newest run when it continues it (see [EventGraph.append]), but a
  *   backspace never does. Each backspace therefore still costs a run of its own.
  */
 internal class DocBranchImpl private constructor(
-  private val docText: DocText,
+  private val docText: DocumentText,
   private val agent: Agent,
   private val graph: EventGraphImpl,
 ) : DocBranch {
@@ -41,7 +42,7 @@ internal class DocBranchImpl private constructor(
     AgentImpl.implOf(agent)
   }
 
-  override fun text(): DocText {
+  override fun text(): DocumentText {
     return docText
   }
 
@@ -49,10 +50,11 @@ internal class DocBranchImpl private constructor(
     return graph.version()
   }
 
-  override fun applyOp(op: DocTextOp): DocBranch {
+  override fun applyOp(op: DocumentOp): DocBranch {
     return when (op) {
-      is DocTextOp.Insert -> applyInsert(op)
-      is DocTextOp.Delete -> applyDelete(op)
+      is DocumentOp.Insert -> applyInsert(op)
+      is DocumentOp.Delete -> applyDelete(op)
+      else -> this
     }
   }
 
@@ -96,7 +98,7 @@ internal class DocBranchImpl private constructor(
     return DocMerge.ready(DocBranchImpl(sink.result(), agent, merged), sink.ops())
   }
 
-  private fun applyInsert(op: DocTextOp.Insert): DocBranch {
+  private fun applyInsert(op: DocumentOp.Insert): DocBranch {
     val fragment = op.fragment()
     if (fragment.isEmpty()) {
       return this
@@ -106,7 +108,7 @@ internal class DocBranchImpl private constructor(
     return DocBranchImpl(newDocText, agent, appendLocal(op))
   }
 
-  private fun applyDelete(op: DocTextOp.Delete): DocBranch {
+  private fun applyDelete(op: DocumentOp.Delete): DocBranch {
     val length = op.length()
     if (length == 0) {
       return this
@@ -122,7 +124,7 @@ internal class DocBranchImpl private constructor(
    * never saw, for example from a descendant of it. A seq kept beside the graph would then name a
    * unit that already exists.
    */
-  private fun appendLocal(op: DocTextOp): EventGraphImpl {
+  private fun appendLocal(op: DocumentTextOp): EventGraphImpl {
     return graph.appendAtVersion(EventImpl(agent, graph.nextSeqFor(agent), op))
   }
 
@@ -131,7 +133,7 @@ internal class DocBranchImpl private constructor(
    * branch applied, in a sink that recorded the ops. [merged] must come from a merge into this
    * branch, so the lvs of this branch name the same units there.
    */
-  private fun replayOnto(merged: EventGraphImpl, start: DocText): BatchingSink {
+  private fun replayOnto(merged: EventGraphImpl, start: DocumentText): BatchingSink {
     val sink = BatchingSink(start)
     EgWalkerReplay.mergeInto(merged, graph.lvVersion(), sink)
     return sink
@@ -144,8 +146,11 @@ internal class DocBranchImpl private constructor(
    * The replay starts from a text without line data, because nothing reads the line data of its
    * result. With line data, each op would copy the line arrays of the whole document.
    */
-  private fun opsOfFastForward(merged: EventGraphImpl, expected: DocText): List<DocTextOp> {
-    val sink = replayOnto(merged, DocText.createText(docText.chars()))
+  private fun opsOfFastForward(
+    merged: EventGraphImpl,
+    expected: DocumentText,
+  ): List<DocumentTextOp> {
+    val sink = replayOnto(merged, DocumentText.createText(docText.chars()))
     checkFoldsInto(sink.result(), expected)
     return sink.ops()
   }
@@ -155,7 +160,7 @@ internal class DocBranchImpl private constructor(
    * would hold another text than the branch, and nothing would say so. It happens when two branches
    * gave one event id to two operations inside a shared range, where the id check does not sample.
    */
-  private fun checkFoldsInto(replayed: DocText, expected: DocText) {
+  private fun checkFoldsInto(replayed: DocumentText, expected: DocumentText) {
     require(replayed.chars().contentEquals(expected.chars())) {
       "The ops of a fast-forward build another text than the merged text. Two branches gave one event id " +
       "to two operations, and the id check of the merge did not sample it."
@@ -170,9 +175,9 @@ internal class DocBranchImpl private constructor(
     fun create(chars: CharSequence, agent: Agent): DocBranchImpl {
       var graph = EventGraphImpl.empty()
       if (chars.isNotEmpty()) {
-        graph = graph.appendAtVersion(EventImpl(agent, 0, DocTextOp.insertOp(0, chars)))
+        graph = graph.appendAtVersion(EventImpl(agent, 0, DocumentOp.insertOp(0, chars)))
       }
-      return DocBranchImpl(DocText.createText(chars), agent, graph)
+      return DocBranchImpl(DocumentText.createText(chars), agent, graph)
     }
 
     private fun implOf(branch: DocBranch): DocBranchImpl {

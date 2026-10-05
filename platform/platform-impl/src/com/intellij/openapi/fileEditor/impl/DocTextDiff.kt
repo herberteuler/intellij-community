@@ -7,8 +7,9 @@ import com.intellij.diff.comparison.DiffTooBigException
 import com.intellij.diff.comparison.expand
 import com.intellij.diff.comparison.iterables.DiffIterableUtil
 import com.intellij.diff.util.Range
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
-import com.intellij.openapi.editor.ex.experimental.DocText
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.util.text.CharSequenceSubSequence
 import org.jetbrains.annotations.ApiStatus
 
@@ -16,7 +17,8 @@ import org.jetbrains.annotations.ApiStatus
  * Recovers an edit script from two states of one document.
  *
  * The caller knows the base text and the target text. The caller does not know the edits that
- * produced the target. [diff] returns a list of [DocTextOp] that reproduces the target from the base.
+ * produced the target. [diff] returns a list of [DocumentTextOp] that reproduces the target from
+ * the base.
  *
  * The returned script is not the real history. The text cannot record the real history. A user who
  * types a word and then deletes it leaves no trace. The script is one of many that give the same
@@ -54,7 +56,11 @@ object DocTextDiff {
    * leaves this method, so a cancelled caller stops here.
    */
   @JvmStatic
-  fun diff(base: DocText, target: DocText, indicator: CancellationChecker): List<DocTextOp> {
+  fun diff(
+    base: DocumentText,
+    target: DocumentText,
+    indicator: CancellationChecker,
+  ): List<DocumentTextOp> {
     // Every phase reads one character at a time. On an ImmutableText that costs a leaf lookup and a
     // virtual call, which measures about twice a String read. cachedChars() hands back the String
     // when the document already holds one, and the rope when it does not, so this never costs more.
@@ -161,16 +167,17 @@ object DocTextDiff {
    * The right to left order keeps every offset valid without any arithmetic. When an op runs, the
    * document still holds the base text at and before that offset. Only the part to the right changed.
    */
-  private fun ops(targetChars: CharSequence, fragments: List<Range>): List<DocTextOp> {
-    val ops = ArrayList<DocTextOp>(2 * fragments.size)
+  private fun ops(targetChars: CharSequence, fragments: List<Range>): List<DocumentTextOp> {
+    val ops = ArrayList<DocumentTextOp>(2 * fragments.size)
     for (index in fragments.indices.reversed()) {
       val fragment = fragments[index]
       if (fragment.start1 < fragment.end1) {
-        ops.add(DocTextOp.deleteOp(fragment.start1, fragment.end1 - fragment.start1))
+        ops.add(DocumentOp.deleteOp(fragment.start1, fragment.end1 - fragment.start1))
       }
       if (fragment.start2 < fragment.end2) {
         // The delete already ran, so the insert offset is still the start of the fragment.
-        ops.add(DocTextOp.insertOp(fragment.start1, targetChars.subSequence(fragment.start2, fragment.end2).toString()))
+        val inserted = targetChars.subSequence(fragment.start2, fragment.end2).toString()
+        ops.add(DocumentOp.insertOp(fragment.start1, inserted))
       }
     }
     return ops

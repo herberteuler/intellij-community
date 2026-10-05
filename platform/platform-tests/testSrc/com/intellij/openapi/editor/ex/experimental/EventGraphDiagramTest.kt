@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -253,10 +254,10 @@ class EventGraphDiagramTest {
   @Test
   fun `a merge line leaves only the box of a parent`() {
     val base = DocBranch.createBranch("base", agent("u0"))
-    val a = base.fork(agent("u1")).applyOp(DocTextOp.insertOp(0, "a"))
-    val d = base.fork(agent("u2")).applyOp(DocTextOp.insertOp(4, "b")).applyOp(DocTextOp.insertOp(4, "d"))
-    val f = a.fork(agent("u3")).merge(d).applyOp(DocTextOp.insertOp(0, "f"))
-    val graph = a.applyOp(DocTextOp.insertOp(0, "c")).merge(f).graph()
+    val a = base.fork(agent("u1")).applyOp(DocumentOp.insertOp(0, "a"))
+    val d = base.fork(agent("u2")).applyOp(DocumentOp.insertOp(4, "b")).applyOp(DocumentOp.insertOp(4, "d"))
+    val f = a.fork(agent("u3")).merge(d).applyOp(DocumentOp.insertOp(0, "f"))
+    val graph = a.applyOp(DocumentOp.insertOp(0, "c")).merge(f).graph()
     assertEquals(
       """
       EventGraph(units=9, runs=6, version=v[5, 8])

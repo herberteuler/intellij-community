@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.util.Random
@@ -41,8 +43,8 @@ class DocBranchFuzzTest {
         // A replay of the merged graph at the base version returns the base text.
         assertEquals(base.string(), forward.graph().replay(baseVersion).string()) { "round $round, base version" }
 
-        // The text and the line data match a fresh DocText over the same chars.
-        assertSameText(DocText.createText(forward.string()), forward.text())
+        // The text and the line data match a fresh DocumentText over the same chars.
+        assertSameText(DocumentText.createText(forward.string()), forward.text())
 
         // A second generation: edit after the merge, then merge again.
         val left = forward.applyOp(randomOp(random, forward.length()))
@@ -50,7 +52,7 @@ class DocBranchFuzzTest {
         val leftRight = left.merge(right)
         val rightLeft = right.merge(left)
         assertEquals(leftRight.string(), rightLeft.string()) { "round $round, second generation" }
-        assertSameText(DocText.createText(leftRight.string()), leftRight.text())
+        assertSameText(DocumentText.createText(leftRight.string()), leftRight.text())
 
         // A pull-based staircase: the common ancestor climbs with every pull.
         var x = leftRight
@@ -68,7 +70,7 @@ class DocBranchFuzzTest {
         val stairBackward = y.merge(x)
         assertEquals(stairForward.string(), stairBackward.string()) { "round $round, staircase" }
         assertEquals(stairForward.graph().replay().string(), stairForward.string()) { "round $round, staircase replay" }
-        assertSameText(DocText.createText(stairForward.string()), stairForward.text())
+        assertSameText(DocumentText.createText(stairForward.string()), stairForward.text())
       }
     }
   }
@@ -82,7 +84,7 @@ class DocBranchFuzzTest {
     return text.toString()
   }
 
-  private fun randomOp(random: Random, length: Int): DocTextOp {
+  private fun randomOp(random: Random, length: Int): DocumentTextOp {
     if (length == 0 || random.nextBoolean()) {
       val offset = random.nextInt(length + 1)
       val fragment = StringBuilder()

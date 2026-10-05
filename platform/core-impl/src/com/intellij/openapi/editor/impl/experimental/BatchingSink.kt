@@ -1,9 +1,10 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.DocMerge
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
-import com.intellij.openapi.editor.ex.experimental.DocText
 import java.util.Collections
 
 /**
@@ -26,13 +27,13 @@ import java.util.Collections
  * that fails.
  */
 internal class BatchingSink(
-  private var updated: DocText,
+  private var updated: DocumentText,
 ) : EgWalkerReplay.Sink {
   private var kind: Int = NONE
   private var startEffectPos: Int = 0
   private val pendingFragment = StringBuilder()
   private var deleteCount: Int = 0
-  private val applied = ArrayList<DocTextOp>()
+  private val applied = ArrayList<DocumentTextOp>()
   private var finished = false
 
   override fun insert(effectPos: Int, fragment: CharSequence) {
@@ -70,7 +71,7 @@ internal class BatchingSink(
   /**
    * The text with every report applied. This finishes the sink.
    */
-  fun result(): DocText {
+  fun result(): DocumentText {
     finish()
     return updated
   }
@@ -78,7 +79,7 @@ internal class BatchingSink(
   /**
    * The ops that [result] applied to the text, in order. This finishes the sink.
    */
-  fun ops(): List<DocTextOp> {
+  fun ops(): List<DocumentTextOp> {
     finish()
     return Collections.unmodifiableList(applied)
   }
@@ -106,8 +107,8 @@ internal class BatchingSink(
   private fun flush() {
     // The effect version IS the text this sink builds, so its position is the op's offset.
     val op = when (kind) {
-      INSERT -> DocTextOp.insertOp(startEffectPos, pendingFragment.toString())
-      DELETE -> DocTextOp.deleteOp(startEffectPos, deleteCount)
+      INSERT -> DocumentOp.insertOp(startEffectPos, pendingFragment.toString())
+      DELETE -> DocumentOp.deleteOp(startEffectPos, deleteCount)
       else -> null
     }
     if (op != null) {

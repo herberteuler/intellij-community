@@ -1,6 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.util.TextRange
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -13,8 +16,8 @@ import java.util.Random
 class DocBranchTest {
 
   @Test
-  fun `local edits match a plain DocText`() {
-    var plain = DocText.createText("fun main() {\n  println()\n}\n")
+  fun `local edits match a plain DocumentText`() {
+    var plain = DocumentText.createText("fun main() {\n  println()\n}\n")
     var branch: DocBranch = DocBranch.createBranch(plain.string(), agent("user"))
     val ops = listOf(
       insertOp(13, "  val x = 1\n"),
@@ -123,12 +126,12 @@ class DocBranchTest {
   }
 
   @Test
-  fun `the line structure after a merge matches a fresh DocText`() {
+  fun `the line structure after a merge matches a fresh DocumentText`() {
     val base = DocBranch.createBranch("a\nb\nc\n", agent("a"))
     val a = base.applyOp(insertOp(2, "a2\n"))
     val b = base.fork(agent("b")).applyOp(deleteOp(4, 2)).applyOp(insertOp(0, "top\n"))
     val merged = a.merge(b)
-    assertSameText(DocText.createText(merged.string()), merged.text())
+    assertSameText(DocumentText.createText(merged.string()), merged.text())
   }
 
   @Test
@@ -136,6 +139,15 @@ class DocBranchTest {
     val base = DocBranch.createBranch("abc", agent("a"))
     assertSame(base, base.applyOp(insertOp(1, "")))
     assertSame(base, base.applyOp(deleteOp(1, 0)))
+  }
+
+  @Test
+  fun `an op that changes no text keeps the instance`() {
+    val base = DocBranch.createBranch("abc", agent("a"))
+    val stamp = DocumentOp.modStampOp(42, true)
+    val lines = DocumentOp.unmodifiedLinesOp(0, 1, IntArray(0))
+    assertSame(base, base.applyOp(stamp))
+    assertSame(base, base.applyOp(lines))
   }
 
   @Test
@@ -152,7 +164,7 @@ class DocBranchTest {
     assertEquals("1ac\n2", forward.string())
     assertEquals(forward.string(), backward.string())
     assertEquals(forward.graph().replay().string(), forward.string())
-    assertSameText(DocText.createText(forward.string()), forward.text())
+    assertSameText(DocumentText.createText(forward.string()), forward.text())
   }
 
   @Test
@@ -183,7 +195,7 @@ class DocBranchTest {
       assertEquals(forward.graph().replay().string(), forward.string()) { "round $round" }
     }
     val merged = x.merge(y)
-    assertSameText(DocText.createText(merged.string()), merged.text())
+    assertSameText(DocumentText.createText(merged.string()), merged.text())
     for (round in 0 until 12) {
       // Every marker is a word of its own, so "x1" cannot pass on "x10" or "x11".
       val words = merged.string().split(' ', '\n')
@@ -211,12 +223,12 @@ class DocBranchTest {
     assertEquals(forward.graph().replay().string(), forward.string())
     // The paste and the range delete each arrive as one op, and not one per character.
     val ops = listOf(
-      DocTextOp.insertOp(10, "pasted block\n"),
-      DocTextOp.deleteOp(4, 6),
-      DocTextOp.insertOp(4, "L1\n"),
+      DocumentOp.insertOp(10, "pasted block\n"),
+      DocumentOp.deleteOp(4, 6),
+      DocumentOp.insertOp(4, "L1\n"),
     )
     assertEquals(ops, merge.ops())
-    assertSameText(DocText.createText(forward.string()), forward.text())
+    assertSameText(DocumentText.createText(forward.string()), forward.text())
   }
 
   @Test
@@ -338,7 +350,7 @@ class DocBranchTest {
     assertEquals("341abc2", forward.string())
     assertEquals(forward.string(), backward.string())
     assertEquals(forward.graph().replay().string(), forward.string())
-    assertSameText(DocText.createText(forward.string()), forward.text())
+    assertSameText(DocumentText.createText(forward.string()), forward.text())
   }
 
   @Test
@@ -414,7 +426,7 @@ class DocBranchTest {
   }
 
   @Test
-  fun `CRLF separators merge and match a fresh DocText`() {
+  fun `CRLF separators merge and match a fresh DocumentText`() {
     val base = DocBranch.createBranch("a\r\nb", agent("a"))
     val a = base.applyOp(insertOp(1, "X")) // -> "aX\r\nb"
     val b = base.fork(agent("b")).applyOp(deleteOp(1, 1)) // deletes '\r' -> "a\nb"
@@ -423,7 +435,7 @@ class DocBranchTest {
     assertEquals(forward.string(), b.merge(a).string())
     assertEquals(2, forward.text().lineCount())
     assertEquals(1, forward.text().lineSeparatorLength(0))
-    assertSameText(DocText.createText("aX\nb"), forward.text())
+    assertSameText(DocumentText.createText("aX\nb"), forward.text())
   }
 
   @Test
@@ -492,7 +504,7 @@ class DocBranchTest {
     assertEquals("Laab\n", forward.string())
     assertEquals(forward.string(), backward.string())
     assertEquals(forward.graph().replay().string(), forward.string())
-    assertSameText(DocText.createText(forward.string()), forward.text())
+    assertSameText(DocumentText.createText(forward.string()), forward.text())
   }
 
   @Test
@@ -712,9 +724,9 @@ internal fun DocBranch.string(): String = text().string()
 
 internal fun DocBranch.length(): Int = text().length()
 
-internal fun insertOp(offset: Int, fragment: CharSequence): DocTextOp.Insert = DocTextOp.insertOp(offset, fragment)
+internal fun insertOp(offset: Int, fragment: CharSequence): DocumentOp.Insert = DocumentOp.insertOp(offset, fragment)
 
-internal fun deleteOp(offset: Int, length: Int): DocTextOp.Delete = DocTextOp.deleteOp(offset, length)
+internal fun deleteOp(offset: Int, length: Int): DocumentOp.Delete = DocumentOp.deleteOp(offset, length)
 
 /**
  * Runs one round of a fuzz test with a [Random] of its own [seed], so a failing round
@@ -731,9 +743,9 @@ internal fun fuzzRound(seed: Long, round: Int, body: (Random) -> Unit) {
 /**
  * This text with [ops] applied one after another, as [DocMerge.ops] says an editor applies them.
  */
-internal fun DocText.afterOps(ops: List<DocTextOp>): DocText = ops.fold(this) { text, op -> text.applyOp(op) }
+internal fun DocumentText.afterOps(ops: List<DocumentTextOp>): DocumentText = ops.fold(this) { text, op -> text.applyOp(op) }
 
-internal fun assertSameText(expected: DocText, actual: DocText) {
+internal fun assertSameText(expected: DocumentText, actual: DocumentText) {
   assertEquals(expected.string(), actual.string())
   assertEquals(expected.chars().toString(), actual.chars().toString())
   assertEquals(expected.length(), actual.length())

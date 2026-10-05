@@ -16,7 +16,7 @@ package com.intellij.openapi.editor.impl.experimental
  *
  * Three documents therefore carry a position, and the names keep them apart. An `offset`
  * belongs to an op or an event, and it indexes the document at the PARENT version, which is
- * what the public `DocTextOp.offset` means. A `preparePos` indexes the prepare version, and an
+ * what the public `DocumentTextOp.offset` means. A `preparePos` indexes the prepare version, and an
  * `effectPos` indexes the effect version. A bare `pos` names no document, so the code does
  * not use one.
  *

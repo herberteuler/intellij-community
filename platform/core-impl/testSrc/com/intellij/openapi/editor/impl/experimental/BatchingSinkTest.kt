@@ -1,8 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
-import com.intellij.openapi.editor.ex.experimental.DocText
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -141,17 +142,17 @@ internal class BatchingSinkTest {
 
   @Test
   fun `a report after the sink finished is rejected`() {
-    val byResult = BatchingSink(DocText.createText("abc"))
+    val byResult = BatchingSink(DocumentText.createText("abc"))
     byResult.result()
     assertThrows(IllegalArgumentException::class.java) { byResult.insert(0, "x") }
-    val byOps = BatchingSink(DocText.createText("abc"))
+    val byOps = BatchingSink(DocumentText.createText("abc"))
     byOps.ops()
     assertThrows(IllegalArgumentException::class.java) { byOps.delete(0, 1) }
   }
 
   @Test
   fun `a report outside the current text is rejected`() {
-    val sink = BatchingSink(DocText.createText("xyz"))
+    val sink = BatchingSink(DocumentText.createText("xyz"))
     assertThrows(IllegalArgumentException::class.java) { sink.insert(-1, "a") }
     assertThrows(IllegalArgumentException::class.java) { sink.insert(4, "a") }
     assertThrows(IllegalArgumentException::class.java) { sink.delete(-1, 1) }
@@ -171,26 +172,26 @@ internal class BatchingSinkTest {
 
   @Test
   fun `an empty report is rejected`() {
-    val sink = BatchingSink(DocText.createText("abc"))
+    val sink = BatchingSink(DocumentText.createText("abc"))
     assertThrows(IllegalArgumentException::class.java) { sink.insert(0, "") }
     assertThrows(IllegalArgumentException::class.java) { sink.delete(0, 0) }
     assertThrows(IllegalArgumentException::class.java) { sink.delete(0, -1) }
-    assertEquals(emptyList<DocTextOp>(), sink.ops())
+    assertEquals(emptyList<DocumentTextOp>(), sink.ops())
   }
 
   @Test
   fun `the ops cannot change`() {
-    val sink = BatchingSink(DocText.createText("abc"))
+    val sink = BatchingSink(DocumentText.createText("abc"))
     sink.insert(0, "x")
     @Suppress("UNCHECKED_CAST")
-    val ops = sink.ops() as MutableList<DocTextOp>
-    assertThrows(UnsupportedOperationException::class.java) { ops.add(DocTextOp.deleteOp(0, 1)) }
+    val ops = sink.ops() as MutableList<DocumentTextOp>
+    assertThrows(UnsupportedOperationException::class.java) { ops.add(DocumentOp.deleteOp(0, 1)) }
     assertThrows(UnsupportedOperationException::class.java) { ops.clear() }
   }
 
   @Test
   fun `a long pending fragment stays short in a message`() {
-    val sink = BatchingSink(DocText.createText(""))
+    val sink = BatchingSink(DocumentText.createText(""))
     sink.insert(0, "x".repeat(1_000))
     val message = sink.toString()
     assertTrue(message.contains("(1000 chars)"), message)
@@ -202,13 +203,13 @@ internal class BatchingSinkTest {
    * the sink reports, and folds them over the start text.
    */
   private class Recorded(text: String) {
-    private val start = DocText.createText(text)
+    private val start = DocumentText.createText(text)
     private val applied = ArrayList<String>()
 
     /**
      * The text the sink starts from, which records the ops.
      */
-    val initial: DocText = RecordingText(start, applied)
+    val initial: DocumentText = RecordingText(start, applied)
     val inner = BatchingSink(initial)
 
     fun insert(effectPos: Int, fragment: String) {
@@ -233,10 +234,10 @@ internal class BatchingSinkTest {
    * A text that records every op it applies, and passes the rest to [inner].
    */
   private class RecordingText(
-    private val inner: DocText,
+    private val inner: DocumentText,
     private val ops: MutableList<String>,
-  ) : DocText by inner {
-    override fun applyOp(op: DocTextOp): DocText {
+  ) : DocumentText by inner {
+    override fun applyOp(op: DocumentOp): DocumentText {
       ops.add(op.toString())
       return RecordingText(inner.applyOp(op), ops)
     }

@@ -1,6 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
+import com.intellij.openapi.editor.ex.DocumentText
+import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.impl.experimental.EventImpl
 
 /**
@@ -11,9 +14,9 @@ import com.intellij.openapi.editor.impl.experimental.EventImpl
  * change that the identity names. The identity is ([agent], [seq]) to ([agent], `seq + length - 1`),
  * and the change is [op].
  *
- * An event is NOT a [DocTextOp], so [DocText.applyOp] will not take one. The offset of [op] indexes the
- * document as it was in the PARENT VERSION. An old event applied to a document at another version
- * means nothing.
+ * An event is NOT a [DocumentTextOp], so [DocumentText.applyOp] will not take one. The offset of
+ * [op] indexes the document as it was in the PARENT VERSION. An old event applied to a document at
+ * another version means nothing.
  *
  * The paper (arXiv 2409.14252) models one event per unit. This implementation run-length encodes
  * them: one event covers [length] units. The parents of the first unit live in [EventGraph], and
@@ -32,7 +35,7 @@ interface Event {
   /**
    * The change this event records, against the document of its parent version.
    */
-  fun op(): DocTextOp
+  fun op(): DocumentTextOp
 
   /**
    * The number of units in this run. At least 1.
@@ -59,12 +62,12 @@ interface Event {
     /**
      * An event that records [op] under the id ([agent], [seq]).
      *
-     * The event keeps [op] and never copies it, so [op] must come from [DocTextOp.insertOp] or
-     * [DocTextOp.deleteOp]. Only those two detach the content from a sequence the caller can still
+     * The event keeps [op] and never copies it, so [op] must come from [DocumentOp.insertOp] or
+     * [DocumentOp.deleteOp]. Only those two detach the content from a sequence the caller can still
      * change, and an event lives in the graph forever.
      */
     @JvmStatic
-    fun create(agent: Agent, seq: Int, op: DocTextOp): Event {
+    fun create(agent: Agent, seq: Int, op: DocumentTextOp): Event {
       return EventImpl(agent, seq, op)
     }
 
@@ -75,7 +78,7 @@ interface Event {
       offset: Int,
       fragment: CharSequence,
     ): Event {
-      return create(agent, seq, DocTextOp.insertOp(offset, fragment))
+      return create(agent, seq, DocumentOp.insertOp(offset, fragment))
     }
 
     @JvmStatic
@@ -85,7 +88,7 @@ interface Event {
       offset: Int,
       length: Int,
     ): Event {
-      return create(agent, seq, DocTextOp.deleteOp(offset, length))
+      return create(agent, seq, DocumentOp.deleteOp(offset, length))
     }
   }
 }

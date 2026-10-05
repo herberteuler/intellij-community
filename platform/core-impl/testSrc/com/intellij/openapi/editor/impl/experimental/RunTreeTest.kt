@@ -1,8 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.experimental.Agent
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -101,7 +101,7 @@ internal class RunTreeTest {
       val agent = if (i % 3 == 0) V else U
       val length = 1 + i % 4
       val seq = nextSeqs[agent] ?: 0
-      val run = StoredRun(EventImpl(agent, seq, DocTextOp.insertOp(0, "x".repeat(length))), lv, IntArray(0))
+      val run = StoredRun(EventImpl(agent, seq, DocumentOp.insertOp(0, "x".repeat(length))), lv, IntArray(0))
       index = index.appended(run)
       runs.add(run)
       nextSeqs[agent] = seq + length
@@ -134,8 +134,8 @@ internal class RunTreeTest {
 
   @Test
   fun `the agent summary takes the tail`() {
-    val closed = StoredRun(EventImpl(U, 0, DocTextOp.insertOp(0, "ab")), 0, IntArray(0))
-    val tail = StoredRun(EventImpl(U, 2, DocTextOp.insertOp(2, "cd")), 2, intArrayOf(1))
+    val closed = StoredRun(EventImpl(U, 0, DocumentOp.insertOp(0, "ab")), 0, IntArray(0))
+    val tail = StoredRun(EventImpl(U, 2, DocumentOp.insertOp(2, "cd")), 2, intArrayOf(1))
     val index = AgentIndex.EMPTY.appended(closed)
     assertEquals(4, index.summarize(tail).endSeq(U))
     assertEquals(2, index.summarize(null).endSeq(U))
@@ -143,22 +143,22 @@ internal class RunTreeTest {
 
   @Test
   fun `a seq that does not continue its agent is rejected`() {
-    val index = AgentIndex.EMPTY.appended(StoredRun(EventImpl(U, 0, DocTextOp.insertOp(0, "ab")), 0, IntArray(0)))
+    val index = AgentIndex.EMPTY.appended(StoredRun(EventImpl(U, 0, DocumentOp.insertOp(0, "ab")), 0, IntArray(0)))
     for (seq in intArrayOf(0, 1, 3)) {
       assertThrows(IllegalArgumentException::class.java, {
-        index.appended(StoredRun(EventImpl(U, seq, DocTextOp.insertOp(0, "c")), 2, intArrayOf(1)))
+        index.appended(StoredRun(EventImpl(U, seq, DocumentOp.insertOp(0, "c")), 2, intArrayOf(1)))
       }, "seq $seq")
     }
     assertThrows(IllegalArgumentException::class.java) {
-      AgentIndex.EMPTY.appended(StoredRun(EventImpl(V, 1, DocTextOp.insertOp(0, "c")), 0, IntArray(0)))
+      AgentIndex.EMPTY.appended(StoredRun(EventImpl(V, 1, DocumentOp.insertOp(0, "c")), 0, IntArray(0)))
     }
   }
 
   @Test
   fun `siblings of one agent index answer each for itself`() {
-    val base = AgentIndex.EMPTY.appended(StoredRun(EventImpl(U, 0, DocTextOp.insertOp(0, "ab")), 0, IntArray(0)))
-    val left = base.appended(StoredRun(EventImpl(U, 2, DocTextOp.insertOp(0, "L")), 2, intArrayOf(1)))
-    val right = base.appended(StoredRun(EventImpl(V, 0, DocTextOp.insertOp(0, "R")), 2, intArrayOf(1)))
+    val base = AgentIndex.EMPTY.appended(StoredRun(EventImpl(U, 0, DocumentOp.insertOp(0, "ab")), 0, IntArray(0)))
+    val left = base.appended(StoredRun(EventImpl(U, 2, DocumentOp.insertOp(0, "L")), 2, intArrayOf(1)))
+    val right = base.appended(StoredRun(EventImpl(V, 0, DocumentOp.insertOp(0, "R")), 2, intArrayOf(1)))
     assertEquals(2, base.nextSeq(U))
     assertEquals(3, left.nextSeq(U))
     assertEquals(0, left.nextSeq(V))
@@ -198,7 +198,7 @@ internal class RunTreeTest {
   }
 
   private fun runAt(lvStart: LV, length: Int, seq: Int): StoredRun {
-    return StoredRun(EventImpl(U, seq, DocTextOp.insertOp(0, "x".repeat(length))), lvStart, IntArray(0))
+    return StoredRun(EventImpl(U, seq, DocumentOp.insertOp(0, "x".repeat(length))), lvStart, IntArray(0))
   }
 
   private companion object {

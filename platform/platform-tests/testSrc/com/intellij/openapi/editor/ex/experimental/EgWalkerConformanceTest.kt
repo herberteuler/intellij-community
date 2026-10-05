@@ -5,6 +5,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.openapi.application.PathManager
+import com.intellij.openapi.editor.ex.DocumentOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -140,9 +141,9 @@ class EgWalkerConformanceTest {
           val pieceEnd = if (cut in 0 until lv + length) cut + 1 else lv + length
           val count = pieceEnd - (lv + done)
           branch = if (op.deleted > 0) {
-            branch.applyOp(DocTextOp.deleteOp(op.offset, count))
+            branch.applyOp(DocumentOp.deleteOp(op.offset, count))
           } else {
-            branch.applyOp(DocTextOp.insertOp(op.offset + done, op.inserted.substring(done, done + count)))
+            branch.applyOp(DocumentOp.insertOp(op.offset + done, op.inserted.substring(done, done + count)))
           }
           done += count
           if (needed.get(pieceEnd - 1)) {

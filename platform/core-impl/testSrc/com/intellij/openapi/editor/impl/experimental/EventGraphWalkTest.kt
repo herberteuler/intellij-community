@@ -1,8 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.experimental.Agent
-import com.intellij.openapi.editor.ex.experimental.DocTextOp
 import com.intellij.openapi.editor.ex.experimental.Event
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -125,7 +125,7 @@ internal class EventGraphWalkTest {
     }
     val event = graph.runAt(last).event
     val op = event.op()
-    return if (event.agent() == agent && op is DocTextOp.Insert) op.offset() + op.length() else 0
+    return if (event.agent() == agent && op is DocumentOp.Insert) op.offset() + op.length() else 0
   }
 
   /**

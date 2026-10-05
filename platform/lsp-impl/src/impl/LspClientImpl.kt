@@ -420,9 +420,6 @@ class LspClientImpl internal constructor(
 
   internal fun supportsHover(): Boolean = serverCapabilities?.hoverProvider?.let { it.left ?: true } == true
 
-  internal fun supportsCommand(command: String): Boolean =
-    serverCapabilities?.executeCommandProvider?.commands?.contains(command) == true
-
   /** True when the server provides the text for [scheme] URIs, through the `workspace/textDocumentContent` request. */
   internal fun providesTextDocumentContent(scheme: String?): Boolean =
     scheme != null && serverCapabilities?.workspace?.textDocumentContent?.schemes?.contains(scheme) == true

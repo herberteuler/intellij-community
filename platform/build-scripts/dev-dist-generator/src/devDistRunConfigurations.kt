@@ -11,6 +11,7 @@ import org.jetbrains.intellij.build.ModuleOutputProvider
 import org.jetbrains.intellij.build.PLUGIN_XML_RELATIVE_PATH
 import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.text.Normalizer
 import java.util.Collections
@@ -62,7 +63,10 @@ private val JPS_OUTPUT = Regex(Regex.escape("$PROJECT_DIR_MACRO/out/") + "(class
 
 private const val USER_HOME_MACRO = "\$USER_HOME\$"
 
-/** `bazel run` sets the variable, and the launcher expands `${NAME}` at launch; `$$` is a literal `$` for Bazel. */
+/**
+ * `bazel run` sets the variable. The launcher expands `${NAME}` at launch, and the java rule resolves it at analysis.
+ * `$$` is a literal `$` for Bazel.
+ */
 private const val BAZEL_WORKSPACE_DIRECTORY = "\$\${BUILD_WORKSPACE_DIRECTORY}"
 private const val BAZEL_HOME = "\$\${HOME}"
 
@@ -82,7 +86,8 @@ internal const val UNPLANNABLE_NO_PLUGIN_DESCRIPTOR = "no plugin descriptor"
  * properties the row states as fields, the two product selectors, which [product] replaces, and the data directories
  * the launcher owns ([LAUNCHER_DATA_PROPERTIES]). An
  * environment variable that names `$PROJECT_DIR$` becomes a `-D` property there, because the Bazel `env` of a launcher
- * cannot name the workspace. `$PROJECT_DIR$` is the workspace root, as it is for the IDE. [env] holds every other
+ * cannot name the workspace. `$PROJECT_DIR$` is the workspace root, as it is for the IDE. A workspace-relative path
+ * value of a property becomes an absolute path, see [workspacePathValue]. [env] holds every other
  * variable in XML order. A variable of [LEGACY_ENGINE_ENV] is in neither. [runtimeModuleRepository] is `true` for
  * `-Dintellij.build.generate.runtime.module.repository=true`, and for `-Dintellij.platform.runtime.repository.path` with a
  * value below `$PROJECT_DIR$/out/`, which then leaves the flags. [programArgs] are the `PROGRAM_PARAMETERS` in the form
@@ -110,6 +115,7 @@ class DevRunConfigurationRow(
  * without `-Didea.platform.prefix` fails and names its file, and so do two configurations with one sanitized name. A
  * flag or a converted environment variable that names a [JPS_OUTPUT] directory fails too.
  * [fieldProperties] are the boolean fields of the half, keyed by property, see [DevDistHalf.rowFieldProperties].
+ * The parent of `.idea` is the project directory, against which [workspacePathValue] tests a path value.
  */
 @ApiStatus.Internal
 fun readDevRunConfigurationRows(
@@ -125,6 +131,7 @@ fun readDevRunConfigurationRows(
       .sorted(compareBy { it.name })
       .toList()
   }
+  val projectDir = runConfigurationsDir.toAbsolutePath().parent.parent
   val rows = ArrayList<DevRunConfigurationRow>()
   val configurationNames = HashMap<DevRunConfigurationRow, String>()
   for (xmlFile in xmlFiles) {
@@ -145,6 +152,7 @@ fun readDevRunConfigurationRows(
       env = configurationEnv(configuration),
       programParameters = options.get("PROGRAM_PARAMETERS") ?: "",
       fieldProperties = fieldProperties,
+      projectDir = projectDir,
     )
     rows.add(row)
     configurationNames.put(row, configurationName)
@@ -160,17 +168,22 @@ private fun devRunConfigurationRow(
   env: Map<String, String>,
   programParameters: String,
   fieldProperties: Map<String, String>,
+  projectDir: Path,
 ): DevRunConfigurationRow {
   val properties = vmOptions.properties
   val platformPrefix = properties.get(PLATFORM_PREFIX_PROPERTY) ?: error("$PLATFORM_PREFIX_PROPERTY not found in VM options ($xmlFileName)")
   val frontendBasePrefix = properties.get(FRONTEND_BASE_PREFIX_PROPERTY)
   val product = if (frontendBasePrefix == null) platformPrefix else frontendBasePrefix + platformPrefix
   // The row composes the file that the IDE run expected under out/.
-  val repositoryPath = properties.get(RUNTIME_MODULE_REPOSITORY_PATH_PROPERTY)?.takeIf { it.startsWith("$PROJECT_DIR_MACRO/out/") }
-  val flagProperties = properties.filterKeys { key ->
-    key !in ROW_FIELD_PROPERTIES && key !in fieldProperties && key !in LAUNCHER_DATA_PROPERTIES &&
-    (repositoryPath == null || key != RUNTIME_MODULE_REPOSITORY_PATH_PROPERTY)
-  }
+  val repositoryPath = properties.get(RUNTIME_MODULE_REPOSITORY_PATH_PROPERTY)
+    ?.let { workspacePathValue(it, projectDir) }
+    ?.takeIf { it.startsWith("$PROJECT_DIR_MACRO/out/") }
+  val flagProperties = properties
+    .filterKeys { key ->
+      key !in ROW_FIELD_PROPERTIES && key !in fieldProperties && key !in LAUNCHER_DATA_PROPERTIES &&
+      (repositoryPath == null || key != RUNTIME_MODULE_REPOSITORY_PATH_PROPERTY)
+    }
+    .mapValues { workspacePathValue(it.value, projectDir) }
   val envProperties = LinkedHashMap<String, String>()
   val bazelEnv = LinkedHashMap<String, String>()
   for ((key, value) in env) {
@@ -180,7 +193,7 @@ private fun devRunConfigurationRow(
     if (value.contains(PROJECT_DIR_MACRO)) {
       val property = key.lowercase().replace('_', '.')
       if (property !in LAUNCHER_DATA_PROPERTIES) {
-        envProperties.put(property, value)
+        envProperties.put(property, workspacePathValue(value, projectDir))
       }
     }
     else {
@@ -209,7 +222,7 @@ private fun devRunConfigurationRow(
     env = bazelEnv,
     runtimeModuleRepository = properties.get(RUNTIME_MODULE_REPOSITORY_PROPERTY) == "true" || repositoryPath != null,
     booleanFields = fieldProperties.mapNotNull { (property, field) -> field.takeIf { properties.get(property) == "true" } },
-    programArgs = programArguments(programParameters).map(::bazelProgramArgument),
+    programArgs = programArguments(programParameters).map { bazelProgramArgument(it, projectDir) },
   )
 }
 
@@ -249,15 +262,69 @@ internal fun programArguments(parameters: String): List<String> {
 
 /**
  * One program argument as a Bazel `args` entry. Bazel expands make variables there, so every `$` is written `$$`, and
- * `$PROJECT_DIR$` and `$USER_HOME$` become `${BUILD_WORKSPACE_DIRECTORY}` and `${HOME}`, which the launcher expands.
- * A relative path stays: the launcher starts the IDE in the workspace, as the IDE runs the configuration.
+ * `$PROJECT_DIR$` and `$USER_HOME$` become `${BUILD_WORKSPACE_DIRECTORY}` and `${HOME}`. The launcher expands them at
+ * launch, and the java rule resolves them at analysis. A workspace-relative path becomes an absolute path, see
+ * [workspacePathValue]. [projectDir] is the workspace root.
  */
-internal fun bazelProgramArgument(argument: String): String {
-  val projectDir = "\u0000P"
-  val userHome = "\u0000H"
-  return argument.replace(PROJECT_DIR_MACRO, projectDir).replace(USER_HOME_MACRO, userHome)
+internal fun bazelProgramArgument(argument: String, projectDir: Path): String {
+  val projectDirPlaceholder = "\u0000P"
+  val userHomePlaceholder = "\u0000H"
+  return workspacePathValue(argument, projectDir)
+    .replace(PROJECT_DIR_MACRO, projectDirPlaceholder).replace(USER_HOME_MACRO, userHomePlaceholder)
     .replace("\$", "\$\$")
-    .replace(projectDir, BAZEL_WORKSPACE_DIRECTORY).replace(userHome, BAZEL_HOME)
+    .replace(projectDirPlaceholder, BAZEL_WORKSPACE_DIRECTORY).replace(userHomePlaceholder, BAZEL_HOME)
+}
+
+/** The file name suffixes that make a value with a `/` a path, see [workspacePathValue]. */
+private val PATH_SUFFIXES = listOf(".txt", ".json", ".log", ".xml", ".properties")
+
+/** The first characters of a value that is absolute, a macro, an option or below the user home, see [workspacePathValue]. */
+private const val NOT_RELATIVE_START = "/\\$-~"
+
+/**
+ * [value] with a workspace-relative path written as an absolute one, through the `$PROJECT_DIR$` macro.
+ *
+ * A java row starts the IDE in `<row>.runfiles/_main`, not in the workspace. So a relative path must be absolute
+ * before the launch. [value] is the value of a `-Dkey=value` property or one whole program argument. [projectDir] is
+ * the workspace root.
+ *
+ * - A value that starts with `./` or `../` is a path. `./x` becomes `$PROJECT_DIR$/x`, and `../x` becomes
+ *   `$PROJECT_DIR$/../x`.
+ * - A value with a `/` is a path when its first segment is `out` or names a file or a directory of [projectDir].
+ * - A value with a `/` is a path when it ends with `.txt`, `.json`, `.log`, `.xml` or `.properties`.
+ *
+ * `out` counts before a build makes the directory, so the result does not depend on the state of the build.
+ * A value that starts with `/`, `\`, `$`, `-` or `~` stays. The IDE code that reads a `~/` value expands it to the user home.
+ * A value whose first segment has a `:` stays, such as a URL or a Windows drive.
+ * A value without a `/` stays, such as a class name, a number or a plugin id.
+ * `$PROJECT_DIR$/../x` keeps its `..` segment. The file system resolves the segment when the IDE opens the path.
+ */
+internal fun workspacePathValue(value: String, projectDir: Path): String {
+  if (value.startsWith("./")) {
+    return "$PROJECT_DIR_MACRO/" + value.substring(2)
+  }
+  if (value.startsWith("../")) {
+    return "$PROJECT_DIR_MACRO/$value"
+  }
+  val slash = value.indexOf('/')
+  if (slash <= 0 || value[0] in NOT_RELATIVE_START) {
+    return value
+  }
+  val firstSegment = value.substring(0, slash)
+  if (firstSegment.contains(':')) {
+    return value
+  }
+  val isPath = firstSegment == "out" || PATH_SUFFIXES.any { value.endsWith(it) } || isProjectEntry(projectDir, firstSegment)
+  return if (isPath) "$PROJECT_DIR_MACRO/$value" else value
+}
+
+private fun isProjectEntry(projectDir: Path, name: String): Boolean {
+  return try {
+    Files.exists(projectDir.resolve(name))
+  }
+  catch (_: InvalidPathException) {
+    false
+  }
 }
 
 private fun checkUniqueRowNames(rows: List<DevRunConfigurationRow>, configurationNames: Map<DevRunConfigurationRow, String>) {

@@ -245,9 +245,54 @@ class DevDistRunConfigurationModulesTest {
       "/\$\$tcp.ij/\$\${BUILD_WORKSPACE_DIRECTORY}/data",
       "a b",
       "\$\${HOME}/x",
-      "../relative",
+      "\$\${BUILD_WORKSPACE_DIRECTORY}/../relative",
     )
     assertThat(rows.getValue("plain").programArgs).isEmpty()
+  }
+
+  @Test
+  fun `a workspace-relative path value of a flag or a program argument becomes absolute`() {
+    Files.createDirectories(dir.resolve("tools"))
+    write("Paths.xml", devMain(
+      "Paths",
+      "-Didea.platform.prefix=idea -Da.entry=tools/x -Da.out=out/dev-data/x -Da.dot=./x -Da.up=../x -Da.home=~/x.log -Da.none=nope/x " +
+      "-Da.suffix=conf/x.json -Da.url=https://h/x.json -Da.absolute=/opt/x.txt -Da.drive=C:/x/y.txt -Da.word=tools " +
+      "-Da.class=com.a.B -Da.flag=true -Da.number=42 -Da.ids=a.b,c.d -Da.project=\$PROJECT_DIR\$/x",
+      programParameters = "tools/x ./out/x ../x ~/x conf/x.xml https://h/x.json /opt/x.txt --config=conf/x.json tools nope/x",
+    ))
+
+    val row = readDevRunConfigurationRows(runConfigurations).single()
+
+    assertThat(row.jvmFlags).containsExactly(
+      "-Da.absolute=/opt/x.txt",
+      "-Da.class=com.a.B",
+      "-Da.dot=\$\${BUILD_WORKSPACE_DIRECTORY}/x",
+      "-Da.drive=C:/x/y.txt",
+      "-Da.entry=\$\${BUILD_WORKSPACE_DIRECTORY}/tools/x",
+      "-Da.flag=true",
+      "-Da.home=~/x.log",
+      "-Da.ids=a.b,c.d",
+      "-Da.none=nope/x",
+      "-Da.number=42",
+      "-Da.out=\$\${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/x",
+      "-Da.project=\$\${BUILD_WORKSPACE_DIRECTORY}/x",
+      "-Da.suffix=\$\${BUILD_WORKSPACE_DIRECTORY}/conf/x.json",
+      "-Da.up=\$\${BUILD_WORKSPACE_DIRECTORY}/../x",
+      "-Da.url=https://h/x.json",
+      "-Da.word=tools",
+    )
+    assertThat(row.programArgs).containsExactly(
+      "\$\${BUILD_WORKSPACE_DIRECTORY}/tools/x",
+      "\$\${BUILD_WORKSPACE_DIRECTORY}/out/x",
+      "\$\${BUILD_WORKSPACE_DIRECTORY}/../x",
+      "~/x",
+      "\$\${BUILD_WORKSPACE_DIRECTORY}/conf/x.xml",
+      "https://h/x.json",
+      "/opt/x.txt",
+      "--config=conf/x.json",
+      "tools",
+      "nope/x",
+    )
   }
 
   @Test
@@ -271,7 +316,8 @@ class DevDistRunConfigurationModulesTest {
 
     val row = readDevRunConfigurationRows(runConfigurations).single()
 
-    assertThat(row.jvmFlags).containsExactly("-Da=1", "-Didea.plugins.path=out/dev-data/idea/config/edu-plugins")
+    assertThat(row.jvmFlags)
+      .containsExactly("-Da=1", "-Didea.plugins.path=\$\${BUILD_WORKSPACE_DIRECTORY}/out/dev-data/idea/config/edu-plugins")
     assertThat(row.env).isEmpty()
   }
 
@@ -282,6 +328,10 @@ class DevDistRunConfigurationModulesTest {
       "-Didea.platform.prefix=Gateway -Dintellij.platform.runtime.repository.path=\$PROJECT_DIR\$/out/classes/module-descriptors.jar -Da=1",
     ))
     write("Own.xml", devMain("Own", "-Didea.platform.prefix=Gateway -Dintellij.platform.runtime.repository.path=/opt/descriptors.dat"))
+    write("Relative.xml", devMain(
+      "Relative",
+      "-Didea.platform.prefix=Gateway -Dintellij.platform.runtime.repository.path=out/descriptors.dat",
+    ))
 
     val rows = readDevRunConfigurationRows(runConfigurations).associateBy { it.name }
 
@@ -289,6 +339,8 @@ class DevDistRunConfigurationModulesTest {
     assertThat(rows.getValue("embedded").jvmFlags).containsExactly("-Da=1")
     assertThat(rows.getValue("own").runtimeModuleRepository).isFalse()
     assertThat(rows.getValue("own").jvmFlags).containsExactly("-Dintellij.platform.runtime.repository.path=/opt/descriptors.dat")
+    assertThat(rows.getValue("relative").runtimeModuleRepository).isTrue()
+    assertThat(rows.getValue("relative").jvmFlags).isEmpty()
   }
 
   @Test
@@ -298,6 +350,7 @@ class DevDistRunConfigurationModulesTest {
       Case("Property.xml", "-Dx.dir=\$PROJECT_DIR\$/out/classes/production/x", emptyMap(), "\$PROJECT_DIR\$/out/classes/production/x"),
       Case("Agent.xml", "-javaagent:\$PROJECT_DIR\$/out/test/agent.jar", emptyMap(), "-javaagent:\$PROJECT_DIR\$/out/test/agent.jar"),
       Case("Variable.xml", "", mapOf("TOOL_DIR" to "\$PROJECT_DIR\$/out/production"), "\$PROJECT_DIR\$/out/production"),
+      Case("Relative.xml", "-Dx.dir=out/classes/x", emptyMap(), "\$PROJECT_DIR\$/out/classes/x"),
     )) {
       write(case.fileName, devMain(case.fileName, "-Didea.platform.prefix=idea ${case.vmParameters}", env = case.env))
 

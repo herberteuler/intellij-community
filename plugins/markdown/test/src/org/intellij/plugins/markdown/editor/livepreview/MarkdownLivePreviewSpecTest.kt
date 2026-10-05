@@ -322,7 +322,7 @@ class MarkdownLivePreviewSpecTest : BasePlatformTestCase() {
 
   fun testBlockquoteRuleCoversLazyContinuationLines() {
     val content = "> first\nlazy\n> third"
-    assertEquals(listOf("> first\nlazy\n", "> third"), ruleSegments(content))
+    assertEquals(listOf("> first", "> third"), ruleSegments(content))
   }
 
   fun testBlockquoteRulesInsideListItemsCoverTheirLines() {

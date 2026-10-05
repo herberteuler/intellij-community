@@ -80,7 +80,15 @@ internal class MarkdownEnterHandler : EnterHandlerDelegate {
 
   private fun findPostProcessElement(file: PsiFile, editor: Editor, injectionHost: PsiElement?): PsiElement? {
     if (!file.isValid) return injectionHost
-    return MarkdownPsiUtil.findNonWhiteSpacePrevSibling(file, editor.caretModel.offset) ?: injectionHost
+    val element = MarkdownPsiUtil.findNonWhiteSpacePrevSibling(file, editor.caretModel.offset) ?: return injectionHost
+    val previous = MarkdownPsiUtil.findNonWhiteSpacePrevSibling(file, editor.caretModel.offset - 1)
+    if (previous != null &&
+        PsiTreeUtil.getParentOfType(previous, MarkdownBlockQuote::class.java) != null &&
+        MarkdownCodeFenceUtils.getCodeFence(element) == null &&
+        editor.document.getLineNumber(element.textRange.startOffset) == editor.document.getLineNumber(editor.caretModel.offset)) {
+      return previous
+    }
+    return element
   }
 
   private fun findFence(element: PsiElement, injectionHost: PsiElement?): MarkdownCodeFence? {
@@ -90,6 +98,14 @@ internal class MarkdownEnterHandler : EnterHandlerDelegate {
   private fun processBlockQuote(editor: Editor, element: PsiElement) {
     val quote = PsiTreeUtil.getParentOfType(element, MarkdownBlockQuote::class.java) ?: return
     val markdown = CodeStyle.getCustomSettings(quote.containingFile, MarkdownCustomCodeStyleSettings::class.java)
+
+    val document = editor.document
+    val offset = editor.caretModel.offset
+    val column = quote.textRange.startOffset - document.getLineStartOffset(document.getLineNumber(quote.textRange.startOffset))
+    val missingIndent = column - (offset - document.getLineStartOffset(document.getLineNumber(offset)))
+    if (missingIndent > 0) {
+      EditorModificationUtil.insertStringAtCaret(editor, " ".repeat(missingIndent))
+    }
 
     var toAdd = ">"
     if (markdown.FORCE_ONE_SPACE_AFTER_BLOCKQUOTE_SYMBOL) {

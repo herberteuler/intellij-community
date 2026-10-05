@@ -171,6 +171,15 @@
                        level="WARNING"
                        implementationClass="com.intellij.markdown.backend.inspections.MarkdownNonExistentInternetResourceInspection"/>
 
+      <localInspection language="Markdown"
+                       shortName="MarkdownLazyBlockQuoteContinuation"
+                       bundle="messages.MarkdownBundle"
+                       key="markdown.lazy.block.quote.continuation.inspection.name"
+                       groupKey="markdown.inspection.group.ruby.name"
+                       enabledByDefault="true"
+                       level="WEAK WARNING"
+                       implementationClass="com.intellij.markdown.backend.inspections.MarkdownLazyBlockQuoteContinuationInspection"/>
+
       <psi.referenceContributor language="Markdown" implementation="com.intellij.markdown.backend.reference.link.CommonLinkDestinationReferenceContributor"/>
       <psi.referenceContributor language="Markdown" implementation="com.intellij.markdown.backend.reference.link.AutoLinkWebReferenceContributor"/>
       <psi.referenceContributor language="Markdown" implementation="com.intellij.markdown.backend.reference.backtick.BacktickReferenceContributor"/>

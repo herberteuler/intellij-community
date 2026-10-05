@@ -5,7 +5,7 @@ import com.intellij.openapi.editor.ex.DocumentPatch
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-internal class DocumentTextPatchTest {
+internal class DocumentPatchTest {
 
   @Test
   fun `simple patch is printed without the origin and move fields`() {
@@ -17,7 +17,7 @@ internal class DocumentTextPatchTest {
       clearLineFlags = false,
     )
     assertEquals(
-      "SimpleTextPatch(startOffset=1, endOffset=2, newFragment.length=1, newModStamp=7, clearLineFlags=false)",
+      "DocumentPatch(startOffset=1, endOffset=2, newFragment.length=1, newModStamp=7, clearLineFlags=false)",
       patch.toString(),
     )
   }
@@ -35,7 +35,7 @@ internal class DocumentTextPatchTest {
       moveOffset = 4,
     )
     assertEquals(
-      "ComplexTextPatch(startOffset=5, endOffset=6, newFragment.length=1" +
+      "DocumentPatch(startOffset=5, endOffset=6, newFragment.length=1" +
       ", originStartOffset=3, moveOffset=4, newModStamp=8, clearLineFlags=true)",
       patch.toString(),
     )

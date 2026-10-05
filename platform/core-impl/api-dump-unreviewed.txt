@@ -807,7 +807,6 @@ c:com.intellij.openapi.editor.impl.EditorTextFieldRendererDocument
 - createLineIterator():com.intellij.openapi.editor.ex.LineIterator
 - createRangeMarker(I,I,Z):com.intellij.openapi.editor.RangeMarker
 - deleteString(I,I):V
-- getChars():C[]
 - getImmutableCharSequence():java.lang.CharSequence
 - getLineCount():I
 - getLineEndOffset(I):I

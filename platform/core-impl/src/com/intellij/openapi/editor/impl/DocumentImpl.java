@@ -7,6 +7,7 @@ import com.intellij.openapi.editor.actionSystem.ReadonlyFragmentModificationHand
 import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.editor.ex.DocumentCore;
 import com.intellij.openapi.editor.ex.DocumentEx;
+import com.intellij.openapi.editor.ex.DocumentText;
 import com.intellij.openapi.editor.ex.EditReadOnlyListener;
 import com.intellij.openapi.editor.ex.LineIterator;
 import com.intellij.openapi.editor.ex.RangeMarkerEx;
@@ -386,6 +387,12 @@ public final class DocumentImpl extends VersionedUserDataHolderBase implements D
   @Override
   public void unSuppressGuardedExceptions(boolean onlyWholeText) {
     impl.settings().unsuppressGuardCheck(onlyWholeText);
+  }
+
+  @ApiStatus.Internal
+  @Override
+  public @NotNull DocumentText getDocText() {
+    return impl.snapshot().text();
   }
 
   @ApiStatus.Internal

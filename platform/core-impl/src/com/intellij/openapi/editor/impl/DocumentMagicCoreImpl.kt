@@ -9,6 +9,7 @@ import com.intellij.openapi.editor.ex.DocumentMagicCore
 import com.intellij.openapi.editor.ex.DocumentMutator
 import com.intellij.openapi.editor.ex.DocumentSettings
 import com.intellij.openapi.editor.ex.DocumentSnapshot
+import com.intellij.openapi.editor.ex.DocumentText
 import com.intellij.openapi.editor.impl.marker.SnapshotMarkerStores
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import kotlin.concurrent.Volatile
@@ -302,7 +303,7 @@ internal class DocumentMagicCoreImpl private constructor(
     fun createCore(chars: CharSequence, acceptSlashR: Boolean, forUseInNonAWTThread: Boolean): DocumentCore {
       val settingsReal = DocumentSettingsImpl(!forUseInNonAWTThread, acceptSlashR, chars)
       val settingsElf = DocumentElfSettingsImpl(settingsReal)
-      val snapshot = SnapshotSnapshot.newClean(DocumentSnapshotImpl(DocumentTextImpl(chars)))
+      val snapshot = SnapshotSnapshot.newClean(DocumentSnapshotImpl(DocumentText.createText(chars)))
       return DocumentMagicCoreImpl(snapshot, settingsElf, settingsReal)
     }
 

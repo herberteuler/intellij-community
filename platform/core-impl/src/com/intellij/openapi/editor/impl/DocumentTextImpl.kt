@@ -18,7 +18,7 @@ internal class DocumentTextImpl private constructor(
   constructor(chars: CharSequence) : this(
     chars = CharArrayUtil.createImmutableCharSequence(chars),
     lineSet = null,
-    cachedString = null,
+    cachedString = (chars as? String)?.let { SoftReference(it) },
   )
 
   init {

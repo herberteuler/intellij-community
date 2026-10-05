@@ -73,7 +73,7 @@ internal class DocumentPatchImpl(
   }
 
   override fun toString(): String {
-    return "${javaClass.simpleName}(" +
+    return "DocumentPatch(" +
            "startOffset=${startOffset()}" +
            ", endOffset=${endOffset()}" +
            ", newFragment.length=${newFragment().length}" +

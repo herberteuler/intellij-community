@@ -6,6 +6,7 @@ import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.ex.DocumentEx;
 import com.intellij.openapi.editor.ex.DocumentOp;
 import com.intellij.openapi.editor.ex.DocumentSnapshot;
+import com.intellij.openapi.editor.ex.DocumentText;
 import com.intellij.openapi.editor.ex.EditReadOnlyListener;
 import com.intellij.openapi.editor.ex.LineIterator;
 import com.intellij.openapi.editor.ex.RangeMarkerEx;
@@ -214,5 +215,11 @@ public class FrozenDocument implements DocumentEx {
   @Override
   public void removeEditReadOnlyListener(@NotNull EditReadOnlyListener listener) {
     throw new UnsupportedOperationException();
+  }
+
+  @ApiStatus.Internal
+  @Override
+  public @NotNull DocumentText getDocText() {
+    return mySnapshot.text();
   }
 }

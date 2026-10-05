@@ -759,6 +759,8 @@
             id="PluginUpdateSourcesResetAction"/>
     <action class="com.intellij.openapi.updateSettings.impl.PluginUpdateSourcesReinitializeAction" internal="true"
             id="PluginUpdateSourcesReinitializeAction"/>
+    <action class="com.intellij.openapi.updateSettings.impl.InitializeMissingPluginUpdateSourcesAction"
+            id="InitializeMissingPluginUpdateSourcesAction"/>
     <group id="SettingsEntryPointGroup" class="com.intellij.ide.actions.SettingsEntryPointGroup" overrides="true" keep-content="true"/>
     <group id="Floating.CodeToolbar.Surround" class="com.intellij.ui.codeFloatingToolbar.RefactorDropdownActionGroup" overrides="true" keep-content="true"/>
     <group id="ChangeLineSeparators" class="com.intellij.ide.actions.NonTrivialActionGroup" overrides="true" keep-content="true"/>

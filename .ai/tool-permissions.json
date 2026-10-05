@@ -67,6 +67,7 @@
     ["git", "rev-list"],
     ["git", "rev-parse"],
     ["git", "check-ignore"],
+    ["git", "config", "--get", "user.email"],
     ["git", "fetch"],
     ["git", "add"],
     ["git", "commit"],

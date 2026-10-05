@@ -2,8 +2,6 @@
 
 package org.jetbrains.kotlin.idea.k2.intentions.tests
 
-import com.intellij.codeInsight.intention.IntentionAction
-import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.idea.base.test.IgnoreTests
 import org.jetbrains.kotlin.idea.fir.K2DirectiveBasedActionUtils
 import org.jetbrains.kotlin.idea.intentions.AbstractIntentionTestBase
@@ -16,32 +14,12 @@ import java.io.File
 
 abstract class AbstractK2IntentionTest : AbstractIntentionTestBase() {
 
-    override fun afterFileNameSuffix(ktFilePath: File): String =
-        if (ktFilePath.resolveSibling(ktFilePath.name + AFTER_K2_EXTENSION).exists()) {
-            AFTER_K2_EXTENSION
-        } else {
-            super.afterFileNameSuffix(ktFilePath)
-        }
-
-    override fun fileName(): String {
-        val fileName = super.fileName()
-        val firFileName = IgnoreTests.deriveK2FileName(fileName, IgnoreTests.FileExtension.FIR)
-
-        return if (File(testDataDirectory, firFileName).exists()) firFileName else fileName
-    }
-
-    override fun getDefaultProjectDescriptor(): KotlinLightProjectDescriptor {
-        return KotlinWithJdkAndRuntimeLightProjectDescriptor.getInstance()
-    }
+    override fun getDefaultProjectDescriptor(): KotlinLightProjectDescriptor = KotlinWithJdkAndRuntimeLightProjectDescriptor.getInstance()
 
     override fun doTest(unused: String) {
         IgnoreTests.runTestIfNotDisabledByFileDirective(dataFile().toPath(), IgnoreTests.DIRECTIVES.IGNORE_K2) {
             super.doTest(unused)
         }
-    }
-
-    override fun doTestFor(mainFile: File, pathToFiles: Map<String, PsiFile>, intentionAction: IntentionAction, fileText: String) {
-        super.doTestFor(mainFile, pathToFiles, intentionAction, fileText)
     }
 
     override val skipErrorsBeforeCheckDirectives: List<String>
@@ -63,9 +41,5 @@ abstract class AbstractK2IntentionTest : AbstractIntentionTestBase() {
             { project.invalidateCaches() },
             { super.tearDown() },
         )
-    }
-
-    companion object {
-        private const val AFTER_K2_EXTENSION = ".after.k2"
     }
 }

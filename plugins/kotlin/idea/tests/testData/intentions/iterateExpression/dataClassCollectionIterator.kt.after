@@ -4,7 +4,7 @@
 data class Foo(val id: Int, val name: String)
 
 fun test() {
-    for ((id, name) in listOf(Foo(123, "def"), Foo(456, "abc"))) {
+    for (value in listOf(Foo(123, "def"), Foo(456, "abc"))) {
         <caret>
     }
 }

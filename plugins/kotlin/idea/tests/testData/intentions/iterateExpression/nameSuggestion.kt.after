@@ -1,5 +1,5 @@
 fun foo(names: List<String>) {
-    for (name in names) {
+    for (value in names) {
         <caret>
     }
 }

@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.marker;
 
 import com.intellij.openapi.editor.ex.DocumentOp;
-import com.intellij.openapi.editor.ex.DocumentTextPatch;
+import com.intellij.openapi.editor.ex.DocumentPatch;
 import com.intellij.openapi.editor.impl.DocumentImpl;
 import com.intellij.testFramework.LightVirtualFile;
 import com.intellij.testFramework.junit5.TestApplication;
@@ -30,7 +30,7 @@ final class FileMarkerRootTest {
     var fileRoot = FileMarkerRoot.Companion.getOrCreate$intellij_platform_core_impl(file);
     var document = new DocumentImpl("abcdef", true);
     var beforeText = document.getCore().snapshot().text();
-    var patch = DocumentTextPatch.simple(0, 0, "xx", 1, false);
+    var patch = DocumentPatch.simple(0, 0, "xx", 1, false);
     var afterText = beforeText;
     for (DocumentOp op : patch.ops()) {
       afterText = afterText.applyOp(op);

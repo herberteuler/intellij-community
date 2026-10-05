@@ -1,8 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex
 
-import com.intellij.openapi.editor.impl.ComplexTextPatch
-import com.intellij.openapi.editor.impl.SimpleTextPatch
+import com.intellij.openapi.editor.impl.DocumentPatchImpl
 import org.jetbrains.annotations.ApiStatus
 
 /**
@@ -23,7 +22,7 @@ import org.jetbrains.annotations.ApiStatus
  * ordinary changes.
  */
 @ApiStatus.Internal
-interface DocumentTextPatch { // TODO: implement DocumentEventImpl via DocumentTextPatch
+interface DocumentPatch { // TODO: implement DocumentEventImpl via DocumentTextPatch
   fun startOffset(): Int
   fun endOffset(): Int
   fun newFragment(): CharSequence
@@ -43,13 +42,16 @@ interface DocumentTextPatch { // TODO: implement DocumentEventImpl via DocumentT
       newFragment: CharSequence,
       newModStamp: Long,
       clearLineFlags: Boolean,
-    ): DocumentTextPatch {
-      return SimpleTextPatch(
+    ): DocumentPatch {
+      return DocumentPatchImpl(
         startOffset,
         endOffset,
         newFragment,
         newModStamp,
         clearLineFlags,
+        startOffset,
+        endOffset,
+        startOffset,
       )
     }
 
@@ -62,8 +64,8 @@ interface DocumentTextPatch { // TODO: implement DocumentEventImpl via DocumentT
       clearLineFlags: Boolean,
       originStartOffset: Int,
       originEndOffset: Int,
-      moveOffset: Int = startOffset,
-    ): DocumentTextPatch {
+      moveOffset: Int,
+    ): DocumentPatch {
       if (originStartOffset == startOffset &&
           originEndOffset == endOffset &&
           moveOffset == startOffset) {
@@ -75,7 +77,7 @@ interface DocumentTextPatch { // TODO: implement DocumentEventImpl via DocumentT
           clearLineFlags,
         )
       }
-      return ComplexTextPatch(
+      return DocumentPatchImpl(
         startOffset,
         endOffset,
         newFragment,

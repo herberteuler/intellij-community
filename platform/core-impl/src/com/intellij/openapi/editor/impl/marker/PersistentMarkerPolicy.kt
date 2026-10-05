@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.marker
 
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.impl.lineDiff
 import com.intellij.openapi.editor.impl.marker.PMarkerRoot.MarkerEntry
 import com.intellij.util.diff.FilesTooBigForDiffException
@@ -18,16 +18,16 @@ object PersistentMarkerPolicy : MarkerPolicy {
     get() = true
 
   fun requiresFullTraversal(
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): Boolean = patch.mayUseDiffTranslation(beforeText, afterText)
 
   override fun transform(
-    entry: MarkerEntry,
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      entry: MarkerEntry,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): MarkerTransformResult {
     if (!entry.shouldTranslateViaDiff(patch, beforeText, afterText)) {
       return DefaultMarkerPolicy.transform(entry, patch, beforeText, afterText)
@@ -42,10 +42,10 @@ object PersistentMarkerPolicy : MarkerPolicy {
   }
 
   private fun translate(
-    entry: MarkerEntry,
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      entry: MarkerEntry,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): MarkerEntry? {
     val startLine = beforeText.lineNumber(entry.nodeStart)
     val endLine = beforeText.lineNumber(entry.nodeEnd)
@@ -78,22 +78,22 @@ object PersistentMarkerPolicy : MarkerPolicy {
   }
 
   private fun MarkerEntry.shouldTranslateViaDiff(
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): Boolean {
     if (patch.isWholeTextReplacement(beforeText)) return true
     if (patch.startOffset() >= nodeEnd || patch.endOffset() <= nodeStart) return false
     return patch.mayUseDiffTranslation(beforeText, afterText)
   }
 
-  private fun DocumentTextPatch.mayUseDiffTranslation(beforeText: DocumentText, afterText: DocumentText): Boolean {
+  private fun DocumentPatch.mayUseDiffTranslation(beforeText: DocumentText, afterText: DocumentText): Boolean {
     if (isWholeTextReplacement(beforeText)) return true
     val oldLength = endOffset() - startOffset()
     return maxOf(newFragment().length, oldLength) * 5 >= afterText.length() * 4
   }
 
-  private fun DocumentTextPatch.isWholeTextReplacement(beforeText: DocumentText): Boolean {
+  private fun DocumentPatch.isWholeTextReplacement(beforeText: DocumentText): Boolean {
     return beforeText.length() != 0 && originStartOffset() == 0 && originEndOffset() == beforeText.length()
   }
 }

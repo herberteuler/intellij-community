@@ -3,7 +3,7 @@ package com.intellij.openapi.editor.impl.marker
 
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.ex.DocumentSnapshot
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.ex.PrioritizedDocumentListener
 import com.intellij.openapi.editor.impl.DocumentImpl
 import com.intellij.openapi.editor.impl.EditorDocumentPriorities
@@ -111,10 +111,10 @@ class SnapshotMarkerRootStore @JvmOverloads constructor(
   }
 
   internal fun applyPatch(
-    beforeRoot: PMarkerRoot,
-    beforeSnapshot: DocumentSnapshot,
-    afterSnapshot: DocumentSnapshot,
-    patch: DocumentTextPatch,
+      beforeRoot: PMarkerRoot,
+      beforeSnapshot: DocumentSnapshot,
+      afterSnapshot: DocumentSnapshot,
+      patch: DocumentPatch,
   ) {
     processQueue()
     val invalidatedMarkerIds: LongList? = if (onMarkersInvalidated == null) null else LongArrayList()

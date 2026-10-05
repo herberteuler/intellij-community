@@ -1,7 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor
 
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -9,7 +9,7 @@ internal class DocumentTextPatchTest {
 
   @Test
   fun `simple patch is printed without the origin and move fields`() {
-    val patch = DocumentTextPatch.simple(
+    val patch = DocumentPatch.simple(
       startOffset = 1,
       endOffset = 2,
       newFragment = "x",
@@ -24,7 +24,7 @@ internal class DocumentTextPatchTest {
 
   @Test
   fun `complex patch is printed with the fields differing from the applied range`() {
-    val patch = DocumentTextPatch.complex(
+    val patch = DocumentPatch.complex(
       startOffset = 5,
       endOffset = 6,
       newFragment = "y",
@@ -44,7 +44,7 @@ internal class DocumentTextPatchTest {
   @Test
   fun `patch freezes a mutable new fragment`() {
     val fragment = StringBuilder("new")
-    val patch = DocumentTextPatch.simple(
+    val patch = DocumentPatch.simple(
       startOffset = 1,
       endOffset = 2,
       newFragment = fragment,

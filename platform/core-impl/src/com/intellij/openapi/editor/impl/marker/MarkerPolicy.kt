@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.marker
 
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.impl.marker.PMarkerRoot.MarkerEntry
 import org.jetbrains.annotations.ApiStatus
 
@@ -22,10 +22,10 @@ fun interface MarkerPolicy {
    * [MarkerEntry.nodeStart] and [MarkerEntry.nodeEnd] therefore use [beforeText] coordinates.
    */
   fun transform(
-    entry: MarkerEntry,
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      entry: MarkerEntry,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): MarkerTransformResult
 
   /** Applies policy rules after a text move retargets [entry]. */
@@ -50,10 +50,10 @@ data class MarkerTransformResult(
 @ApiStatus.Internal
 object DefaultMarkerPolicy : MarkerPolicy {
   override fun transform(
-    entry: MarkerEntry,
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      entry: MarkerEntry,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): MarkerTransformResult {
     return if (entry.nodeStart == entry.nodeEnd) {
       transformPoint(entry, patch)
@@ -63,7 +63,7 @@ object DefaultMarkerPolicy : MarkerPolicy {
     }
   }
 
-  private fun transformPoint(entry: MarkerEntry, patch: DocumentTextPatch): MarkerTransformResult {
+  private fun transformPoint(entry: MarkerEntry, patch: DocumentPatch): MarkerTransformResult {
     val point = entry.nodeStart
     val editStart = patch.startOffset()
     val editEnd = patch.endOffset()
@@ -89,7 +89,7 @@ object DefaultMarkerPolicy : MarkerPolicy {
     return MarkerTransformResult(entry)
   }
 
-  private fun transformRange(entry: MarkerEntry, patch: DocumentTextPatch): MarkerTransformResult {
+  private fun transformRange(entry: MarkerEntry, patch: DocumentPatch): MarkerTransformResult {
     val startOffset = entry.nodeStart
     val endOffset = entry.nodeEnd
     val editStart = patch.startOffset()

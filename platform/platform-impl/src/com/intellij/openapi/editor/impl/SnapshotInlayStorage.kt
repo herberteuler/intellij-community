@@ -5,7 +5,7 @@ import com.intellij.openapi.editor.EditorCustomElementRenderer
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.ex.DocumentSnapshot
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.editor.impl.InlayKeys.ID_BEFORE_DISPOSAL
 import com.intellij.openapi.editor.impl.InlayKeys.OFFSET_BEFORE_DISPOSAL
@@ -410,10 +410,10 @@ internal class SnapshotBlockInlayMarker<R : EditorCustomElementRenderer>(
 
 private object InlineInlayMarkerPolicy : MarkerPolicy {
   override fun transform(
-    entry: PMarkerRoot.MarkerEntry,
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      entry: PMarkerRoot.MarkerEntry,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): MarkerTransformResult {
     val transformed = DefaultMarkerPolicy.transform(entry, patch, beforeText, afterText)
     return if (transformed.errorReason != null) {

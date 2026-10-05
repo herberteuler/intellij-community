@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl
 
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.impl.marker.MarkerSpec
 import com.intellij.openapi.editor.impl.marker.PMarkerResolution
 import com.intellij.openapi.editor.impl.marker.PMarkerRoot
@@ -40,7 +40,7 @@ open class CompoundPMarkerRoot private constructor(
   }
 
   override fun applyPatch(
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
     beforeText: DocumentText,
     afterText: DocumentText,
     invalidatedMarkerConsumer: LongConsumer,

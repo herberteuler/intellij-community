@@ -3,7 +3,7 @@ package com.intellij.openapi.editor.impl.marker
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentSnapshot
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.util.containers.ContainerUtil
 import org.jetbrains.annotations.ApiStatus
 
@@ -33,7 +33,7 @@ class SnapshotMarkerStores {
     return additionalApply(op, beforeSnapshot, afterSnapshot, capturedRoots)
   }
 
-  fun applyPatch(beforeSnapshot: DocumentSnapshot, patch: DocumentTextPatch): DocumentSnapshot {
+  fun applyPatch(beforeSnapshot: DocumentSnapshot, patch: DocumentPatch): DocumentSnapshot {
     val capturedRoots = captureRoots(beforeSnapshot)
     val afterSnapshot = applyPatch0(beforeSnapshot, patch)
     if (afterSnapshot === beforeSnapshot) return afterSnapshot
@@ -41,7 +41,7 @@ class SnapshotMarkerStores {
     return additionalApply(patch, beforeSnapshot, afterSnapshot, capturedRoots)
   }
 
-  fun applyPatch0(beforeSnapshot: DocumentSnapshot, patch: DocumentTextPatch): DocumentSnapshot {
+  fun applyPatch0(beforeSnapshot: DocumentSnapshot, patch: DocumentPatch): DocumentSnapshot {
     var snapshot = beforeSnapshot
     for (op in patch.ops()) {
       snapshot = snapshot.applyOp(op)
@@ -55,7 +55,7 @@ class SnapshotMarkerStores {
     afterSnapshot: DocumentSnapshot,
     capturedRoots: List<CapturedRoot>,
   ): DocumentSnapshot {
-    if (op is DocumentTextPatch) {
+    if (op is DocumentPatch) {
       validatePatch(beforeSnapshot, afterSnapshot, op)
       for (i in capturedRoots.indices) {
         val it = capturedRoots[i]
@@ -75,12 +75,12 @@ class SnapshotMarkerStores {
   }
 
   private fun additionalApply(
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
     beforeSnapshot: DocumentSnapshot,
     afterSnapshot: DocumentSnapshot,
     capturedRoots: List<CapturedRoot>,
   ): DocumentSnapshot {
-    if (patch is DocumentTextPatch) {
+    if (patch is DocumentPatch) {
       validatePatch(beforeSnapshot, afterSnapshot, patch)
       for (i in capturedRoots.indices) {
         val it = capturedRoots[i]
@@ -129,7 +129,7 @@ class SnapshotMarkerStores {
     return result
   }
 
-  private fun validatePatch(beforeSnapshot: DocumentSnapshot, afterSnapshot: DocumentSnapshot, patch: DocumentTextPatch) {
+  private fun validatePatch(beforeSnapshot: DocumentSnapshot, afterSnapshot: DocumentSnapshot, patch: DocumentPatch) {
     val beforeLength = beforeSnapshot.text().length()
     val afterLength = afterSnapshot.text().length()
     val startOffset = patch.startOffset()

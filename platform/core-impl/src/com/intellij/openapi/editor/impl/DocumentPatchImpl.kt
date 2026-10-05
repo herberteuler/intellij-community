@@ -3,17 +3,20 @@ package com.intellij.openapi.editor.impl
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.util.ArrayUtil
 import com.intellij.util.text.ImmutableCharSequence
 
-internal open class SimpleTextPatch(
+internal class DocumentPatchImpl(
   private val startOffset: Int,
   private val endOffset: Int,
   newFragment: CharSequence,
   private val newModStamp: Long,
   private val clearLineFlags: Boolean,
-) : DocumentTextPatch {
+  private val originStartOffset: Int,
+  private val originEndOffset: Int,
+  private val moveOffset: Int,
+) : DocumentPatch {
   private val newFragment: CharSequence = ImmutableCharSequence.asImmutable(newFragment)
 
   @Volatile
@@ -39,17 +42,17 @@ internal open class SimpleTextPatch(
     }
   }
 
-  final override fun startOffset(): Int = startOffset
-  final override fun endOffset(): Int = endOffset
-  final override fun newFragment(): CharSequence = newFragment
-  final override fun newModStamp(): Long = newModStamp
-  final override fun clearLineFlags(): Boolean = clearLineFlags
-  override fun originStartOffset(): Int = startOffset
-  override fun originEndOffset(): Int = endOffset
-  override fun moveOffset(): Int = startOffset
+  override fun startOffset(): Int = startOffset
+  override fun endOffset(): Int = endOffset
+  override fun newFragment(): CharSequence = newFragment
+  override fun newModStamp(): Long = newModStamp
+  override fun clearLineFlags(): Boolean = clearLineFlags
+  override fun originStartOffset(): Int = originStartOffset
+  override fun originEndOffset(): Int = originEndOffset
+  override fun moveOffset(): Int = moveOffset
   override fun ops(): List<DocumentOp> = patchToOps(this)
 
-  private fun patchToOps(patch: DocumentTextPatch): List<DocumentOp> {
+  private fun patchToOps(patch: DocumentPatch): List<DocumentOp> {
     val startOffset = patch.startOffset()
     val endOffset = patch.endOffset()
     val newFragment = patch.newFragment()
@@ -69,7 +72,7 @@ internal open class SimpleTextPatch(
     return ops
   }
 
-  final override fun toString(): String {
+  override fun toString(): String {
     return "${javaClass.simpleName}(" +
            "startOffset=${startOffset()}" +
            ", endOffset=${endOffset()}" +
@@ -81,25 +84,4 @@ internal open class SimpleTextPatch(
            ", clearLineFlags=${clearLineFlags()}" +
            ")"
   }
-}
-
-internal class ComplexTextPatch(
-  startOffset: Int,
-  endOffset: Int,
-  newFragment: CharSequence,
-  newModStamp: Long,
-  clearLineFlags: Boolean,
-  private val originStartOffset: Int,
-  private val originEndOffset: Int,
-  private val moveOffset: Int,
-) : SimpleTextPatch(
-  startOffset,
-  endOffset,
-  newFragment,
-  newModStamp,
-  clearLineFlags,
-) {
-  override fun originStartOffset(): Int = originStartOffset
-  override fun originEndOffset(): Int = originEndOffset
-  override fun moveOffset(): Int = moveOffset
 }

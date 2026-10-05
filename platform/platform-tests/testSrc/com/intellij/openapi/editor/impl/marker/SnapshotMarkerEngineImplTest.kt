@@ -4,7 +4,7 @@ package com.intellij.openapi.editor.impl.marker
 import com.intellij.openapi.editor.elf.Elf
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentSnapshot
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.ex.RangeMarkerEx
 import com.intellij.openapi.editor.impl.DocumentImpl
 import com.intellij.openapi.util.Key
@@ -18,13 +18,10 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Timeout
 import java.lang.ref.Reference
 import java.lang.ref.WeakReference
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.function.LongConsumer
 import kotlin.concurrent.thread
 import kotlin.random.Random
@@ -861,7 +858,7 @@ class SnapshotMarkerEngineImplTest {
 
   @Test
   fun `marker spec delegates transformation to its policy`() {
-    var receivedPatch: DocumentTextPatch? = null
+    var receivedPatch: DocumentPatch? = null
     val invalidatedMarkerIds = ArrayList<Long>()
     val policy = MarkerPolicy { entry, patch, _, _ ->
       receivedPatch = patch
@@ -875,7 +872,7 @@ class SnapshotMarkerEngineImplTest {
       flavorFlags = 0,
       markerReference = null)
 
-    val patch = DocumentTextPatch.complex(
+    val patch = DocumentPatch.complex(
       startOffset = 2,
       endOffset = 2,
       newFragment = "x",
@@ -1275,8 +1272,8 @@ class SnapshotMarkerEngineImplTest {
 
   private fun persistentSpec(): MarkerSpec = nonGreedySpec().copy(policy = PersistentMarkerPolicy)
 
-  private fun textPatch(startOffset: Int, endOffset: Int, newFragment: String): DocumentTextPatch {
-    return DocumentTextPatch.simple(
+  private fun textPatch(startOffset: Int, endOffset: Int, newFragment: String): DocumentPatch {
+    return DocumentPatch.simple(
       startOffset = startOffset,
       endOffset = endOffset,
       newFragment = newFragment,
@@ -1288,7 +1285,7 @@ class SnapshotMarkerEngineImplTest {
   private fun applyPatch(
     root: PMarkerRoot,
     before: String,
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
     invalidatedMarkerConsumer: LongConsumer = PMarkerRoot.EMPTY_LONG_CONSUMER,
     affectedMarkerConsumer: LongConsumer = PMarkerRoot.EMPTY_LONG_CONSUMER,
   ): PMarkerRoot {
@@ -1355,7 +1352,7 @@ class SnapshotMarkerEngineImplTest {
     ): DocumentSnapshot {
       return markerStores.applyPatch(
         parent,
-        DocumentTextPatch.simple(
+        DocumentPatch.simple(
           startOffset = startOffset,
           endOffset = endOffset,
           newFragment = newFragment,

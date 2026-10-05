@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.marker
 
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.impl.marker.PMarkerRoot.MarkerEntry
 import com.intellij.openapi.editor.impl.marker.PMarkerRootImpl.Companion.NULL_NODE
 import com.intellij.openapi.util.TextRange
@@ -185,7 +185,7 @@ open class PMarkerRootImpl private constructor(
   fun containsMarkerId(markerId: Long): Boolean = states.getUnchecked(markerId) != null
 
   override fun applyPatch(
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
     beforeText: DocumentText,
     afterText: DocumentText,
     invalidatedMarkerConsumer: LongConsumer,
@@ -245,7 +245,7 @@ open class PMarkerRootImpl private constructor(
   }
 
   private fun applyPatchWithFullTraversal(
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
     beforeText: DocumentText,
     afterText: DocumentText,
     invalidatedMarkerConsumer: LongConsumer,
@@ -662,7 +662,7 @@ open class PMarkerRootImpl private constructor(
 
     fun empty(): PMarkerRootImpl = EMPTY
 
-    private fun validatePatch(patch: DocumentTextPatch, beforeText: DocumentText, afterText: DocumentText) {
+    private fun validatePatch(patch: DocumentPatch, beforeText: DocumentText, afterText: DocumentText) {
       val startOffset = patch.startOffset()
       val endOffset = patch.endOffset()
       val newLength = patch.newFragment().length
@@ -996,7 +996,7 @@ open class PMarkerRootImpl private constructor(
     private fun updateMarkersStartingBeforeEdit(
       editor: MapBatchEditor,
       rootId: Long,
-      patch: DocumentTextPatch,
+      patch: DocumentPatch,
       beforeText: DocumentText,
       afterText: DocumentText,
       invalidatedMarkerConsumer: LongConsumer,
@@ -1211,7 +1211,7 @@ open class PMarkerRootImpl private constructor(
     private fun transform(
       editor: MapBatchEditor,
       entry: MarkerEntry,
-      patch: DocumentTextPatch,
+      patch: DocumentPatch,
       beforeText: DocumentText,
       afterText: DocumentText,
       invalidatedMarkerConsumer: LongConsumer,

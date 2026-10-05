@@ -14,7 +14,7 @@ import com.intellij.openapi.editor.ex.DocumentMutator
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentSettings
 import com.intellij.openapi.editor.ex.DocumentSnapshot
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.impl.event.DocumentEventImpl
 import com.intellij.openapi.editor.impl.marker.SnapshotMarkerStores
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -59,7 +59,7 @@ internal abstract class DocumentMutatorImpl(
     changeText(
       hostDocument,
       snapshot,
-      DocumentTextPatch.simple(
+      DocumentPatch.simple(
         startOffset = insertOffset,
         endOffset = insertOffset,
         newFragment = newFragment,
@@ -201,7 +201,7 @@ internal abstract class DocumentMutatorImpl(
     return changeText(
       hostDocument,
       snapshot,
-      DocumentTextPatch.simple(
+      DocumentPatch.simple(
         startOffset = startOffset,
         endOffset = endOffset,
         newFragment = "",
@@ -264,7 +264,7 @@ internal abstract class DocumentMutatorImpl(
   private fun changeText(
     hostDocument: Document,
     snapshotBefore: DocumentSnapshot,
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
     startOffset: Int,
     endOffset: Int,
     oldFragment: CharSequence,
@@ -295,7 +295,7 @@ internal abstract class DocumentMutatorImpl(
   protected open fun changeText(
     snapshotBefore: DocumentSnapshot,
     changeEvent: DocumentEvent,
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
   ): DocumentSnapshot {
     if (changeEvent is DocumentEventImpl) {
       patch.attachLineDiff(changeEvent.lineDiff)
@@ -323,7 +323,7 @@ internal abstract class DocumentMutatorImpl(
   protected fun mergeAndPatch(
     snapshotBefore: DocumentSnapshot,
     latest: DocumentSnapshot,
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
   ): DocumentSnapshot {
     val merged = snapshotBefore.withMetadata(latest)
     return snapshotMarkerStores.applyPatch(merged, patch)

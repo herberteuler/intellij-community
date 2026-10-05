@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.marker
 
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.util.TextRange
 import com.intellij.util.Processor
 import java.util.function.LongConsumer
@@ -48,7 +48,7 @@ interface PMarkerRoot {
    * [affectedMarkerConsumer] receives each marker ID that remains valid after its marker policy processes the patch.
    */
   fun applyPatch(
-    patch: DocumentTextPatch,
+    patch: DocumentPatch,
     beforeText: DocumentText,
     afterText: DocumentText,
     invalidatedMarkerConsumer: LongConsumer = EMPTY_LONG_CONSUMER,

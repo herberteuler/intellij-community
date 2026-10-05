@@ -2,7 +2,7 @@
 package com.intellij.openapi.editor.impl.marker
 
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.impl.lineDiff
 import com.intellij.openapi.editor.impl.marker.PMarkerRoot.MarkerEntry
 import com.intellij.util.diff.FilesTooBigForDiffException
@@ -20,10 +20,10 @@ enum class PersistentHighlighterPolicy(private val wholeLineRange: Boolean) : Ma
     get() = true
 
   override fun transform(
-    entry: MarkerEntry,
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      entry: MarkerEntry,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): MarkerTransformResult {
     if (entry.shouldTranslateViaDiff(patch, beforeText, afterText)) {
       try {
@@ -65,9 +65,9 @@ enum class PersistentHighlighterPolicy(private val wholeLineRange: Boolean) : Ma
   }
 
   private fun MarkerEntry.shouldTranslateViaDiff(
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): Boolean {
     if (beforeText.length() != 0 && patch.originStartOffset() == 0 && patch.originEndOffset() == beforeText.length()) return true
     if (patch.startOffset() >= nodeEnd || patch.endOffset() <= nodeStart) return false

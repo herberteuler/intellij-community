@@ -9,7 +9,7 @@ import com.intellij.openapi.editor.InlayModel
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.ex.DocumentSnapshot
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextPatch
+import com.intellij.openapi.editor.ex.DocumentPatch
 import com.intellij.openapi.editor.impl.marker.DefaultMarkerPolicy
 import com.intellij.openapi.editor.impl.marker.MarkerPolicy
 import com.intellij.openapi.editor.impl.marker.MarkerSpec
@@ -472,10 +472,10 @@ private class FoldRegionMarkerPolicy(
   private val onRangeAligned: () -> Unit,
 ) : MarkerPolicy {
   override fun transform(
-    entry: PMarkerRoot.MarkerEntry,
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      entry: PMarkerRoot.MarkerEntry,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): MarkerTransformResult {
     val transformed = DefaultMarkerPolicy.transform(entry, patch, beforeText, afterText)
     return if (transformed.errorReason != null) {
@@ -508,10 +508,10 @@ private class FoldRegionMarkerPolicy(
 
 private object CustomFoldRegionMarkerPolicy : MarkerPolicy {
   override fun transform(
-    entry: PMarkerRoot.MarkerEntry,
-    patch: DocumentTextPatch,
-    beforeText: DocumentText,
-    afterText: DocumentText,
+      entry: PMarkerRoot.MarkerEntry,
+      patch: DocumentPatch,
+      beforeText: DocumentText,
+      afterText: DocumentText,
   ): MarkerTransformResult {
     val transformed = DefaultMarkerPolicy.transform(entry, patch, beforeText, afterText)
     return if (transformed.errorReason != null) {

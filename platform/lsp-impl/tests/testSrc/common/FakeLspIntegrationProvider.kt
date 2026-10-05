@@ -25,6 +25,11 @@ internal fun TestFixture<Project>.fakeLspIntegrationFixture(
   val projectFixture = this@fakeLspIntegrationFixture
   val project = projectFixture.init()
 
+  check(project.getUserData(FAKE_LSP_CONFIG_KEY) == null) {
+    "fakeLspIntegrationFixture is already set up for $project, probably by an enclosing test class. " +
+    "Declare it either in the outer class or in each @Nested class, not in both."
+  }
+
   extensionPointFixture(LspIntegrationProvider.EP_NAME) {
     FakeLspIntegrationProvider()
   }.init()

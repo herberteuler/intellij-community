@@ -2,6 +2,7 @@
 package com.jetbrains.python.packaging.requirementsTxt
 
 import com.intellij.python.sdk.backend.associatedModuleDir
+import com.intellij.python.sdk.backend.requirementsPath
 import com.intellij.util.concurrency.annotations.RequiresWriteLock
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.edtWriteAction
@@ -47,6 +48,18 @@ object PythonRequirementTxtSdkUtils {
     return VirtualFileManager.getInstance().findFileByNioPath(requirementsPath)
   }
 
+  /** [resolvePersistedRequirementsFile] for [interpreter]. */
+  fun resolvePersistedRequirementsFile(interpreter: PythonInterpreter): VirtualFile? {
+    val requirementsPath = interpreter.requirementsPath ?: return null
+    return VirtualFileManager.getInstance().findFileByNioPath(requirementsPath)
+  }
+
+  /** [saveRequirementsTxtPath] for [interpreter]. It writes to the SDK additional data, so it reads the SDK. */
+  fun saveRequirementsTxtPath(project: Project, interpreter: PythonInterpreter, path: Path?) {
+    @Suppress("DEPRECATION")
+    saveRequirementsTxtPath(project, interpreter.getSdkAPI(), path)
+  }
+
   @JvmStatic
   fun saveRequirementsTxtPath(project: Project, sdk: Sdk, path: Path?) {
     val sdkModificator = sdk.sdkModificator
@@ -81,7 +94,7 @@ object PythonRequirementTxtSdkUtils {
 
     //Need to pass test, because TempFS doesn't support getNioPath()
     val requirementFilePath = requirementsFile.toNioPathOrNull() ?: Path.of(requirementsFile.path)
-    saveRequirementsTxtPath(module.project, interpreter.getSdkAPI(), requirementFilePath)
+    saveRequirementsTxtPath(module.project, interpreter, requirementFilePath)
 
     return requirementsFile
   }

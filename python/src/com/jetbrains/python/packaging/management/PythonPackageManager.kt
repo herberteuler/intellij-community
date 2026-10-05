@@ -22,7 +22,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.python.pyproject.PyDependencyGroup
 import com.intellij.python.pyproject.model.spi.ProjectName
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
+import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.sdk.backend.pythonInterpreterWithoutDetection
 import com.intellij.serviceContainer.AlreadyDisposedException
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
@@ -86,8 +86,19 @@ import org.jetbrains.annotations.Nls
 @ApiStatus.Experimental
 abstract class PythonPackageManager @ApiStatus.Internal constructor(
   val project: Project,
-  val sdk: Sdk,
+  /** The interpreter whose environment this manager manages. */
+  @ApiStatus.Internal
+  val interpreter: PythonInterpreter,
 ) : Disposable {
+  /** For a subclass that still has only an [Sdk]. It does not detect the environment. */
+  @Deprecated("Pass a PythonInterpreter")
+  @ApiStatus.Internal
+  constructor(project: Project, sdk: Sdk) : this(project, @Suppress("DEPRECATION") sdk.pythonInterpreterWithoutDetection())
+
+  /** The SDK of [interpreter], for the callers that still use an SDK API. */
+  @Suppress("DEPRECATION")
+  val sdk: Sdk get() = interpreter.getSdkAPI()
+
   /**
    * Whether this manager has an explicit list of top-level dependencies (e.g. from pyproject.toml).
    * When true, only packages from [listDeclaredPackagesCached] are treated as "declared" in the UI,
@@ -249,7 +260,6 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
         loadMetadata(packages).also { if (installedPackages === packages) installedPackagesMetadata = it }
       }
 
-      val interpreter = sdk.pythonInterpreterAsync()
       ApplicationManager.getApplication().messageBus.apply {
         syncPublisher(PACKAGE_MANAGEMENT_TOPIC).packagesChanged(interpreter)
         syncPublisher(PyPackageManager.PACKAGE_MANAGER_TOPIC).packagesRefreshed(sdk)
@@ -352,7 +362,6 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
     if (outdatedPackages == packageMap) return
 
     outdatedPackages = packageMap
-    val interpreter = sdk.pythonInterpreterAsync()
     ApplicationManager.getApplication().messageBus.apply {
       syncPublisher(PACKAGE_MANAGEMENT_TOPIC).outdatedPackagesChanged(interpreter)
     }

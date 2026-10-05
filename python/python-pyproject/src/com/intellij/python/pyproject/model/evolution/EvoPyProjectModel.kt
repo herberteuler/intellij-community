@@ -420,6 +420,11 @@ fun Project.findMainEvoPyProjectIfReady(): EvoPyProject? = EvoPyProjectModel.get
 @ApiStatus.Internal
 suspend fun Project.evoPyProjects(): Sequence<EvoPyProject> = EvoPyProjectModel.getInstance(this).snapshot().evoPyProjects
 
+/** The module of the first Python project of the snapshot whose interpreter is [interpreter], or `null`. */
+@ApiStatus.Internal
+suspend fun Project.findModuleFor(interpreter: PythonInterpreter): Module? =
+  evoPyProjects().firstOrNull { it.interpreter == interpreter }?.pyProject?.residesOnModule
+
 /**
  * Every interpreter a project of the current snapshot uses. See [EvoPyProjectModel.Snapshot.interpreters].
  */

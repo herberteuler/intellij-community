@@ -14,6 +14,7 @@ import com.intellij.python.community.impl.conda.environmentYml.CondaEnvironmentY
 import com.intellij.python.community.impl.conda.environmentYml.CondaEnvironmentYmlSdkUtils.ENV_YML_FILE_NAME
 import com.intellij.python.community.impl.conda.environmentYml.format.CondaEnvironmentYmlParser
 import com.intellij.python.community.impl.conda.environmentYml.format.EnvironmentYmlModifier
+import com.intellij.python.sdk.backend.PythonInterpreter
 import com.jetbrains.python.PyBundle
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.getOrThrow
@@ -40,7 +41,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import java.nio.file.Path
 
-internal class CondaPackageManager(project: Project, sdk: Sdk) : PythonPackageManager(project, sdk) {
+internal class CondaPackageManager(project: Project, interpreter: PythonInterpreter) : PythonPackageManager(project, interpreter) {
   override val repositoryManager: PythonRepositoryManager = CondaRepositoryManger(project, sdk).also {
     Disposer.register(this, it)
   }

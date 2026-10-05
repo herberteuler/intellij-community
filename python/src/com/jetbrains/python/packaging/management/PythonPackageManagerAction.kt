@@ -9,16 +9,18 @@ import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.util.NlsContexts
+import com.intellij.openapi.util.UserDataHolder
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.intellij.python.pyproject.model.evolution.findEvoPyProjectIfReady
+import com.intellij.python.sdk.backend.associatedModuleDir
+import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.jetbrains.python.errorProcessing.ErrorSink
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.packaging.management.ui.PythonPackageManagerUI
 import com.jetbrains.python.packaging.utils.PyPackageCoroutine
-import com.jetbrains.python.sdk.associatedModuleDir
 import com.jetbrains.python.sdk.isReadOnly
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.annotations.ApiStatus
@@ -64,7 +66,7 @@ internal abstract class PythonPackageManagerAction<T : PythonPackageManager, V> 
     val manager = if (isWatchedFile) getManager(e) else null
 
     with(e.presentation) {
-      isVisible = manager != null && !(modifiesEnvironment && manager.sdk.isReadOnly)
+      isVisible = manager != null && !(modifiesEnvironment && manager.interpreter.isReadOnly)
       isEnabled = manager?.isRunLocked() == false
     }
   }
@@ -84,7 +86,7 @@ internal abstract class PythonPackageManagerAction<T : PythonPackageManager, V> 
           runReadAction {
             DaemonCodeAnalyzer.getInstance(psiFile.project).restart(psiFile, "PythonPackageManagerAction")
           }
-          manager.sdk.associatedModuleDir?.let { refreshAfterToolRun(it) }
+          manager.interpreter.associatedModuleDir?.let { refreshAfterToolRun(it) }
         }
       }
     }
@@ -128,12 +130,19 @@ internal inline fun <reified T : PythonPackageManager> AnActionEvent.getPythonPa
 
 
 internal fun PythonPackageManager.isRunLocked(): Boolean {
-  return CancellableJobSerialRunner.isRunLocked(this.sdk)
+  return CancellableJobSerialRunner.isRunLocked(runLockHolder)
 }
 
 internal suspend fun <V> PythonPackageManager.runSynchronized(
   title: @NlsContexts.ProgressTitle String,
   runnable: suspend () -> PyResult<V>,
 ): PyResult<V> {
-  return CancellableJobSerialRunner.run(this.project, this.sdk, title, runnable)
+  return CancellableJobSerialRunner.run(this.project, runLockHolder, title, runnable)
 }
+
+/**
+ * The object that one run of this interpreter locks on. The interpreter wrapper is new on each call, so the lock lives
+ * on its SDK, which is the same object for every wrapper.
+ */
+private val PythonPackageManager.runLockHolder: UserDataHolder
+  @Suppress("DEPRECATION") get() = interpreter.getSdkAPI()

@@ -10,8 +10,10 @@ import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.intellij.python.pyproject.PyDependencyGroup
 import com.intellij.python.pyproject.PyProjectToml
 import com.intellij.python.pyproject.model.api.getPyProjectTomlFile
+import com.intellij.python.pyproject.model.evolution.findModuleFor
 import com.intellij.python.pyproject.model.spi.ProjectName
 import com.intellij.python.pytools.resolveExecutable
+import com.intellij.python.sdk.backend.PythonInterpreter
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.getOrNull
 import com.jetbrains.python.packaging.PyPackageName
@@ -36,7 +38,6 @@ import com.jetbrains.python.packaging.packageRequirements.packagesUnavailable
 import com.jetbrains.python.packaging.pip.PipRepositoryManager
 import com.jetbrains.python.poetry.POETRY_LOCK
 import com.jetbrains.python.sdk.add.v2.EelFileSystem
-import com.jetbrains.python.sdk.findModuleForSdk
 import com.jetbrains.python.sdk.pySdkAdditionalData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -49,8 +50,8 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import kotlin.io.path.readText
 
-internal class PoetryPackageManager(project: Project, sdk: Sdk) : PythonPackageManager(project, sdk) {
-  override val workspaceSupport: PythonWorkspaceSupport = PoetryWorkspaceSupport(project, sdk)
+internal class PoetryPackageManager(project: Project, interpreter: PythonInterpreter) : PythonPackageManager(project, interpreter) {
+  override val workspaceSupport: PythonWorkspaceSupport = PoetryWorkspaceSupport(project, interpreter)
   override val installedPackagesIncludeTransitive: Boolean = true
   override val repositoryManager: PythonRepositoryManager = PipRepositoryManager.getInstance(project)
   override fun getCliSpecs(eelApi: EelApi): List<PythonManagerCliSpec> = listOf(
@@ -326,11 +327,11 @@ private fun PyProjectToml.getPoetryGroupNames(): List<String> {
   return getDependencyGroupNames(legacyDev + poetryGroups)
 }
 
-private class PoetryWorkspaceSupport(private val project: Project, private val sdk: Sdk) : PythonWorkspaceSupport {
+private class PoetryWorkspaceSupport(private val project: Project, private val interpreter: PythonInterpreter) : PythonWorkspaceSupport {
   override suspend fun getWorkspaceMembers(projectName: ProjectName): List<PyWorkspaceMember> = listOf(PyWorkspaceMember(projectName.name))
 
   override suspend fun getDependencyGroups(projectName: ProjectName): Map<PyWorkspaceMember, List<PyDependencyGroup>> {
-    val pyprojectFile = project.findModuleForSdk(sdk)?.getPyProjectTomlFile() ?: return emptyMap()
+    val pyprojectFile = project.findModuleFor(interpreter)?.getPyProjectTomlFile() ?: return emptyMap()
     val parsed = PyProjectToml.parseCached(project, pyprojectFile) ?: return emptyMap()
     return mapOf(PyWorkspaceMember(projectName.name) to parsed.getPoetryGroupNames().map { PyDependencyGroup(it) })
   }

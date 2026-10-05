@@ -2,7 +2,6 @@
 package com.jetbrains.python.sdk.uv
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.platform.eel.EelApi
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.getSdkAPI
@@ -31,9 +30,9 @@ import kotlinx.coroutines.Deferred
  */
 internal abstract class UvPackageManagerBase(
   project: Project,
-  sdk: Sdk,
+  interpreter: PythonInterpreter,
   uvExecutionContextDeferred: Deferred<UvExecutionContext<*>>,
-) : PythonPackageManager(project, sdk) {
+) : PythonPackageManager(project, interpreter) {
   override val installedPackagesIncludeTransitive: Boolean = true
   override val repositoryManager: PythonRepositoryManager = PipRepositoryManager.getInstance(project)
   override fun getCliSpecs(eelApi: EelApi): List<PythonManagerCliSpec> = listOf(
@@ -67,18 +66,17 @@ internal abstract class UvPackageManagerBase(
 
 /** Picks the manager for the [UvMode] of the SDK. It pins a legacy SDK first. */
 internal class UvPackageManagerProvider : PythonPackageManagerProvider {
-  // The manager constructor still takes the SDK.
+  // The legacy mode pin reads and writes the SDK data.
   @Suppress("DEPRECATION")
   override fun createPackageManager(project: Project, interpreter: PythonInterpreter): PythonPackageManager? {
     if (!interpreter.isUv) {
       return null
     }
-    val sdk = interpreter.getSdkAPI()
-    val mode = pinLegacyUvMode(project, sdk)
+    val mode = pinLegacyUvMode(project, interpreter.getSdkAPI())
     val uvExecutionContext = interpreter.getUvExecutionContextAsync(PyPackageCoroutine.getScope(project), project) ?: return null
     return when (mode) {
-      UvMode.Project -> UvPackageManager(project, sdk, uvExecutionContext)
-      is UvMode.Pip -> UvPipPackageManager(project, sdk, uvExecutionContext)
+      UvMode.Project -> UvPackageManager(project, interpreter, uvExecutionContext)
+      is UvMode.Pip -> UvPipPackageManager(project, interpreter, uvExecutionContext)
     }
   }
 }

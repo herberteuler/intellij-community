@@ -13,7 +13,6 @@ import com.intellij.python.pyproject.PyDependencyGroup
 import com.intellij.python.requirements.parser.PyRequirementParser
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.associatedModuleDir
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.extensions.toPsi
 import com.jetbrains.python.packaging.common.PythonOutdatedPackage
@@ -30,10 +29,8 @@ import org.jetbrains.annotations.TestOnly
 import org.toml.lang.psi.TomlFile
 
 @TestOnly
-// `PythonPackageManager` still takes the SDK, so the constructor passes it on.
-@Suppress("DEPRECATION")
-internal class TestPythonPackageManager(project: Project, private val interpreter: PythonInterpreter) :
-  PythonPackageManager(project, interpreter.getSdkAPI()) {
+internal class TestPythonPackageManager(project: Project, interpreter: PythonInterpreter) :
+  PythonPackageManager(project, interpreter) {
   private var packageNames: List<String> = emptyList()
   private var packageDetails: PythonPackageDetails? = null
   private var packageVersions: Map<String, List<String>> = emptyMap()

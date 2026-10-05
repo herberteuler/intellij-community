@@ -245,6 +245,16 @@ val Sdk.interpreterType: InterpreterType
     else -> REGULAR
   }
 
+/** [Sdk.executionType] for [PythonInterpreter]. **DO NOT USE FOR ANYTHING BUT FUS** */
+@get:ApiStatus.Internal
+val PythonInterpreter.executionType: InterpreterTarget
+  @Suppress("DEPRECATION") get() = getSdkAPI().executionType
+
+/** [Sdk.interpreterType] for [PythonInterpreter]. **DO NOT USE FOR ANYTHING BUT FUS** */
+@get:ApiStatus.Internal
+val PythonInterpreter.interpreterType: InterpreterType
+  @Suppress("DEPRECATION") get() = getSdkAPI().interpreterType
+
 /**
  * Mapping from new targets to an old ones is need to keep compatibility with the current fus schema.
  * We are going to clean up these code together with housekeeping tasks about getting rid of old remotes.

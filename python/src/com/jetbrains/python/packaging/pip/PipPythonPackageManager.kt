@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.packaging.pip
 
+import com.intellij.python.sdk.backend.PythonInterpreter
 import com.jetbrains.python.packaging.utils.PyPackageCoroutine
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleUtilCore
@@ -47,7 +48,7 @@ import java.nio.file.Path
  */
 @ApiStatus.Internal
 @PyInternalExecApi
-open class PipPythonPackageManager(project: Project, sdk: Sdk) : PythonPackageManager(project, sdk) {
+open class PipPythonPackageManager(project: Project, interpreter: PythonInterpreter) : PythonPackageManager(project, interpreter) {
   override val repositoryManager: PythonRepositoryManager = PipRepositoryManager.getInstance(project)
   override fun getCliSpecs(eelApi: EelApi): List<PythonManagerCliSpec> =
     listOf(PythonManagerCliSpec("pip", { sdk.homePath?.let { Path.of(it) } }, runAsModule = true))

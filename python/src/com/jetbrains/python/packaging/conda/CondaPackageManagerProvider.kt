@@ -3,7 +3,6 @@ package com.jetbrains.python.packaging.conda
 
 import com.intellij.openapi.project.Project
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.jetbrains.python.isCondaVirtualEnv
 import com.jetbrains.python.packaging.management.PythonPackageManager
 import com.jetbrains.python.packaging.management.PythonPackageManagerProvider
@@ -11,8 +10,6 @@ import org.jetbrains.annotations.ApiStatus
 
 @ApiStatus.Experimental
 class CondaPackageManagerProvider : PythonPackageManagerProvider {
-  // The manager constructor still takes the SDK.
-  @Suppress("DEPRECATION")
   override fun createPackageManager(project: Project, interpreter: PythonInterpreter): PythonPackageManager? =
-    if (interpreter.isCondaVirtualEnv) CondaPackageManager(project, interpreter.getSdkAPI()) else null
+    if (interpreter.isCondaVirtualEnv) CondaPackageManager(project, interpreter) else null
 }

@@ -12,8 +12,10 @@ import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.intellij.python.pyproject.PyDependencyGroup
 import com.intellij.python.pyproject.PyProjectToml
 import com.intellij.python.pyproject.PyProjectTomlFile
+import com.intellij.python.pyproject.model.evolution.findModuleFor
 import com.intellij.python.pyproject.model.internal.workspaceBridge.getToolWorkspaceLayout
 import com.intellij.python.pyproject.model.spi.ProjectName
+import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.uv.common.UV_TOOL_ID
 import com.jetbrains.python.PyBundle.message
 import com.jetbrains.python.errorProcessing.PyResult
@@ -36,7 +38,6 @@ import com.jetbrains.python.packaging.packageRequirements.extractDeclaredDepende
 import com.jetbrains.python.packaging.packageRequirements.packagesUnavailable
 import com.jetbrains.python.project.PyProject.Companion.asPyProject
 import com.jetbrains.python.requirements.PyDependenciesFile
-import com.jetbrains.python.sdk.findModuleForSdk
 import com.jetbrains.python.uv.UV_LOCK
 import java.nio.file.Path
 import kotlinx.coroutines.Deferred
@@ -50,10 +51,10 @@ import kotlinx.coroutines.withContext
  */
 internal class UvPackageManager internal constructor(
   project: Project,
-  sdk: Sdk,
+  interpreter: PythonInterpreter,
   uvExecutionContextDeferred: Deferred<UvExecutionContext<*>>,
-) : UvPackageManagerBase(project, sdk, uvExecutionContextDeferred) {
-  override val workspaceSupport: PythonWorkspaceSupport = UvWorkspaceSupport(project, sdk)
+) : UvPackageManagerBase(project, interpreter, uvExecutionContextDeferred) {
+  override val workspaceSupport: PythonWorkspaceSupport = UvWorkspaceSupport(project, interpreter)
   override val treeProvider = cachedDependencyTree(
     lockFileName = UV_LOCK.value,
     dependencyFiles = { resolveDependencyFilesTree() },
@@ -265,7 +266,7 @@ internal class UvPackageManager internal constructor(
   }
 }
 
-private class UvWorkspaceSupport(private val project: Project, private val sdk: Sdk) : PythonWorkspaceSupport {
+private class UvWorkspaceSupport(private val project: Project, private val interpreter: PythonInterpreter) : PythonWorkspaceSupport {
   override suspend fun getWorkspaceMembers(projectName: ProjectName): List<PyWorkspaceMember> {
     val modules = getProjectModules()
     if (modules.isEmpty()) return listOf(PyWorkspaceMember(projectName.name))
@@ -302,12 +303,11 @@ private class UvWorkspaceSupport(private val project: Project, private val sdk: 
   }
 
   private suspend fun getProjectModules(): List<Module> {
-    return readAction {
-      val modules = ModuleManager.getInstance(project).modules
-      val layout = modules.firstNotNullOfOrNull { it.getToolWorkspaceLayout(UV_TOOL_ID) }
-      if (layout != null) return@readAction listOf(layout.rootModule) + layout.memberModules
-      listOfNotNull(project.findModuleForSdk(sdk))
+    val layout = readAction {
+      ModuleManager.getInstance(project).modules.firstNotNullOfOrNull { it.getToolWorkspaceLayout(UV_TOOL_ID) }
     }
+    if (layout != null) return listOf(layout.rootModule) + layout.memberModules
+    return listOfNotNull(project.findModuleFor(interpreter))
   }
 
   private suspend fun parseModuleGroups(module: Module): Pair<String, List<String>>? {

@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.uv
 
+import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.Sdk
@@ -34,9 +35,9 @@ import java.nio.file.Path
  */
 internal class UvPipPackageManager internal constructor(
   project: Project,
-  sdk: Sdk,
+  interpreter: PythonInterpreter,
   uvExecutionContextDeferred: Deferred<UvExecutionContext<*>>,
-) : UvPackageManagerBase(project, sdk, uvExecutionContextDeferred) {
+) : UvPackageManagerBase(project, interpreter, uvExecutionContextDeferred) {
   /** What the environment holds, as `uv pip tree` prints it. The requirements file alone keys the cache. */
   override val treeProvider = cachedDependencyTree(dependencyFiles = { resolveDependencyFilesTree() }) {
     withUv { uv -> uv.listAllPackagesTree() }

@@ -3,7 +3,7 @@ package com.jetbrains.python.packaging.pipenv
 
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.projectRoots.Sdk
+import com.intellij.python.sdk.backend.PythonInterpreter
 import com.jetbrains.python.sdk.pipenv.PIP_FILE_LOCK
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.packaging.packageRequirements.cachedDependencyTree
@@ -25,7 +25,7 @@ import com.jetbrains.python.sdk.pipenv.runPipEnvWithSdk
 import java.nio.file.Path
 import com.jetbrains.python.sdk.pipenv.PipEnvParser as SdkPipEnvParser
 
-internal class PipEnvPackageManager(project: Project, sdk: Sdk) : PythonPackageManager(project, sdk) {
+internal class PipEnvPackageManager(project: Project, interpreter: PythonInterpreter) : PythonPackageManager(project, interpreter) {
   override val repositoryManager: PythonRepositoryManager = PipRepositoryManager.getInstance(project)
 
   override val treeProvider: DependencyTreeProvider = cachedDependencyTree(

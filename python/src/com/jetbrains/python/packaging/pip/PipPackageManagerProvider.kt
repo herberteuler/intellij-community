@@ -3,7 +3,6 @@ package com.jetbrains.python.packaging.pip
 
 import com.intellij.openapi.project.Project
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.jetbrains.python.packaging.management.PythonPackageManager
 import com.jetbrains.python.packaging.management.PythonPackageManagerProvider
 import org.jetbrains.annotations.ApiStatus
@@ -11,8 +10,6 @@ import org.jetbrains.annotations.ApiStatus
 @ApiStatus.Experimental
 @ApiStatus.Internal
 class PipPackageManagerProvider : PythonPackageManagerProvider {
-  // The manager constructor still takes the SDK.
-  @Suppress("DEPRECATION")
   override fun createPackageManager(project: Project, interpreter: PythonInterpreter): PythonPackageManager =
-    PipPythonPackageManager(project, interpreter.getSdkAPI())
+    PipPythonPackageManager(project, interpreter)
 }

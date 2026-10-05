@@ -45,7 +45,7 @@ internal class PyPackageVersionUsagesCollector : ProjectUsagesCollector() {
 
   private suspend fun PythonPackageManager.getDeclaredPackages(): Set<MetricEvent> {
     val dependencies = listDeclaredPackagesCached()?.getOrNull() ?: return emptySet()
-    val usageData = getPythonSpecificInfo(sdk)
+    val usageData = getPythonSpecificInfo(interpreter)
     return dependencies.mapTo(HashSet()) { dep ->
       PYTHON_PACKAGE_INSTALLED.metric(usageData + listOf(
         PACKAGE_FIELD.with(dep.name),
@@ -59,8 +59,8 @@ internal class PyPackageVersionUsagesCollector : ProjectUsagesCollector() {
       PYTHON_PACKAGE_INSTALLED_IN_SDK.metric(
         PACKAGE_FIELD.with(pkg.name),
         PACKAGE_VERSION_FIELD.with(pkg.version),
-        EXECUTION_TYPE.with(sdk.executionType.value),
-        INTERPRETER_TYPE.with(sdk.interpreterType.value),
+        EXECUTION_TYPE.with(interpreter.executionType.value),
+        INTERPRETER_TYPE.with(interpreter.interpreterType.value),
       )
     }
   }

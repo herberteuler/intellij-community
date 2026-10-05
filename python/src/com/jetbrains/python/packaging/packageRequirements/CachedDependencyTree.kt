@@ -1,10 +1,10 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.packaging.packageRequirements
 
+import com.intellij.python.sdk.backend.associatedModuleDir
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.packaging.management.PythonPackageManager
 import com.jetbrains.python.requirements.PyDependenciesFile
-import com.jetbrains.python.sdk.associatedModuleDir
 
 /**
  * A provider that runs [fetchOutput] once per state of the files the tree is built from, however many callers ask.
@@ -30,7 +30,7 @@ internal fun PythonPackageManager.cachedDependencyTree(
   fetchOutput = fetchOutput,
   parse = parse,
   dependenciesState = {
-    val lockFile = lockFileName?.let { sdk.associatedModuleDir?.findChild(it) }
+    val lockFile = lockFileName?.let { interpreter.associatedModuleDir?.findChild(it) }
     val inputs = dependencyFiles().map { it.virtualFile } + listOfNotNull(lockFile)
     inputs.associate { it.path to it.modificationStamp }.ifEmpty { null }
   },

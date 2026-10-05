@@ -7,11 +7,13 @@ import com.intellij.execution.ExecutionException
 import com.intellij.execution.Platform
 import com.intellij.execution.process.LocalPtyOptions
 import com.intellij.execution.target.FullPathOnTarget
+import com.intellij.execution.target.PathMapping
 import com.intellij.execution.target.TargetEnvironment
 import com.intellij.execution.target.TargetEnvironmentRequest
 import com.intellij.execution.target.TargetProgressIndicator
 import com.intellij.execution.target.TargetedCommandLine
 import com.intellij.execution.target.TargetedCommandLineBuilder
+import com.intellij.execution.target.findPathVariants
 import com.intellij.execution.target.getTargetPaths
 import com.intellij.execution.target.local.LocalTargetPtyOptions
 import com.intellij.openapi.diagnostic.ControlFlowException
@@ -131,7 +133,17 @@ internal suspend fun createProcessLauncherOnTarget(
     }
   }
 
-  fun getRemotePath(localPath: Path): FullPathOnTarget = targetEnv.getTargetPaths(localPath.pathString).first()
+  // Helpers resolve to the copy the handler deployed. `getTargetPaths` lists the mounts of an `ExternallySynchronized`
+  // environment first, so WSL would name them through `/mnt/c` instead. Any other path keeps that mount: a working
+  // directory on a Windows drive must stay the project itself, not a copy.
+  val helperVolumes = targetEnv.uploadVolumes.values.filter { uploadRoots[it.localRoot]?.uploadVolumeExplicitly == false }
+  fun getRemotePath(localPath: Path): FullPathOnTarget {
+    val helperMapping = helperVolumes.find { localPath.startsWith(it.localRoot) }?.let { PathMapping(it.localRoot.pathString, it.targetRoot) }
+    return helperMapping?.let {
+      findPathVariants(listOf(it), localPath.pathString, PathMapping::localPath, Platform.current().fileSeparator,
+                       PathMapping::targetPath, targetEnv.targetPlatform.platform.fileSeparator).firstOrNull()
+    } ?: targetEnv.getTargetPaths(localPath.pathString).first()
+  }
 
   val (args, env) = launchRequest.args.getArgsAndEnv(object : Uploader {
     override suspend fun uploadFile(localFile: Path): FullPathOnTarget =

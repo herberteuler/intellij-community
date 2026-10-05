@@ -264,9 +264,19 @@ pub(crate) fn module_source(scratch: &Scratch, name: &str) -> PathBuf {
 
 /// The jar of [`module_source`] with a module manifest as its last entry.
 pub(crate) fn module_source_with_manifest(scratch: &Scratch, name: &str) -> PathBuf {
+    module_source_with_manifest_text(scratch, name, "Manifest-Version: 1.0\r\n\r\n")
+}
+
+/// The jar of [`module_source`] with `manifest` as its last entry.
+pub(crate) fn module_source_with_manifest_text(scratch: &Scratch, name: &str, manifest: &str) -> PathBuf {
     let mut entries = MODULE_ENTRIES.to_vec();
-    entries.push(entry(MANIFEST_ENTRY_NAME, "Manifest-Version: 1.0\r\n\r\n"));
+    entries.push(entry(MANIFEST_ENTRY_NAME, manifest));
     write_zip_jar(scratch, name, &entries)
+}
+
+/// The manifest that the rules_kotlin backend writes into the module output of `label`, as singlejar writes it.
+pub(crate) fn rule_manifest(label: &str) -> String {
+    format!("Manifest-Version: 1.0\r\nCreated-By: singlejar\r\nTarget-Label: {label}\r\nInjecting-Rule-Kind: kt_jvm_library\r\n\r\n")
 }
 
 /// The manifest that [`agent_sources`] gives the module output. It has LF line ends, as a checked-in resource file has.

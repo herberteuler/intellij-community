@@ -23,7 +23,7 @@ plan files through pluginpack. Each other input fails with an error that names i
 | `file=<entry name>=<path>` | a nonempty name and path. The recipe replay writes it for a single-file source. | no `=` after the name, or an empty part |
 | `trace-file=` | one path, in any number of groups | two different paths. A run writes one trace. |
 | A source path | a nonempty path | an empty path |
-| The module manifests of one jar | one | a second one. The refusal names the jar and both sources. |
+| The module manifests of one jar | one. A manifest with only the attributes the build rules write does not count. | a second one. The refusal names the jar and both sources. |
 | The `Boot-Class-Path` main attribute of a module manifest | the file name of the jar, or no attribute | every other value. The refusal names the jar, the source and the value. |
 | A module manifest | UTF-8 text | other bytes |
 | `META-INF/listOfEntities.txt` with `merge_entities` | UTF-8 text | other bytes |
@@ -48,6 +48,13 @@ their `ManifestMode`, and by `keep-manifest=` when they have none. A producer wr
 is the one meaningful source of the jar, and never for a module output. pluginpack gives `ManifestMode::Drop` to each module source of a jar with two sources, and the
 module manifest survives all the same. A file source is never a module manifest, so the two manifest refusals do not
 apply to it. No entry changes its content in the merge.
+
+The rules_kotlin backend assembles every module output with singlejar, which writes a manifest into each jar:
+`Manifest-Version`, `Created-By`, and the two build-graph attributes `Target-Label` and `Injecting-Rule-Kind`. A module
+manifest that has a build-graph attribute and no main attribute beyond those four states nothing about the module, so
+it is no module manifest: the merge drops it and does not count it. A module that states its own manifest gets its
+attributes merged into that manifest, and the result is a module manifest with the build-graph attributes in it. A
+module output of the JPS backend carries a manifest only when the module states one, so the rule changes nothing there.
 
 A module manifest with a `Boot-Class-Path` must name the jar, `MergeSpec::jar_name()`. That is the file name of the
 output, because every producer writes a jar under the name it has in the distribution. The name is not in the bytes of

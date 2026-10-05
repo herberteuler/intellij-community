@@ -2,11 +2,12 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::merge::{main_attribute_values, trim_entity_list};
+use crate::merge::{is_rule_manifest, main_attribute_values, trim_entity_list};
 use crate::tests::golden::*;
 use crate::tests::testjar::{
     AGENT_MANIFEST, RawEntry, Scratch, SourceEntry, agent_sources, digest, entry, entry_names, index_pointer, module_source,
-    module_source_with_manifest, pack, raw, read_entry, write_raw_jar, write_zip_jar,
+    module_source_with_manifest, module_source_with_manifest_text, pack, raw, read_entry, rule_manifest, write_raw_jar,
+    write_zip_jar,
 };
 use crate::{EntryFilter, MANIFEST_ENTRY_NAME, ManifestMode, MergeOptions, MergeSpec, Source, duplicate_line};
 
@@ -345,6 +346,55 @@ fn two_module_manifests_are_refused() {
     );
     assert_eq!(duplicates, [MANIFEST_ENTRY_NAME]);
     assert_eq!(read_entry(&data, MANIFEST_ENTRY_NAME), "Library: true\r\n");
+}
+
+/// The build rules write a manifest into every module output of the rules_kotlin backend. It states nothing about the
+/// module, so it is no module manifest: the merge drops it, and two of them are no refusal. A module that states its
+/// own manifest gets its attributes merged into that manifest, and the result is a module manifest as before.
+#[test]
+fn a_rule_manifest_is_no_module_manifest() {
+    let scratch = Scratch::new();
+    let first = module_source_with_manifest_text(&scratch, "first.jar", &rule_manifest("@@community+//platform/a:a"));
+    let second = module_source_with_manifest_text(&scratch, "second.jar", &rule_manifest("@@community+//platform/b:b"));
+    let (data, duplicates) = pack(
+        &scratch,
+        spec("intellij.example.jar", vec![Source::module(&first), Source::module(&second)]),
+    );
+    // The two sample modules share their class entries, so those collide; the dropped manifests do not.
+    assert!(!duplicates.iter().any(|name| name == MANIFEST_ENTRY_NAME));
+    assert!(!entry_names(&data).iter().any(|name| name == MANIFEST_ENTRY_NAME));
+
+    let stated = "Manifest-Version: 1.0\r\nCreated-By: singlejar\r\nTarget-Label: @@community+//platform/c:c\r\n\
+                  Injecting-Rule-Kind: kt_jvm_library\r\nMain-Class: com.example.Main\r\n\r\n";
+    let third = module_source_with_manifest_text(&scratch, "third.jar", stated);
+    let (data, _) = pack(
+        &scratch,
+        spec("intellij.example.jar", vec![Source::module(&first), Source::module(&third)]),
+    );
+    assert_eq!(read_entry(&data, MANIFEST_ENTRY_NAME), stated);
+
+    let fourth = module_source_with_manifest_text(&scratch, "fourth.jar", stated);
+    let output = scratch.dir().join("intellij.example.jar");
+    let recipe = spec(output.to_str().unwrap(), vec![Source::module(&third), Source::module(&fourth)]);
+    assert_eq!(
+        pack_error(&recipe),
+        format!(
+            "{}: two module manifests, from {} and {}",
+            output.display(),
+            third.display(),
+            fourth.display()
+        )
+    );
+}
+
+#[test]
+fn a_rule_manifest_needs_a_build_graph_attribute_and_nothing_else() {
+    assert!(is_rule_manifest(rule_manifest("@@community+//platform/a:a").as_bytes()));
+    assert!(is_rule_manifest(b"manifest-version: 1.0\r\ntarget-label: //a:a\r\n\r\nName: entry\r\nSHA-256-Digest: x\r\n"));
+    assert!(!is_rule_manifest(b"Manifest-Version: 1.0\r\n\r\n"));
+    assert!(!is_rule_manifest(b"Manifest-Version: 1.0\r\nCreated-By: singlejar\r\n\r\n"));
+    assert!(!is_rule_manifest(b"Manifest-Version: 1.0\r\nTarget-Label: //a:a\r\nMain-Class: com.example.Main\r\n\r\n"));
+    assert!(!is_rule_manifest(b"\xff\xfe"));
 }
 
 #[test]

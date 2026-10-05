@@ -200,7 +200,9 @@ impl MergeSpec {
     /// `keep_manifest` and the policy of the source say. The manifest of a library survives only by its policy or by
     /// `keep_manifest`. A producer sets `keep_manifest` when the library is the one meaningful source of the jar. The
     /// merge refuses two module manifests in one jar. It also refuses a module manifest whose `Boot-Class-Path` main
-    /// attribute is not the name of the jar, [`MergeSpec::jar_name`]. No entry changes its content in the merge.
+    /// attribute is not the name of the jar, [`MergeSpec::jar_name`]. The manifest that the build rules write into
+    /// every module output, with the build-graph attributes and nothing beyond them, is no module manifest: the merge
+    /// drops it, see [`is_rule_manifest`]. No entry changes its content in the merge.
     pub fn merge(&self, options: &MergeOptions) -> Result<MergeReport> {
         let output = &self.output;
         let jar_name = self.jar_name();
@@ -286,7 +288,15 @@ impl MergeSpec {
                     continue;
                 }
                 let is_module_manifest = is_manifest && filter == EntryFilter::ModuleOutput;
+                // A module manifest is read before the duplicate check: its content decides whether it is one at
+                // all, and the `Boot-Class-Path` check below reads it again. Every other entry is read after the check.
+                let mut manifest = None;
                 if is_module_manifest {
+                    let data = jar.data(&entry)?;
+                    if is_rule_manifest(&data) {
+                        continue;
+                    }
+                    manifest = Some(data);
                     if let Some(first) = module_manifest {
                         bail!(
                             "{}: two module manifests, from {} and {}",
@@ -318,7 +328,10 @@ impl MergeSpec {
                     continue;
                 }
 
-                let data = jar.data(&entry)?;
+                let data = match manifest {
+                    Some(data) => data,
+                    None => jar.data(&entry)?,
+                };
                 if verify_crc {
                     // A carried CRC is sound only while the source CRC is right. No build pays for this check, but a
                     // parity run does: it proves that the copied number describes these bytes.
@@ -497,6 +510,28 @@ pub(crate) fn trim_entity_list<'a>(data: &'a [u8], source: &Path) -> Result<&'a 
 /// The main attribute of a Java agent manifest that names the jar to add to the boot class path.
 const BOOT_CLASS_PATH: &str = "Boot-Class-Path";
 
+/// The main attributes of the manifest that the build rules write into every module output. The rules_kotlin backend
+/// assembles a module output with singlejar, which writes `Manifest-Version` and `Created-By` as the JAR specification
+/// states, and the two build-graph attributes `Target-Label` and `Injecting-Rule-Kind`.
+const RULE_MANIFEST_ATTRIBUTES: [&str; 4] = ["Manifest-Version", "Created-By", "Target-Label", "Injecting-Rule-Kind"];
+
+/// The main attributes that only the build rules write. A module that states its own manifest never has them.
+const BUILD_GRAPH_ATTRIBUTES: [&str; 2] = ["Target-Label", "Injecting-Rule-Kind"];
+
+/// Reports whether a module manifest is the one that the build rules write for every module output: it has a
+/// build-graph attribute and no main attribute beyond [`RULE_MANIFEST_ATTRIBUTES`]. Such a manifest states nothing
+/// about the module, so it is no module manifest. A module that states its own manifest adds attributes beyond the
+/// four, and that manifest is a module manifest. A manifest that is not UTF-8 is a module manifest, and
+/// [`check_boot_class_path`] refuses it.
+pub(crate) fn is_rule_manifest(data: &[u8]) -> bool {
+    let Ok(text) = std::str::from_utf8(data) else {
+        return false;
+    };
+    let names = main_attribute_names(text);
+    let known = |name: &str, table: &[&str]| table.iter().any(|known| name.eq_ignore_ascii_case(known));
+    names.iter().any(|name| known(name, &BUILD_GRAPH_ATTRIBUTES)) && names.iter().all(|name| known(name, &RULE_MANIFEST_ATTRIBUTES))
+}
+
 /// Refuses a module manifest whose `Boot-Class-Path` main attribute is not `jar_name`, the file name of the jar at
 /// `output`. A Java agent names its own jar in this attribute, so the attribute must name the jar that the merge
 /// writes. A manifest without the attribute passes.
@@ -520,10 +555,9 @@ pub(crate) fn check_boot_class_path(data: &[u8], source: &Path, output: &Path, j
     Ok(())
 }
 
-/// Returns each value of the main attribute `name` of a manifest, in manifest order. The main section ends at the first
-/// empty line. A line that starts with a space continues the line before it. The attribute name matches without regard
-/// to ASCII case, as the JAR specification states.
-pub(crate) fn main_attribute_values(text: &str, name: &str) -> Vec<String> {
+/// Returns the logical lines of the main section of a manifest, in manifest order. The main section ends at the first
+/// empty line. A line that starts with a space continues the line before it.
+fn main_section_lines(text: &str) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     for line in text.split('\n') {
         let line = line.strip_suffix('\r').unwrap_or(line);
@@ -536,6 +570,20 @@ pub(crate) fn main_attribute_values(text: &str, name: &str) -> Vec<String> {
         }
     }
     lines
+}
+
+/// Returns the name of each main attribute of a manifest, in manifest order. A line without a `:` is no attribute.
+fn main_attribute_names(text: &str) -> Vec<String> {
+    main_section_lines(text)
+        .iter()
+        .filter_map(|line| line.split_once(':').map(|(key, _)| key.to_string()))
+        .collect()
+}
+
+/// Returns each value of the main attribute `name` of a manifest, in manifest order. The attribute name matches without
+/// regard to ASCII case, as the JAR specification states.
+pub(crate) fn main_attribute_values(text: &str, name: &str) -> Vec<String> {
+    main_section_lines(text)
         .iter()
         .filter_map(|line| {
             let (key, value) = line.split_once(':')?;

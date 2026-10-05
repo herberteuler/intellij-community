@@ -3,6 +3,7 @@ package com.intellij.python.test.env.conda
 
 import com.intellij.execution.processTools.getResultStdout
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.python.community.execService.Args
 import com.intellij.python.community.execService.BinOnEel
@@ -324,6 +325,9 @@ class CondaPyEnvironment(
       }
     }
   }
+
+  // The conda SDK creation adds the SDK to the SDK table, so the registry gets it from the table.
+  override suspend fun prepareSdk(project: Project): PythonInterpreter = prepareSdk()
 
   override suspend fun prepareSdk(): PythonInterpreter {
     // Save a path to conda because some legacy code might use it instead of a full conda path from additional data

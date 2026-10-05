@@ -1,10 +1,12 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.test.env.core
 
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.SdkType
 import com.intellij.openapi.projectRoots.impl.SdkConfigurationUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.python.sdk.backend.PythonInterpreter
+import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
 import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.jetbrains.python.PyNames
 import com.jetbrains.python.PythonBinary
@@ -45,6 +47,16 @@ interface PyEnvironment : AutoCloseable {
       data,
       null
     ).pythonInterpreterAsync()
+  }
+
+  /**
+   * Adds the SDK of this environment to [project] through [PythonInterpreterProjectRegistry] and returns its interpreter.
+   * Remove it with [PythonInterpreterProjectRegistry.removePythonInterpreter].
+   */
+  suspend fun prepareSdk(project: Project): PythonInterpreter {
+    val vfsFile = withContext(Dispatchers.IO) { VfsUtil.findFile(pythonPath, true) } ?: error("Cannot find Python executable: ${pythonPath}")
+    return PythonInterpreterProjectRegistry.getInstance(project)
+      .addPythonInterpreter(vfsFile.path, PythonSdkAdditionalData(osSpecificSdkFlavorAndData, envPath))
   }
 
   /**

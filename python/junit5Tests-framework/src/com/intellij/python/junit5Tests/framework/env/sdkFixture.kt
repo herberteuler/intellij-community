@@ -40,7 +40,7 @@ fun TestFixture<Project>.pyMockSdkFixture(homePath: TestFixture<Path>): TestFixt
   initialized(sdk) {}
 }
 
-private object PyMockSdkTypeId : SdkTypeId {
+internal object PyMockSdkTypeId : SdkTypeId {
   override fun getName(): String = PyNames.PYTHON_SDK_ID_NAME
 
   override fun getVersionString(sdk: Sdk): String? = null

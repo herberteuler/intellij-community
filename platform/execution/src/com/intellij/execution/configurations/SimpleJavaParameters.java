@@ -9,6 +9,7 @@ import com.intellij.execution.process.ProcessTerminatedListener;
 import com.intellij.execution.target.TargetEnvironmentRequest;
 import com.intellij.execution.target.TargetedCommandLineBuilder;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.projectRoots.JavaCommandLineCompositionUtil;
 import com.intellij.openapi.projectRoots.JdkUtil;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.vfs.CharsetToolkit;
@@ -194,19 +195,17 @@ public class SimpleJavaParameters extends SimpleProgramParameters {
    * Consider using {@link #toCommandLine(TargetEnvironmentRequest)} instead with {@link com.intellij.execution.target.local.LocalTargetEnvironmentRequest} as an argument
    *
    * @throws CantRunException when incorrect Java SDK is specified
-   * @see JdkUtil#setupJVMCommandLine(SimpleJavaParameters)
    */
   public @NotNull GeneralCommandLine toCommandLine() throws CantRunException {
-    return JdkUtil.setupJVMCommandLine(this);
+    return JavaCommandLineCompositionUtil.setupJVMCommandLine(this);
   }
 
   /**
    * @throws CantRunException when incorrect Java SDK is specified
-   * @see JdkUtil#setupJVMCommandLine(SimpleJavaParameters)
    */
   public @NotNull TargetedCommandLineBuilder toCommandLine(@NotNull TargetEnvironmentRequest request)
     throws CantRunException {
-    return JdkUtil.setupJVMCommandLine(this, request);
+    return JavaCommandLineCompositionUtil.setupJVMCommandLine(this, request);
   }
 
   public @NotNull OSProcessHandler createOSProcessHandler() throws ExecutionException {

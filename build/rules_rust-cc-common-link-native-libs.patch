@@ -237,7 +237,7 @@ diff --git a/rust/private/native_libs_recorder/main.rs b/rust/private/native_lib
 new file mode 100644
 --- /dev/null
 +++ b/rust/private/native_libs_recorder/main.rs
-@@ -0,0 +1,356 @@
+@@ -0,0 +1,365 @@
 +//! A linker for `rustc` that links nothing: it writes the native inputs of the link to a response file.
 +//!
 +//! Under `cc_common.link`, `rustc` only emits an object, so the libraries of each `#[link]` attribute never reach the
@@ -422,11 +422,18 @@ new file mode 100644
 +    }
 +
 +    /// A `link.exe` link names a library from a search path by its bare file name, such as `ole32.lib`, and other
-+    /// libraries by path.
++    /// libraries by path. `rustc` names the C runtime with a `/defaultlib:` option, such as `/defaultlib:libcmt`.
 +    fn parse_msvc(&mut self, args: &'a [String]) {
 +        for arg in args {
 +            if starts_with_ignore_case(arg, "/OUT:") {
 +                self.output = Some(&arg["/OUT:".len()..]);
++            } else if starts_with_ignore_case(arg, "/DEFAULTLIB:") {
++                let name = &arg["/DEFAULTLIB:".len()..];
++                if name.to_ascii_lowercase().ends_with(".lib") {
++                    self.add(&[&name.to_string()]);
++                } else {
++                    self.add(&[&format!("{name}.lib")]);
++                }
 +            } else if arg.to_ascii_lowercase().ends_with(".lib") && !is_msvc_option(arg) {
 +                if arg.contains(['/', '\\']) {
 +                    self.library_files.push(arg);
@@ -508,6 +515,8 @@ new file mode 100644
 +            "ole32.lib",
 +            "kernel32.lib",
 +            "/LIBPATH:C:\\rust\\lib",
++            "/defaultlib:libcmt",
++            "/DEFAULTLIB:oldnames.lib",
 +            "ole32.lib",
 +            "C:\\tmp\\rustcXYZ\\propsys.dll_imports.lib",
 +            "/OUT:bazel-out/bin/printenv.exe",
@@ -517,7 +526,7 @@ new file mode 100644
 +        assert_eq!(
 +            Link::parse(&args),
 +            Link {
-+                libraries: strings(&["ole32.lib", "kernel32.lib"]),
++                libraries: strings(&["ole32.lib", "kernel32.lib", "libcmt.lib", "oldnames.lib"]),
 +                library_files: vec![
 +                    "C:\\tmp\\rustcXYZ\\propsys.dll_imports.lib",
 +                    "/Users/me/out/m/lib/windows.0.52.0.lib"

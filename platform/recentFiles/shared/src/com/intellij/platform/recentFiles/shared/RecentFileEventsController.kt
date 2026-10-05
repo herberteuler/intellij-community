@@ -7,7 +7,6 @@ import com.intellij.openapi.diagnostic.trace
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.ide.productMode.IdeProductMode
-import com.intellij.platform.productMode.ProductMode
 import org.jetbrains.annotations.ApiStatus
 
 /**
@@ -71,7 +70,7 @@ object RecentFileEventsController {
  */
 internal fun doesProcessHostRecentFilesModel(): Boolean {
   if (shouldUseFallbackSwitcher()) return false
-  // Strictly LIGHT, not isLight: LIGHT_WITH_RD_CONNECTION already holds the connection and takes the model from its backend.
-  if (IdeProductMode.getInstance().currentMode == ProductMode.LIGHT) return true
+  // isLightWithoutRemoteApi, not isLight: LIGHT_WITH_RD_CONNECTION already holds the connection and takes the model from its backend.
+  if (IdeProductMode.getInstance().currentMode.isLightWithoutRemoteApi) return true
   return !IdeProductMode.isFrontend
 }

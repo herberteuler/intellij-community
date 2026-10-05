@@ -3,7 +3,6 @@ package com.intellij.platform.ide.productMode
 
 import com.intellij.openapi.components.service
 import com.intellij.platform.productMode.ProductMode
-import com.intellij.util.PlatformUtils
 import org.jetbrains.annotations.ApiStatus
 
 /**
@@ -31,25 +30,27 @@ interface IdeProductMode {
       get() = getInstance().currentMode.isFrontendProcess
 
     /**
-     * Returns `true` if this process is running in a monolithic mode (a regular IDE instance).
+     * Returns `true` if this process is running in a monolithic mode (a regular IDE instance) or will upgrade to the monolithic mode (monolith Light Mode).
      */
     @JvmStatic
     val isMonolith: Boolean
-      get() = getInstance().currentMode == ProductMode.MONOLITH
+      get() = getInstance().currentMode.isMonolithProcess
 
     /**
-     * Returns `true` if this process is running in a light mode, becomes `false` once the process fully advances to the smart mode.
+     * Returns `true` in [ProductMode.LIGHT_REMOTE], [ProductMode.LIGHT_WITH_RD_CONNECTION] and [ProductMode.LIGHT_MONOLITH].
+     * It becomes `false` once the process fully advances to the smart mode.
      */
     @JvmStatic
     val isLight: Boolean
       get() = getInstance().currentMode.isLight
 
     /**
-     * Light mode in standalone (no RD)
+     * Returns `true` in the standalone JetBrains Light product before its upgrade, that is in [ProductMode.LIGHT_MONOLITH].
+     * It becomes `false` once the process advances to [ProductMode.MONOLITH].
      */
     @JvmStatic
     val isUnifiedIde: Boolean
-      get() = isMonolith && PlatformUtils.getPlatformPrefix() == "Light"
+      get() = getInstance().currentMode == ProductMode.LIGHT_MONOLITH
   }
 
   /**

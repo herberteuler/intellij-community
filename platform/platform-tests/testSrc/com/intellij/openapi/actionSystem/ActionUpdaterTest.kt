@@ -61,6 +61,7 @@ import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.event.KeyEvent
 import java.util.concurrent.ConcurrentHashMap
@@ -115,7 +116,7 @@ class ActionUpdaterTest {
   @ValueSource(booleans = [false, true])
   fun testNonTrivialActionGroupHidesEmptyPopup(lightMode: Boolean): Unit = timeoutRunBlocking {
     application.replaceService(IdeProductMode::class.java, object : IdeProductMode {
-      override val currentMode: ProductMode = if (lightMode) ProductMode.LIGHT else ProductMode.MONOLITH
+      override val currentMode: ProductMode = if (lightMode) ProductMode.LIGHT_REMOTE else ProductMode.MONOLITH
     }, disposable)
 
     val group = NonTrivialActionGroup()
@@ -127,10 +128,11 @@ class ActionUpdaterTest {
     assertFalse(presentations.getPresentation(group).isEnabled)
   }
 
-  @Test
-  fun testLightModeSkipsIncompatibleActionUpdate(): Unit = timeoutRunBlocking {
+  @ParameterizedTest(name = "mode={0}")
+  @EnumSource(value = ProductMode::class, names = ["LIGHT_REMOTE", "LIGHT_MONOLITH"])
+  fun testLightModeSkipsIncompatibleActionUpdate(mode: ProductMode): Unit = timeoutRunBlocking {
     application.replaceService(IdeProductMode::class.java, object : IdeProductMode {
-      override val currentMode: ProductMode = ProductMode.LIGHT
+      override val currentMode: ProductMode = mode
     }, disposable)
 
     val childUpdated = AtomicBoolean()

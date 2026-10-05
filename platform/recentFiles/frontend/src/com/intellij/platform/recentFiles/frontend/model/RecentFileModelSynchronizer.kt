@@ -6,7 +6,6 @@ import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.platform.ide.productMode.IdeProductMode
-import com.intellij.platform.productMode.ProductMode
 import com.intellij.platform.recentFiles.shared.FileSwitcherApi
 import com.intellij.platform.recentFiles.shared.RecentFileKind
 import com.intellij.platform.recentFiles.shared.RecentFilesCoroutineScopeProvider
@@ -40,8 +39,8 @@ internal class RecentFileModelSynchronizer : ProjectActivity {
    * lives on the backend.
    */
   private suspend fun synchronizeWithTheLocalModelOfALightSession(frontendRecentFilesModel: FrontendRecentFilesModel, project: Project) {
-    // Strictly LIGHT, not isLight: LIGHT_WITH_RD_CONNECTION already awaits its backend. See awaitWithLocalFallback.
-    if (IdeProductMode.getInstance().currentMode != ProductMode.LIGHT) return
+    // isLightWithoutRemoteApi, not isLight: LIGHT_WITH_RD_CONNECTION already awaits its backend. See awaitWithLocalFallback.
+    if (!IdeProductMode.getInstance().currentMode.isLightWithoutRemoteApi) return
 
     // TODO IJPL-252054 watch the product mode of the applied plugin set instead of the connection, once the platform
     //  publishes that mode as a flow.

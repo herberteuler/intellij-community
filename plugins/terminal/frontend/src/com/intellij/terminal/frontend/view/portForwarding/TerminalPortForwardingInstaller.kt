@@ -101,17 +101,18 @@ internal fun installPortForwarding(terminalView: TerminalView, coroutineScope: C
 }
 
 /**
- * Suspends while the IDE runs in the light mode, until the transition to the smart mode completes.
+ * Suspends while the IDE runs in the client light mode, until the transition to the smart mode completes.
  * Returns immediately in the other modes.
+ * The standalone light product keeps the local port forwarding stack, so it returns at once.
  *
- * The light mode has no backend, so the RemDev port forwarding stack is absent.
+ * The client light mode has no backend, so the RemDev port forwarding stack is absent.
  * An EEL tunnel created in the light mode would stay invisible to that stack after the transition (IJPL-252746).
- * So the terminal offers no port forwarding in the light mode.
+ * So the terminal offers no port forwarding in the client light mode.
  * After the transition, [TerminalPortForwardingManager.getInstance] resolves to the split-mode implementation,
  * and the panels of the terminals that survived the transition work through it, the same as the new ones.
  */
 private suspend fun awaitSmartModeTransitionIfLight() {
-  if (!IdeProductMode.isLight) return
+  if (!isClientLightMode()) return
 
   val transitionFinished = CompletableDeferred<Unit>()
   val connection = ApplicationManager.getApplication().messageBus.connect()
@@ -125,7 +126,7 @@ private suspend fun awaitSmartModeTransitionIfLight() {
       }
     })
     // The transition can complete between the check above and the subscription. Re-check to not wait forever.
-    if (IdeProductMode.isLight) {
+    if (isClientLightMode()) {
       transitionFinished.await()
     }
   }
@@ -133,6 +134,9 @@ private suspend fun awaitSmartModeTransitionIfLight() {
     connection.disconnect()
   }
 }
+
+/** `true` in the light modes of the JetBrains Client, which upgrade to the split-mode port forwarding stack. */
+private fun isClientLightMode(): Boolean = IdeProductMode.isLight && IdeProductMode.isFrontend
 
 /**
  * Returns true if application running on "localhost:<port>" inside [eelDescriptor] is accessible locally

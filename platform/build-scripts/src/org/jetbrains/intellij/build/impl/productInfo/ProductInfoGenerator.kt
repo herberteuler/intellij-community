@@ -143,7 +143,7 @@ internal fun generateEmbeddedFrontendLaunchData(
 
 /** The JVM arguments the `ijLight` command adds to those of the frontend it starts. */
 internal val IJ_LIGHT_JVM_ARGUMENTS: List<String> = listOf(
-  "-Dintellij.platform.product.mode=light",
+  "-Dintellij.platform.product.mode=light_remote",
   "-Dintellij.platform.use.proxies.for.open.services=true",
   "-Didea.vfs.max-file-length-to-cache=0",
   "-Dcom.intellij.openapi.fileTypes.impl.FileTypeDetectionService.allowDetectionByContent=false",

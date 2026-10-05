@@ -14,7 +14,9 @@ import java.util.concurrent.atomic.AtomicReference
  * The product mode of the current process.
  *
  * The initial mode comes from the `intellij.platform.product.mode` system property.
- * A process may then move to another mode without a restart, which is how IJ Light gains a full RD/Monolith functionality.
+ * A process may then move to another mode without a restart. The JetBrains Client light session moves
+ * `LIGHT_REMOTE -> LIGHT_WITH_RD_CONNECTION -> FRONTEND`, and the standalone JetBrains Light product
+ * moves `LIGHT_MONOLITH -> MONOLITH`.
  * [transitionTo] performs the move, and [TRANSITIONS] declares which moves are legal.
  *
  * Read the mode from product code through [com.intellij.platform.ide.productMode.IdeProductMode].
@@ -88,8 +90,9 @@ object CurrentProductMode {
   }
 
   private val TRANSITIONS: Map<ProductMode, Set<ProductMode>> = mapOf(
-    ProductMode.LIGHT to setOf(ProductMode.LIGHT_WITH_RD_CONNECTION),
+    ProductMode.LIGHT_REMOTE to setOf(ProductMode.LIGHT_WITH_RD_CONNECTION),
     ProductMode.LIGHT_WITH_RD_CONNECTION to setOf(ProductMode.FRONTEND),
+    ProductMode.LIGHT_MONOLITH to setOf(ProductMode.MONOLITH),
   )
 
   private const val PRODUCT_MODE_PROPERTY = "intellij.platform.product.mode"

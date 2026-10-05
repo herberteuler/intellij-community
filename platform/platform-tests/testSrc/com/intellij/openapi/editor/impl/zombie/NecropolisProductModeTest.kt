@@ -9,8 +9,13 @@ import com.intellij.testFramework.replaceService
 
 internal class NecropolisProductModeTest : LightPlatformTestCase() {
 
-  fun testLightModeHasNoNecropolis() {
-    setProductMode(ProductMode.LIGHT)
+  fun testLightRemoteModeHasNoNecropolis() {
+    setProductMode(ProductMode.LIGHT_REMOTE)
+    assertNull(Necropolis.getInstance(project))
+  }
+
+  fun testLightMonolithModeHasNoNecropolis() {
+    setProductMode(ProductMode.LIGHT_MONOLITH)
     assertNull(Necropolis.getInstance(project))
   }
 

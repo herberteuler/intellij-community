@@ -42,7 +42,7 @@ states the placement only. The IJPL UI group owns the plugin.
 
 ## Goals
 
-- Show the recent files history in the popups of a `LIGHT` session.
+- Show the recent files history in the popups of a `LIGHT_REMOTE` or `LIGHT_MONOLITH` session.
 - Keep the behavior of the monolith, the frontend, and the backend modes unchanged.
 - Keep every backend-only dependency in the backend module.
 - Keep the host decision in one function with few callers.
@@ -128,16 +128,17 @@ Exactly one process of a session hosts the model:
 | `BACKEND` | yes | no |
 | `LANGUAGE_SERVER` | yes | no |
 | `FRONTEND` | no | yes |
-| `LIGHT` | yes | yes |
+| `LIGHT_REMOTE` | yes | yes |
+| `LIGHT_MONOLITH` | yes | yes |
 | `LIGHT_WITH_RD_CONNECTION` | no | yes |
 
 - `doesProcessHostRecentFilesModel()` must be the single function that holds this rule.
 - The function must return false when the fallback switcher key is on.
-- The function must return true when the mode is `LIGHT`.
+- The function must return true when the mode is `LIGHT_REMOTE` or `LIGHT_MONOLITH` (`ProductMode.isLightWithoutRemoteApi`).
 - The function must return true when the mode is not a frontend process.
 - The function must return false in every other case.
 - The function must be `internal` and live in the `shared` module, in the file of the controller.
-- The rule must match `awaitWithLocalFallback`. A `LIGHT` session serves itself.
+- The rule must match `awaitWithLocalFallback`. A light session without a remote API serves itself.
   A session with a connection awaits its backend.
 
 ### The callers of the guard
@@ -183,16 +184,16 @@ Exactly one process of a session hosts the model:
 
 - `FileSwitcherApi.getInstance()` must resolve through `LiteRemoteApiProviderService.awaitWithLocalFallback`.
 - The local fallback must be `service<FileSwitcherApi>()`, so the contract does not name the implementation class.
-- The call must return the local service in a `LIGHT` session.
+- The call must return the local service in a `LIGHT_REMOTE` or `LIGHT_MONOLITH` session.
 - The call must await the backend connection and return the remote API in every other mode.
 - The `shared` module must register `FileSwitcherApiImpl` as the application service behind `FileSwitcherApi`.
 - The RPC provider of the `backend` module and the local fallback must serve the same service instance.
 
 ### The frontend restart
 
-- The frontend synchronizer must restart its subscriptions when a `LIGHT` session gains a backend.
+- The frontend synchronizer must restart its subscriptions when a `LIGHT_REMOTE` session gains a backend.
 - The source is `LiteRemoteApiProviderService.awaitConnectionAndResolve`, awaited beside the running subscriptions.
-  Only a strictly `LIGHT` session awaits it. Every other mode already takes the model from its backend.
+  Only a session with `ProductMode.isLightWithoutRemoteApi` awaits it. Every other mode already takes the model from its backend.
 - The restart must cancel the previous subscriptions and fetches first.
 - The restart must resolve `FileSwitcherApi` again, so the backend takes the model over after a light upgrade.
 - The synchronizer must return early when the fallback switcher key is on.
@@ -232,8 +233,8 @@ The `frontend` descriptor keeps its content. Only the generated dependency list 
 ## User Experience
 
 - The popups show no change in the monolith, the frontend, and the backend modes.
-- A `LIGHT` session shows the history, the problem mark, the icon, and the colours of each file.
-- A `LIGHT` session shows an empty path text, because it has no file name index.
+- A light session shows the history, the problem mark, the icon, and the colours of each file.
+- A light session shows an empty path text, because it has no file name index.
 - After the upgrade to a backend, the path text appears once the backend model answers.
 
 ## Data & Backend
@@ -291,8 +292,8 @@ Two commits rebuild the change. Each commit compiles and passes the distributed 
 - The extension point keeps the name `recentFiles.presentationContributor` with one method.
   A rename to a path text name is possible.
 - The VFS listener keeps only a file that the project file index holds as content. Verify that a
-  deleted file leaves the list in a `LIGHT` session, because a light project may have no content roots.
-- The distributed model test runs in the monolith mode. No automatic test covers the `LIGHT`
+  deleted file leaves the list in a light session, because a light project may have no content roots.
+- The distributed model test runs in the monolith mode. No automatic test covers the light
   resolution or the restart on the upgrade.
 - The restart watches the backend connection, not the product mode, so a mode change that brings no new
   connection does not restart the frontend. `PluginManagerCore.currentInitContextFlow` would cover that case,

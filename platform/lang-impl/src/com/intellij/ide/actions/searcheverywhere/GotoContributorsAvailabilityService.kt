@@ -7,7 +7,6 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.platform.ide.productMode.IdeProductMode
-import com.intellij.platform.productMode.ProductMode
 import com.intellij.platform.project.projectId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -28,9 +27,9 @@ class GotoContributorsAvailabilityService(private val project: Project, private 
   @Volatile
   private var remoteAvailability: RemoteAvailability? = null
 
-  // Strictly LIGHT, not isLight: LIGHT_WITH_RD_CONNECTION already awaits the backend. See awaitWithLocalFallback.
+  // isLightWithoutRemoteApi, not isLight: LIGHT_WITH_RD_CONNECTION already awaits the backend. See awaitWithLocalFallback.
   private val unknownRemoteCountsAsAvailable: Boolean
-    get() = IdeProductMode.getInstance().currentMode != ProductMode.LIGHT
+    get() = !IdeProductMode.getInstance().currentMode.isLightWithoutRemoteApi
 
   init {
     val refresh = Runnable {

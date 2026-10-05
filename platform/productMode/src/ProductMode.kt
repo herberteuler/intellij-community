@@ -34,17 +34,25 @@ enum class ProductMode(val id: @NonNls String) {
   BACKEND("backend"),
 
   /**
-   * Indicates that this process is running in a light mode - a minimalistic self-sufficient frontend IDE.
+   * Indicates that this process is the JetBrains Client light session: a minimal self-sufficient frontend.
+   * It gains a backend through [LIGHT_WITH_RD_CONNECTION].
    */
   @ApiStatus.Internal
-  LIGHT("light"),
+  LIGHT_REMOTE("light_remote"),
 
   /**
    * Indicates that this process is running in a light mode with an established rd connection.
-   * This is a temporary mode which appears during transition from the "light" to "frontend" mode.
+   * This is a temporary mode which appears during the transition from [LIGHT_REMOTE] to [FRONTEND].
    */
   @ApiStatus.Internal
   LIGHT_WITH_RD_CONNECTION("light_with_rd_connection"),
+
+  /**
+   * Indicates that this process is the standalone JetBrains Light product before it gains the full
+   * IDE features. It has no backend process and no remote API. It moves to [MONOLITH] without a restart.
+   */
+  @ApiStatus.Internal
+  LIGHT_MONOLITH("light_monolith"),
 
   /**
    * Indicates that this process is running in a language server mode.
@@ -55,20 +63,38 @@ enum class ProductMode(val id: @NonNls String) {
   ;
 
   /**
-   * Returns `true` in [LIGHT] and in [LIGHT_WITH_RD_CONNECTION].
+   * Returns `true` in [LIGHT_REMOTE], [LIGHT_WITH_RD_CONNECTION] and [LIGHT_MONOLITH].
    * It turns `false` once the process advances out of the light mode.
    */
   @get:ApiStatus.Internal
   val isLight: Boolean
-    get() = this == LIGHT || this == LIGHT_WITH_RD_CONNECTION
+    get() = this == LIGHT_REMOTE || this == LIGHT_WITH_RD_CONNECTION || this == LIGHT_MONOLITH
 
   /**
-   * Returns `true` when this process shows the UI to the user and does not compute smart features itself.
-   * It covers [FRONTEND] and both light modes, and it is `false` in [MONOLITH].
+   * Returns `true` when this process shows the UI to the user and takes smart features from a backend process.
+   * It covers [FRONTEND], [LIGHT_REMOTE] and [LIGHT_WITH_RD_CONNECTION].
+   * It is `false` in [MONOLITH] and in [LIGHT_MONOLITH]: a standalone light process shows the UI, but it is not a frontend.
    */
   @get:ApiStatus.Internal
   val isFrontendProcess: Boolean
-    get() = this == FRONTEND || isLight
+    get() = this == FRONTEND || this == LIGHT_REMOTE || this == LIGHT_WITH_RD_CONNECTION
+
+  /**
+   * Returns `true` when this process serves itself and no other process takes part.
+   * It covers [MONOLITH], and [LIGHT_MONOLITH], which becomes [MONOLITH] without a restart.
+   * It does not say that the backend modules are loaded. Compare with [MONOLITH] for that.
+   */
+  @get:ApiStatus.Internal
+  val isMonolithProcess: Boolean
+    get() = this == MONOLITH || this == LIGHT_MONOLITH
+
+  /**
+   * Returns `true` in [LIGHT_REMOTE] and [LIGHT_MONOLITH]: a light process with no remote API to await.
+   * It is `false` in [LIGHT_WITH_RD_CONNECTION], which already holds the connection.
+   */
+  @get:ApiStatus.Internal
+  val isLightWithoutRemoteApi: Boolean
+    get() = this == LIGHT_REMOTE || this == LIGHT_MONOLITH
 
   @ApiStatus.Internal
   companion object {

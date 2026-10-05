@@ -13,7 +13,6 @@ import com.intellij.openapi.application.readAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ex.WelcomeScreenProjectProvider
 import com.intellij.platform.ide.productMode.IdeProductMode
-import com.intellij.platform.productMode.ProductMode
 import com.intellij.platform.project.projectId
 import com.intellij.platform.scopes.SearchScopesInfo
 import com.intellij.platform.searchEverywhere.SeItemData
@@ -194,7 +193,8 @@ class SeTabDelegate(
 
     val providers = providers.getValue()
     val providerIds = providers.getProviderIds(disabledProviders ?: emptyList())
-    if (IdeProductMode.getInstance().currentMode == ProductMode.LIGHT) {
+    // isLightWithoutRemoteApi, not isLight: LIGHT_WITH_RD_CONNECTION already holds the connection. See awaitWithLocalFallback.
+    if (IdeProductMode.getInstance().currentMode.isLightWithoutRemoteApi) {
       val providersHolder = providers.localProvidersHolder ?: return false
       val exportableProviderIds = providerIds.filter { providersHolder.get(it, isAllTab)?.canBeShownInFindResults() == true }
       SeFindToolWindowManager(project).openInFindToolWindow(exportableProviderIds, params, isAllTab, providersHolder, project.projectId())

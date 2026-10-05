@@ -73,15 +73,16 @@ Exactly one process of a session hosts the model. The product mode decides which
 | `BACKEND` | yes | no |
 | `LANGUAGE_SERVER` | yes | no |
 | `FRONTEND` | no | yes |
-| `LIGHT` | yes | yes |
+| `LIGHT_REMOTE` | yes | yes |
+| `LIGHT_MONOLITH` | yes | yes |
 | `LIGHT_WITH_RD_CONNECTION` | no | yes |
 
-- A process must host the model when the mode is `LIGHT`, or when the mode is not a frontend process.
+- A process must host the model when the mode is `LIGHT_REMOTE` or `LIGHT_MONOLITH`, or when the mode is not a frontend process.
 - A monolith process must use the old popup when `switcher.use.fallback.in.monolith` is on.
   A JetBrains Client and a remote development host must always use this plugin.
 - No process must host the model while the old popup is in use.
 - The user interface must resolve the model contract through the lite remote API service.
-- The service must return the local model when the product mode is `LIGHT`.
+- The service must return the local model when the product mode is `LIGHT_REMOTE` or `LIGHT_MONOLITH`.
 - The service must wait for the remote model in every other product mode.
   [@test] ../../../../remote-dev/rdct-tests/rdct-tests-distributed/src/com/jetbrains/rdct/common/distributed/platform/ui/RecentEditsTest.kt
 - Both parts must restart their work when the product mode of the process changes.
@@ -344,7 +345,7 @@ The contract carries four events:
 - A user interface test needs a running IDE. The remote driver runs it, not the unit test runner.
   The directory `tests/remote-driver-tests/test/com/intellij/driver/tests/idea/platform/ui/recentFiles`
   holds more of them.
-- A light dev run needs `-Dintellij.platform.product.mode=light` in the virtual machine options.
+- A light dev run needs `-Dintellij.platform.product.mode=light_remote` or `=light_monolith` in the virtual machine options.
   The process starts as a monolith without the option.
 
 ## Open Questions / Risks

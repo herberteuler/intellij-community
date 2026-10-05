@@ -4,7 +4,6 @@ package com.intellij.ide.rpc
 
 import com.intellij.platform.ide.productMode.IdeProductMode
 import com.intellij.platform.rpc.lite.LiteRemoteApiProviderService
-import com.intellij.platform.productMode.ProductMode
 import fleet.rpc.RemoteApi
 import fleet.rpc.RemoteApiDescriptor
 import org.jetbrains.annotations.ApiStatus
@@ -18,10 +17,10 @@ suspend fun <T : RemoteApi<Unit>> LiteRemoteApiProviderService.Companion.awaitWi
   localImplementation: () -> T,
 ): T {
   // Null is not "no backend": a connected frontend also resolves null until its protocol client
-  // is up. Only a strictly-Light session uses the local implementation; everything else awaits
-  // (IJPL-252054). Strictly LIGHT, not isLight: LIGHT_WITH_RD_CONNECTION already holds the
-  // connection and awaits it like any connected frontend.
-  if (IdeProductMode.getInstance().currentMode == ProductMode.LIGHT) {
+  // is up. Only a light process without a remote API uses the local implementation; everything else
+  // awaits (IJPL-252054). isLightWithoutRemoteApi, not isLight: LIGHT_WITH_RD_CONNECTION already
+  // holds the connection and awaits it like any connected frontend.
+  if (IdeProductMode.getInstance().currentMode.isLightWithoutRemoteApi) {
     tryResolve(descriptor)?.let { return it }
     return localImplementation()
   }

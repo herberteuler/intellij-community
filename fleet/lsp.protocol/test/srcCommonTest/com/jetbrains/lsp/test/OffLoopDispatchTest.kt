@@ -4,6 +4,9 @@ import com.jetbrains.lsp.implementation.LspClient
 import com.jetbrains.lsp.implementation.LspException
 import com.jetbrains.lsp.implementation.LspHandlers
 import com.jetbrains.lsp.implementation.LspResultDecodeException
+import com.jetbrains.lsp.implementation.LspWireBody
+import com.jetbrains.lsp.implementation.LspWireCodec
+import com.jetbrains.lsp.implementation.LspWireOutgoing
 import com.jetbrains.lsp.implementation.NotificationDispatch
 import com.jetbrains.lsp.implementation.lspHandlers
 import com.jetbrains.lsp.implementation.withLsp
@@ -32,8 +35,6 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -49,7 +50,7 @@ import kotlin.test.assertTrue
  * Off-loop work in `withLsp` (S6): a result after `id` decodes on the read loop (envelope pass), one before `id` in the
  * caller's coroutine; a result that does not decode throws
  * [LspResultDecodeException], and [NotificationDispatch.Sequential] runs notification handlers on one ordered worker.
- * The peer is the test itself, over `JsonElement` channels.
+ * The peer is the test itself, over wire channels.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OffLoopDispatchTest {
@@ -223,7 +224,7 @@ class OffLoopDispatchTest {
             peer.send("""{"jsonrpc":"2.0","id":77,"method":"test/hang","params":{}}""")
             peer.notify(1)
             peer.send("""{"jsonrpc":"2.0","method":"${'$'}/cancelRequest","params":{"id":77}}""")
-            val answer = peer.fromClient.receive().jsonObject
+            val answer = peer.fromClient.receive().json().jsonObject
             assertEquals(77, answer["id"]!!.jsonPrimitive.int)
             assertEquals(ErrorCodes.RequestCancelled, answer["error"]!!.jsonObject["code"]!!.jsonPrimitive.int)
             assertTrue(handlerCancelled.isCompleted)
@@ -249,8 +250,8 @@ class OffLoopDispatchTest {
             }
         }
         // rendezvous: a send completes only when the read loop takes the message, so `read` counts the loop's reads
-        val toClient = Channel<JsonElement>()
-        val fromClient = Channel<JsonElement>(Channel.UNLIMITED)
+        val toClient = Channel<LspWireBody>()
+        val fromClient = Channel<LspWireOutgoing>(Channel.UNLIMITED)
         var read = 0
         val client = launch { withLsp(toClient, fromClient, handlers, NotificationDispatch.Sequential) { awaitCancellation() } }
         val feeder = launch {
@@ -290,8 +291,8 @@ class OffLoopDispatchTest {
                 handled += n
             }
         }
-        val toClient = Channel<JsonElement>(Channel.UNLIMITED)
-        val fromClient = Channel<JsonElement>(Channel.UNLIMITED)
+        val toClient = Channel<LspWireBody>(Channel.UNLIMITED)
+        val fromClient = Channel<LspWireOutgoing>(Channel.UNLIMITED)
         val client = launch { withLsp(toClient, fromClient, handlers, dispatch) { awaitCancellation() } }
         for (n in 1..5) toClient.send(notificationJson(n))
         toClient.close()
@@ -332,8 +333,8 @@ class OffLoopDispatchTest {
                 handled += n
             }
         }
-        val toClient = Channel<JsonElement>(Channel.UNLIMITED)
-        val fromClient = Channel<JsonElement>(Channel.UNLIMITED)
+        val toClient = Channel<LspWireBody>(Channel.UNLIMITED)
+        val fromClient = Channel<LspWireOutgoing>(Channel.UNLIMITED)
         val bodyDone = CompletableDeferred<Unit>()
         val client = launch { withLsp(toClient, fromClient, handlers, dispatch) { bodyDone.await() } }
         for (n in 1..5) toClient.send(notificationJson(n))
@@ -349,12 +350,12 @@ class OffLoopDispatchTest {
 
     // region harness
 
-    private class Peer(val toClient: Channel<JsonElement>, val fromClient: Channel<JsonElement>) {
-        suspend fun send(json: String) = toClient.send(Json.parseToJsonElement(json))
+    private class Peer(val toClient: Channel<LspWireBody>, val fromClient: Channel<LspWireOutgoing>) {
+        suspend fun send(json: String) = toClient.send(LspWireCodec.decodeFrameBody(json.encodeToByteArray()))
 
         suspend fun notify(n: Int) = toClient.send(notificationJson(n))
 
-        suspend fun receiveRequestId(): Int = fromClient.receive().jsonObject["id"]!!.jsonPrimitive.int
+        suspend fun receiveRequestId(): Int = fromClient.receive().json().jsonObject["id"]!!.jsonPrimitive.int
 
         /** Answers [id], or the next request the client sends. */
         suspend fun answer(id: Int? = null, result: String? = null, error: String? = null) {
@@ -415,7 +416,7 @@ class OffLoopDispatchTest {
     }
 
     private companion object {
-        fun notificationJson(n: Int): JsonElement = Json.parseToJsonElement("""{"jsonrpc":"2.0","method":"test/note","params":$n}""")
+        fun notificationJson(n: Int): LspWireBody = LspWireCodec.decodeFrameBody("""{"jsonrpc":"2.0","method":"test/note","params":$n}""".encodeToByteArray())
     }
 
     // endregion

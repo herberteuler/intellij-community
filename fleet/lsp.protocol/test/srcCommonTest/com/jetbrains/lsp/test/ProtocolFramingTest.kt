@@ -15,6 +15,7 @@ import com.jetbrains.lsp.implementation.LspWireCodec
 import com.jetbrains.lsp.implementation.LspWireBody
 import com.jetbrains.lsp.implementation.LspWireIncoming
 import com.jetbrains.lsp.implementation.LspWireOutgoing
+import com.jetbrains.lsp.implementation.inMemoryLspConnections
 import com.jetbrains.lsp.implementation.withLspFraming
 import com.jetbrains.lsp.protocol.StringOrInt
 import com.jetbrains.lsp.protocol.NotificationType
@@ -30,7 +31,9 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
@@ -268,7 +271,7 @@ class ProtocolFramingTest {
       val serverToClient = ByteChannel()
       val server = launch {
         withBaseProtocolFraming(TestConnection(clientToServer, serverToClient)) { incoming, outgoing ->
-          withLsp(incoming, outgoing, lspHandlers {
+          withLspOverTrees(incoming, outgoing, lspHandlers {
             request(echo) { text -> if (text == "null") null else "$text 😀" }
             request(fail) { text -> throwLspError(fail, text, "data \"$text\"", -32001) }
             notification(note) { text -> notes.send(text) }
@@ -276,7 +279,7 @@ class ProtocolFramingTest {
         }
       }
       withBaseProtocolFraming(TestConnection(serverToClient, clientToServer)) { incoming, outgoing ->
-        withLsp(incoming, outgoing, lspHandlers {}) { client ->
+        withLspOverTrees(incoming, outgoing, lspHandlers {}) { client ->
           assertEquals("日本 \"q\" 😀", client.request(echo, "日本 \"q\""))
           assertEquals(null, client.request(echo, "null"))
           val error = assertFailsWith<LspException> { client.request(fail, "no ü") }
@@ -362,7 +365,7 @@ class ProtocolFramingTest {
         val handlers = lspHandlers { notification(note) { notes.add(it) } }
         val x = assertFailsWith<IllegalStateException>("wire $wire") {
           if (wire) withLsp(connection, exitSignal = null, handlers) { awaitCancellation() }
-          else withBaseProtocolFraming(connection) { incoming, outgoing -> withLsp(incoming, outgoing, handlers) { awaitCancellation() } }
+          else withBaseProtocolFraming(connection) { incoming, outgoing -> withLspOverTrees(incoming, outgoing, handlers) { awaitCancellation() } }
         }
         messages.add(x.message!!)
         assertTrue(connection.closed, "connection closed, wire $wire")
@@ -425,13 +428,12 @@ class ProtocolFramingTest {
   @Test
   fun `connection-level withLsp round-trips requests, results, errors and notifications`() {
     runTest {
-      val clientToServer = ByteChannel()
-      val serverToClient = ByteChannel()
+      val (serverConnection, clientConnection) = inMemoryLspConnections()
       val notes = Channel<String>(Channel.UNLIMITED)
       val server = launch {
-        withLsp(TestConnection(clientToServer, serverToClient), exitSignal = null, testHandlers(notes)) { awaitCancellation() }
+        withLsp(serverConnection, exitSignal = null, testHandlers(notes)) { awaitCancellation() }
       }
-      withLsp(TestConnection(serverToClient, clientToServer), exitSignal = null, lspHandlers {}) { client ->
+      withLsp(clientConnection, exitSignal = null, lspHandlers {}) { client ->
         exerciseServer(client, notes)
       }
       server.cancelAndJoin()
@@ -448,7 +450,7 @@ class ProtocolFramingTest {
         withLsp(TestConnection(clientToServer, serverToClient), exitSignal = null, testHandlers(notes)) { awaitCancellation() }
       }
       withBaseProtocolFraming(TestConnection(serverToClient, clientToServer)) { incoming, outgoing ->
-        withLsp(incoming, outgoing, lspHandlers {}) { client -> exerciseServer(client, notes) }
+        withLspOverTrees(incoming, outgoing, lspHandlers {}) { client -> exerciseServer(client, notes) }
       }
       server.cancelAndJoin()
 
@@ -456,7 +458,7 @@ class ProtocolFramingTest {
       val oldServerToClient = ByteChannel()
       val oldServer = launch {
         withBaseProtocolFraming(TestConnection(clientToOldServer, oldServerToClient)) { incoming, outgoing ->
-          withLsp(incoming, outgoing, testHandlers(notes)) { awaitCancellation() }
+          withLspOverTrees(incoming, outgoing, testHandlers(notes)) { awaitCancellation() }
         }
       }
       withLsp(TestConnection(oldServerToClient, clientToOldServer), exitSignal = null, lspHandlers {}) { client ->
@@ -498,16 +500,16 @@ class ProtocolFramingTest {
   }
 
   @Test
-  fun `withLsp over plain JsonElement channels still sends trees`() {
+  fun `withLsp over wire channels reads bodies made from trees and answers with frames that parse back to trees`() {
     runTest {
       val echo = RequestType("x/echo", String.serializer(), String.serializer(), String.serializer())
-      val toServer = Channel<JsonElement>(Channel.UNLIMITED)
-      val fromServer = Channel<JsonElement>(Channel.UNLIMITED)
+      val toServer = Channel<LspWireBody>(Channel.UNLIMITED)
+      val fromServer = Channel<LspWireOutgoing>(Channel.UNLIMITED)
       val server = launch {
         withLsp(toServer, fromServer, lspHandlers { request(echo) { text -> "$text!" } }) { awaitCancellation() }
       }
-      toServer.send(parse("""{"jsonrpc":"2.0","id":"a","method":"x/echo","params":"é"}"""))
-      assertEquals(parse("""{"jsonrpc":"2.0","id":"a","result":"é!"}"""), fromServer.receive())
+      toServer.send(LspWireCodec.decodeFrameBody(parse("""{"jsonrpc":"2.0","id":"a","method":"x/echo","params":"é"}""").toString().encodeToByteArray()))
+      assertEquals(parse("""{"jsonrpc":"2.0","id":"a","result":"é!"}"""), fromServer.receive().json())
       server.cancelAndJoin()
     }
   }
@@ -548,12 +550,12 @@ class ProtocolFramingTest {
       val modes = probeModes(
         server = { input, output, handlers ->
           withBaseProtocolFraming(TestConnection(input, output)) { incoming, outgoing ->
-            withLsp(incoming, outgoing, handlers) { awaitCancellation() }
+            withLspOverTrees(incoming, outgoing, handlers) { awaitCancellation() }
           }
         },
         client = { input, output, body ->
           withBaseProtocolFraming(TestConnection(input, output)) { incoming, outgoing ->
-            withLsp(incoming, outgoing, lspHandlers {}, body = body)
+            withLspOverTrees(incoming, outgoing, lspHandlers {}, body = body)
           }
         },
       )
@@ -601,6 +603,36 @@ class ProtocolFramingTest {
     client.notifyAsync(testNote, "second 😀")
     assertEquals("first é", notes.receive())
     assertEquals("second 😀", notes.receive())
+  }
+
+  /**
+   * [withLsp] over tree channels (from [withBaseProtocolFraming]), as the dropped `JsonElement` overload ran it: each
+   * incoming tree becomes a body from its compact text, and each outgoing frame is parsed back into a tree.
+   */
+  private suspend fun withLspOverTrees(
+    incoming: ReceiveChannel<JsonElement>,
+    outgoing: SendChannel<JsonElement>,
+    handlers: LspHandlers,
+    body: suspend CoroutineScope.(LspClient) -> Unit,
+  ): Unit = coroutineScope {
+    val bodies = Channel<LspWireBody>()
+    val frames = Channel<LspWireOutgoing>(Channel.UNLIMITED)
+    val reader = launch {
+      try {
+        incoming.consumeEach { bodies.send(LspWireCodec.decodeFrameBody(it.toString().encodeToByteArray())) }
+      }
+      finally {
+        bodies.close()
+      }
+    }
+    launch { for (frame in frames) outgoing.send(frame.json()) }
+    try {
+      withLsp(bodies, frames, handlers, body = body)
+    }
+    finally {
+      frames.close()
+      reader.cancel()
+    }
   }
 
   /** [readChunkedFrames] through [withLspFraming]; also checks that the end of input completes the exit signal. */

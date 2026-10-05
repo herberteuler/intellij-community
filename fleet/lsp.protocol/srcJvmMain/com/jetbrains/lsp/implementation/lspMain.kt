@@ -5,25 +5,22 @@ import com.jetbrains.lsp.protocol.RequestType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonElement
 import kotlin.time.Duration.Companion.milliseconds
 
 fun main() {
   runBlocking(Dispatchers.Default) {
-    val clientToServer = Channel<JsonElement>(Channel.UNLIMITED)
-    val serverToClient = Channel<JsonElement>(Channel.UNLIMITED)
+    val (serverConnection, clientConnection) = inMemoryLspConnections()
     val HelloRequestType = RequestType("hello", String.serializer(), String.serializer(), Unit.serializer())
     val HangRequestType = RequestType("hand", Unit.serializer(), Unit.serializer(), Unit.serializer())
     val PrintHelloNotification = NotificationType("printHello", String.serializer())
 
     withLsp(
-      incoming = clientToServer,
-      outgoing = serverToClient,
+      connection = serverConnection,
+      exitSignal = null,
       handlers = lspHandlers {
         request(HelloRequestType) { str ->
           "Hello, $str"
@@ -42,8 +39,8 @@ fun main() {
       },
     ) { server ->
       withLsp(
-        incoming = serverToClient,
-        outgoing = clientToServer,
+        connection = clientConnection,
+        exitSignal = null,
         handlers = lspHandlers {
           notification(PrintHelloNotification) { str ->
             println("client: $str")

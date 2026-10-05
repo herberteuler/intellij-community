@@ -40,10 +40,8 @@ const val DEFAULT_MAX_BODY_SIZE: Int = 256 shl 20
 /**
  * Runs [body] over the base-protocol frames of [connection]: `Content-Length` header, blank line, UTF-8 JSON body.
  *
- * [body] gets the decoded incoming messages and a channel for outgoing messages, both as JSON trees. [withLsp] and
- * [serveLsp] over these channels convert at the boundary: an incoming tree is decoded from its compact text, an
- * outgoing frame is parsed back into a tree. To skip that, use [withLspFraming] with their wire overloads, or their
- * connection-level overloads.
+ * [body] gets the decoded incoming messages and a channel for outgoing messages, both as JSON trees. For an LSP
+ * session use [withLspFraming], or the connection overloads of [withLsp] and [serveLsp].
  *
  * A header line of more than [MAX_HEADER_LINE_LENGTH] bytes, or a `Content-Length` above [maxBodySize], drops the
  * connection, as any header that is not ours does.
@@ -64,7 +62,7 @@ suspend fun withBaseProtocolFraming(
  * [withBaseProtocolFraming] over wire messages: the same frames, reader and header rules, but an incoming body becomes
  * no tree ([LspWireBody]: its text, read by the wire [withLsp], where kotlinx reads the envelope and the payload, typed
  * by the handler's serializer, straight from the text), and outgoing messages are ready frame parts ([LspWireOutgoing]),
- * written as they are. Use it with the wire overloads of [withLsp] and [serveLsp].
+ * written as they are. Use it with the channel overloads of [withLsp] and [serveLsp].
  *
  * NOT A STABLE API, see [LspWireCodec].
  */

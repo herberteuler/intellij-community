@@ -33,11 +33,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationStrategy
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.incrementAndFetch
-import kotlin.jvm.JvmName
 
 private val LOG by lazy { logger<LspClient>() }
 
@@ -122,7 +120,7 @@ private fun <Result> decodeResponse(requestType: RequestType<*, Result, *>, resp
 
 /**
  * Encodes and sends the messages of [withLspImpl]. Every message is encoded as frame parts ([LspWireCodec]): the payload
- * goes straight to its text, then to its bytes, with no JSON tree. What the channel gets is up to the entry point.
+ * goes straight to its text, then to its bytes, with no JSON tree.
  */
 internal abstract class LspOutgoing {
     abstract suspend fun send(message: LspWireOutgoing)
@@ -143,39 +141,25 @@ internal abstract class LspOutgoing {
         LspWireCodec.encodeErrorFrame(id, error)
 }
 
-/** The wire API: the channel gets the [LspWireOutgoing] frames as they are. */
+/** The channel gets the [LspWireOutgoing] frames as they are. */
 private class WireOutgoing(private val outgoing: SendChannel<LspWireOutgoing>) : LspOutgoing() {
     override suspend fun send(message: LspWireOutgoing) = outgoing.send(message)
 
     override fun trySend(message: LspWireOutgoing): ChannelResult<Unit> = outgoing.trySend(message)
 }
 
-/** The `JsonElement` channel API: the channel gets the tree of each frame body ([LspWireOutgoing.json]). */
-private class JsonOutgoing(private val outgoing: SendChannel<JsonElement>) : LspOutgoing() {
-    override suspend fun send(message: LspWireOutgoing) = outgoing.send(message.json())
-
-    override fun trySend(message: LspWireOutgoing): ChannelResult<Unit> = outgoing.trySend(message.json())
-}
-
-/** The outgoing side of the `JsonElement` channel API: frames parsed back into trees. */
-internal fun jsonOutgoing(outgoing: SendChannel<JsonElement>): LspOutgoing = JsonOutgoing(outgoing)
-
-/** The outgoing side of the wire API: frames. */
-internal fun wireOutgoing(outgoing: SendChannel<LspWireOutgoing>): LspOutgoing = WireOutgoing(outgoing)
-
 /**
- * The JSON-RPC session over [incoming] (each message made a body by [toBody]) and [lspOutgoing]. The loop reads each
- * body ([LspWireBody.read]), so a `JsonElement` source fails there, as it always did. That read is one kotlinx pass that
- * also decodes the payload typed when [handlers] or a pending request tell its serializer ([LspPayloadResolver]); so
- * payloads decode on the loop, and `$/cancelRequest` waits behind a big one.
+ * The JSON-RPC session over [incoming] and [outgoing]. The loop reads each body ([LspWireBody.read]) in one kotlinx
+ * pass that also decodes the payload typed when [body]'s handlers or a pending request tell its serializer
+ * ([LspPayloadResolver]); so payloads decode on the loop, and `$/cancelRequest` waits behind a big one.
  */
-internal suspend fun <M> withLspImpl(
-    incoming: ReceiveChannel<M>,
-    toBody: (M) -> LspWireBody,
-    lspOutgoing: LspOutgoing,
+internal suspend fun withLspImpl(
+    incoming: ReceiveChannel<LspWireBody>,
+    outgoing: SendChannel<LspWireOutgoing>,
     body: (LspClient) -> Resource<LspHandlers>,
     notificationDispatch: NotificationDispatch = NotificationDispatch.Inline,
 ) {
+    val lspOutgoing: LspOutgoing = WireOutgoing(outgoing)
     val outgoingRequests = MultiplatformConcurrentHashMap<StringOrInt, OutgoingRequest>()
     val idGen = AtomicInt(0)
     val stats = currentCoroutineContext()[LspWireStats] ?: LspWireStats()
@@ -222,16 +206,15 @@ internal suspend fun <M> withLspImpl(
     }
 
     try {
-        withLspSession(incoming, toBody, lspOutgoing, lspClient, body(lspClient), notificationDispatch, outgoingRequests, stats)
+        withLspSession(incoming, lspOutgoing, lspClient, body(lspClient), notificationDispatch, outgoingRequests, stats)
     } finally {
         LOG.debug { "Session wire stats: $stats" }
     }
 }
 
 /** The read loop of [withLspImpl] and its handlers; [stats] counts its envelope passes. */
-private suspend fun <M> withLspSession(
-    incoming: ReceiveChannel<M>,
-    toBody: (M) -> LspWireBody,
+private suspend fun withLspSession(
+    incoming: ReceiveChannel<LspWireBody>,
     lspOutgoing: LspOutgoing,
     lspClient: LspClient,
     sessionHandlers: Resource<LspHandlers>,
@@ -332,8 +315,7 @@ private suspend fun <M> withLspSession(
                 // Drive the loop with a plain `for`, and leave it (on `exit`) so `consume` cancels
                 // `incoming` on the way out, instead of cancelling the channel from inside its own handler.
                 incoming.consume {
-                    for (incomingMessage in incoming) {
-                        val body = toBody(incomingMessage)
+                    for (body in incoming) {
                         // the envelope pass: it decodes the payload too when the serializer is known
                         val message = try {
                             body.read(payloadResolver)
@@ -483,33 +465,14 @@ private suspend fun <M> withLspSession(
 }
 
 /**
- * The client side of a JSON-RPC session over [incoming] and [outgoing]: [body] gets the [LspClient], and [handlers]
- * answer the peer. Notification handlers run as [notificationDispatch] says (inline by default). A request's result is
- * decoded on the read loop, in the envelope pass, when the response has `id` before `result` (else in the coroutine
- * that called [LspClient.request]); a result that does not decode throws in that coroutine.
- *
- * The trees are converted at the channel boundary: an incoming tree is decoded from its compact text, and an outgoing
- * message is encoded as a frame and parsed back. The wire overloads skip both conversions.
- */
-suspend fun withLsp(
-    incoming: ReceiveChannel<JsonElement>,
-    outgoing: SendChannel<JsonElement>,
-    handlers: LspHandlers,
-    notificationDispatch: NotificationDispatch = NotificationDispatch.Inline,
-    body: suspend CoroutineScope.(LspClient) -> Unit,
-) {
-    withLspClient(handlers, body) { impl ->
-        withLspImpl(incoming, { LspWireBody.fromJson(it) }, jsonOutgoing(outgoing), impl, notificationDispatch)
-    }
-}
-
-/**
- * [withLsp] over wire messages ([withLspFraming]): payloads are decoded straight from the frame text, and outgoing
- * frames are sent as they are. Notification handlers run as [notificationDispatch] says.
+ * The client side of a JSON-RPC session over wire messages ([withLspFraming]): [body] gets the [LspClient], and
+ * [handlers] answer the peer. Payloads are decoded straight from the frame text, and outgoing frames are sent as they
+ * are. Notification handlers run as [notificationDispatch] says (inline by default). A request's result is decoded on
+ * the read loop, in the envelope pass, when the response has `id` before `result` (else in the coroutine that called
+ * [LspClient.request]); a result that does not decode throws in that coroutine.
  *
  * NOT A STABLE API, see [LspWireCodec].
  */
-@JvmName("withLspWire")
 suspend fun withLsp(
     incoming: ReceiveChannel<LspWireBody>,
     outgoing: SendChannel<LspWireOutgoing>,
@@ -517,7 +480,9 @@ suspend fun withLsp(
     notificationDispatch: NotificationDispatch = NotificationDispatch.Inline,
     body: suspend CoroutineScope.(LspClient) -> Unit,
 ) {
-    withLspClient(handlers, body) { impl -> withLspImpl(incoming, { it }, wireOutgoing(outgoing), impl, notificationDispatch) }
+    withLspClient(handlers, body) { impl ->
+        withLspImpl(incoming = incoming, outgoing = outgoing, body = impl, notificationDispatch = notificationDispatch)
+    }
 }
 
 /**
@@ -531,8 +496,8 @@ suspend fun withLsp(
     notificationDispatch: NotificationDispatch = NotificationDispatch.Inline,
     body: suspend CoroutineScope.(LspClient) -> Unit,
 ) {
-    withLspFraming(connection, exitSignal) { incoming, outgoing ->
-        withLsp(incoming, outgoing, handlers, notificationDispatch, body)
+    withLspFraming(connection = connection, exitSignal = exitSignal) { incoming, outgoing ->
+        withLsp(incoming = incoming, outgoing = outgoing, handlers = handlers, notificationDispatch = notificationDispatch, body = body)
     }
 }
 

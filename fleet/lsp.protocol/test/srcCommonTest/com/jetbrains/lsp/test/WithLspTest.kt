@@ -1,5 +1,8 @@
 package com.jetbrains.lsp.test
 
+import com.jetbrains.lsp.implementation.LspWireBody
+import com.jetbrains.lsp.implementation.LspWireCodec
+import com.jetbrains.lsp.implementation.LspWireOutgoing
 import com.jetbrains.lsp.implementation.lspHandlers
 import com.jetbrains.lsp.implementation.withLsp
 import com.jetbrains.lsp.protocol.LSP
@@ -13,7 +16,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonElement
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -29,8 +31,8 @@ class WithLspTest {
     fun `response send racing connection teardown does not leak uncaught exceptions`() = runTest {
         val uncaught = mutableListOf<Throwable>()
         val exceptionHandler = CoroutineExceptionHandler { _, e -> uncaught.add(e) }
-        val clientToServer = Channel<JsonElement>()
-        val serverToClient = Channel<JsonElement>()
+        val clientToServer = Channel<LspWireBody>()
+        val serverToClient = Channel<LspWireOutgoing>()
         val handlers = lspHandlers {
             request(pingType) { }
         }
@@ -41,7 +43,7 @@ class WithLspTest {
         }
 
         val request = RequestMessage(id = StringOrInt.int(1), method = pingType.method, params = null)
-        clientToServer.send(LSP.json.encodeToJsonElement(RequestMessage.serializer(), request))
+        clientToServer.send(LspWireCodec.decodeFrameBody(LSP.json.encodeToString(RequestMessage.serializer(), request).encodeToByteArray()))
         // let the handler respond and suspend in the response send: nobody receives on serverToClient
         testScheduler.advanceUntilIdle()
         // mirrors the teardown order of a real shutdown: the server closes its outgoing channel,

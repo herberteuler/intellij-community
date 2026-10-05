@@ -120,7 +120,7 @@ public final class KeyHashLog<Key> implements Closeable {
                                                                         project);
     int id = myKeyHashToVirtualFileMapping.getCurrentLength();
 
-    final boolean useCachedHashIds = ENABLE_CACHED_HASH_IDS;
+    boolean useCachedHashIds = ENABLE_CACHED_HASH_IDS;
     if (useCachedHashIds && id == myLastScannedId && filter.getFilteringScopeType() == IdFilter.FilterScopeType.PROJECT_AND_LIBRARIES) {
       if (myInvalidatedSessionIds.remove(id) == null) {
         try {
@@ -161,7 +161,10 @@ public final class KeyHashLog<Key> implements Closeable {
   private void appendKeyHashToVirtualFileMappingToLog(Key key, int inputId) throws StorageException {
     if (inputId == 0) return;
     try {
-      withLock(() -> myKeyHashToVirtualFileMapping.append(new int[]{myKeyDescriptor.getHashCode(key), inputId}), false);
+      withLock(
+        () -> myKeyHashToVirtualFileMapping.append(new int[]{myKeyDescriptor.getHashCode(key), inputId}),
+        /* read: */ false
+      );
     }
     catch (IOException e) {
       throw new StorageException(e);
@@ -202,7 +205,7 @@ public final class KeyHashLog<Key> implements Closeable {
           }
           return true;
         });
-      }, true);
+      }, /* read: */ true);
 
       if (uselessRecords.get() >= hash2inputIds.size()) {
         setRequiresCompaction();
@@ -222,7 +225,7 @@ public final class KeyHashLog<Key> implements Closeable {
   }
 
   private void doForce() throws IOException {
-    withLock(() -> myKeyHashToVirtualFileMapping.force(), false);
+    withLock(() -> myKeyHashToVirtualFileMapping.force(), /*read: */ false);
   }
 
   @Override
@@ -328,8 +331,7 @@ public final class KeyHashLog<Key> implements Closeable {
     @NotNull Path newFileWithCaches = getSavedProjectFileValueIds(largestId, scopeType, project);
 
     boolean savedSuccessfully = true;
-    try (com.intellij.util.io.DataOutputStream stream = new DataOutputStream(
-      new BufferedOutputStream(Files.newOutputStream(newFileWithCaches)))) {
+    try (DataOutputStream stream = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(newFileWithCaches)))) {
       DataInputOutputUtil.writeINT(stream, hashMaskSet.size());
       IntIterator iterator = hashMaskSet.iterator();
       while (iterator.hasNext()) {

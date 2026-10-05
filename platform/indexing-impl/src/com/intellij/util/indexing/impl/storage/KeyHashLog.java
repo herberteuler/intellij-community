@@ -1,11 +1,11 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.util.indexing.impl.storage;
 
-import com.intellij.concurrency.ConcurrentCollectionFactory;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.IntRef;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.util.SystemProperties;
 import com.intellij.util.ThrowableRunnable;
@@ -177,20 +177,25 @@ public final class KeyHashLog<Key> implements Closeable {
       doForce();
 
       Int2ObjectMap<IntSet> hash2inputIds = new Int2ObjectOpenHashMap<>(1000);
-      AtomicInteger uselessRecords = new AtomicInteger();
+      IntRef uselessRecords = new IntRef(0);
 
       withLock(() -> {
         ProgressManager.checkCanceled();
 
         myKeyHashToVirtualFileMapping.processAll((offset, key) -> {
-          ProgressManager.checkCanceled();
+          int keyHash = key[0];
           int inputId = key[1];
+
+          //Throttle the check (probability of any 5-bit pattern in a good hash is ~1/32)
+          if ((keyHash & 0b11111) == 0) ProgressManager.checkCanceled();
+
           int absInputId = Math.abs(inputId);
           if (!idFilter.containsFileId(absInputId)) return true;
-          int keyHash = key[0];
+          
+
           if (inputId > 0) {
             if (!hash2inputIds.computeIfAbsent(keyHash, __ -> new IntOpenHashSet(4)).add(inputId)) {
-              uselessRecords.incrementAndGet();
+              uselessRecords.inc();
             }
           }
           else {
@@ -201,7 +206,7 @@ public final class KeyHashLog<Key> implements Closeable {
                 hash2inputIds.remove(keyHash);
               }
             }
-            uselessRecords.incrementAndGet();
+            uselessRecords.inc();
           }
           return true;
         });

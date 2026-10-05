@@ -28,7 +28,6 @@ import com.jetbrains.python.statistics.InterpreterType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import java.nio.file.Path
-import com.intellij.openapi.project.Project
 
 internal abstract class CustomNewEnvironmentCreator<P : PathHolder>(
   model: PythonMutableTargetAddInterpreterModel<P>,
@@ -91,7 +90,7 @@ internal abstract class CustomNewEnvironmentCreator<P : PathHolder>(
                          ?: model.projectPathFlows.projectPath.first()
                          ?: error("module base path can't be recognized, both module and project are nulls")
 
-    val pythonInterpreter = setupEnvSdk(moduleOrProject.project, moduleBasePath).getOr { return it }
+    val pythonInterpreter = setupEnvSdk(moduleOrProject, moduleBasePath).getOr { return it }
 
     module?.baseDir?.refresh(true, false)
 
@@ -151,7 +150,7 @@ internal abstract class CustomNewEnvironmentCreator<P : PathHolder>(
 
   internal abstract val toolValidator: ToolValidator<P>
 
-  protected abstract suspend fun setupEnvSdk(project: Project, moduleBasePath: Path): PyResult<PythonInterpreter>
+  protected abstract suspend fun setupEnvSdk(moduleOrProject: ModuleOrProject, moduleBasePath: Path): PyResult<PythonInterpreter>
 
   internal open fun onVenvSelectExisting() {}
 }

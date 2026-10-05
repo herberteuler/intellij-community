@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2.poetry
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.BaseState
 import com.intellij.openapi.components.SerializablePersistentStateComponent
@@ -50,7 +51,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
 import kotlin.io.path.exists
-import com.intellij.openapi.project.Project
 
 internal class EnvironmentCreatorPoetry<P : PathHolder>(
   model: PythonMutableTargetAddInterpreterModel<P>,
@@ -118,7 +118,7 @@ internal class EnvironmentCreatorPoetry<P : PathHolder>(
     }
   }
 
-  override suspend fun setupEnvSdk(project: Project, moduleBasePath: Path): PyResult<PythonInterpreter> {
+  override suspend fun setupEnvSdk(moduleOrProject: ModuleOrProject, moduleBasePath: Path): PyResult<PythonInterpreter> {
     val basePythonBinaryPath = model.getOrInstallBasePython()
                                ?: return PyResult.localizedError(message("python.sdk.provided.path.is.invalid", null))
     val poetryExecutable = model.poetryViewModel.poetryExecutable.get()?.pathHolder?.getOr { return it }
@@ -127,7 +127,7 @@ internal class EnvironmentCreatorPoetry<P : PathHolder>(
     service<PoetryConfigService>().updateExistingPoetryToml(moduleBasePath, model.fileSystem, poetryExecutable)
     return withProgressText(message("python.sdk.progress.poetry.creating")) {
       createNewPoetrySdk(
-        project = project,
+        moduleOrProject = moduleOrProject,
         moduleBasePath = moduleBasePath,
         basePythonBinaryPath = basePythonBinaryPath,
         fileSystem = model.fileSystem,

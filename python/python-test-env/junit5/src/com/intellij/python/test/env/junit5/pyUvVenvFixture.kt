@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.test.env.junit5
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.projectRoots.ProjectJdkTable
@@ -68,7 +69,7 @@ fun TestFixture<SdkFixture<PyEnvironment>>.pyUvVenvFixture(
   } ?: error("Python executable not found in UV venv: $venvDir")
 
   val interpreter =
-    setupExistingEnvAndSdk(project = module.project, pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, mode = mode).getOrThrow()
+    setupExistingEnvAndSdk(moduleOrProject = ModuleOrProject.ModuleAndProject(module), pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, mode = mode).getOrThrow()
   val sdk = interpreter.getSdkAPI()
   if (addToSdkTable) {
     module.pythonSdk = sdk
@@ -122,7 +123,7 @@ fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyUvVenvFixture(
   } ?: error("Python executable not found in UV venv: $venvDir")
 
   val interpreter =
-    setupExistingEnvAndSdk(project = project, pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, mode = mode).getOrThrow()
+    setupExistingEnvAndSdk(moduleOrProject = ModuleOrProject.ModuleAndProject(pyProject), pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, mode = mode).getOrThrow()
   pyProject.setPythonInterpreter(interpreter)
   // workaround interesting behavior of VFS_STRUCTURAL_MODIFICATIONS
   interpreter.sitePackagesDirectory()?.getChildren()

@@ -2,6 +2,7 @@
 
 package com.intellij.python.sdk.backend.evolution
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.icons.AllIcons
 import com.intellij.ide.ui.icons.rpcId
 import com.intellij.openapi.diagnostic.Logger
@@ -92,6 +93,9 @@ class EvoWorkspace(
 
   /** The project every member of this workspace belongs to. */
   val project: Project get() = root.pyProject.project
+
+  /** The owner of an interpreter that a tool creates here: the [root], so every member shares it. */
+  val moduleOrProject: ModuleOrProject get() = ModuleOrProject.ModuleAndProject(root.pyProject)
 
   /** The wire identity of the [root]. See [keyOf]. */
   val rootKey: String get() = root.key

@@ -1,11 +1,12 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2
 
+import com.jetbrains.python.project.PyProject
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.execution.target.TargetBrowserHints
 import com.intellij.execution.target.TargetEnvironmentConfiguration
 import com.intellij.execution.target.TargetEnvironmentRequest
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.TextComponentAccessor
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
@@ -85,9 +86,11 @@ interface FileSystem<P : PathHolder> {
    * [targetPanelExtension] is irrelevant, ignore it.
    * [sdkAdditionalData] must have [com.jetbrains.python.sdk.flavors.PythonSdkFlavor].
    * If you have no idea what flavor is, use `createLocalSdkGuessingTypeByPath`
+   *
+   * The interpreter belongs to the [PyProject] of [moduleOrProject]. Without one it is a shared interpreter.
    */
   suspend fun setupSdk(
-    project: Project,
+    moduleOrProject: ModuleOrProject,
     pythonBinaryPath: P,
     sdkAdditionalData: PythonSdkAdditionalData,
     targetPanelExtension: TargetPanelExtension?,

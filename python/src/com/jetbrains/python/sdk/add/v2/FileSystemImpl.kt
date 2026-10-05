@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.execution.target.BrowsableTargetEnvironmentType
 import com.intellij.execution.target.TargetBrowserHints
 import com.intellij.execution.target.TargetEnvironmentConfiguration
@@ -13,7 +14,6 @@ import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.ComponentWithBrowseButton
@@ -187,14 +187,14 @@ data class EelFileSystem(
   }
 
   override suspend fun setupSdk(
-    project: Project,
+    moduleOrProject: ModuleOrProject,
     pythonBinaryPath: PathHolder.Eel,
     sdkAdditionalData: PythonSdkAdditionalData,
     targetPanelExtension: TargetPanelExtension?,
     suggestedSdkName: String?,
   ): PyResult<PythonInterpreter> {
     require(sdkAdditionalData.hasValidWorkingDirectory()) { "Python SDK working directory must be initialized before setup" }
-    return createSdk(project, pythonBinaryPath, sdkAdditionalData, suggestedSdkName)
+    return createSdk(moduleOrProject, pythonBinaryPath, sdkAdditionalData, suggestedSdkName)
   }
 
   override suspend fun getExistingSelectableInterpreters(
@@ -539,7 +539,7 @@ internal data class TargetFileSystem(
   }
 
   override suspend fun setupSdk(
-    project: Project,
+    moduleOrProject: ModuleOrProject,
     pythonBinaryPath: PathHolder.Target,
     sdkAdditionalData: PythonSdkAdditionalData,
     targetPanelExtension: TargetPanelExtension?,
@@ -557,12 +557,12 @@ internal data class TargetFileSystem(
         it.applyToTargetConfiguration()
         it.applyToAdditionalData(data)
       }
-      val name = PythonInterpreterTargetEnvironmentFactory.findDefaultSdkName(project, data, languageLevel.toPythonVersion())
+      val name = PythonInterpreterTargetEnvironmentFactory.findDefaultSdkName(moduleOrProject.project, data, languageLevel.toPythonVersion())
       data to name
     }
 
     return createSdk(
-      project,
+      moduleOrProject,
       pythonBinaryPath,
       additionalData,
       suggestedSdkName ?: customSdkSuggestedName

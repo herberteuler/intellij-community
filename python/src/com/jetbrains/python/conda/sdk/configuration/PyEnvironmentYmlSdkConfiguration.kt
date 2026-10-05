@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.conda.sdk.configuration
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.codeInspection.util.IntentionName
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.ui.ValidationInfo
@@ -171,7 +172,7 @@ internal class PyEnvironmentYmlSdkConfiguration : PyProjectSdkConfigurationExten
                         ?: return PyResult.localizedError(PyBundle.message("sdk.cannot.use.existing.conda.environment"))
     val workingDirectory = pyProject.baseDir
     return PyCondaCommand(condaExecutable.path.pathString, null).createCondaSdkFromExistingEnvironment(
-      pyProject.project,
+      ModuleOrProject.ModuleAndProject(pyProject),
       condaIdentity,
       PythonSdkUtil.getAllSdks(),
       workingDirectory,
@@ -208,7 +209,7 @@ internal class PyEnvironmentYmlSdkConfiguration : PyProjectSdkConfigurationExten
     val newCondaEnvInfo = NewCondaEnvRequest.LocalEnvByLocalEnvironmentFile(environmentYml.toNioPath(), existingEnvs)
     val workingDirectory = pyProject.baseDir
     val pythonInterpreter = PyCondaCommand(condaExecutable.path.pathString, null)
-      .createCondaSdkAlongWithNewEnv(project, newCondaEnvInfo, existingSdks.toList(), workingDirectory).getOr {
+      .createCondaSdkAlongWithNewEnv(ModuleOrProject.ModuleAndProject(pyProject), newCondaEnvInfo, existingSdks.toList(), workingDirectory).getOr {
         PySdkConfigurationCollector.logCondaEnv(project, CondaEnvResult.CREATION_FAILURE)
         thisLogger().warn("Exception during creating conda environment $it")
         return it

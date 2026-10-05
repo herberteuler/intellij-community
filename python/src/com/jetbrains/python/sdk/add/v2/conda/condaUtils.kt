@@ -42,7 +42,7 @@ internal suspend fun PythonAddInterpreterModel<*>.createCondaEnvironment(
 ): PyResult<PythonInterpreter> {
 
   return createCondaCommand().getOr { return it }.createCondaSdkAlongWithNewEnv(
-    moduleOrProject.project,
+    moduleOrProject,
     newCondaEnvInfo = request,
     existingSdks = existingSdks,
     moduleOrProject.workingDirectory ?: return PyResult.localizedError(message("python.sdk.project.working.directory.not.found")),
@@ -100,7 +100,7 @@ internal suspend fun PythonAddInterpreterModel<*>.createSdkFromCondaEnv(
     moduleOrProject.workingDirectory ?: return PyResult.localizedError(message("python.sdk.project.working.directory.not.found"))
   val pythonInterpreter = PyCondaCommand(fullCondaPathOnTarget = pathHolder.toStringForExecution(),
                            targetConfig = fileSystem.targetEnvironmentConfiguration).createCondaSdkFromExistingEnvironment(
-    project = moduleOrProject.project,
+    moduleOrProject = moduleOrProject,
     condaIdentity = pyCondaEnv.envIdentity,
     existingSdks = this@createSdkFromCondaEnv.existingSdks,
     workingDirectory = workingDirectory,

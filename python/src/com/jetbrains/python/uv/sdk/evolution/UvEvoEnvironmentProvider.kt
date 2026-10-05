@@ -90,7 +90,7 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     val uvPath = executableOrNull(context.fileSystem) ?: return toolMissing()
     val baseDir = context.workspace.baseDir
     return setupExistingEnvAndSdk(
-      project = context.workspace.project,
+      moduleOrProject = context.workspace.moduleOrProject,
       pythonBinary = PathHolder.Eel(homePath),
       uvPath = uvPath,
       workingDir = baseDir,
@@ -110,7 +110,7 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     val version = parseVersion(ref.token).getOr { return it }
     val baseDir = context.workspace.baseDir
     return setupNewUvSdkAndEnv(
-      project = context.workspace.project,
+      moduleOrProject = context.workspace.moduleOrProject,
       uvExecutable = uvExecutable,
       workingDir = baseDir,
       venvPath = PathHolder.Eel(venvDir),
@@ -162,7 +162,7 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     val version = parseVersion(spec.baseToken).getOr { return it }
     val baseDir = context.workspace.baseDir
     return setupNewUvSdkAndEnv(
-      project = context.workspace.project,
+      moduleOrProject = context.workspace.moduleOrProject,
       uvExecutable = uvExecutable,
       workingDir = baseDir,
       venvPath = PathHolder.Eel(VirtualEnvReader().resolvePythonHomeFromPythonBinary(homePath)),

@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.hatch.sdk.configuration
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import com.intellij.python.sdk.backend.getPythonInfo
@@ -118,7 +119,7 @@ internal class PyHatchSdkConfiguration : PyProjectTomlConfigurationExtension {
 
     val hatchVenv = HatchVirtualEnvironment(HatchEnvironment.DEFAULT, environment)
     hatchVenv.createSdk(
-      project = pyProject.project,
+      moduleOrProject = ModuleOrProject.ModuleAndProject(pyProject),
       workingDirectoryPath = hatchService.getWorkingDirectoryPath(),
       fileSystem = fileSystem,
     )

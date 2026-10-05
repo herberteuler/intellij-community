@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.uv
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.execution.target.FullPathOnTarget
 import com.intellij.execution.target.TargetEnvironmentConfiguration
 import com.intellij.ide.SaveAndSyncHandler
@@ -137,7 +138,7 @@ internal fun PythonInterpreter.getUvExecutionContextAsync(scope: CoroutineScope,
 }
 
 internal suspend fun setupNewUvSdkAndEnv(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   uvExecutable: Path,
   workingDir: Path,
   version: Version?,
@@ -145,7 +146,7 @@ internal suspend fun setupNewUvSdkAndEnv(
   mode: UvMode,
 ): PyResult<PythonInterpreter> =
   setupNewUvSdkAndEnv(
-    project = project,
+    moduleOrProject = moduleOrProject,
     uvExecutable = PathHolder.Eel(uvExecutable),
     workingDir = workingDir,
     venvPath = null,
@@ -162,7 +163,7 @@ internal suspend fun setupNewUvSdkAndEnv(
  * already there. [UvMode.Pip] runs `uv venv` alone and writes no file.
  */
 internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   uvExecutable: P,
   workingDir: Path,
   venvPath: P?,
@@ -191,7 +192,7 @@ internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
   }.getOr { return it }
 
   val pythonInterpreter = setupExistingEnvAndSdk(
-    project = project,
+    moduleOrProject = moduleOrProject,
     pythonBinary = pythonBinary,
     uvPath = normalizedUvExecutablePath,
     workingDir = workingDir,
@@ -223,14 +224,14 @@ internal suspend fun <P : PathHolder> initUvProjectIfNeeded(uvExecutable: P, wor
 }
 
 internal suspend fun setupExistingEnvAndSdk(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   pythonBinary: PythonBinary,
   uvPath: Path,
   envWorkingDir: Path,
   mode: UvMode,
 ): PyResult<PythonInterpreter> =
   setupExistingEnvAndSdk(
-    project = project,
+    moduleOrProject = moduleOrProject,
     pythonBinary = PathHolder.Eel(pythonBinary),
     uvPath = PathHolder.Eel(uvPath),
     workingDir = envWorkingDir,
@@ -245,7 +246,7 @@ internal suspend fun setupExistingEnvAndSdk(
  * [UvLowLevel.initProject] first.
  */
 internal suspend fun <P : PathHolder> setupExistingEnvAndSdk(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   pythonBinary: P,
   uvPath: P,
   workingDir: Path,
@@ -255,5 +256,5 @@ internal suspend fun <P : PathHolder> setupExistingEnvAndSdk(
   val venvPath = fileSystem.resolvePythonHome(pythonBinary).toStringForExecution()
   val sdkAdditionalData = UvSdkAdditionalData(uvWorkingDirectory = workingDir, usePip = null, venvPath = venvPath, uvPath = uvPath.toStringForExecution())
   sdkAdditionalData.requirementsPath = mode.requirementsFile
-  fileSystem.setupSdk(project, pythonBinary, sdkAdditionalData, null, null)
+  fileSystem.setupSdk(moduleOrProject, pythonBinary, sdkAdditionalData, null, null)
 }

@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.pipenv
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.openapi.components.service
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.python.community.execService.DownloadConfig
@@ -28,7 +29,6 @@ import org.jetbrains.annotations.ApiStatus.Internal
 import java.nio.file.Path
 import kotlin.io.path.createFile
 import kotlin.io.path.exists
-import com.intellij.openapi.project.Project
 
 private val PIPENV_PROJECT_DOWNLOAD_CONFIG = DownloadConfig(relativePaths = listOf(PIP_FILE, PIP_FILE_LOCK))
 private val PIPENV_PROJECT_MUTATING_COMMANDS = setOf("--python", "install", "lock", "sync", "uninstall", "update")
@@ -126,7 +126,7 @@ private suspend fun <P : PathHolder> runPipEnvWithSdk(
  * @return the SDK for pipenv, not stored in the SDK table yet.
  */
 internal suspend fun <P : PathHolder> setupPipEnvSdkWithProgressReport(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   moduleBasePath: Path,
   basePythonBinaryPath: P?,
   fileSystem: FileSystem<P>,
@@ -145,7 +145,7 @@ internal suspend fun <P : PathHolder> setupPipEnvSdkWithProgressReport(
                          ?: return PyResult.localizedError(PyBundle.message("python.sdk.cannot.setup.sdk", pythonHomePath.toStringForUI()))
 
   return fileSystem.setupSdk(
-    project = project,
+    moduleOrProject = moduleOrProject,
     pythonBinaryPath = pythonBinaryPath,
     sdkAdditionalData = PyPipEnvSdkAdditionalData(moduleBasePath),
     targetPanelExtension = targetPanelExtension,

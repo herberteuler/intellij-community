@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.uv.sdk.configuration
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.diagnostic.fileLogger
 import com.jetbrains.python.PyBundle
@@ -52,14 +53,14 @@ internal suspend fun createUvSdk(pyProject: PyProject, venvs: List<PythonBinary>
   val mode = detectUvMode(workingDir)
   val sdkSetupResult = if (envExists) {
     target.existing?.let {
-      setupExistingEnvAndSdk(sdkAssociatedProject.project, it, uv, workingDir, mode)
+      setupExistingEnvAndSdk(ModuleOrProject.ModuleAndProject(sdkAssociatedProject), it, uv, workingDir, mode)
     } ?: run {
       logger.warn("Can't find existing uv environment in project, but it was expected. " +
                   "Probably it was deleted. New environment will be created")
-      setupNewUvSdkAndEnv(sdkAssociatedProject.project, uv, workingDir, null, errorSink, mode)
+      setupNewUvSdkAndEnv(ModuleOrProject.ModuleAndProject(sdkAssociatedProject), uv, workingDir, null, errorSink, mode)
     }
   }
-  else setupNewUvSdkAndEnv(sdkAssociatedProject.project, uv, workingDir, null, errorSink, mode)
+  else setupNewUvSdkAndEnv(ModuleOrProject.ModuleAndProject(sdkAssociatedProject), uv, workingDir, null, errorSink, mode)
 
   return sdkSetupResult
 }

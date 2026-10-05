@@ -52,7 +52,7 @@ internal class UvExistingEnvironmentSelector<P : PathHolder>(model: PythonMutabl
     val mode = model.uvViewModel.mode
     initUvProjectIfNeeded(uvPath, workingDir, model.fileSystem, mode).getOr { return it }
     return setupExistingEnvAndSdk(
-      project = moduleOrProject.project,
+      moduleOrProject = moduleOrProject,
       pythonBinary = selectedInterpreterPath,
       uvPath = uvPath,
       workingDir = workingDir,

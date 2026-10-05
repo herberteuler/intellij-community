@@ -1,6 +1,7 @@
 // Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.poetry
 
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.platform.util.progress.withProgressText
@@ -25,14 +26,13 @@ import java.nio.file.Path
 import java.util.regex.Pattern
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.pathString
-import com.intellij.openapi.project.Project
 
 
 internal fun suggestedSdkName(basePath: Path): @NlsSafe String = "Poetry (${PathUtil.getFileName(basePath.pathString)})"
 
 
 internal suspend fun createNewPoetrySdk(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   moduleBasePath: Path,
   basePythonBinaryPath: PythonBinary,
   installPackages: Boolean,
@@ -41,7 +41,7 @@ internal suspend fun createNewPoetrySdk(
 ): PyResult<PythonInterpreter> {
   val fileSystem = moduleBasePath.toEelFileSystem()
   return createNewPoetrySdk(
-    project = project,
+    moduleOrProject = moduleOrProject,
     moduleBasePath = moduleBasePath,
     basePythonBinaryPath = PathHolder.Eel(basePythonBinaryPath),
     fileSystem = fileSystem,
@@ -53,7 +53,7 @@ internal suspend fun createNewPoetrySdk(
 }
 
 internal suspend fun <P : PathHolder> createNewPoetrySdk(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   moduleBasePath: Path,
   basePythonBinaryPath: P,
   fileSystem: FileSystem<P>,
@@ -74,7 +74,7 @@ internal suspend fun <P : PathHolder> createNewPoetrySdk(
   ).getOr { return it }
 
   return createPoetrySdk(
-    project = project,
+    moduleOrProject = moduleOrProject,
     basePath = moduleBasePath,
     pythonBinaryPath = pythonBinaryPath,
     fileSystem = fileSystem,
@@ -83,14 +83,14 @@ internal suspend fun <P : PathHolder> createNewPoetrySdk(
 }
 
 internal suspend fun <P : PathHolder> createPoetrySdk(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   basePath: Path,
   pythonBinaryPath: P,
   fileSystem: FileSystem<P>,
   targetPanelExtension: TargetPanelExtension? = null,
 ): PyResult<PythonInterpreter> = withProgressText(PyBundle.message("python.sdk.progress.poetry.configuring")) {
   fileSystem.setupSdk(
-    project = project,
+    moduleOrProject = moduleOrProject,
     pythonBinaryPath = pythonBinaryPath,
     sdkAdditionalData = PyPoetrySdkAdditionalData(basePath),
     targetPanelExtension = targetPanelExtension,

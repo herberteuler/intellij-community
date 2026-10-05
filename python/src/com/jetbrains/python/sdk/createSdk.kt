@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk
 
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
 import com.intellij.execution.target.FullPathOnTarget
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.SdkAdditionalData
@@ -134,13 +135,55 @@ suspend fun createSdk(
   createSdkImpl(project, SdkCreationRequest.TargetSdk(pythonBinaryPath.pathString, sdkAdditionalData), suggestedSdkName, advancedOpts)
 
 /**
+ * [createSdk] for the [PyProject] of [moduleOrProject], or a shared interpreter when it has none.
+ */
+@ApiStatus.Internal
+suspend fun createSdk(
+  moduleOrProject: ModuleOrProject,
+  pythonBinaryPath: PathHolder.Eel,
+  sdkAdditionalData: PythonSdkAdditionalData,
+  suggestedSdkName: String? = null,
+  advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
+): Result<PythonInterpreter, MessageError> {
+  val pyProject = moduleOrProject.findPyProject()
+  return if (pyProject != null) createSdk(pyProject, pythonBinaryPath, sdkAdditionalData, suggestedSdkName, advancedOpts)
+  else createSdk(moduleOrProject.project, pythonBinaryPath, sdkAdditionalData, suggestedSdkName, advancedOpts)
+}
+
+/**
+ * [createSdk] for the [PyProject] of [moduleOrProject], or a shared interpreter when it has none.
+ */
+@ApiStatus.Internal
+suspend fun createSdk(
+  moduleOrProject: ModuleOrProject,
+  pythonBinaryPath: PathHolder.Target,
+  sdkAdditionalData: PyTargetAwareAdditionalData,
+  suggestedSdkName: String? = null,
+  advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
+): Result<PythonInterpreter, MessageError> {
+  val pyProject = moduleOrProject.findPyProject()
+  return if (pyProject != null) createSdk(pyProject, pythonBinaryPath, sdkAdditionalData, suggestedSdkName, advancedOpts)
+  else createSdk(moduleOrProject.project, pythonBinaryPath, sdkAdditionalData, suggestedSdkName, advancedOpts)
+}
+
+/** The [PyProject] that a new interpreter of this [ModuleOrProject] belongs to, or `null` for a shared one. */
+private suspend fun ModuleOrProject.findPyProject(): PyProject? = when (this) {
+  is ModuleOrProject.ModuleAndProject -> pyProject ?: module.asPyProject()
+  is ModuleOrProject.ProjectOnly -> null
+}
+
+/**
  * Please use [com.jetbrains.python.sdk.add.v2.FileSystem.setupSdk] instead
  */
 internal suspend fun SdkCreationRequest<*, *>.createSdk(
-  project: Project,
+  moduleOrProject: ModuleOrProject,
   suggestedSdkName: String? = null,
   advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
-): Result<PythonInterpreter, MessageError> = createSdkImpl(project, this, suggestedSdkName, advancedOpts)
+): Result<PythonInterpreter, MessageError> {
+  val pyProject = moduleOrProject.findPyProject()
+  return if (pyProject != null) createSdkImpl(pyProject, this, suggestedSdkName, advancedOpts)
+  else createSdkImpl(moduleOrProject.project, this, suggestedSdkName, advancedOpts)
+}
 
 
 /**
@@ -191,7 +234,7 @@ internal suspend fun <P : PathHolder> createSdkGuessingTypeByPath(
                          ?: return PyResult.localizedError(PyBundle.message("python.sdk.project.working.directory.not.found"))
 
   val newPythonInterpreter = fileSystem.setupSdk(
-    project = moduleOrProject.project,
+    moduleOrProject = moduleOrProject,
     pythonBinaryPath = homePath,
     sdkAdditionalData = PythonSdkAdditionalData(
       flavorAndData,

@@ -129,7 +129,7 @@ internal class PoetryEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
 
   /** Adopts an existing poetry env (in-project `.venv` or a cache env) as a poetry-typed SDK. */
   override suspend fun createSdkForExistingEnv(context: EvoToolContext, homePath: Path): PyResult<PythonInterpreter> =
-    createPoetrySdk(context.workspace.project, context.workspace.baseDir, PathHolder.Eel(homePath), context.fileSystem)
+    createPoetrySdk(context.workspace.moduleOrProject, context.workspace.baseDir, PathHolder.Eel(homePath), context.fileSystem)
 
   /**
    * Creates a poetry env from the base Python in `token`, where the row that asked for it says.
@@ -144,7 +144,7 @@ internal class PoetryEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     val baseDir = context.workspace.baseDir
     val inProject = ref.folder?.toNioPathOrNull()?.normalize() == defaultVenvDir(baseDir).normalize()
     return createNewPoetrySdk(
-      project = context.workspace.project,
+      moduleOrProject = context.workspace.moduleOrProject,
       moduleBasePath = baseDir,
       basePythonBinaryPath = PathHolder.Eel(Path.of(ref.token)),
       fileSystem = context.fileSystem,
@@ -203,7 +203,7 @@ internal class PoetryEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
       runPoetry(projectDir.asEelOrJustPath(), "env", "remove", envHome.name, inProjectEnv = false).getOr { return it }
     }
     return createNewPoetrySdk(
-      project = context.workspace.project,
+      moduleOrProject = context.workspace.moduleOrProject,
       moduleBasePath = projectDir,
       basePythonBinaryPath = PathHolder.Eel(Path.of(spec.baseToken)),
       fileSystem = context.fileSystem,

@@ -114,7 +114,7 @@ internal class CondaEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
         is PyCondaEnvIdentity.NamedEnv -> envDir.fileName?.toString() == identity.envName
       }
     } ?: return PyResult.localizedError(PySdkBundle.message("evolution.error.env.not.found", envDir.toString()))
-    return env.createSdkFromThisEnv(context.workspace.project, null, PythonSdkUtil.getAllSdks(), context.workspace.baseDir)
+    return env.createSdkFromThisEnv(context.workspace.moduleOrProject, null, PythonSdkUtil.getAllSdks(), context.workspace.baseDir)
   }
 
   /**
@@ -131,7 +131,7 @@ internal class CondaEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
                         ?: return PyResult.localizedError(PySdkBundle.message("evolution.error.bad.python.version", ref.token, ""))
     return PyCondaCommand(condaExecutable.path.toString(), null)
       .createCondaSdkAlongWithNewEnv(
-        context.workspace.project,
+        context.workspace.moduleOrProject,
         NewCondaEnvRequest.EmptyNamedEnv(languageLevel, envName),
         PythonSdkUtil.getAllSdks(),
         context.workspace.baseDir,

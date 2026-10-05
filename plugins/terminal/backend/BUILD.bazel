@@ -50,6 +50,7 @@ jvm_library(
         "//platform/consoleView/impl",
         "//platform/platform-impl/eel:ide-impl-wsl",
         "//fleet/rhizomedb",
+        "//platform/util/annotations",
     ],
 )
 
@@ -91,6 +92,7 @@ jvm_library(
         "//platform/consoleView/impl:impl_test_lib",
         "//platform/platform-impl/eel:ide-impl-wsl_test_lib",
         "//fleet/rhizomedb:rhizomedb_test_lib",
+        "//platform/util/annotations:annotations_test_lib",
     ],
 )
 ### auto-generated section `build intellij.terminal.backend` end

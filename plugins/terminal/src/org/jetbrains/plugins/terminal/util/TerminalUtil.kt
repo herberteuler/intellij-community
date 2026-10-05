@@ -8,10 +8,10 @@ import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.util.Disposer
 import com.intellij.platform.eel.EelDescriptor
-import com.intellij.platform.eel.annotations.NativePath
 import com.intellij.platform.eel.path.EelPath
 import com.intellij.platform.eel.path.EelPathException
 import com.intellij.platform.eel.provider.asNioPath
+import com.intellij.platform.util.annotations.paths.OsPath
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.concurrency.annotations.RequiresReadLockAbsence
 import com.intellij.util.io.awaitExit
@@ -220,7 +220,7 @@ internal fun String?.toExistentNioDirectory(labelToLogOnFailure: String? = null)
  * @return null if failed to convert [remotePath] to nio Path.
  */
 @ApiStatus.Internal
-fun convertNativePathToNioPath(remotePath: @NativePath String, descriptor: EelDescriptor): Path? {
+fun convertNativePathToNioPath(remotePath: @OsPath String, descriptor: EelDescriptor): Path? {
   val eelPath: EelPath = try {
     EelPath.parse(remotePath, descriptor)
   }

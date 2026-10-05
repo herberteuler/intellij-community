@@ -10,8 +10,8 @@ import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.progress.checkCanceled
 import com.intellij.openapi.project.Project
 import com.intellij.platform.eel.EelDescriptor
-import com.intellij.platform.eel.annotations.NativePath
 import com.intellij.platform.eel.path.EelPath
+import com.intellij.platform.util.annotations.paths.OsPath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -86,7 +86,7 @@ internal class BackendTerminalHyperlinkFacade(
   /**
    * [newDirectory] - native path inside the environment of [filterContext]'s [EelDescriptor].
    */
-  suspend fun updateWorkingDirectory(newDirectory: @NativePath String?) {
+  suspend fun updateWorkingDirectory(newDirectory: @OsPath String?) {
     mutex.withLock {
       filterContext.updateCurrentDirectory(newDirectory)
     }

@@ -22,17 +22,23 @@ private const val COLOR_FILL_KEY = "color-fill-key"
 private const val COLOR_STROKE_KEY = "color-stroke-key"
 
 class UINewThemeIconsTest {
+  private var iconsActivated = false
 
   @BeforeEach
   fun setUp() {
-    IconLoader.activate()
+    val iconManagerClass = IconManager.getInstance().javaClass
     IconManager.activate(null)
+    IconLoader.activate()
+    iconsActivated = IconManager.getInstance().javaClass != iconManagerClass
   }
 
   @AfterEach
   fun tearDown() {
-    IconManager.deactivate()
-    IconLoader.deactivate()
+    // Keep the icons of a test that activated them before this one
+    if (iconsActivated) {
+      IconLoader.deactivate()
+      IconManager.deactivate()
+    }
   }
 
   private val iconsPath = "/themes/expUI/icons/dark/"
@@ -85,7 +91,7 @@ class UINewThemeIconsTest {
         val named = attributes.keys.count { it == COLOR_FILL_KEY || it == COLOR_STROKE_KEY }
         val painted = attributes.entries.count { (key, value) -> (key == ATTR_FILL || key == ATTR_STROKE) && value != "none" }
         if (named != painted) {
-          fail("Icon: $name, $painted painted attribute(s) but $named color key(s), see IslandsOnOffButtonUI-spec.md")
+          fail("Icon: $name, $painted painted attribute(s) but $named color key(s), see DarculaOnOffButtonUI-spec.md")
         }
       }
     }
@@ -114,7 +120,7 @@ class UINewThemeIconsTest {
       val text = javaClass.getResourceAsStream(path)?.reader()?.readText() ?: fail("Theme not found: $path")
       for (key in keys) {
         if (!text.contains("\"$key\"")) {
-          fail("Theme: $theme, color $key is not declared, see IslandsOnOffButtonUI-spec.md")
+          fail("Theme: $theme, color $key is not declared, see DarculaOnOffButtonUI-spec.md")
         }
       }
     }
@@ -135,7 +141,7 @@ class UINewThemeIconsTest {
     }
 
     if (sizes.distinct().size != 1) {
-      fail("Toggle icons must have the same size, got $sizes, see IslandsOnOffButtonUI-spec.md")
+      fail("Toggle icons must have the same size, got $sizes, see DarculaOnOffButtonUI-spec.md")
     }
   }
 

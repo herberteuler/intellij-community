@@ -161,9 +161,6 @@ them; no `icons.ColorPalette` entries and no platform-side key table are involve
 `UINewThemeIconsTest` checks that every painted element names a color and that all four Islands
 themes declare every color the assets name.
 
-The `ToggleButton.focusBorderColor` UI defaults key is no longer read by the delegate; the focus ring
-colour comes from `toggle-focus-border` like every other element.
-
 ### Token aliases in Islands themes
 
 All four Islands themes declare the `toggle-*` colors in their `colors` block. Islands Dark and
@@ -190,9 +187,21 @@ literal colors, matching how those themes handle checkbox palette keys.
 
 ## 7. UI Delegate Registration
 
-The base Darcula theme registers `DarculaOnOffButtonUI` through the `OnOffButtonUI` key.
-The New UI and Islands themes inherit this registration and supply their toggle colors.
-Custom themes can override the delegate or its colors.
+The delegate follows the UI mode, not the theme. A theme such as Darcula is shown both in New UI and
+in Classic UI, so registering the delegate in theme JSON can't tell the two apart.
+
+- **New UI.** `LafManagerImpl.updateUI()` calls `installNewUiOnOffButtonUI()`, which puts
+  `DarculaOnOffButtonUI` under the `OnOffButtonUI` key unless the theme registers its own delegate.
+  This covers every theme, including Darcula, custom themes and the `ide.ui.theme.custom.islands`
+  advanced setting.
+- **Classic UI.** Nothing is installed, so `OnOffButton` keeps its default delegate with ON/OFF labels
+  and `ToggleButton.*` colors, whatever theme is selected.
+- **Theme override.** A theme that sets `OnOffButtonUI` (for example `WinOnOffButtonUI` of the Windows 10
+  Light theme) keeps its delegate in both modes.
+
+The base themes declare the `toggle-*` colors, so every theme derived from them resolves them:
+`darcula.theme.json` (dark), `intellijlaf.theme.json` (light, inherited by `expUI_light`),
+`expUI_dark.theme.json`, and the Islands themes through their palettes.
 
 ---
 

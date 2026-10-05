@@ -33,6 +33,9 @@ import java.util.Locale;
  * @author Konstantin Bulenkov
  */
 public class OnOffButton extends JToggleButton {
+  private @NlsContexts.Button String myOnText = IdeBundle.message("ui.button.on");
+  private @NlsContexts.Button String myOffText = IdeBundle.message("ui.button.off");
+
   /**
    * Internal padding
    */
@@ -44,39 +47,37 @@ public class OnOffButton extends JToggleButton {
   }
 
   /**
-   * Returns the default localized on-state label for legacy UI delegates.
-   *
-   * @deprecated State labels are no longer configurable. Use {@link #isSelected()} to read the toggle state.
+   * @deprecated This method is no longer supported
    */
   @ApiStatus.Internal
   @Deprecated(forRemoval = true)
   public @NlsContexts.Button String getOnText() {
-    return IdeBundle.message("ui.button.on");
+    return myOnText;
   }
 
   /**
-   * @deprecated This method has no effect. Remove the call and use a separate label to describe the toggle.
+   * @deprecated This method is no longer supported
    */
   @Deprecated(forRemoval = true)
-  public void setOnText(@NlsContexts.Button String ignoredOnText) {
+  public void setOnText(@NlsContexts.Button String onText) {
+    myOnText = onText;
   }
 
   /**
-   * Returns the default localized off-state label for legacy UI delegates.
-   *
-   * @deprecated State labels are no longer configurable. Use {@link #isSelected()} to read the toggle state.
+   * @deprecated This method is no longer supported
    */
   @ApiStatus.Internal
   @Deprecated(forRemoval = true)
   public @NlsContexts.Button String getOffText() {
-    return IdeBundle.message("ui.button.off");
+    return myOffText;
   }
 
   /**
-   * @deprecated This method has no effect. Remove the call and use a separate label to describe the toggle.
+   * @deprecated This method is no longer supported
    */
   @Deprecated(forRemoval = true)
-  public void setOffText(@NlsContexts.Button String ignoredOffText) {
+  public void setOffText(@NlsContexts.Button String offText) {
+    myOffText = offText;
   }
 
   @Override public String getUIClassID() {

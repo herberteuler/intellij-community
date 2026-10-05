@@ -5,22 +5,6 @@
   "parentTheme": "Darcula",
   "nameKey": "high.contrast.theme.name",
   "editorScheme": "High contrast",
-  "colors": {
-    "toggle-on-bg": "#1AEBFF",
-    "toggle-off-bg": "#000000",
-    "toggle-off-border": "#1AEBFF",
-    "toggle-on-border": "#1AEBFF",
-    "toggle-on-disabled-bg": "#AA6E28",
-    "toggle-off-disabled-bg": "#000000",
-    "toggle-on-disabled-border": "#AA6E28",
-    "toggle-off-disabled-border": "#AA6E28",
-    "toggle-focus-border": "#1AEBFF",
-    "toggle-on-notch": "#000000",
-    "toggle-off-notch": "#1AEBFF",
-    "toggle-on-disabled-notch": "#000000",
-    "toggle-off-disabled-notch": "#AA6E28"
-  },
-
   "ui": {
     "*": {
       "background": "#000000",

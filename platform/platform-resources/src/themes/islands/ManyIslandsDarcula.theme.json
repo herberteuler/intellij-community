@@ -896,10 +896,6 @@
       "progressCounterForeground": "#000000"
     },
 
-    "ToggleButton": {
-      "focusBorderColor": "ComponentBorderFocus"
-    },
-
     "SearchFieldWithExtension": {
       "background": "#45494A",
       "border": "com.intellij.ui.components.DarculaSearchBorder",

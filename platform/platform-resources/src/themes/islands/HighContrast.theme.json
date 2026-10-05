@@ -500,8 +500,7 @@
       "offForeground": "#FFFFFF",
       "offBackground": "#000000",
       "buttonColor":  "#FFFFFF",
-      "borderColor": "#FFFFFF",
-      "focusBorderColor": "#1AEBFF"
+      "borderColor": "#FFFFFF"
     },
 
     "ToolTip": {

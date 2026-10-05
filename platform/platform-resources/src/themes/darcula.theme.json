@@ -21,7 +21,6 @@
   },
 
   "ui": {
-    "OnOffButtonUI": "com.intellij.ide.ui.laf.darcula.ui.DarculaOnOffButtonUI",
     "*": {
       "background": "#3C3F41",
       "textBackground": "#3C3F41",

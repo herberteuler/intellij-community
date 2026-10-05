@@ -1153,10 +1153,6 @@
       "warningForeground": "text-default"
     },
 
-    "ToggleButton": {
-      "focusBorderColor": "toggle-focus-border"
-    },
-
     "ToolWindow": {
       "background": "tool-window-bg",
       "borderColor": "transparent",

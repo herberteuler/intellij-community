@@ -13,11 +13,13 @@ import com.intellij.ui.svg.ATTR_STROKE
 import com.intellij.ui.svg.ATTR_STROKE_OPACITY
 import com.intellij.ui.svg.SvgAttributePatcher
 import com.intellij.util.SVGLoader
+import org.jetbrains.annotations.ApiStatus
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
 import javax.swing.Icon
 import javax.swing.JComponent
+import javax.swing.UIDefaults
 import javax.swing.UIManager
 import javax.swing.plaf.basic.BasicToggleButtonUI
 
@@ -45,6 +47,21 @@ private val TOGGLE_COLOR_KEYS: List<String> = listOf(
 
 /** Identity of this patcher implementation, so its digests never collide with another patcher's. */
 private const val PATCHER_IMPL_ID = 6222195294178155463L
+
+private const val UI_CLASS_ID = "OnOffButtonUI"
+
+/**
+ * Installs [DarculaOnOffButtonUI] as the New UI toggle delegate unless the theme registers its own.
+ *
+ * The delegate follows the UI mode rather than the theme: Classic UI keeps the default delegate of
+ * [OnOffButton] with any theme, and New UI shows this delegate with any theme, Darcula included.
+ */
+@ApiStatus.Internal
+fun installNewUiOnOffButtonUI(defaults: UIDefaults) {
+  if (defaults[UI_CLASS_ID] == null) {
+    defaults[UI_CLASS_ID] = DarculaOnOffButtonUI::class.java.name
+  }
+}
 
 /**
  * Recolors a `toggle*.svg` element from the theme color its [COLOR_FILL_KEY] / [COLOR_STROKE_KEY]
@@ -99,7 +116,8 @@ private class TogglePalettePatcher(private val colors: Map<String, Color>)
  * reserves the ring's padding around the track, so gaining focus swaps the image without moving the
  * track or resizing the component.
  *
- * The base Darcula theme registers this delegate through the `OnOffButtonUI` key.
+ * Theme colors come from `toggle-*` keys, which the base themes declare, so a theme derived from any
+ * of them gets matching colors.
  */
 @Suppress("unused")
 internal class DarculaOnOffButtonUI : BasicToggleButtonUI() {

@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Allows to overwrite project level UTF-8 BOM option for a specific virtual file.
  */
+@org.jetbrains.annotations.ApiStatus.OverrideOnly
 public interface Utf8BomOptionProvider {
   ExtensionPointName<Utf8BomOptionProvider> EP_NAME = new ExtensionPointName<>("com.intellij.utf8BomOptionProvider");
 

@@ -16,6 +16,7 @@ import com.jetbrains.python.sdk.pySdkAdditionalData
 import com.jetbrains.python.target.ui.TargetPanelExtension
 import org.jetbrains.annotations.ApiStatus.Internal
 import java.nio.file.Path
+import com.intellij.openapi.project.Project
 
 /**
  * Tells if the SDK was added as a pipenv.
@@ -37,13 +38,14 @@ fun suggestedSdkName(basePath: @NlsSafe String): @NlsSafe String = "Pipenv (${Pa
  * environment per project, so [basePath] is what ties the SDK back to it.
  */
 internal suspend fun <P : PathHolder> createPipenvSdk(
+  project: Project,
   basePath: Path,
   pythonBinaryPath: P,
   fileSystem: FileSystem<P>,
   targetPanelExtension: TargetPanelExtension? = null,
 ): PyResult<PythonInterpreter> = withProgressText(PyBundle.message("python.sdk.progress.pipenv.configuring")) {
   fileSystem.setupSdk(
-    project = null,
+    project = project,
     pythonBinaryPath = pythonBinaryPath,
     sdkAdditionalData = PyPipEnvSdkAdditionalData(basePath),
     targetPanelExtension = targetPanelExtension,

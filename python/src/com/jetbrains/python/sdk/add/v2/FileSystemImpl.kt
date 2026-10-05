@@ -187,14 +187,14 @@ data class EelFileSystem(
   }
 
   override suspend fun setupSdk(
-    project: Project?,
+    project: Project,
     pythonBinaryPath: PathHolder.Eel,
     sdkAdditionalData: PythonSdkAdditionalData,
     targetPanelExtension: TargetPanelExtension?,
     suggestedSdkName: String?,
   ): PyResult<PythonInterpreter> {
     require(sdkAdditionalData.hasValidWorkingDirectory()) { "Python SDK working directory must be initialized before setup" }
-    return createSdk(pythonBinaryPath, sdkAdditionalData, suggestedSdkName)
+    return createSdk(project, pythonBinaryPath, sdkAdditionalData, suggestedSdkName)
   }
 
   override suspend fun getExistingSelectableInterpreters(
@@ -539,7 +539,7 @@ internal data class TargetFileSystem(
   }
 
   override suspend fun setupSdk(
-    project: Project?,
+    project: Project,
     pythonBinaryPath: PathHolder.Target,
     sdkAdditionalData: PythonSdkAdditionalData,
     targetPanelExtension: TargetPanelExtension?,
@@ -562,6 +562,7 @@ internal data class TargetFileSystem(
     }
 
     return createSdk(
+      project,
       pythonBinaryPath,
       additionalData,
       suggestedSdkName ?: customSdkSuggestedName

@@ -6,17 +6,14 @@ import com.intellij.python.community.execService.BinaryToExec
 import com.intellij.python.pytools.backend.Version
 import com.intellij.python.pytools.backend.getToolVersion
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.intellij.util.concurrency.annotations.RequiresEdt
 import com.jetbrains.python.PyBundle.message
 import com.jetbrains.python.conda.savePythonCondaPath
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.isCondaVirtualEnv
-import com.jetbrains.python.onSuccess
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.sdk.add.v2.PathHolder
-import com.jetbrains.python.sdk.add.v2.PyProjectCreateHelpers
 import com.jetbrains.python.sdk.add.v2.PythonAddInterpreterModel
 import com.jetbrains.python.sdk.add.v2.existingSdks
 import com.jetbrains.python.sdk.add.v2.pathHolder
@@ -27,7 +24,6 @@ import com.jetbrains.python.sdk.conda.createCondaSdkFromExistingEnvironment
 import com.jetbrains.python.sdk.flavors.conda.NewCondaEnvRequest
 import com.jetbrains.python.sdk.flavors.conda.PyCondaCommand
 import com.jetbrains.python.sdk.flavors.conda.PyCondaEnv
-import com.jetbrains.python.sdk.setAssociationToModule
 import com.jetbrains.python.sdk.workingDirectory
 import kotlinx.coroutines.flow.takeWhile
 
@@ -45,18 +41,12 @@ internal suspend fun PythonAddInterpreterModel<*>.createCondaEnvironment(
   request: NewCondaEnvRequest,
 ): PyResult<PythonInterpreter> {
 
-  val result = createCondaCommand().getOr { return it }.createCondaSdkAlongWithNewEnv(
+  return createCondaCommand().getOr { return it }.createCondaSdkAlongWithNewEnv(
+    moduleOrProject.project,
     newCondaEnvInfo = request,
     existingSdks = existingSdks,
     moduleOrProject.workingDirectory ?: return PyResult.localizedError(message("python.sdk.project.working.directory.not.found")),
-  ).onSuccess { interpreter ->
-      val module = PyProjectCreateHelpers.getModule(moduleOrProject, null)
-      if (module != null) {
-        interpreter.getSdkAPI().setAssociationToModule(module)
-      }
-    }
-
-  return result
+  )
 }
 
 /**
@@ -110,12 +100,12 @@ internal suspend fun PythonAddInterpreterModel<*>.createSdkFromCondaEnv(
     moduleOrProject.workingDirectory ?: return PyResult.localizedError(message("python.sdk.project.working.directory.not.found"))
   val pythonInterpreter = PyCondaCommand(fullCondaPathOnTarget = pathHolder.toStringForExecution(),
                            targetConfig = fileSystem.targetEnvironmentConfiguration).createCondaSdkFromExistingEnvironment(
+    project = moduleOrProject.project,
     condaIdentity = pyCondaEnv.envIdentity,
     existingSdks = this@createSdkFromCondaEnv.existingSdks,
     workingDirectory = workingDirectory,
   ).getOr { return it }
 
-  PyProjectCreateHelpers.getModule(moduleOrProject, null)?.let { pythonInterpreter.getSdkAPI().setAssociationToModule(it) }
   return PyResult.success(pythonInterpreter)
 }
 

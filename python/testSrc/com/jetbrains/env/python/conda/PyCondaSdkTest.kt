@@ -106,6 +106,7 @@ internal class PyCondaSdkTest {
 
     for (condaEnv in arrayOf(nonBaseEnv, baseEnv)) {
       val condaSdk = condaRule.condaCommand.createCondaSdkFromExistingEnvironment(
+        project = projectRule.project,
         condaIdentity = condaEnv.envIdentity,
         existingSdks = emptyList(),
         workingDirectory = projectRule.project.basePath?.toNioPathOrNull()!!,
@@ -136,6 +137,7 @@ internal class PyCondaSdkTest {
   fun testExecuteCommandOnSdk(): Unit = timeoutRunBlocking(60.seconds) {
     val condaEnv = PyCondaEnv.getEnvs(condaRule.getCondaBinaryToExec()).getOrThrow().first()
     val sdk = condaRule.condaCommand.createCondaSdkFromExistingEnvironment(
+      project = projectRule.project,
       condaIdentity = condaEnv.envIdentity,
       existingSdks = emptyList(),
       workingDirectory = projectRule.project.basePath?.toNioPathOrNull()!!,
@@ -152,6 +154,7 @@ internal class PyCondaSdkTest {
   fun createSdkByFile() =  timeoutRunBlocking(120.seconds) {
     val newCondaInfo = NewCondaEnvRequest.LocalEnvByLocalEnvironmentFile(yamlRule.yamlFilePath, emptyList())
     val sdk = condaRule.condaCommand.createCondaSdkAlongWithNewEnv(
+      projectRule.project,
       newCondaInfo,
       emptyList(),
       projectRule.project.basePath?.toNioPathOrNull()!!,
@@ -166,6 +169,7 @@ internal class PyCondaSdkTest {
   fun testCreateFromExisting() =  timeoutRunBlocking(10.minutes) { 
     val env = PyCondaEnv.getEnvs(condaRule.getCondaBinaryToExec()).getOrThrow().first()
     val sdk = condaRule.condaCommand.createCondaSdkFromExistingEnvironment(
+      project = projectRule.project,
       condaIdentity = env.envIdentity,
       existingSdks = emptyList(),
       workingDirectory = projectRule.project.basePath?.toNioPathOrNull()!!,

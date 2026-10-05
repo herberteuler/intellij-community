@@ -107,7 +107,7 @@ internal class PipenvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
 
   /** Adopts the project's existing pipenv environment as a pipenv-typed SDK. */
   override suspend fun createSdkForExistingEnv(context: EvoToolContext, homePath: Path): PyResult<PythonInterpreter> =
-    createPipenvSdk(context.workspace.baseDir, PathHolder.Eel(homePath), context.fileSystem)
+    createPipenvSdk(context.workspace.project, context.workspace.baseDir, PathHolder.Eel(homePath), context.fileSystem)
 
   /**
    * Creates the project's pipenv environment from the base Python in `token`, then assigns its SDK.
@@ -118,6 +118,7 @@ internal class PipenvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
   override suspend fun createSdkForNewEnv(context: EvoToolContext, ref: PyInterpreterRef.CreateEnv): PyResult<PythonInterpreter> {
     val pipenvExecutable = executableOrNull(context.fileSystem) ?: return toolMissing()
     return setupPipEnvSdkWithProgressReport(
+      project = context.workspace.project,
       moduleBasePath = context.workspace.baseDir,
       basePythonBinaryPath = PathHolder.Eel(Path.of(ref.token)),
       fileSystem = context.fileSystem,

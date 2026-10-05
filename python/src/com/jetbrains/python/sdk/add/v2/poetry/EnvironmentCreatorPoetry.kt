@@ -50,6 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
 import kotlin.io.path.exists
+import com.intellij.openapi.project.Project
 
 internal class EnvironmentCreatorPoetry<P : PathHolder>(
   model: PythonMutableTargetAddInterpreterModel<P>,
@@ -117,7 +118,7 @@ internal class EnvironmentCreatorPoetry<P : PathHolder>(
     }
   }
 
-  override suspend fun setupEnvSdk(moduleBasePath: Path): PyResult<PythonInterpreter> {
+  override suspend fun setupEnvSdk(project: Project, moduleBasePath: Path): PyResult<PythonInterpreter> {
     val basePythonBinaryPath = model.getOrInstallBasePython()
                                ?: return PyResult.localizedError(message("python.sdk.provided.path.is.invalid", null))
     val poetryExecutable = model.poetryViewModel.poetryExecutable.get()?.pathHolder?.getOr { return it }
@@ -126,6 +127,7 @@ internal class EnvironmentCreatorPoetry<P : PathHolder>(
     service<PoetryConfigService>().updateExistingPoetryToml(moduleBasePath, model.fileSystem, poetryExecutable)
     return withProgressText(message("python.sdk.progress.poetry.creating")) {
       createNewPoetrySdk(
+        project = project,
         moduleBasePath = moduleBasePath,
         basePythonBinaryPath = basePythonBinaryPath,
         fileSystem = model.fileSystem,

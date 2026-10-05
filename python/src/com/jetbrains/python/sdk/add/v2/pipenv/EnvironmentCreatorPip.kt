@@ -20,6 +20,7 @@ import com.jetbrains.python.sdk.add.v2.pathHolder
 import com.jetbrains.python.sdk.pipenv.setupPipEnvSdkWithProgressReport
 import com.jetbrains.python.statistics.InterpreterType
 import java.nio.file.Path
+import com.intellij.openapi.project.Project
 
 internal class EnvironmentCreatorPip<P : PathHolder>(model: PythonMutableTargetAddInterpreterModel<P>, errorSink: ErrorSink) : CustomNewEnvironmentCreator<P>(model, errorSink) {
   override val interpreterType: InterpreterType = InterpreterType.PIPENV
@@ -31,7 +32,7 @@ internal class EnvironmentCreatorPip<P : PathHolder>(model: PythonMutableTargetA
     model.fileSystem.persistCustomToolPath(pathHolder, pyTool)
   }
 
-  override suspend fun setupEnvSdk(moduleBasePath: Path): PyResult<PythonInterpreter> {
+  override suspend fun setupEnvSdk(project: Project, moduleBasePath: Path): PyResult<PythonInterpreter> {
     val basePythonBinaryPath = model.getOrInstallBasePython()
                                ?: return PyResult.localizedError(message("python.sdk.provided.path.is.invalid", null))
     val pipenvExecutable = model.pipenvViewModel.pipenvExecutable.get()?.pathHolder?.getOr { return it }
@@ -39,6 +40,7 @@ internal class EnvironmentCreatorPip<P : PathHolder>(model: PythonMutableTargetA
 
     return withProgressText(message("python.sdk.progress.pipenv.creating")) {
       setupPipEnvSdkWithProgressReport(
+        project = project,
         moduleBasePath = moduleBasePath,
         basePythonBinaryPath = basePythonBinaryPath,
         fileSystem = model.fileSystem,

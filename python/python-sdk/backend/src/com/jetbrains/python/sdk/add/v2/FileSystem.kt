@@ -87,7 +87,7 @@ interface FileSystem<P : PathHolder> {
    * If you have no idea what flavor is, use `createLocalSdkGuessingTypeByPath`
    */
   suspend fun setupSdk(
-    project: Project?,
+    project: Project,
     pythonBinaryPath: P,
     sdkAdditionalData: PythonSdkAdditionalData,
     targetPanelExtension: TargetPanelExtension?,

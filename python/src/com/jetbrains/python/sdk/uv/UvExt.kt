@@ -136,8 +136,16 @@ internal fun PythonInterpreter.getUvExecutionContextAsync(scope: CoroutineScope,
   }
 }
 
-internal suspend fun setupNewUvSdkAndEnv(uvExecutable: Path, workingDir: Path, version: Version?, errorSink: ErrorSink, mode: UvMode): PyResult<PythonInterpreter> =
+internal suspend fun setupNewUvSdkAndEnv(
+  project: Project,
+  uvExecutable: Path,
+  workingDir: Path,
+  version: Version?,
+  errorSink: ErrorSink,
+  mode: UvMode,
+): PyResult<PythonInterpreter> =
   setupNewUvSdkAndEnv(
+    project = project,
     uvExecutable = PathHolder.Eel(uvExecutable),
     workingDir = workingDir,
     venvPath = null,
@@ -154,6 +162,7 @@ internal suspend fun setupNewUvSdkAndEnv(uvExecutable: Path, workingDir: Path, v
  * already there. [UvMode.Pip] runs `uv venv` alone and writes no file.
  */
 internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
+  project: Project,
   uvExecutable: P,
   workingDir: Path,
   venvPath: P?,
@@ -182,6 +191,7 @@ internal suspend fun <P : PathHolder> setupNewUvSdkAndEnv(
   }.getOr { return it }
 
   val pythonInterpreter = setupExistingEnvAndSdk(
+    project = project,
     pythonBinary = pythonBinary,
     uvPath = normalizedUvExecutablePath,
     workingDir = workingDir,
@@ -213,12 +223,14 @@ internal suspend fun <P : PathHolder> initUvProjectIfNeeded(uvExecutable: P, wor
 }
 
 internal suspend fun setupExistingEnvAndSdk(
+  project: Project,
   pythonBinary: PythonBinary,
   uvPath: Path,
   envWorkingDir: Path,
   mode: UvMode,
 ): PyResult<PythonInterpreter> =
   setupExistingEnvAndSdk(
+    project = project,
     pythonBinary = PathHolder.Eel(pythonBinary),
     uvPath = PathHolder.Eel(uvPath),
     workingDir = envWorkingDir,
@@ -233,6 +245,7 @@ internal suspend fun setupExistingEnvAndSdk(
  * [UvLowLevel.initProject] first.
  */
 internal suspend fun <P : PathHolder> setupExistingEnvAndSdk(
+  project: Project,
   pythonBinary: P,
   uvPath: P,
   workingDir: Path,
@@ -242,5 +255,5 @@ internal suspend fun <P : PathHolder> setupExistingEnvAndSdk(
   val venvPath = fileSystem.resolvePythonHome(pythonBinary).toStringForExecution()
   val sdkAdditionalData = UvSdkAdditionalData(uvWorkingDirectory = workingDir, usePip = null, venvPath = venvPath, uvPath = uvPath.toStringForExecution())
   sdkAdditionalData.requirementsPath = mode.requirementsFile
-  fileSystem.setupSdk(null, pythonBinary, sdkAdditionalData, null, null)
+  fileSystem.setupSdk(project, pythonBinary, sdkAdditionalData, null, null)
 }

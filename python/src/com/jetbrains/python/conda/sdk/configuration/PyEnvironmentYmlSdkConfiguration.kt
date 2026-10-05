@@ -171,6 +171,7 @@ internal class PyEnvironmentYmlSdkConfiguration : PyProjectSdkConfigurationExten
                         ?: return PyResult.localizedError(PyBundle.message("sdk.cannot.use.existing.conda.environment"))
     val workingDirectory = pyProject.baseDir
     return PyCondaCommand(condaExecutable.path.pathString, null).createCondaSdkFromExistingEnvironment(
+      pyProject.project,
       condaIdentity,
       PythonSdkUtil.getAllSdks(),
       workingDirectory,
@@ -207,7 +208,7 @@ internal class PyEnvironmentYmlSdkConfiguration : PyProjectSdkConfigurationExten
     val newCondaEnvInfo = NewCondaEnvRequest.LocalEnvByLocalEnvironmentFile(environmentYml.toNioPath(), existingEnvs)
     val workingDirectory = pyProject.baseDir
     val pythonInterpreter = PyCondaCommand(condaExecutable.path.pathString, null)
-      .createCondaSdkAlongWithNewEnv(newCondaEnvInfo, existingSdks.toList(), workingDirectory).getOr {
+      .createCondaSdkAlongWithNewEnv(project, newCondaEnvInfo, existingSdks.toList(), workingDirectory).getOr {
         PySdkConfigurationCollector.logCondaEnv(project, CondaEnvResult.CREATION_FAILURE)
         thisLogger().warn("Exception during creating conda environment $it")
         return it

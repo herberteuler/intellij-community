@@ -75,6 +75,7 @@ internal class HatchExistingEnvironmentSelector<P : PathHolder>(
         val workingDirectory = resolveHatchWorkingDirectory(project, module).getOr { return it }
         withProgressText(message("python.sdk.progress.hatch.configuring")) {
           environment.createSdk(
+            project = project,
             workingDirectoryPath = workingDirectory,
             fileSystem = model.fileSystem,
             targetPanelExtension = model.state.targetPanelExtension.get(),

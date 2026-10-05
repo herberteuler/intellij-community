@@ -33,6 +33,7 @@ import com.jetbrains.python.sdk.add.v2.toFileSystem
 import com.jetbrains.python.statistics.InterpreterType
 import kotlinx.coroutines.CoroutineScope
 import java.nio.file.Path
+import com.intellij.openapi.project.Project
 
 internal class HatchNewEnvironmentCreator<P : PathHolder>(
   override val model: PythonMutableTargetAddInterpreterModel<P>,
@@ -91,7 +92,7 @@ internal class HatchNewEnvironmentCreator<P : PathHolder>(
     return Result.success(Unit)
   }
 
-  override suspend fun setupEnvSdk(moduleBasePath: Path): PyResult<PythonInterpreter> {
+  override suspend fun setupEnvSdk(project: Project, moduleBasePath: Path): PyResult<PythonInterpreter> {
     val basePythonBinaryPath = model.getOrInstallBasePython()
                                ?: return Result.failure(HatchUIError.BasePythonExecutableIsNotAvailable())
 
@@ -111,6 +112,7 @@ internal class HatchNewEnvironmentCreator<P : PathHolder>(
 
     val hatchVirtualEnv = HatchVirtualEnvironment(hatchEnv, virtualEnvironment)
     return hatchVirtualEnv.createSdk(
+      project = project,
       workingDirectoryPath = hatchService.getWorkingDirectoryPath(),
       fileSystem = model.fileSystem,
       targetPanelExtension = model.state.targetPanelExtension.get(),

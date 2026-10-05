@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.env.venv.showCase
 
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
 import com.intellij.python.junit5Tests.framework.env.PythonBinaryPath
 import com.intellij.python.sdk.backend.getSdkAPI
@@ -27,7 +28,7 @@ class PyVenvCreationManuallyShowCaseTest {
   fun createVenvTest(@PythonBinaryPath python: PythonBinary, @TempDir venvDir: Directory): Unit = timeoutRunBlocking(5.minutes) {
     val venvPython = createVenv(python, venvDir).getOrThrow()
     val additionalData = createVenvAdditionalData(venvDir.parent)
-    val interpreter = createSdk(PathHolder.Eel(venvPython), additionalData).getOrThrow()
+    val interpreter = createSdk(ProjectManager.getInstance().defaultProject, PathHolder.Eel(venvPython), additionalData).getOrThrow()
     val sdk = interpreter.getSdkAPI()
     val flavorAndData = sdk.pySdkAdditionalData.flavorAndData
     assertTrue(flavorAndData.sdkSeemsValid(sdk, null),

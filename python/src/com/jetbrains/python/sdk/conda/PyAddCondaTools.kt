@@ -27,6 +27,7 @@ import com.jetbrains.python.sdk.flavors.conda.PyCondaFlavorData
 import com.jetbrains.python.target.PyTargetAwareAdditionalData
 import java.nio.file.Path
 import kotlin.io.path.Path
+import com.intellij.openapi.project.Project
 
 /**
  * Levels to be used for new conda envs
@@ -42,6 +43,7 @@ internal val condaSupportedLanguages: List<LanguageLevel>
  * See `com.jetbrains.env.python.conda.PyCondaSdkTest`
  */
 internal suspend fun PyCondaCommand.createCondaSdkFromExistingEnvironment(
+  project: Project,
   condaIdentity: PyCondaEnvIdentity,
   existingSdks: List<Sdk>,
   workingDirectory: Path,
@@ -63,7 +65,7 @@ internal suspend fun PyCondaCommand.createCondaSdkFromExistingEnvironment(
 
   val sdkType = PythonSdkType.getInstance()
   val name = SdkConfigurationUtil.createUniqueSdkName(sdkType.suggestSdkName(null, interpreterPath), existingSdks)
-  val pythonInterpreter = creationRequest.createSdk( name).getOr { return it }
+  val pythonInterpreter = creationRequest.createSdk(project, name).getOr { return it }
 
   if (targetConfig == null) {
     savePythonCondaPath(Path.of(fullCondaPathOnTarget))
@@ -94,12 +96,14 @@ private suspend fun getCondaPythonBinaryPath(
  * See `com.jetbrains.env.python.conda.PyCondaSdkTest`
  */
 internal suspend fun PyCondaCommand.createCondaSdkAlongWithNewEnv(
+  project: Project,
   newCondaEnvInfo: NewCondaEnvRequest,
   existingSdks: List<Sdk>,
   workingDirectory: Path,
 ): PyResult<PythonInterpreter> {
   PyCondaEnv.createEnv(this, newCondaEnvInfo).getOr { return it }
   val sdk = createCondaSdkFromExistingEnvironment(
+    project = project,
     condaIdentity = newCondaEnvInfo.toIdentity(),
     existingSdks = existingSdks,
     workingDirectory = workingDirectory,

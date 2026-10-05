@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
 import java.nio.file.Path
+import com.intellij.openapi.project.Project
 
 /**
  * Builds a hatch-typed SDK for this environment, failing when it has no usable base interpreter.
@@ -29,6 +30,7 @@ import java.nio.file.Path
  */
 @ApiStatus.Internal
 suspend fun <P : PathHolder> HatchVirtualEnvironment<P>.createSdk(
+  project: Project,
   workingDirectoryPath: Path,
   fileSystem: FileSystem<P>,
   targetPanelExtension: TargetPanelExtension? = null,
@@ -49,7 +51,7 @@ suspend fun <P : PathHolder> HatchVirtualEnvironment<P>.createSdk(
     hatchEnvironmentName = this.hatchEnvironment.name,
   )
   val sdk = fileSystem.setupSdk(
-    project = null,
+    project = project,
     pythonBinaryPath = pythonBinary,
     sdkAdditionalData = hatchSdkAdditionalData,
     targetPanelExtension = targetPanelExtension,

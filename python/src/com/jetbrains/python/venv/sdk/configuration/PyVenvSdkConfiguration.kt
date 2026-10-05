@@ -5,7 +5,6 @@ import com.intellij.openapi.vfs.refreshAndFindVirtualFile
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.python.community.common.tools.ToolId
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.venv.createVenvAdditionalData
 import com.jetbrains.python.PyBundle
 import com.jetbrains.python.PythonBinary
@@ -27,7 +26,6 @@ import com.jetbrains.python.sdk.configuration.VENV_TOOL_ID
 import com.jetbrains.python.sdk.configuration.findEnvOrNull
 import com.jetbrains.python.sdk.configuration.prepareSdkCreator
 import com.jetbrains.python.sdk.createSdk
-import com.jetbrains.python.sdk.setAssociationToModule
 import com.jetbrains.python.uv.sdk.configuration.isUvEnv
 import com.jetbrains.python.venvReader.VirtualEnvReader
 import kotlinx.coroutines.Dispatchers
@@ -74,13 +72,12 @@ internal class PyVenvSdkConfiguration : PyProjectSdkConfigurationExtension {
     val additionalData = createVenvAdditionalData(pyProject.baseDir)
     val pythonInterpreter = withContext(Dispatchers.IO) {
       createSdk(
+        pyProject.project,
         PathHolder.Eel(pythonBinary.toNioPath()),
         additionalData,
         null,
       )
     }.getOr { return it }
-
-    pythonInterpreter.getSdkAPI().setAssociationToModule(pyProject.residesOnModule)
 
     return PyResult.success(pythonInterpreter)
   }

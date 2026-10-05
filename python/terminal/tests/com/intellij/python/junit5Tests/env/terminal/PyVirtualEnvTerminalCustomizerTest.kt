@@ -135,7 +135,7 @@ internal class PyVirtualEnvTerminalCustomizerTest {
     val (pythonBinary, venvDirName) =
       if (useConda) {
         val envDir = venvPath.resolve("some_path_with_underscores")
-        val interpreter = createCondaEnv(condaEnv, envDir).createSdkFromThisEnv(null, emptyList(), envDir).getOrThrow()
+        val interpreter = createCondaEnv(condaEnv, envDir).createSdkFromThisEnv(moduleFixture.get().project, null, emptyList(), envDir).getOrThrow()
         val sdk = interpreter.getSdkAPI()
         sdkToDelete = sdk
         moduleFixture.get().pythonSdk = sdk

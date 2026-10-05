@@ -25,12 +25,14 @@ import java.nio.file.Path
 import java.util.regex.Pattern
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.pathString
+import com.intellij.openapi.project.Project
 
 
 internal fun suggestedSdkName(basePath: Path): @NlsSafe String = "Poetry (${PathUtil.getFileName(basePath.pathString)})"
 
 
 internal suspend fun createNewPoetrySdk(
+  project: Project,
   moduleBasePath: Path,
   basePythonBinaryPath: PythonBinary,
   installPackages: Boolean,
@@ -39,6 +41,7 @@ internal suspend fun createNewPoetrySdk(
 ): PyResult<PythonInterpreter> {
   val fileSystem = moduleBasePath.toEelFileSystem()
   return createNewPoetrySdk(
+    project = project,
     moduleBasePath = moduleBasePath,
     basePythonBinaryPath = PathHolder.Eel(basePythonBinaryPath),
     fileSystem = fileSystem,
@@ -50,6 +53,7 @@ internal suspend fun createNewPoetrySdk(
 }
 
 internal suspend fun <P : PathHolder> createNewPoetrySdk(
+  project: Project,
   moduleBasePath: Path,
   basePythonBinaryPath: P,
   fileSystem: FileSystem<P>,
@@ -70,6 +74,7 @@ internal suspend fun <P : PathHolder> createNewPoetrySdk(
   ).getOr { return it }
 
   return createPoetrySdk(
+    project = project,
     basePath = moduleBasePath,
     pythonBinaryPath = pythonBinaryPath,
     fileSystem = fileSystem,
@@ -78,13 +83,14 @@ internal suspend fun <P : PathHolder> createNewPoetrySdk(
 }
 
 internal suspend fun <P : PathHolder> createPoetrySdk(
+  project: Project,
   basePath: Path,
   pythonBinaryPath: P,
   fileSystem: FileSystem<P>,
   targetPanelExtension: TargetPanelExtension? = null,
 ): PyResult<PythonInterpreter> = withProgressText(PyBundle.message("python.sdk.progress.poetry.configuring")) {
   fileSystem.setupSdk(
-    project = null,
+    project = project,
     pythonBinaryPath = pythonBinaryPath,
     sdkAdditionalData = PyPoetrySdkAdditionalData(basePath),
     targetPanelExtension = targetPanelExtension,

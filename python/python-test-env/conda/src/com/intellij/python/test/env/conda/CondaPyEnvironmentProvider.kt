@@ -4,6 +4,7 @@ package com.intellij.python.test.env.conda
 import com.intellij.execution.processTools.getResultStdout
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.python.community.execService.Args
 import com.intellij.python.community.execService.BinOnEel
@@ -326,15 +327,15 @@ class CondaPyEnvironment(
     }
   }
 
-  // The conda SDK creation adds the SDK to the SDK table, so the registry gets it from the table.
-  override suspend fun prepareSdk(project: Project): PythonInterpreter = prepareSdk()
-
-  override suspend fun prepareSdk(): PythonInterpreter {
+  override suspend fun prepareSdk(project: Project): PythonInterpreter {
     // Save a path to conda because some legacy code might use it instead of a full conda path from additional data
     PyCondaPackageService.onCondaEnvCreated(condaExecutable.pathString)
     return PyCondaEnv(
       envIdentity = PyCondaEnvIdentity.UnnamedEnv(envPath.pathString, isBase = true),
       fullCondaPathOnTarget = condaExecutable.toString(),
-    ).createSdkFromThisEnv(null, emptyList(), envPath).getOrThrow()
+    ).createSdkFromThisEnv(project, null, emptyList(), envPath).getOrThrow()
   }
+
+  // The old fixtures have no project. The SDK table is global, so the default project adds the SDK.
+  override suspend fun prepareSdk(): PythonInterpreter = prepareSdk(ProjectManager.getInstance().defaultProject)
 }

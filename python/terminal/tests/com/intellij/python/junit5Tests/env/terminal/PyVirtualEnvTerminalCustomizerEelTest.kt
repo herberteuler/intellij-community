@@ -65,6 +65,7 @@ internal class PyVirtualEnvTerminalCustomizerEelTest {
     val venvDir = workingDirectory.resolve(".venv")
     val venvPython = createVenv(python, venvDir).getOrThrow()
     val sdk = createSdk(
+      moduleFixture.get().project,
       PathHolder.Eel(venvPython),
       createVenvAdditionalData(workingDirectory),
       advancedOpts = SdkCreationAdvancedOpts(persist = true),

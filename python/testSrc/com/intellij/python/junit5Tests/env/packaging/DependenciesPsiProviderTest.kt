@@ -246,7 +246,7 @@ internal class DependenciesPsiProviderTest {
         val module = moduleFixture.get()
         val venvDir = tempPathFixture.get().resolve(".venv")
         val venvPython = createVenv(env.pythonPath, venvDir).getOrThrow()
-        createSdk(PathHolder.Eel(venvPython), additionalData(module))
+        createSdk(module.project, PathHolder.Eel(venvPython), additionalData(module))
           .orThrow()
           .getSdkAPI()
           .also {

@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.uv.sdk.configuration
 
-import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.diagnostic.fileLogger
 import com.jetbrains.python.PyBundle
@@ -10,7 +9,6 @@ import com.jetbrains.python.errorProcessing.ErrorSink
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.errorProcessing.withProject
 import com.jetbrains.python.impl.getSdkAssociatedPyProject
-import com.jetbrains.python.onSuccess
 import com.intellij.python.venv.environment.VenvEnvironment
 import com.jetbrains.python.project.PyProject
 import com.jetbrains.python.project.getEel
@@ -19,19 +17,15 @@ import com.jetbrains.python.sdk.configuration.EnvCheckerResult
 import com.jetbrains.python.sdk.configuration.findEnvOrNull
 import com.jetbrains.python.sdk.configuration.findPythonVirtualEnvironments
 import com.intellij.python.sdk.backend.detectPythonEnvironment
-import com.jetbrains.python.sdk.setAssociationToModule
 import com.intellij.python.pytools.resolveExecutable
 import com.intellij.python.uv.backend.UvPyTool
 import com.intellij.python.pyproject.model.internal.workspaceBridge.getToolWorkspaceLayout
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.uv.common.UV_TOOL_ID
 import com.jetbrains.python.sdk.add.v2.EelFileSystem
 import com.jetbrains.python.sdk.uv.detectUvMode
 import com.jetbrains.python.sdk.uv.setupExistingEnvAndSdk
 import com.jetbrains.python.sdk.uv.setupNewUvSdkAndEnv
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 private val logger = fileLogger()
 
@@ -58,20 +52,15 @@ internal suspend fun createUvSdk(pyProject: PyProject, venvs: List<PythonBinary>
   val mode = detectUvMode(workingDir)
   val sdkSetupResult = if (envExists) {
     target.existing?.let {
-      setupExistingEnvAndSdk(it, uv, workingDir, mode)
+      setupExistingEnvAndSdk(sdkAssociatedProject.project, it, uv, workingDir, mode)
     } ?: run {
       logger.warn("Can't find existing uv environment in project, but it was expected. " +
                   "Probably it was deleted. New environment will be created")
-      setupNewUvSdkAndEnv(uv, workingDir, null, errorSink, mode)
+      setupNewUvSdkAndEnv(sdkAssociatedProject.project, uv, workingDir, null, errorSink, mode)
     }
   }
-  else setupNewUvSdkAndEnv(uv, workingDir, null, errorSink, mode)
+  else setupNewUvSdkAndEnv(sdkAssociatedProject.project, uv, workingDir, null, errorSink, mode)
 
-  sdkSetupResult.onSuccess {
-    withContext(Dispatchers.EDT) {
-      it.getSdkAPI().setAssociationToModule(sdkAssociatedProject.residesOnModule)
-    }
-  }
   return sdkSetupResult
 }
 

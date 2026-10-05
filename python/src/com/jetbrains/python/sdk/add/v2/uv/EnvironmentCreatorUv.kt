@@ -68,6 +68,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
+import com.intellij.openapi.project.Project
 
 /**
  * The `major.minor` head of a version as uv prints it. Taken as a prefix rather than parsed, because a pre-release
@@ -308,9 +309,10 @@ internal class EnvironmentCreatorUv<P : PathHolder>(
     }
   }
 
-  override suspend fun setupEnvSdk(moduleBasePath: Path): PyResult<PythonInterpreter> {
+  override suspend fun setupEnvSdk(project: Project, moduleBasePath: Path): PyResult<PythonInterpreter> {
     val uv = toolExecutable.get()!!.pathHolder.getOr { return it }
     return setupNewUvSdkAndEnv(
+      project = project,
       uvExecutable = uv,
       workingDir = moduleBasePath,
       venvPath = model.uvViewModel.uvVenvPath.get()?.pathHolder?.getOr { return it },

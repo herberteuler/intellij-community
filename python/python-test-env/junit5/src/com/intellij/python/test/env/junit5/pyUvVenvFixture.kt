@@ -24,6 +24,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.io.path.pathString
 import kotlin.time.Duration.Companion.minutes
+import com.jetbrains.python.project.PyProject
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
+import com.intellij.python.junit5Tests.framework.env.PyInterpreterFixture
+import com.intellij.python.sdk.backend.PythonInterpreter
+import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.sitePackagesDirectory
 
 /**
  * Creates a virtual env with `uv venv` and sets uv as the package manager in [mode]. The default is pip mode, because the
@@ -62,7 +68,7 @@ fun TestFixture<SdkFixture<PyEnvironment>>.pyUvVenvFixture(
   } ?: error("Python executable not found in UV venv: $venvDir")
 
   val interpreter =
-    setupExistingEnvAndSdk(pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, mode = mode).getOrThrow()
+    setupExistingEnvAndSdk(project = module.project, pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, mode = mode).getOrThrow()
   val sdk = interpreter.getSdkAPI()
   if (addToSdkTable) {
     module.pythonSdk = sdk
@@ -75,5 +81,51 @@ fun TestFixture<SdkFixture<PyEnvironment>>.pyUvVenvFixture(
     edtWriteAction {
       ProjectJdkTable.getInstance().removeJdk(sdk)
     }
+  }
+}
+
+/**
+ * Create virtual env using UV and setting uv as a Package manager via ui pip. The Python project of [pyProjectFixture] gets its interpreter.
+ *
+ * Similar to [pyVenvFixture] but uses `uv venv` instead of virtualenv helper.
+ * UV is significantly faster for venv creation and package installation.
+ * UV will be downloaded automatically if not present.
+ *
+ */
+fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyUvVenvFixture(
+  pyProjectFixture: TestFixture<PyProject>,
+): TestFixture<PythonInterpreter> = testFixture {
+  val interpreterFixture = this@pyUvVenvFixture.init()
+  val env = interpreterFixture.env
+  val project = interpreterFixture.project
+  val pyProject = pyProjectFixture.init()
+  val baseDirPath = pyProject.baseDir
+  val venvDir = baseDirPath.resolve(".venv")
+
+
+  // Get or download UV executable
+  val uvExecutable = getOrDownloadUvExecutable(LATEST_UV_VERSION)
+
+  // Create venv using UV
+  runExecutableWithProgress(
+    uvExecutable, venvDir.parent, 10.minutes, emptyMap(),
+    "venv", venvDir.pathString, "--python", env.pythonPath.pathString
+  ).getOrThrow()
+
+
+  // Find Python in created venv
+  val venvPython = withContext(Dispatchers.IO) {
+    VirtualEnvReader().findPythonInPythonRoot(venvDir)
+  } ?: error("Python executable not found in UV venv: $venvDir")
+
+  val interpreter =
+    setupExistingEnvAndSdk(project = project, pythonBinary = venvPython, uvPath = uvExecutable, envWorkingDir = baseDirPath, usePip = true).getOrThrow()
+  pyProject.setPythonInterpreter(interpreter)
+  // workaround interesting behavior of VFS_STRUCTURAL_MODIFICATIONS
+  interpreter.sitePackagesDirectory()?.getChildren()
+
+  initialized(interpreter) {
+    pyProject.setPythonInterpreter(null)
+    PythonInterpreterProjectRegistry.getInstance(project).removePythonInterpreter(interpreter)
   }
 }

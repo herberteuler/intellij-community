@@ -173,44 +173,39 @@ public final class KeyHashLog<Key> implements Closeable {
   }
 
   public @NotNull IntSet getSuitableKeyHashes(@NotNull IdFilter idFilter) throws StorageException {
+    ProgressManager.checkCanceled();
     try {
-      doForce();
-
       Int2ObjectMap<IntSet> hash2inputIds = new Int2ObjectOpenHashMap<>(1000);
       IntRef uselessRecords = new IntRef(0);
 
-      withLock(() -> {
-        ProgressManager.checkCanceled();
+      myKeyHashToVirtualFileMapping.processAll((offset, key) -> {
+        int keyHash = key[0];
+        int inputId = key[1];
 
-        myKeyHashToVirtualFileMapping.processAll((offset, key) -> {
-          int keyHash = key[0];
-          int inputId = key[1];
+        //Throttle the check (probability of any 5-bit pattern in a good hash is ~1/32)
+        if ((keyHash & 0b11111) == 0) ProgressManager.checkCanceled();
 
-          //Throttle the check (probability of any 5-bit pattern in a good hash is ~1/32)
-          if ((keyHash & 0b11111) == 0) ProgressManager.checkCanceled();
+        int absInputId = Math.abs(inputId);
+        if (!idFilter.containsFileId(absInputId)) return true;
 
-          int absInputId = Math.abs(inputId);
-          if (!idFilter.containsFileId(absInputId)) return true;
-          
 
-          if (inputId > 0) {
-            if (!hash2inputIds.computeIfAbsent(keyHash, __ -> new IntOpenHashSet(4)).add(inputId)) {
-              uselessRecords.inc();
-            }
-          }
-          else {
-            IntSet inputIds = hash2inputIds.get(keyHash);
-            if (inputIds != null) {
-              inputIds.remove(absInputId);
-              if (inputIds.isEmpty()) {
-                hash2inputIds.remove(keyHash);
-              }
-            }
+        if (inputId > 0) {
+          if (!hash2inputIds.computeIfAbsent(keyHash, __ -> new IntOpenHashSet(4)).add(inputId)) {
             uselessRecords.inc();
           }
-          return true;
-        });
-      }, /* read: */ true);
+        }
+        else {
+          IntSet inputIds = hash2inputIds.get(keyHash);
+          if (inputIds != null) {
+            inputIds.remove(absInputId);
+            if (inputIds.isEmpty()) {
+              hash2inputIds.remove(keyHash);
+            }
+          }
+          uselessRecords.inc();
+        }
+        return true;
+      });
 
       if (uselessRecords.get() >= hash2inputIds.size()) {
         setRequiresCompaction();

@@ -42,6 +42,22 @@ class KeyHashLogTest {
   }
 
   @Test
+  fun testGetSuitableKeyHashesIncludesMappingsFromAppendBuffer() {
+    val dir = temporaryDirectory.createDir()
+    KeyHashLog(EnumeratorStringDescriptor.INSTANCE, dir.resolve("keyHashLog")).use { keyHashLog ->
+      val mapping = keyHashLog.getFieldValue<AppendableStorageBackedByResizableMappedFile<IntArray>>("myKeyHashToVirtualFileMapping")
+
+      keyHashLog.addKeyHashToVirtualFileMapping("qwe", 1)
+
+      TestCase.assertTrue("The test mapping must contain changes that were not forced explicitly", mapping.isDirty)
+      TestCase.assertNotNull("The test entry must remain in the append buffer", mapping.getFieldValue<Any?>("appendBuffer"))
+
+      val hashes = keyHashLog.getSuitableKeyHashes(setOf(1).toFilter())
+      TestCase.assertEquals("The scan must include entries that it flushes from the append buffer", setOf("qwe").toHashes(), hashes)
+    }
+  }
+
+  @Test
   fun testAddRemove() {
     val dir = temporaryDirectory.createDir()
     KeyHashLog(EnumeratorStringDescriptor.INSTANCE, dir.resolve("keyHashLog")).use {

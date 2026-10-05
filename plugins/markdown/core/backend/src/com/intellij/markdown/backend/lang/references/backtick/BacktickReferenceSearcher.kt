@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.intellij.plugins.markdown.lang.references.backtick
+package com.intellij.markdown.backend.lang.references.backtick
 
+import com.intellij.markdown.backend.lang.references.MarkdownProjectUtils.hasMarkdownFiles
 import com.intellij.openapi.application.QueryExecutorBase
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.PsiReference
@@ -9,7 +10,6 @@ import com.intellij.psi.search.UsageSearchContext
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.util.Processor
 import org.intellij.plugins.markdown.lang.MarkdownFileType
-import org.intellij.plugins.markdown.lang.references.ReferenceUtil.hasMarkdownFiles
 
 internal class BacktickReferenceSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
   override fun processQuery(

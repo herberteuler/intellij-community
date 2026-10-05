@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
-package org.intellij.plugins.markdown.lang.references.paths
+package com.intellij.markdown.backend.lang.references.paths
 
+import com.intellij.markdown.backend.lang.references.MarkdownProjectUtils.hasMarkdownFiles
 import com.intellij.openapi.application.QueryExecutorBase
 import com.intellij.psi.PsiFileSystemItem
 import com.intellij.psi.PsiReference
@@ -10,7 +11,6 @@ import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.util.Processor
 import com.intellij.util.io.URLUtil
 import org.intellij.plugins.markdown.lang.MarkdownFileType
-import org.intellij.plugins.markdown.lang.references.ReferenceUtil.hasMarkdownFiles
 
 internal class UrlEncodedFileReferenceSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
   override fun processQuery(

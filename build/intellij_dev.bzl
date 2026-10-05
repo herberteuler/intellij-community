@@ -335,6 +335,13 @@ def _intellij_dev_java_launcher_impl(ctx):
     flags_file = ctx.actions.declare_file(ctx.label.name + ".jvm-flags.txt")
     ctx.actions.write(flags_file, "".join([_resolve_variables(ctx.label, flag) + "\n" for flag in flags]))
 
+    # Each value is one program argument, as the run configuration of the IDE passes it. So the rule splits no value at
+    # a space, which Bazel does for a value of `args`.
+    program_args = [
+        _resolve_variables(ctx.label, ctx.expand_make_variables("program_args", ctx.expand_location(argument, targets), {}))
+        for argument in ctx.attr.program_args
+    ]
+
     runfiles_directory = _runfiles_directory(ctx)
     argfile = ctx.actions.declare_file(ctx.label.name + ".jvm.args")
     arguments = ctx.actions.args()
@@ -347,8 +354,7 @@ def _intellij_dev_java_launcher_impl(ctx):
     arguments.add(placement.files["bin/product-info.json"], format = "--product-info=%s")
     arguments.add(dist.core_classpath, format = "--core-classpath=%s")
     arguments.add(flags_file, format = "--flags-file=%s")
-    if ctx.attr.program_args:
-        arguments.add(ctx.attr.program_args[0], format = "--command=%s")
+    arguments.add_all(program_args, format_each = "--program-arg=%s")
     if "modules/module-descriptors.dat" in placement.files:
         arguments.add("--runtime-module-repository")
     arguments.add(argfile, format = "--output=%s")
@@ -387,12 +393,11 @@ def _intellij_dev_java_launcher_impl(ctx):
     # argument file.
     launch = ctx.actions.declare_file(ctx.label.name + ".launch.json")
     ctx.actions.write(launch, json.encode_indent({
-        "version": 1,
+        "version": 2,
         "java": "%s/execroot/%s/%s" % (OUTPUT_BASE, ctx.workspace_name, java_runtime.java_executable_exec_path),
         "argfile": "%s/%s/%s.jvm.args" % (runfiles_directory, ctx.workspace_name, ctx.label.name),
         "runfilesDirectory": runfiles_directory,
         "workingDirectory": "%s/%s" % (runfiles_directory, ctx.workspace_name),
-        "programArguments": ctx.attr.program_args,
         "env": environment,
     }) + "\n")
     return [
@@ -403,13 +408,14 @@ def _intellij_dev_java_launcher_impl(ctx):
 intellij_dev_java_launcher = rule(
     doc = """Starts a composed dev distribution with `java` itself, `bazel run //<package>:<name>`.
 
-The executable is a link to the `java` of the Java runtime. Its `args` start with `@<name>.jvm.args`, the argument
-file that `dev-launcher jvm-args` writes at build time. The home is `<name>.runfiles/ide_home`, which Bazel links from
-the placement of the components. So no process runs before the JVM, and a launch writes no file. `bazel run` starts
-the executable in `<name>.runfiles/_main`, so every path of the argument file is absolute. A caller adds JVM flags
-through `JDK_JAVA_OPTIONS`, and `java` reads them before the argument file. `<name>.launch.json` states the absolute
-paths of `java`, the argument file and the runfiles tree, the program arguments and the environment. The devkit Bazel
-plugin reads it to debug the row. Windows uses `intellij_dev_launcher`.""",
+The executable is a link to the `java` of the Java runtime. Its `args` are `@<name>.jvm.args`, the argument file that
+`dev-launcher jvm-args` writes at build time. The file ends with the main class and the program arguments of the row.
+So `bazel run //<package>:<name> -- <argument>` adds a program argument after them. The home is
+`<name>.runfiles/ide_home`, which Bazel links from the placement of the components. So no process runs before the JVM,
+and a launch writes no file. `bazel run` starts the executable in `<name>.runfiles/_main`, so every path of the
+argument file is absolute. A caller adds JVM flags through `JDK_JAVA_OPTIONS`, and `java` reads them before the
+argument file. `<name>.launch.json` states the absolute paths of `java`, the argument file and the runfiles tree, and
+the environment. The devkit Bazel plugin reads it to debug the row. Windows uses `intellij_dev_launcher`.""",
     implementation = _intellij_dev_java_launcher_impl,
     executable = True,
     fragments = ["java"],
@@ -420,7 +426,7 @@ plugin reads it to debug the row. Windows uses `intellij_dev_launcher`.""",
         "add_opens": attr.string_list(doc = "Packages opened to the unnamed module, as `java_binary.add_opens`."),
         "env": attr.string_dict(doc = "Environment variables `bazel run` sets for the IDE."),
         "data": attr.label_list(allow_files = True, doc = "Extra runfiles of the launcher."),
-        "program_args": attr.string_list(doc = "The program arguments of the row, which `args` also states. The first one names a custom command."),
+        "program_args": attr.string_list(doc = "The program arguments of the row, which the argument file holds after the main class. Each value is one argument; `$(location)` and make variables expand, and `${BUILD_WORKSPACE_DIRECTORY}` and `${HOME}` resolve at analysis. The first one names a custom command."),
         "_jvm_args_tool": attr.label(default = Label("//build/dev-dist-tools/bins/dev-launcher:dev-launcher_opt"), executable = True, cfg = "exec"),
         "_windows": attr.label(default = Label("@platforms//os:windows")),
     },
@@ -451,8 +457,9 @@ def intellij_dev_java_launcher_binary(
         ],
         add_opens = INTELLIJ_ADD_OPENS,
         env = env,
-        # `bazel run` starts the executable in `<name>.runfiles/_main`, which holds the argument file.
-        args = ["@%s.jvm.args" % name] + program_args,
+        # `bazel run` starts the executable in `<name>.runfiles/_main`, which holds the argument file. The file holds
+        # the program arguments, so a `bazel run` argument comes after them.
+        args = ["@%s.jvm.args" % name],
         program_args = program_args,
         data = data,
     )

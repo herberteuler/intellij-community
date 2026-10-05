@@ -3,7 +3,8 @@
 //! A launch prepares the arguments from the home that it starts. The rule `intellij_dev_java_launcher` runs `jvm-args`
 //! at build time instead. Then `java` starts with `@<file>`, and no process runs before the JVM. The arguments are
 //! the same in both forms: the caller flags, three fixed properties, the distribution properties, the class path and
-//! the main class.
+//! the main class. The argument file then holds the program arguments of the row. `java` reads each argument after the
+//! main class as a program argument, so it expands no `@<file>` there.
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -125,7 +126,8 @@ struct JvmArgsOptions {
     product_info: String,
     core_classpath: String,
     flags_file: String,
-    command: Option<String>,
+    /// The program arguments of the row, in their order. The first one names the custom command.
+    program_args: Vec<String>,
     runtime_module_repository: bool,
     output: String,
 }
@@ -160,7 +162,7 @@ fn parse_jvm_args(args: &[OsString]) -> anyhow::Result<JvmArgsOptions> {
         product_info: options.require("--product-info")?,
         core_classpath: options.require("--core-classpath")?,
         flags_file: options.require("--flags-file")?,
-        command: options.take("--command")?,
+        program_args: options.take_all("--program-arg")?,
         runtime_module_repository: options.flag("--runtime-module-repository")?,
         output: options.require("--output")?,
     };
@@ -197,7 +199,8 @@ fn write_jvm_args(options: &JvmArgsOptions) -> anyhow::Result<()> {
         runtime_module_repository,
     };
     let command_line = read_lines(Path::new(&options.flags_file))?;
-    let arguments = java_arguments(command_line, distribution, options.command.as_deref())?;
+    let mut arguments = java_arguments(command_line, distribution, options.program_args.first().map(String::as_str))?;
+    arguments.extend(options.program_args.iter().cloned());
     let mut text = String::new();
     for argument in &arguments {
         text.push_str(&quote_argument(argument));

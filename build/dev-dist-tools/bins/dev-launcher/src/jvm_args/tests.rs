@@ -105,16 +105,58 @@ fn the_argument_file_starts_a_custom_command_and_names_the_repository() {
     let args = write_inputs(
         directory.path(),
         &["-Didea.dev.mode.custom.command=true"],
-        &["--command=ijLight", "--runtime-module-repository"],
+        &["--program-arg=ijLight", "--program-arg=/ws/project", "--runtime-module-repository"],
     );
     assert_eq!(run(&args), (0, String::new()));
     let text = std::fs::read_to_string(directory.path().join("out/idea.jvm.args")).unwrap();
-    assert!(text.ends_with("com.example.LightMain\n"), "{text}");
+    // The first program argument names the command, and the file still passes it to the main class of the command.
+    assert!(text.ends_with("\ncom.example.LightMain\nijLight\n/ws/project\n"), "{text}");
     assert!(text.contains("-Dlight=1\n"), "{text}");
     assert!(
         text.contains("-Dintellij.platform.runtime.repository.path=/ws/runfiles/ide_home/modules/module-descriptors.dat\n"),
         "{text}"
     );
+}
+
+#[test]
+fn the_program_arguments_follow_the_main_class_in_their_order() {
+    let directory = tempfile::tempdir().unwrap();
+    let args = write_inputs(
+        directory.path(),
+        &["-ea"],
+        &[
+            "--program-arg=serverMode",
+            "--program-arg=--project=/ws/Kotlin Koans",
+            "--program-arg=@not-a-file",
+            "--program-arg=",
+            "--program-arg=/$tcp.ij/a\\b",
+        ],
+    );
+    assert_eq!(run(&args), (0, String::new()));
+    let text = std::fs::read_to_string(directory.path().join("out/idea.jvm.args")).unwrap();
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(
+        lines[lines.len() - 6..],
+        [
+            "com.intellij.idea.Main",
+            "serverMode",
+            "\"--project=/ws/Kotlin Koans\"",
+            "@not-a-file",
+            "\"\"",
+            "\"/$tcp.ij/a\\\\b\"",
+        ]
+    );
+    // Without the custom command property, the first program argument is a plain argument of the IDE.
+    assert!(!text.contains("-Dlight=1"), "{text}");
+}
+
+#[test]
+fn a_program_argument_needs_a_value() {
+    let directory = tempfile::tempdir().unwrap();
+    let args = write_inputs(directory.path(), &[], &["--program-arg"]);
+    let (code, errors) = run(&args);
+    assert_eq!(code, 2);
+    assert!(errors.contains("--program-arg takes a value"), "{errors}");
 }
 
 #[test]

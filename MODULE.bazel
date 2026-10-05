@@ -264,6 +264,7 @@ rules_rust.patch(
         "//:build/rules_rust-process-wrapper-skip-static-lib-symlinks.patch",  # TODO: remove that once merged to upstream
         "//:build/rules_rust-cdylib-def-file.patch",  # TODO: remove that once merged to upstream
         "//:build/rules_rust-cc-common-link-native-libs.patch",  # TODO: remove that once merged to upstream
+        "//:build/rules_rust-cc-common-link-strip.patch",  # TODO: remove that once merged to upstream
     ],
     strip = 1,
 )

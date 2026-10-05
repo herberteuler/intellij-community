@@ -1,0 +1,118 @@
+Strip the output of a `cc_common.link` link at the `-Cstrip` level of rustc.
+
+Under `experimental_use_cc_common_link`, rustc links only with `native_libs_recorder`. So `-Cstrip` strips a copy of
+the object that the build discards, and the output of `cc_common.link` keeps its debug info and its symbols. This
+applies to the `strip_level` of the toolchain and to a `-Cstrip` in the flags of a target.
+
+`cc_common.link` strips only for `--strip`, which applies to every cc link. So take the last `-Cstrip` level that
+rustc gets, and set the `strip_debug_symbols` variable for that link. The cc toolchain then strips the debug info as
+its linker needs: `-Wl,-S`, or `/DEBUG:NONE` for an MSVC link. On macOS, the `@llvm` toolchain strips after it writes
+the dSYM. For `symbols`, also pass the flag that rustc uses: `-Wl,-x` on Apple, `-Wl,--strip-all` on the others. An
+MSVC link keeps the symbols in the PDB, so it needs no other flag, and a stripped MSVC link declares no PDB.
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -494,7 +494,66 @@
+         separator = max(path.rfind("/"), path.rfind("\\"))
+         return path[:separator + 1] + ("lld-link.exe" if path.lower().endswith(".exe") else "lld-link")
+     return path
++
++def _cc_common_link_strip_level(ctx, attr, toolchain, crate_info, compilation_mode, rust_flags):
++    """The `-Cstrip` level that rustc would apply to the output of its own link.
++
++    `construct_arguments` passes the level of the compilation mode first, then the extra flags, `rust_flags`, and the
++    `rustc_flags` of the target. rustc takes the last level, so take it too.
++
++    Args:
++        ctx (ctx): The context of the current target.
++        attr (struct): The attributes of the current target.
++        toolchain (rust_toolchain): The current Rust toolchain.
++        crate_info (CrateInfo): The crate of the link.
++        compilation_mode (struct): The options of the compilation mode.
++        rust_flags (list or Args): The flags that the rule adds. The level in an `Args` is not visible here.
+ 
++    Returns:
++        str: `none`, `debuginfo`, or `symbols`.
++    """
++    flags = collect_extra_rustc_flags(ctx, toolchain, crate_info.root, crate_info.type)
++    if type(rust_flags) != "Args":
++        flags = flags + rust_flags
++    flags = flags + getattr(attr, "rustc_flags", [])
++
++    strip_level = compilation_mode.strip_level
++    codegen_option_follows = False
++    for flag in flags:
++        if type(flag) != "string":
++            codegen_option_follows = False
++            continue
++        option = None
++        if codegen_option_follows:
++            option = flag
++        elif flag.startswith("-C"):
++            option = flag.removeprefix("-C")
++        elif flag.startswith("--codegen="):
++            option = flag.removeprefix("--codegen=")
++        codegen_option_follows = flag in ("-C", "--codegen")
++        if option and option.startswith("strip="):
++            strip_level = option.removeprefix("strip=")
++    return strip_level
++
++def _cc_common_link_strip_symbols_flags(toolchain):
++    """The link flags that strip the symbols, as rustc does for `-Cstrip=symbols`.
++
++    The strip of the debug info comes from the cc toolchain. An MSVC link keeps the symbols only in the PDB, so a link
++    without debug info needs no other flag.
++
++    Args:
++        toolchain (rust_toolchain): The current Rust toolchain.
++
++    Returns:
++        list[str]: The link flags.
++    """
++    if toolchain.target_abi == "msvc":
++        return []
++    if toolchain.target_os in ("darwin", "macos", "ios"):
++        # rustc runs `strip -x`, which keeps the global symbols that a dynamic link needs.
++        return ["-Wl,-x"]
++    return ["-Wl,--strip-all"]
++
+ def _clang_cl_link_args_to_lld_link(args):
+     """The link arguments of a `clang-cl` link tool, in the form that `lld-link` takes.
+ 
+@@ -2522,8 +2581,11 @@
+             # Append the name of the library
+             output_relative_to_package = output_relative_to_package + output_lib
+ 
++        # rustc applies `-Cstrip` only to a link that it runs, so the cc toolchain must strip the output of this link.
++        strip_level = _cc_common_link_strip_level(ctx, attr, rust_toolchain, crate_info, compilation_mode, rust_flags)
++
+         additional_linker_outputs = []
+-        if crate_info.type in ("cdylib", "bin") and cc_common.is_enabled(feature_configuration = feature_configuration, feature_name = "generate_pdb_file"):
++        if crate_info.type in ("cdylib", "bin") and strip_level == "none" and cc_common.is_enabled(feature_configuration = feature_configuration, feature_name = "generate_pdb_file"):
+             pdb_file = ctx.actions.declare_file(crate_info.output.basename[:-len(crate_info.output.extension)] + "pdb", sibling = crate_info.output)
+             additional_linker_outputs.append(pdb_file)
+ 
+@@ -2531,6 +2593,15 @@
+         if dsym_folder:
+             additional_linker_outputs.append(dsym_folder)
+             variables_extension["dsym_path"] = dsym_folder
++
++        # `cc_common.link` sets `strip_debug_symbols` only for `--strip`, and the variables that it sets win over this
++        # extension. So the variable enables the strip of the toolchain, which knows how each linker strips the debug
++        # info. On macOS, the toolchain strips after it writes the dSYM.
++        strip_link_flags = []
++        if strip_level != "none":
++            variables_extension["strip_debug_symbols"] = ""
++        if strip_level == "symbols":
++            strip_link_flags = _cc_common_link_strip_symbols_flags(rust_toolchain)
+ 
+         # When rustc links a Windows cdylib, it writes its exported symbols to a `.def` file. Here rustc only emits
+         # the object, so generate the `.def` from it, as `cc_binary` does for `windows_export_all_symbols`.
+@@ -2556,7 +2627,7 @@
+             main_output = crate_info.output,
+             output_type = "executable" if crate_info.type == "bin" else "dynamic_library",
+             additional_inputs = additional_linker_inputs,
+-            user_link_flags = user_link_flags,
++            user_link_flags = user_link_flags + strip_link_flags,
+             additional_outputs = additional_linker_outputs,
+             variables_extension = variables_extension,
+         )

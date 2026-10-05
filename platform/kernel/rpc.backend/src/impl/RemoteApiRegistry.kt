@@ -4,7 +4,6 @@ package com.intellij.platform.rpc.backend.impl
 import com.intellij.diagnostic.PluginException
 import com.intellij.diagnostic.rethrowControlFlowException
 import com.intellij.openapi.components.service
-import com.intellij.openapi.components.serviceAsync
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.diagnostic.trace
 import com.intellij.openapi.extensions.LazyExtension
@@ -12,7 +11,6 @@ import com.intellij.openapi.extensions.PluginDescriptor
 import com.intellij.platform.rpc.RemoteApiProviderService
 import com.intellij.platform.rpc.backend.RemoteApiProvider
 import com.intellij.platform.rpc.backend.RemoteApiRegistration
-import com.intellij.platform.rpc.lite.LiteRemoteApiProviderService
 import fleet.rpc.RemoteApi
 import fleet.rpc.RemoteApiDescriptor
 import fleet.rpc.core.InstanceId
@@ -268,7 +266,7 @@ internal class RemoteApiRegistry(coroutineScope: CoroutineScope) : RemoteApiProv
     )
   }
 
-  fun <T : RemoteApi<Unit>> tryResolve(descriptor: RemoteApiDescriptor<T>): T? {
+  override fun <T : RemoteApi<Unit>> tryResolve(descriptor: RemoteApiDescriptor<T>): T? {
     @Suppress("UNCHECKED_CAST")
     return resolveImplementation(descriptor.getApiFqn())?.instance as? T
   }
@@ -312,18 +310,3 @@ internal class RemoteApiRegistry(coroutineScope: CoroutineScope) : RemoteApiProv
 /** The FQN in the form [RemoteApiDescriptor.getApiFqn] returns: a nested interface is `Outer.Inner`. */
 private val RemoteApiRegistration.apiFqn: String
   get() = apiInterface.replace('$', '.')
-
-internal class LiteRemoteApiRegistry : LiteRemoteApiProviderService {
-  override fun isConnected(): Boolean {
-    return true
-  }
-
-  override fun <T : RemoteApi<Unit>> tryResolve(descriptor: RemoteApiDescriptor<T>): T? {
-    val service = service<RemoteApiProviderService>() as RemoteApiRegistry
-    return service.tryResolve(descriptor)
-  }
-
-  override suspend fun <T : RemoteApi<Unit>> awaitConnectionAndResolve(descriptor: RemoteApiDescriptor<T>): T {
-    return serviceAsync<RemoteApiProviderService>().resolve(descriptor)
-  }
-}

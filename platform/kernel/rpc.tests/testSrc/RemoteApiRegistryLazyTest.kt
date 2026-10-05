@@ -102,6 +102,8 @@ class RemoteApiRegistryLazyTest {
     try {
       assertThat(LazyTestApiProvider.instances.get()).describedAs("provider instances after plugin load").isZero()
       assertThat(service<RemoteApiProviderService>().listRegisteredApis()).contains(LazyTestApi::class.java.name)
+      assertThat(LiteRemoteApiProviderService.isConnected()).isTrue()
+      assertThat(LazyTestApiProvider.instances.get()).describedAs("provider instances after registry initialization").isZero()
 
       val api = LiteRemoteApiProviderService.tryResolve(remoteApiDescriptor<LazyTestApi>())
       assertThat(api).isSameAs(LazyTestApiImpl)
@@ -122,6 +124,9 @@ class RemoteApiRegistryLazyTest {
   fun `a declaration that disagrees with the provider is an error, and the provider still works`(): Unit = timeoutRunBlocking(30.seconds) {
     val plugin = loadProvider(PartiallyDeclaredApiProvider::class.java, LazyTestApi::class.java.name)
     try {
+      service<RemoteApiProviderService>()
+      assertThat(LiteRemoteApiProviderService.isConnected()).isTrue()
+      assertThat(PartiallyDeclaredApiProvider.instances.get()).isZero()
       val error = LoggedErrorProcessor.executeAndReturnLoggedError {
         assertThat(LiteRemoteApiProviderService.tryResolve(remoteApiDescriptor<LazyTestApi>())).isSameAs(LazyTestApiImpl)
       }

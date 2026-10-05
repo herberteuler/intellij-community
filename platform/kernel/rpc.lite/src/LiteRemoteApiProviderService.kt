@@ -5,18 +5,42 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.components.serviceAsync
 import fleet.rpc.RemoteApi
 import fleet.rpc.RemoteApiDescriptor
+import kotlinx.coroutines.CoroutineScope
 import org.jetbrains.annotations.ApiStatus
+import org.jetbrains.annotations.VisibleForTesting
 
 /**
  * [com.intellij.platform.rpc.RemoteApiProviderService] that allows handling backend-less environments.
+ *
+ * The provider comes from [RemoteApiProvider.EP_NAME]. The extension is present at the start of a process that owns
+ * an RPC backend. It appears when such a module loads without a restart, which is how the JetBrains Light moves to
+ * the monolith mode and to the frontend mode. A process with no extension is not connected: [tryResolve] returns
+ * `null` and [awaitConnectionAndResolve] waits for the extension. `awaitWithLocalFallback` is the way around that.
  */
 @ApiStatus.Experimental
-interface LiteRemoteApiProviderService {
-  fun isConnected(): Boolean
+class LiteRemoteApiProviderService @ApiStatus.Internal @VisibleForTesting constructor(coroutineScope: CoroutineScope) {
+  private val holder = LiteRemoteApiProviderHolder()
 
-  fun <T : RemoteApi<Unit>> tryResolve(descriptor: RemoteApiDescriptor<T>): T?
+  init {
+    RemoteApiProvider.EP_NAME.addChangeListener(coroutineScope) { installFirstExtension() }
+    installFirstExtension()
+  }
 
-  suspend fun <T : RemoteApi<Unit>> awaitConnectionAndResolve(descriptor: RemoteApiDescriptor<T>): T
+  private fun installFirstExtension() {
+    RemoteApiProvider.EP_NAME.extensionList.firstOrNull()?.let(holder::install)
+  }
+
+  fun isConnected(): Boolean {
+    return holder.isConnected()
+  }
+
+  fun <T : RemoteApi<Unit>> tryResolve(descriptor: RemoteApiDescriptor<T>): T? {
+    return holder.tryResolve(descriptor)
+  }
+
+  suspend fun <T : RemoteApi<Unit>> awaitConnectionAndResolve(descriptor: RemoteApiDescriptor<T>): T {
+    return holder.awaitConnectionAndResolve(descriptor)
+  }
 
   companion object {
     fun isConnected(): Boolean {

@@ -29,7 +29,6 @@
   <extensions defaultExtensionNs="com.intellij">
     <applicationService serviceInterface="com.intellij.platform.rpc.RemoteApiProviderService"
                         serviceImplementation="com.intellij.platform.rpc.backend.impl.RemoteApiRegistry"/>
-    <applicationService serviceInterface="com.intellij.platform.rpc.lite.LiteRemoteApiProviderService"
-                        serviceImplementation="com.intellij.platform.rpc.backend.impl.LiteRemoteApiRegistry"/>
+    <platform.rpc.lite.remoteApiProvider implementation="com.intellij.platform.rpc.impl.RemoteApiProviderServiceLiteProvider"/>
   </extensions>
 </idea-plugin>

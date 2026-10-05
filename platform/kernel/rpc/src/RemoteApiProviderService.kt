@@ -11,6 +11,13 @@ interface RemoteApiProviderService {
 
   suspend fun <T : RemoteApi<Unit>> resolve(descriptor: RemoteApiDescriptor<T>): T
 
+  /**
+   * Returns the API without a suspension, or `null` when it is not available yet.
+   * The default returns `null`, so an implementation that cannot answer at once needs no override.
+   */
+  @ApiStatus.Internal
+  fun <T : RemoteApi<Unit>> tryResolve(descriptor: RemoteApiDescriptor<T>): T? = null
+
   @ApiStatus.Internal
   @VisibleForTesting
   fun listRegisteredApis(): List<String>

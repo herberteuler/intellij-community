@@ -6,4 +6,15 @@
     <module name="intellij.platform.klogger"/>
   </dependencies>
   <!-- endregion -->
+
+  <extensionPoints>
+    <!-- the lite remote API provider of the process; a module that owns an RPC backend contributes one -->
+    <extensionPoint qualifiedName="com.intellij.platform.rpc.lite.remoteApiProvider"
+                    interface="com.intellij.platform.rpc.lite.RemoteApiProvider"
+                    dynamic="true"/>
+  </extensionPoints>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceImplementation="com.intellij.platform.rpc.lite.LiteRemoteApiProviderService"/>
+  </extensions>
 </idea-plugin>

@@ -13,5 +13,6 @@
     <orderEntry type="module" module-name="fleet.rpc" exported="" />
     <orderEntry type="module" module-name="intellij.platform.util" />
     <orderEntry type="module" module-name="intellij.platform.core" />
+    <orderEntry type="module" module-name="intellij.platform.rpc.lite" />
   </component>
 </module>

@@ -39,7 +39,7 @@ Run a test target from the ultimate root. From `community/`, drop the `@communit
 | `bins/content-module-packer` | The packer and the inventory of each packed jar. | `@community//build/dev-dist-tools/bins/content-module-packer:content-module-packer_test` |
 | `bins/dev-dist-collector` | The collector: the inventory of a component and the plugin classpath record. | `@community//build/dev-dist-tools/bins/dev-dist-collector:dev-dist-collector_test` |
 | `bins/dev-dist-composer` | The composer: the composition spec, the composition and its copy step, and the local layout writer. It also writes the plugin classpath file and the fingerprint. It checks the home placement. | `@community//build/dev-dist-tools/bins/dev-dist-composer:dev-dist-composer_test` |
-| `bins/dev-launch-args` | The `jvm-args` command, which writes the argument file of an `intellij_dev_java_launcher` row. | `@community//build/dev-dist-tools/bins/dev-launch-args:dev-launch-args_test` |
+| `bins/dev-launch-args` | The `jvm-args` command, which writes the argument file of an `intellij_dev_java_launcher` target. | `@community//build/dev-dist-tools/bins/dev-launch-args:dev-launch-args_test` |
 | `bins/plugin-descriptor-writer` | The descriptor writer. | `@community//build/dev-dist-tools/bins/plugin-descriptor-writer:plugin-descriptor-writer_test` and `:descriptor_rule_tests` |
 | `bins/plugin-remainder-packer` | The remainder packer. | `@community//build/dev-dist-tools/bins/plugin-remainder-packer:plugin-remainder-packer_test` and `:plugin-remainder-packer_cli_test` |
 | `bins/product-files` | The tool of `dev_dist_product_files`. | `@community//build/dev-dist-tools/bins/product-files:product-files_test` |
@@ -84,8 +84,8 @@ cd community && ./bazel.cmd test //build/dev-dist-tools/...
 - `./build/dev-dist.cmd` runs `//build/dev-dist-tools/bins/dev-dist:dev-dist_opt`, the binary built in `opt`, and
   `replay` runs `bins/content-module-packer:content-module-packer_opt`. The unit test of each binary stays on the
   `rust_binary`.
-- A row runs no tool at start. Its argument file action runs `bins/dev-launch-args jvm-args` at build time, and on
-  macOS and Linux the row executable is a link to `java`. On Windows the executable is a `.cmd` stub that starts `java.exe`.
+- A target runs no tool at start. Its argument file action runs `bins/dev-launch-args jvm-args` at build time, and on
+  macOS and Linux the target executable is a link to `java`. On Windows the executable is a `.cmd` stub that starts `java.exe`.
 
 ### The Windows gate
 

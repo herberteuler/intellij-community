@@ -1,19 +1,16 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.platform.project.backend
+package com.intellij.platform.project
 
+import com.intellij.ide.plugins.CurrentProductMode
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.platform.kernel.util.flushLatestChange
 import com.intellij.platform.kernel.withKernel
-import com.intellij.platform.project.ProjectEntitiesStorage
-import com.intellij.platform.project.ProjectEntity
-import com.intellij.platform.project.asEntityOrNull
-import com.intellij.platform.project.projectId
 import fleet.kernel.change
 import fleet.kernel.rebase.shared
 import fleet.kernel.transactor
 
-internal class BackendProjectEntitiesStorage : ProjectEntitiesStorage() {
+internal class ProjectEntitiesStorageImpl : ProjectEntitiesStorage() {
   override suspend fun createEntityImpl(project: Project) {
     val projectId = project.projectId()
     change {
@@ -29,6 +26,11 @@ internal class BackendProjectEntitiesStorage : ProjectEntitiesStorage() {
   // and project entity may be removed from threads without attached Kernel
   @Suppress("DEPRECATION")
   override suspend fun removeProjectEntity(project: Project): Unit = withKernel {
+    if (CurrentProductMode.value.isFrontendProcess &&!project.isRdLightFrontend) {
+      // The frontend cannot remove the shared ProjectEntity as it doesn't own that entity.
+      return@withKernel
+    }
+
     change {
       shared {
         val entity = project.asEntityOrNull() ?: run {
@@ -45,6 +47,6 @@ internal class BackendProjectEntitiesStorage : ProjectEntitiesStorage() {
   }
 
   companion object {
-    private val LOG = logger<BackendProjectEntitiesStorage>()
+    private val LOG = logger<ProjectEntitiesStorageImpl>()
   }
 }

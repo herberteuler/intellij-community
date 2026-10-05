@@ -17,6 +17,8 @@ import com.intellij.codeInsight.hints.settings.showInlaySettings
 import com.intellij.codeInsight.multiverse.EditorContextManager
 import com.intellij.codeInsight.multiverse.isSharedSourceSupportEnabled
 import com.intellij.codeWithMe.ClientId
+import com.intellij.concurrency.JobLauncher
+import com.intellij.concurrency.JobLauncherImpl
 import com.intellij.ide.PowerSaveMode
 import com.intellij.ide.plugins.DynamicPluginListener
 import com.intellij.ide.plugins.IdeaPluginDescriptor
@@ -599,9 +601,9 @@ open class CodeVisionHost(val project: Project, protected val coroutineScope: Co
     val indicator = EmptyProgressIndicator()
     indicator.start()
 
-    CompletableFuture.runAsync(
+    (JobLauncher.getInstance() as JobLauncherImpl).submitToJobThread(
       { ProgressManager.getInstance().runProcess(runnable, indicator) },
-      AppExecutorUtil.getAppExecutorService()
+      {}
     )
 
     lifetime.onTerminationIfAlive {

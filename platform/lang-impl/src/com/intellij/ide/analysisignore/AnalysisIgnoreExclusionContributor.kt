@@ -52,7 +52,7 @@ internal class AnalysisIgnoreExclusionContributor : OptionalExclusionContributor
     return true
   }
 
-  private fun isEnabled(): Boolean = Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, true)
+  private fun isEnabled(): Boolean = Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, false)
 }
 
 /**

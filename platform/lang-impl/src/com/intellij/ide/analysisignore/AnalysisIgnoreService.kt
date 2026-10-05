@@ -112,7 +112,7 @@ class AnalysisIgnoreService(private val project: Project, coroutineScope: Corout
    */
   suspend fun processNow() {
     val model = project.serviceAsync<WorkspaceModel>()
-    if (!Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, true)) {
+    if (!Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, false)) {
       removeEverything(model)
       return
     }

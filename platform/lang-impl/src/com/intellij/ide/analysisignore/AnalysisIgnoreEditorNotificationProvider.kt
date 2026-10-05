@@ -24,7 +24,7 @@ private const val BANNER_DISMISSED_KEY: String = "analysis.ignore.banner.dismiss
 internal class AnalysisIgnoreEditorNotificationProvider : EditorNotificationProvider, DumbAware {
 
   override fun collectNotificationData(project: Project, file: VirtualFile): Function<in FileEditor, out JComponent?>? {
-    if (!Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, true)) return null
+    if (!Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, false)) return null
     if (!file.isAnalysisIgnoreFile()) return null
     if (PropertiesComponent.getInstance().getBoolean(BANNER_DISMISSED_KEY, false)) return null
 

@@ -733,6 +733,7 @@ class AnalysisIgnoreTest {
   }
 
   @Test
+  @RegistryKey(key = ENABLED, value = "true")
   fun `a double asterisk between two slashes takes one directory or none`() = runBlocking {
     val wrapperProperties = file("projectRoot/gradle/wrapper/gradle-wrapper.properties")
     val wrapperJar = file("projectRoot/gradle/wrapper/gradle-wrapper.jar")

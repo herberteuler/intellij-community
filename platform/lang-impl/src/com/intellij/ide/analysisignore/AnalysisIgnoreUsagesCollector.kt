@@ -24,7 +24,7 @@ class AnalysisIgnoreUsagesCollector : ProjectUsagesCollector() {
   override fun getGroup(): EventLogGroup = group
 
   override fun getMetrics(project: Project): Set<MetricEvent> {
-    val enabled = Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, true)
+    val enabled = Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, false)
     return buildSet {
       add(featureEnabled.metric(enabled))
       if (enabled) {

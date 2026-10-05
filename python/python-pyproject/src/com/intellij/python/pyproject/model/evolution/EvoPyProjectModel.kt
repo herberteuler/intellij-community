@@ -58,11 +58,19 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.minutes
+import com.intellij.openapi.diagnostic.fileLogger
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.TestOnly
+
+private val logger = fileLogger()
+
+/** How long [EvoPyProjectModel.awaitInterpreterOf] waits. A recompute takes milliseconds, so this is only a guard. */
+private val AWAIT_INTERPRETER_TIMEOUT = 1.minutes
 
 /**
  * The entities [PyProject] is derived from ([com.intellij.python.pyproject.model.internal.pyProject.PyProjectImpl]):
@@ -163,11 +171,15 @@ class EvoPyProjectModel(private val project: Project, scope: CoroutineScope) {
      *
      * A disposed module is rejected, as [forKey] rejects one.
      *
+     * The match is by module. A module that gets one more content root can get another base dir, so a [PyProject] read
+     * before that change is not equal to the one of this generation.
+     *
      * For a caller that asks about several projects and wants every answer from one generation. A caller that asks
      * about one project calls [getInterpreter] instead.
      */
     fun forPyProject(pyProject: PyProject): EvoPyProject? =
-      evoPyProjects.firstOrNull { it.pyProject == pyProject }?.takeUnless { it.pyProject.residesOnModule.isDisposed }
+      evoPyProjects.firstOrNull { it.pyProject.residesOnModule == pyProject.residesOnModule }
+        ?.takeUnless { it.pyProject.residesOnModule.isDisposed }
 
     /**
      * The `PyProject` of [file]:
@@ -365,7 +377,8 @@ class EvoPyProjectModel(private val project: Project, scope: CoroutineScope) {
    * only when the workspace model reports the write, and that report arrives later. So without this wait, a caller
    * that reads the snapshot right after such a function still sees the interpreter from before the write.
    *
-   * Returns at once when the current snapshot already agrees.
+   * Returns at once when the current snapshot already agrees. Gives up after [AWAIT_INTERPRETER_TIMEOUT] and reports an
+   * error, so a snapshot that never agrees cannot block the caller forever.
    */
   suspend fun awaitInterpreterOf(pyProjects: Collection<PyProject>) {
     // The SDK each module refers to now, read the same way as the snapshot reads it.
@@ -373,11 +386,16 @@ class EvoPyProjectModel(private val project: Project, scope: CoroutineScope) {
     val expected = pyProjects.associateWith { pyProject ->
       pyProject.residesOnModule.findModuleEntity(storage)?.let { sdkReferenceOf(it, storage) }?.let(::findPythonSdk)
     }
-    snapshotFlow().first { snapshot ->
-      expected.all { (pyProject, sdk) ->
-        val interpreter = snapshot.forPyProject(pyProject)?.interpreter
-        if (sdk == null) interpreter == null else interpreter?.isFor(sdk) == true
+    val agreed = withTimeoutOrNull(AWAIT_INTERPRETER_TIMEOUT) {
+      snapshotFlow().first { snapshot ->
+        expected.all { (pyProject, sdk) ->
+          val interpreter = snapshot.forPyProject(pyProject)?.interpreter
+          if (sdk == null) interpreter == null else interpreter?.isFor(sdk) == true
+        }
       }
+    }
+    if (agreed == null) {
+      logger.error("The snapshot does not state the interpreters after $AWAIT_INTERPRETER_TIMEOUT: $expected")
     }
   }
 

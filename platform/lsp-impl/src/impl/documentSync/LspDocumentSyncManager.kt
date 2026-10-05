@@ -48,6 +48,7 @@ internal class LspDocumentSyncManager(private val client: LspClientImpl) {
    * listening for document events). [close]/[shutdown] drop entries for files this instance's own open/close
    * lifecycle knows are done with, as a memory optimization only: correctness never depends on it, since a
    * fresh query for any file, closed or not, just restarts its own count from `0`.
+   * Reading a version adds no entry: only [nextDocumentVersion] does.
    *
    * This is deliberately independent of [com.intellij.openapi.editor.ex.DocumentEx.getModificationSequence],
    * which only promises to strictly increase on a text change, not by how much -- a delta some callers need
@@ -67,16 +68,14 @@ internal class LspDocumentSyncManager(private val client: LspClientImpl) {
   /**
    * The version last declared to the server for [file].
    */
-  fun currentDocumentVersion(file: VirtualFile): Int = versionCounter(file).get()
+  fun currentDocumentVersion(file: VirtualFile): Int = documentVersions[file]?.get() ?: 0
 
   /**
    * Advances and returns the version to declare for [file]'s next `didOpen`/`didChange`. Safe to call
    * regardless of when the underlying document mutation actually lands, since this owns the number outright.
    */
-  fun nextDocumentVersion(file: VirtualFile): Int = versionCounter(file).incrementAndGet()
-
-  private fun versionCounter(file: VirtualFile): AtomicInteger =
-    documentVersions.computeIfAbsent(file) { AtomicInteger(0) }
+  fun nextDocumentVersion(file: VirtualFile): Int =
+    documentVersions.computeIfAbsent(file) { AtomicInteger(0) }.incrementAndGet()
 
   fun shutdown() {
     shutdown.set(true)

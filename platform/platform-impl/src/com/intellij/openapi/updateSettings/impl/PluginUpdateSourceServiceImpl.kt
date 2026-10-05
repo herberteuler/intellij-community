@@ -116,7 +116,10 @@ internal class PluginUpdateSourceServiceImpl : PluginUpdateSourceService,
 
   override fun getAllSources(): List<PluginUpdateSource> {
     val sources: MutableList<Repository> = RepositoryHelper.getCustomPluginRepositoryHosts()
-      .map { createRepository(it) }.distinctBy { it.host }.toMutableList()
+      .map { createRepository(it) }
+      .filter { !it.isMarketplace }
+      .distinctBy { it.host }
+      .toMutableList()
     sources.add(createRepository(null))
     return sources
   }

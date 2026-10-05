@@ -26,7 +26,9 @@ import kotlin.io.path.pathString
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * Create virtual env using UV and setting uv as a Package manager via ui pip. If [addToSdkTable] then also added to the project jdk table.
+ * Creates a virtual env with `uv venv` and sets uv as the package manager in [mode]. The default is pip mode, because the
+ * directory holds no `pyproject.toml`; a test that writes one passes [UvMode.Project]. If [addToSdkTable] then also added
+ * to the project jdk table.
  *
  * Similar to [pyVenvFixture] but uses `uv venv` instead of virtualenv helper.
  * UV is significantly faster for venv creation and package installation.
@@ -36,7 +38,7 @@ import kotlin.time.Duration.Companion.minutes
 fun TestFixture<SdkFixture<PyEnvironment>>.pyUvVenvFixture(
   addToSdkTable: Boolean,
   moduleFixture: TestFixture<Module>,
-  mode: UvMode = UvMode.Project,
+  mode: UvMode = UvMode.Pip(),
 ): TestFixture<Sdk> = testFixture {
   val env = this@pyUvVenvFixture.init().env
   val module = moduleFixture.init()

@@ -13,6 +13,7 @@ import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.jetbrains.python.getOrThrow
 import com.jetbrains.python.packaging.common.PythonPackageManagementListener
 import com.jetbrains.python.packaging.management.PythonPackageManager
+import com.jetbrains.python.sdk.uv.UvMode
 import kotlinx.coroutines.CompletableDeferred
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -25,7 +26,7 @@ class UvPackageManagerTest {
   private val tempPathFixture = tempPathFixture()
   private val projectFixture = projectFixture()
   private val moduleFixture = projectFixture.pyModuleFixture(tempPathFixture, addPathToSourceRoot = true)
-  private val sdkFixture = pySdkFixture().pyUvVenvFixture(addToSdkTable = true, moduleFixture = moduleFixture)
+  private val sdkFixture = pySdkFixture().pyUvVenvFixture(addToSdkTable = true, moduleFixture = moduleFixture, mode = UvMode.Project)
 
   @Test
   fun outdatedPackageWithExtrasTest(): Unit = timeoutRunBlocking(1.minutes) {

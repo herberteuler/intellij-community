@@ -646,6 +646,7 @@ class KotlinK2QuickFixRegistrar : KotlinQuickFixRegistrar() {
         registerFactory(DestructuringToPositionalFormFactory.convertToPositionalFormOnShortFormNonDataClass)
         registerFactory(DestructuringToPositionalFormFactory.convertToPositionalFormOnShortFormUnderscore)
         registerFactory(DestructuringToPositionalFormFactory.convertToPositionalFormOnShortUnderscoreWithoutRename)
+        registerFactory(DestructuringToPositionalFormFactory.convertToPositionalFormOnUnresolvedReference)
         registerFactory(DestructuringRenameFactory.renameToMatchParameterName)
     }
 

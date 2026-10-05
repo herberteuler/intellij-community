@@ -8883,6 +8883,26 @@ public abstract class HighLevelQuickFixTestGenerated extends AbstractHighLevelQu
             KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
         }
 
+        @TestMetadata("completeLambda.kt")
+        public void testCompleteLambda() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/destructingShortFormNameMismatchDiagnostic/completeLambda.kt");
+        }
+
+        @TestMetadata("completeLambdaWithUnderscore.kt")
+        public void testCompleteLambdaWithUnderscore() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/destructingShortFormNameMismatchDiagnostic/completeLambdaWithUnderscore.kt");
+        }
+
+        @TestMetadata("completeMapLoop.kt")
+        public void testCompleteMapLoop() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/destructingShortFormNameMismatchDiagnostic/completeMapLoop.kt");
+        }
+
+        @TestMetadata("completePair.kt")
+        public void testCompletePair() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/destructingShortFormNameMismatchDiagnostic/completePair.kt");
+        }
+
         @TestMetadata("convertDataClass.kt")
         public void testConvertDataClass() throws Exception {
             runTest("../../../idea/tests/testData/quickfix/destructingShortFormNameMismatchDiagnostic/convertDataClass.kt");

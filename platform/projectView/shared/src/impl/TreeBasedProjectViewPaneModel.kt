@@ -75,6 +75,7 @@ import com.intellij.platform.projectView.pane.SelectByEditor
 import com.intellij.platform.projectView.pane.SelectInRequest
 import com.intellij.platform.projectView.pane.SuspendingBackendProjectViewPaneStateAccessor
 import com.intellij.platform.projectView.pane.buildProjectViewNodeModel
+import com.intellij.platform.projectView.runSafelyCancellable
 import com.intellij.platform.projectView.settings.ProjectViewPaneFileNestingValue
 import com.intellij.platform.projectView.settings.ProjectViewPaneOption
 import com.intellij.platform.projectView.settings.ProjectViewPaneSettingsAccessor
@@ -489,48 +490,56 @@ abstract class TreeBasedProjectViewPaneModel<T : Any>(override val project: Proj
           initialize()
           onStateChanged(suspendingState)
           launch(CoroutineName("Collect updates for the PV pane $id")) {
-            createUpdater().continuouslyUpdatePane(this@TreeBasedProjectViewPaneModel, progressReporter)
+            runSafelyCancellable(LOG, taskDescription = { "updater for the pane $id" }) {
+              createUpdater().continuouslyUpdatePane(this@TreeBasedProjectViewPaneModel, progressReporter)
+            }
           }
           launch(CoroutineName("Flush updates for the PV pane $id")) {
-            pendingUpdatesSignal.throttle(timeMs = 50).collect {
-              scheduleProcessPendingUpdates()
+            runSafelyCancellable(LOG, taskDescription = { "processing pending updates for the pane $id" }) {
+              pendingUpdatesSignal.throttle(timeMs = 50).collect {
+                scheduleProcessPendingUpdates()
+              }
             }
           }
           launch(CoroutineName("Update requests for the PV pane $id")) {
-            for (request in stateUpdateRequests) {
-              LOG.trace { "Processing update request $request" }
-              when (request) {
-                is LoadChildrenRequest -> {
-                  updateChildren(request.parentId, allowLoading = true, deep = false)
-                }
-                is ProcessPendingUpdatesRequest -> {
-                  processPendingUpdates()
-                }
-                is UpdateNodeModelRequest<*> -> {
-                  builder.updateNode(request.model)
-                }
-                is UpdateSettingsRequest -> {
-                  applySettings()
-                }
-                is SetOptionRequest -> {
-                  applyOptionChange(request.option, request.newValue)
-                }
-                is SetSortKeyRequest -> {
-                  applySortKeyChange(request.sortKey)
-                }
-                is SelectNodeRequest -> {
-                  builder.selectNode(request.nodePath) { options -> 
-                    options.requestFocus = request.requestFocus
+            runSafelyCancellable(LOG, taskDescription = { "processing update requests for the PV pane $id" }) {
+              for (request in stateUpdateRequests) {
+                LOG.trace { "Processing update request $request" }
+                when (request) {
+                  is LoadChildrenRequest -> {
+                    updateChildren(request.parentId, allowLoading = true, deep = false)
+                  }
+                  is ProcessPendingUpdatesRequest -> {
+                    processPendingUpdates()
+                  }
+                  is UpdateNodeModelRequest<*> -> {
+                    builder.updateNode(request.model)
+                  }
+                  is UpdateSettingsRequest -> {
+                    applySettings()
+                  }
+                  is SetOptionRequest -> {
+                    applyOptionChange(request.option, request.newValue)
+                  }
+                  is SetSortKeyRequest -> {
+                    applySortKeyChange(request.sortKey)
+                  }
+                  is SelectNodeRequest -> {
+                    builder.selectNode(request.nodePath) { options -> 
+                      options.requestFocus = request.requestFocus
+                    }
                   }
                 }
+                appliedUpdateEpoch.value = request.epoch
+                onStateChanged(suspendingState)
               }
-              appliedUpdateEpoch.value = request.epoch
-              onStateChanged(suspendingState)
             }
           }
           launch(CoroutineName("Select requests for the PV pane $id")) {
-            selectRequests.consumeAsFlow().collectLatest { element ->
-              selectElementImpl(element)
+            runSafelyCancellable(LOG, taskDescription = { "executing select requests for the pane $id" }) {
+              selectRequests.consumeAsFlow().collectLatest { element ->
+                selectElementImpl(element)
+              }
             }
           }
         }

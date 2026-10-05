@@ -10,6 +10,7 @@ import com.intellij.ide.scratch.RootType
 import com.intellij.ide.ui.VirtualFileAppearanceListener
 import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.openapi.application.readAction
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AdditionalLibraryRootsListener
 import com.intellij.openapi.roots.ModuleRootEvent
@@ -25,7 +26,9 @@ import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
+import com.intellij.platform.projectView.pane.ProjectViewPaneId
 import com.intellij.platform.projectView.pane.ProjectViewPaneModel
+import com.intellij.platform.projectView.runSafelyCancellable
 import com.intellij.platform.projectView.settings.ProjectViewPaneOption
 import com.intellij.platform.projectView.settings.ProjectViewPaneSettingsService
 import com.intellij.problems.ProblemListener
@@ -51,15 +54,17 @@ import kotlin.time.Duration.Companion.milliseconds
 
 internal class TreeStructureProjectViewUpdater(
   private val project: Project,
+  private val id: ProjectViewPaneId,
 ) : ProjectViewUpdater {
   override suspend fun continuouslyUpdatePane(pane: ProjectViewPaneModel, progressReporter: ProjectViewUpdaterProgressReporter) {
-    UpdateSession(project, pane as TreeStructureBasedProjectViewPaneModel, progressReporter).continuouslyUpdatePane()
+    UpdateSession(project, pane as TreeStructureBasedProjectViewPaneModel, id, progressReporter).continuouslyUpdatePane()
   }
 }
 
 private class UpdateSession(
   private val project: Project,
   private val model: TreeStructureBasedProjectViewPaneModel,
+  private val id: ProjectViewPaneId,
   private val progressReporter: ProjectViewUpdaterProgressReporter,
 ) {
   private val events = Channel<UpdateEvent>(capacity = Channel.UNLIMITED)
@@ -177,7 +182,9 @@ private class UpdateSession(
       }
 
       launch(CoroutineName("Project View updates consumer")) {
-        processEvents()
+        runSafelyCancellable(LOG, taskDescription = { "tree structure batch updates for the pane $id" }) {
+          processEvents()
+        }
       }
     }
   }
@@ -462,3 +469,5 @@ private data class ElementChanged(val pointer: SmartPsiElementPointer<PsiElement
 private data object AllPresentations : UpdateEvent
 
 private data class PresentationsFromRootTo(val file: VirtualFile) : UpdateEvent
+
+private val LOG = logger<TreeStructureProjectViewUpdater>()

@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.projectView.backend.actions
 
-import com.intellij.diagnostic.rethrowControlFlowException
 import com.intellij.ide.SelectInContext
 import com.intellij.ide.SelectInTarget
 import com.intellij.ide.impl.ProjectViewSelectInTargetProvider
@@ -17,6 +16,7 @@ import com.intellij.platform.projectView.pane.ProjectViewPaneDescriptorImpl
 import com.intellij.platform.projectView.pane.SelectInRequestDTO
 import com.intellij.platform.projectView.pane.SelectInTargetDescriptor
 import com.intellij.platform.projectView.pane.serialize
+import com.intellij.platform.projectView.runSafelyCancellable
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
@@ -76,12 +76,8 @@ internal class BackendProjectViewSelectInService(
   init {
     coroutineScope.launch(CoroutineName("BackendProjectViewSelectInService")) {
       for (task in tasks) {
-        try {
+        runSafelyCancellable(LOG, taskDescription = { "BackendProjectViewSelectInService" }) {
           select(task)
-        }
-        catch (e: Throwable) {
-          rethrowControlFlowException(e)
-          LOG.warn("Select task failed", e)
         }
       }
     }

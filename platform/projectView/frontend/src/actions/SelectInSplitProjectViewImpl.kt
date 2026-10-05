@@ -3,7 +3,6 @@
 
 package com.intellij.platform.projectView.frontend.actions
 
-import com.intellij.diagnostic.rethrowControlFlowException
 import com.intellij.ide.SelectInContext
 import com.intellij.ide.SelectInTarget
 import com.intellij.openapi.application.EDT
@@ -21,6 +20,7 @@ import com.intellij.platform.projectView.frontend.pane.FrontendProjectViewPaneAg
 import com.intellij.platform.projectView.pane.ProjectViewNodePath
 import com.intellij.platform.projectView.pane.SelectInRequestDTO
 import com.intellij.platform.projectView.pane.serialize
+import com.intellij.platform.projectView.runSafelyCancellable
 import com.intellij.platform.projectView.settings.ProjectViewPaneOptionDTO
 import com.intellij.platform.projectView.window.ProjectViewToolWindowService
 import kotlinx.coroutines.CoroutineName
@@ -106,16 +106,15 @@ internal class SelectInSplitProjectViewImpl(private val project: Project, corout
 
   private suspend fun performTasks() {
     tasks.consumeAsFlow().collectLatest { task ->
-      try {
-        LOG.debug { "Executing the selection task $task" }
-        task.select()
-      }
-      catch (e: Exception) {
-        rethrowControlFlowException(e)
-        LOG.error("An exception occurred while selecting a node: $task", e)
-      }
-      finally {
-        check(finishedTaskFlow.tryEmit(task))
+      runSafelyCancellable(LOG, taskDescription = { "" }) {
+        try {
+          LOG.debug { "Executing the selection task $task" }
+          task.select()
+        }
+        finally {
+          LOG.debug { "Marking the selection task as finished: $task" }
+          check(finishedTaskFlow.tryEmit(task))
+        }
       }
     }
   }

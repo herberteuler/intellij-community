@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.projectView.frontend.impl
 
-import com.intellij.diagnostic.rethrowControlFlowException
 import com.intellij.ide.DefaultTreeExpander
 import com.intellij.ide.SelectInTarget
 import com.intellij.ide.util.treeView.TreeState
@@ -33,6 +32,7 @@ import com.intellij.platform.projectView.pane.ProjectViewPaneId
 import com.intellij.platform.projectView.pane.ProjectViewPaneKind
 import com.intellij.platform.projectView.pane.ProjectViewPaneRequest
 import com.intellij.platform.projectView.pane.ProjectViewPaneStateEvent
+import com.intellij.platform.projectView.runSafelyCancellable
 import com.intellij.platform.projectView.settings.ProjectViewPaneOptionDTO
 import com.intellij.ui.AutoScrollToSourceHandler
 import com.intellij.ui.ClientProperty
@@ -207,10 +207,12 @@ internal class TreeBasedFrontendProjectViewPane(
 
   override suspend fun manage() {
     coroutineScope {
-      launch(CoroutineName("paneTreeModel management")) {
-        paneTreeModel.manage()
+      launch(CoroutineName("paneTreeModel management for the pane $id")) {
+        runSafelyCancellable(LOG, taskDescription = { "paneTreeModel management for the pane $id" }) {
+          paneTreeModel.manage()
+        }
       }
-      launch(CoroutineName("single-click toggle") + Dispatchers.UI) {
+      launch(CoroutineName("single-click toggle for the pane $id") + Dispatchers.UI) {
         paneTreeModel.getOptionSupport().getActionStateFlow()
           .map { it?.optionStates?.get(ProjectViewPaneOptionDTO.OPEN_DIRECTORIES_WITH_SINGLE_CLICK)?.isSelected == true }
           .distinctUntilChanged()
@@ -218,11 +220,13 @@ internal class TreeBasedFrontendProjectViewPane(
             tree.toggleClickCount = if (singleClick) 1 else 2
           }
       }
-      launch(CoroutineName("select node requests") + Dispatchers.UI) {
+      launch(CoroutineName("select node requests for the pane $id") + Dispatchers.UI) {
         paneTreeModel.selectionRequests.consumeAsFlow().collectLatest { request ->
-          selectNode(request.nodePath)
-          if (request.requestFocus) {
-            IdeFocusManager.getGlobalInstance().requestFocusInProject(tree, project)
+          runSafelyCancellable(LOG, taskDescription = { "select node requests for the pane $id" }) {
+            selectNode(request.nodePath)
+            if (request.requestFocus) {
+              IdeFocusManager.getGlobalInstance().requestFocusInProject(tree, project)
+            }
           }
         }
       }
@@ -272,27 +276,25 @@ internal class TreeBasedFrontendProjectViewPane(
   }
 
   private suspend fun expand(expandRequest: ExpandRequest) {
-    try {
-      LOG.debug { "Executing the expand request $expandRequest" }
-      tree.suspendExpandCollapseAccessibilityAnnouncements()
-      coroutineScope {
-        for (path in expandRequest.paths) {
-          launch {
-            expand(path)
+    runSafelyCancellable(LOG, taskDescription = { "expand request for the pane $id: $expandRequest" }) {
+      try {
+        LOG.debug { "Executing the expand request $expandRequest" }
+        tree.suspendExpandCollapseAccessibilityAnnouncements()
+        coroutineScope {
+          for (path in expandRequest.paths) {
+            launch {
+              expand(path)
+            }
           }
         }
+        for (path in expandRequest.paths) {
+          tree.fireAccessibleTreeExpanded(path)
+        }
+        LOG.debug { "Executed the expand request $expandRequest" }
       }
-      for (path in expandRequest.paths) {
-        tree.fireAccessibleTreeExpanded(path)
+      finally {
+        tree.resumeExpandCollapseAccessibilityAnnouncements()
       }
-      LOG.debug { "Executed the expand request $expandRequest" }
-    }
-    catch (e: Throwable) {
-      rethrowControlFlowException(e)
-      LOG.error("An error has occurred while executing the expand request $expandRequest", e)
-    }
-    finally {
-      tree.resumeExpandCollapseAccessibilityAnnouncements()
     }
   }
 

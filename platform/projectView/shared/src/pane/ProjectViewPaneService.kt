@@ -12,6 +12,7 @@ import com.intellij.openapi.options.advanced.AdvancedSettingsChangeListener
 import com.intellij.openapi.project.Project
 import com.intellij.platform.projectView.actions.EditorChoice
 import com.intellij.platform.projectView.actions.fromDTO
+import com.intellij.platform.projectView.runSafelyCancellable
 import com.intellij.platform.projectView.settings.ProjectViewPaneFileNestingValueImpl
 import com.intellij.platform.projectView.settings.toSettingValue
 import kotlinx.coroutines.CompletableDeferred
@@ -243,38 +244,38 @@ private class ProjectViewPaneManager(
           .distinctUntilChanged() // filter out quick reconnects
           .collectLatest { isActive ->
             if (isActive) {
-              try {
-                LOG.debug { "The pane $id became active, managing its state..." }
-                pane.manageState(stateBuilder)
-              }
-              catch (e: Exception) {
-                rethrowControlFlowException(e)
-                LOG.error("The pane $id crashed", e)
-              }
-              finally {
-                LOG.debug { "The pane $id became inactive, clearing its state..." }
-                withContext(NonCancellable) {
-                  stateBuilder.clear()
+              runSafelyCancellable(LOG, taskDescription = { "managing the state of the pane $id" }) {
+                try {
+                  LOG.debug { "The pane $id became active, managing its state..." }
+                  pane.manageState(stateBuilder)
+                }
+                finally {
+                  LOG.debug { "The pane $id became inactive, clearing its state..." }
+                  withContext(NonCancellable) {
+                    stateBuilder.clear()
+                  }
                 }
               }
             }
           }
       }
       launch(CoroutineName("External settings updates for PV pane $id")) {
-        val refresh = Channel<Unit>(capacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-        ApplicationManager.getApplication().messageBus.connect(this)
-          .subscribe(
-            AdvancedSettingsChangeListener.TOPIC,
-            object : AdvancedSettingsChangeListener {
-              override fun advancedSettingChanged(id: String, oldValue: Any, newValue: Any) {
-                if (id == "project.view.do.not.autoscroll.to.libraries") {
-                  refresh.trySend(Unit)
+        runSafelyCancellable(LOG, taskDescription = { "subscription for external setting changes for the pane $id" }) {
+          val refresh = Channel<Unit>(capacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+          ApplicationManager.getApplication().messageBus.connect(this)
+            .subscribe(
+              AdvancedSettingsChangeListener.TOPIC,
+              object : AdvancedSettingsChangeListener {
+                override fun advancedSettingChanged(id: String, oldValue: Any, newValue: Any) {
+                  if (id == "project.view.do.not.autoscroll.to.libraries") {
+                    refresh.trySend(Unit)
+                  }
                 }
               }
-            }
-          )
-        refresh.consumeAsFlow().collect { 
-          pane.refreshSettings()
+            )
+          refresh.consumeAsFlow().collect { 
+            pane.refreshSettings()
+          }
         }
       }
     }

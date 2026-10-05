@@ -43,6 +43,7 @@ import com.intellij.platform.projectView.pane.ProjectViewNodePath
 import com.intellij.platform.projectView.pane.ProjectViewPaneDescriptorImpl
 import com.intellij.platform.projectView.pane.ProjectViewPaneId
 import com.intellij.platform.projectView.pane.projectViewPaneId
+import com.intellij.platform.projectView.runSafelyCancellable
 import com.intellij.platform.projectView.window.ProjectViewToolWindowService
 import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentFactory
@@ -447,7 +448,7 @@ internal class ProjectViewToolWindowServiceImpl(
                   }
                   else {
                     paneStateFlow.collect { event ->
-                      try {
+                      runSafelyCancellable(LOG, taskDescription = { "updating the pane ${pane.id} state, event $event" }) {
                         LOG.trace { "Update pane state for ${pane.id}: $event" }
                         if (event is ProjectViewClearStateEvent) {
                           withContext(Dispatchers.UI) {
@@ -459,14 +460,6 @@ internal class ProjectViewToolWindowServiceImpl(
                           activePanes += pane.id
                         }
                         pane.applyStateChange(event)
-                      }
-                      catch (e: Exception) {
-                        rethrowControlFlowException(e)
-                        LOG.error(
-                          "An error has occurred when updating the pane ${pane.id} state, the state might be inconsistent. " +
-                          "The problematic event was $event",
-                          e
-                        )
                       }
                     }
                   }
@@ -500,17 +493,9 @@ internal class ProjectViewToolWindowServiceImpl(
             LOG.debug { "Sending pane requests for ${pane.id}" }
             try {
               for (request in inChannel) {
-                try {
+                runSafelyCancellable(LOG, taskDescription = { "sending a request to the backend: $request" }) {
                   LOG.trace { "Sent request for pane ${pane.id}: $request" }
                   outChannel.send(request)
-                }
-                catch (e: Exception) {
-                  rethrowControlFlowException(e)
-                  LOG.error(
-                    "An error has occurred when trying to send a request to the backend. " +
-                    "The problematic request was $request",
-                    e
-                  )
                 }
               }
             }

@@ -36,7 +36,7 @@ abstract class TreeStructureBasedProjectViewPaneModel(project: Project) : TreeBa
   protected abstract fun createTreeStructure(viewSettings: ViewSettings): AbstractProjectTreeStructure
 
   override suspend fun createUpdater(): ProjectViewUpdater {
-    return TreeStructureProjectViewUpdater(project)
+    return TreeStructureProjectViewUpdater(project, id())
   }
 
   override fun supportsOption(option: ProjectViewPaneOption): Boolean {

@@ -39,6 +39,16 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
   }
 
   @Test
+  fun `shift+enter is the xterm chord outside the Kitty keyboard protocol and CSI u under it`() = runSessionTest { session, connector, _ ->
+    // The "Send Esc+CR on Shift+Enter" setting applies to the JediTerm emulator only. Here the encoder
+    // answers the way the Ghostty app does, so a program tells Shift+Enter from Enter under either protocol.
+    fun shiftEnter() = pressed(KeyEvent.VK_ENTER, Char(10), InputEvent.SHIFT_DOWN_MASK)
+    assertThat(bytesOf(session.processKeyEvent(shiftEnter()))).isEqualTo(csi("27;2;13~"))
+    applyModes(connector, csi(">1u"))
+    assertThat(bytesOf(session.processKeyEvent(shiftEnter()))).isEqualTo(csi("13;2u"))
+  }
+
+  @Test
   fun `alt chords go through the encoder when Alt sends Escape`() = runSessionTest { session, connector, _ ->
     val options = TerminalOptionsProvider.instance
     val useOptionAsMetaKey = options.useOptionAsMetaKey

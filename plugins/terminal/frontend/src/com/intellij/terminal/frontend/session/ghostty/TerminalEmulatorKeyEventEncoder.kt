@@ -69,10 +69,6 @@ internal class TerminalEmulatorKeyEventEncoder(
       return bytesResult(byteArrayOf('.'.code.toByte()), e)
     }
 
-    if (settings.shiftEnterSendsEscCR() && e.keyCode == KeyEvent.VK_ENTER && modifierKeys(e) == InputEvent.SHIFT_DOWN_MASK) {
-      return bytesResult(byteArrayOf(ESC, CR), e)
-    }
-
     macNaturalTextEditingChord(e)?.let { chord ->
       return bytesResult(chord, e)
     }

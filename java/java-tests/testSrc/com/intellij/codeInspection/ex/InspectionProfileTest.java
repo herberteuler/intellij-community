@@ -1065,6 +1065,32 @@ public class InspectionProfileTest extends LightIdeaTestCase {
     assertEquals(0, countInitializedTools(model));
   }
 
+  public void testMissingDisplayNameIsComputedLazily() {
+    String shortName = "ijpl257488LazyDisplayName";
+    LocalInspectionEP ep = new LocalInspectionEP();
+    ep.shortName = shortName;
+    ep.level = "ERROR";
+    ep.enabledByDefault = true;
+    ep.implementationClass = LazyDisplayNameTool.class.getName();
+    ep.setPluginDescriptor(PluginManagerCore.getPlugin(PluginManagerCore.CORE_ID));
+    LocalInspectionToolWrapper wrapper = new LocalInspectionToolWrapper(ep);
+    InspectionToolsSupplier.Simple toolSupplier = new InspectionToolsSupplier.Simple(List.of(wrapper));
+    Disposer.register(getTestRootDisposable(), toolSupplier);
+
+    try {
+      createProfile(toolSupplier).initInspectionTools(getProject());
+      assertFalse(wrapper.isInitialized());
+
+      HighlightDisplayKey key = HighlightDisplayKey.find(shortName);
+      assertNotNull(key);
+      assertEquals("Lazy display name", HighlightDisplayKey.getDisplayNameByKey(key));
+      assertTrue(wrapper.isInitialized());
+    }
+    finally {
+      HighlightDisplayKey.unregister(shortName);
+    }
+  }
+
   public void testDoNotInstantiateOnSave() {
     InspectionProfileImpl profile = new InspectionProfileImpl("profile", InspectionToolRegistrar.getInstance(), (InspectionProfileImpl)null);
     assertEquals(0, countInitializedTools(profile));
@@ -1151,4 +1177,11 @@ public class InspectionProfileTest extends LightIdeaTestCase {
   }
 
   public static final class TestTool extends LocalInspectionTool { }
+
+  public static final class LazyDisplayNameTool extends LocalInspectionTool {
+    @Override
+    public @NotNull String getDisplayName() {
+      return "Lazy display name";
+    }
+  }
 }

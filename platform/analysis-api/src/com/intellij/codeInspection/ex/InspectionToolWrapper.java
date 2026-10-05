@@ -133,13 +133,8 @@ public abstract class InspectionToolWrapper<T extends InspectionProfileEntry, E 
   }
 
   public @NotNull @Nls(capitalization = Nls.Capitalization.Sentence) String getDisplayName() {
-    if (myEP == null) {
-      return getTool().getDisplayName();
-    }
-    else {
-      String name = myEP.getDisplayName();
-      return name == null ? getTool().getDisplayName() : name;
-    }
+    String name = myEP == null ? null : myEP.getDisplayName();
+    return name == null ? getTool().getDisplayName() : name;
   }
 
   public @NotNull @Nls String getGroupDisplayName() {

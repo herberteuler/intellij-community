@@ -4,7 +4,6 @@ package com.intellij.codeInspection.ex;
 import com.intellij.codeHighlighting.HighlightDisplayLevel;
 import com.intellij.codeInsight.daemon.HighlightDisplayKey;
 import com.intellij.codeInsight.daemon.impl.SeverityRegistrar;
-import com.intellij.codeInspection.InspectionEP;
 import com.intellij.codeInspection.InspectionProfileEntry;
 import com.intellij.codeInspection.options.OptionController;
 import com.intellij.concurrency.ConcurrentCollectionFactory;
@@ -689,16 +688,13 @@ public class InspectionProfileImpl extends NewInspectionProfile {
   private static @Nullable HighlightDisplayKey getHighlightDisplayKey(@NotNull InspectionToolWrapper<?, ?> toolWrapper, @NotNull String shortName) {
     HighlightDisplayKey key = HighlightDisplayKey.find(shortName);
     if (key == null) {
-      InspectionEP extension = toolWrapper.getExtension();
-      Computable<String> computable = extension == null || extension.displayName == null && extension.key == null
-                                      ? new Computable.PredefinedValueComputable<>(toolWrapper.getDisplayName())
-                                      : () -> extension.getDisplayName();
       // `find` and `register` are a check-then-act pair on a global registry, so they must be atomic.
       // Without the lock a concurrent registrant makes `register` log an error and return null, and the profile loses the tool.
       // The lock holds no other monitor. `myBaseProfile` is read after it, because that read can take the lock of the base profile.
       synchronized (ourKeyRegistrationLock) {
         key = HighlightDisplayKey.find(shortName);
         if (key == null) {
+          Computable<String> computable = () -> toolWrapper.getDisplayName();
           if (toolWrapper instanceof LocalInspectionToolWrapper local) {
             key = HighlightDisplayKey.register(shortName, computable, toolWrapper.getID(), local.getAlternativeID(), toolWrapper);
           }

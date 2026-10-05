@@ -27,7 +27,8 @@ interface TerminalWorkingDirectoryCustomizer {
    *
    * @return the NIO Path of starting directory, or `null` to not provide any customization
    * and use value provided by the default implementation.
-   * **Note that in RemDev case, NIO Path should point to the remote (host) machine, not the local (frontend) one**
+   * **Note that in the case of Remote Dev, the NIO Path (MultiRoutingFileSystem-based)
+   * must point to the backend machine, not to the frontend one.**
    */
   @RequiresBackgroundThread
   @RequiresReadLockAbsence
@@ -35,13 +36,15 @@ interface TerminalWorkingDirectoryCustomizer {
 
   /**
    * Customizes the working directory of a new terminal session.
-   * The method is called only when a new session starts, and the caller has not requested a working directory.
+   * The method is called only when a new session starts, and the caller has not requested
+   * a working directory during initiating the session.
    * The result takes priority over the "Start directory" setting.
    * This value is not shown anywhere in the UI.
    *
    * @return the NIO Path of starting directory, or `null` to not provide any customization
    * and use value provided by the default implementation.
-   * **Note that in RemDev case, NIO Path should point to the remote (host) machine, not the local (frontend) one**
+   * **Note that in the case of Remote Dev, the NIO Path (MultiRoutingFileSystem-based)
+   * must point to the backend machine, not to the frontend one.**
    */
   suspend fun getContextualStartWorkingDirectory(project: Project): Path? = null
 

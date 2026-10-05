@@ -116,17 +116,17 @@ internal class RemoveRedundantQualifierNameInspection : AbstractKotlinInspection
             RemoveQualifierQuickFix,
         )
     }
+}
 
-    private object RemoveQualifierQuickFix : KotlinModCommandQuickFix<KtElement>() {
-        override fun getFamilyName(): String = KotlinBundle.message("remove.redundant.qualifier.name.quick.fix.text")
+internal object RemoveQualifierQuickFix : KotlinModCommandQuickFix<KtElement>() {
+    override fun getFamilyName(): String = KotlinBundle.message("remove.redundant.qualifier.name.quick.fix.text")
 
-        override fun applyFix(project: Project, element: KtElement, updater: ModPsiUpdater) {
-            when (element) {
-                is KtUserType if (element.qualifier != null) -> KtPsiMutationService.getInstance()
-                    .removeQualifier(element)
+    override fun applyFix(project: Project, element: KtElement, updater: ModPsiUpdater) {
+        when (element) {
+            is KtUserType if (element.qualifier != null) -> KtPsiMutationService.getInstance()
+                .removeQualifier(element)
 
-                is KtDotQualifiedExpression -> element.deleteQualifier()
-            }
+            is KtDotQualifiedExpression -> element.deleteQualifier()
         }
     }
 }

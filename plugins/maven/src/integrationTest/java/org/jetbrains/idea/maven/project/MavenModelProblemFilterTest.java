@@ -3,12 +3,28 @@ package org.jetbrains.idea.maven.project;
 
 import com.intellij.execution.filters.Filter;
 import com.intellij.execution.filters.OpenFileHyperlinkInfo;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.fixtures.CodeInsightFixtureTestCase;
-import org.junit.Assert;
+import com.intellij.openapi.vfs.VirtualFileManager;
+import com.intellij.testFramework.junit5.TestApplication;
+import com.intellij.testFramework.junit5.fixture.TestFixture;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static com.intellij.testFramework.junit5.fixture.FixturesKt.projectFixture;
+import static com.intellij.testFramework.junit5.fixture.FixturesKt.tempPathFixture;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Verifies the deterministic, import-free parts of {@link MavenModelProblemFilter}: parsing of the
@@ -18,105 +34,114 @@ import org.junit.Assert;
  * Resolution that requires an imported reactor (an "own pom" problem via the model header, a cross-model
  * problem via the model id) is covered by {@code MavenModelProblemNavigationTest}.
  */
-public class MavenModelProblemFilterTest extends CodeInsightFixtureTestCase {
+@TestApplication
+public class MavenModelProblemFilterTest {
+  private static final TestFixture<Path> tempDir = tempPathFixture();
+  private static final TestFixture<Project> project = projectFixture(tempDir);
 
   private MavenModelProblemFilter myFilter;
   private VirtualFile myPom;
   private String myPomPath;
 
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
-    myFilter = new MavenModelProblemFilter(myFixture.getProject());
-    myPom = myFixture.configureByText("pom.xml",
-                                      """
-                                        <project>
-                                            <modelVersion>4.0.0</modelVersion>
-                                            <groupId>org.example</groupId>
-                                            <artifactId>app</artifactId>
-                                            <version>1.0</version>
-                                            <build>
-                                                <plugins>
-                                                    <plugin>
-                                                        <groupId>org.apache.maven.plugins</groupId>
-                                                        <artifactId>maven-jar-plugin</artifactId>
-                                                    </plugin>
-                                                </plugins>
-                                            </build>
-                                        </project>
-                                        """).getVirtualFile();
+  @BeforeEach
+  public void setUp() throws IOException {
+    myFilter = new MavenModelProblemFilter(project.get());
+    Path pomFile = tempDir.get().resolve("pom.xml");
+    Files.writeString(pomFile,
+                      """
+                        <project>
+                            <modelVersion>4.0.0</modelVersion>
+                            <groupId>org.example</groupId>
+                            <artifactId>app</artifactId>
+                            <version>1.0</version>
+                            <build>
+                                <plugins>
+                                    <plugin>
+                                        <groupId>org.apache.maven.plugins</groupId>
+                                        <artifactId>maven-jar-plugin</artifactId>
+                                    </plugin>
+                                </plugins>
+                            </build>
+                        </project>
+                        """);
+    myPom = VirtualFileManager.getInstance().refreshAndFindFileByNioPath(pomFile);
+    assertNotNull(myPom, "File not found in VFS: " + pomFile);
     myPomPath = myPom.getPath();
   }
 
+  @Test
   public void testNavigatesToExplicitSourcePathWithLineAndColumn() {
     String line = "[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-jar-plugin is missing. "
                   + "@ org.example:app:pom:1.0, " + myPomPath + ", line 8, column 13";
 
     Filter.Result result = myFilter.applyFilter(line, line.length());
-    Assert.assertNotNull("Expected a hyperlink for a model problem with an explicit source path", result);
+    assertNotNull(result, "Expected a hyperlink for a model problem with an explicit source path");
 
     Filter.ResultItem item = single(result);
-    Assert.assertTrue(item.getHyperlinkInfo() instanceof OpenFileHyperlinkInfo);
-    OpenFileHyperlinkInfo info = (OpenFileHyperlinkInfo)item.getHyperlinkInfo();
-    Assert.assertEquals(myPom, info.getVirtualFile());
+    OpenFileHyperlinkInfo info = assertInstanceOf(OpenFileHyperlinkInfo.class, item.getHyperlinkInfo());
+    assertEquals(myPom, info.getVirtualFile());
 
     // the whole "@ ... line 8, column 13" tail is highlighted
-    Assert.assertEquals(line.indexOf("@ "), item.getHighlightStartOffset());
-    Assert.assertEquals(line.length(), item.getHighlightEndOffset());
+    assertEquals(line.indexOf("@ "), item.getHighlightStartOffset());
+    assertEquals(line.length(), item.getHighlightEndOffset());
 
     // line/column are reported 0-based to the descriptor
     assertLineColumn(info, 7, 12);
   }
 
+  @Test
   public void testNavigatesToExplicitSourcePathWithoutColumn() {
     String line = "[WARNING] expression '${pom.version}' is deprecated. @ org.example:app:pom:1.0, " + myPomPath + ", line 3";
 
     Filter.Result result = myFilter.applyFilter(line, line.length());
-    Assert.assertNotNull(result);
+    assertNotNull(result);
 
     Filter.ResultItem item = single(result);
     OpenFileHyperlinkInfo info = (OpenFileHyperlinkInfo)item.getHyperlinkInfo();
-    Assert.assertEquals(myPom, info.getVirtualFile());
-    Assert.assertEquals(line.indexOf("@ "), item.getHighlightStartOffset());
-    Assert.assertEquals(line.length(), item.getHighlightEndOffset());
+    assertEquals(myPom, info.getVirtualFile());
+    assertEquals(line.indexOf("@ "), item.getHighlightStartOffset());
+    assertEquals(line.length(), item.getHighlightEndOffset());
     assertLineColumn(info, 2, 0);
   }
 
+  @Test
   public void testModelHeaderLineIsNotAHyperlink() {
     String line = "[WARNING] Some problems were encountered while building the effective model for org.example:app:jar:1.0";
-    Assert.assertNull(myFilter.applyFilter(line, line.length()));
+    assertNull(myFilter.applyFilter(line, line.length()));
   }
 
+  @Test
   public void testUnrelatedLineIsNotAHyperlink() {
-    Assert.assertNull(myFilter.applyFilter("[INFO] BUILD SUCCESS", 20));
+    assertNull(myFilter.applyFilter("[INFO] BUILD SUCCESS", 20));
   }
 
+  @Test
   public void testUnknownModelWithoutSourceIsNotAHyperlink() {
     // a model id that is not part of any imported project and no explicit source: nothing to navigate to
     String line = "[WARNING] 'x' is missing. @ org.example:unknown:jar:9, line 2, column 3";
-    Assert.assertNull(myFilter.applyFilter(line, line.length()));
+    assertNull(myFilter.applyFilter(line, line.length()));
   }
 
   private static void assertLineColumn(OpenFileHyperlinkInfo info, int expectedLine, int expectedColumn) {
-    OpenFileDescriptor descriptor = info.getDescriptor();
-    Assert.assertNotNull(descriptor);
-    if (descriptor.getLine() >= 0) {
-      Assert.assertEquals(expectedLine, descriptor.getLine());
-      Assert.assertEquals(expectedColumn, descriptor.getColumn());
-      return;
-    }
-    // the descriptor is offset-based once the document is loaded: map the offset back to line/column
-    Document document = FileDocumentManager.getInstance().getDocument(descriptor.getFile());
-    Assert.assertNotNull(document);
-    int offset = descriptor.getOffset();
-    int actualLine = document.getLineNumber(offset);
-    int actualColumn = offset - document.getLineStartOffset(actualLine);
-    Assert.assertEquals(expectedLine, actualLine);
-    Assert.assertEquals(expectedColumn, actualColumn);
+    int[] actual = ReadAction.computeBlocking(() -> {
+      OpenFileDescriptor descriptor = info.getDescriptor();
+      assertNotNull(descriptor);
+      if (descriptor.getLine() >= 0) {
+        return new int[]{descriptor.getLine(), descriptor.getColumn()};
+      }
+      // the descriptor is offset-based once the document is loaded: map the offset back to line/column
+      Document document = FileDocumentManager.getInstance().getDocument(descriptor.getFile());
+      assertNotNull(document);
+      int offset = descriptor.getOffset();
+      int actualLine = document.getLineNumber(offset);
+      return new int[]{actualLine, offset - document.getLineStartOffset(actualLine)};
+    });
+    assertEquals(expectedLine, actual[0]);
+    assertEquals(expectedColumn, actual[1]);
   }
 
   private static Filter.ResultItem single(Filter.Result result) {
-    Assert.assertEquals(1, result.getResultItems().size());
-    return result.getResultItems().get(0);
+    assertEquals(1, result.getResultItems().size());
+    return result.getResultItems().getFirst();
   }
 }

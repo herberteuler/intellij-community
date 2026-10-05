@@ -19762,6 +19762,16 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
                 KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
             }
 
+            @TestMetadata("companionPropertyInVariableDeclaration.kt")
+            public void testCompanionPropertyInVariableDeclaration() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/companionPropertyInVariableDeclaration.kt");
+            }
+
+            @TestMetadata("companionPropertyInVariableDeclaration_implicitPropertyType.kt")
+            public void testCompanionPropertyInVariableDeclaration_implicitPropertyType() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/companionPropertyInVariableDeclaration_implicitPropertyType.kt");
+            }
+
             @TestMetadata("enumEntryFeatureDisabled.kt")
             public void testEnumEntryFeatureDisabled() throws Exception {
                 runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryFeatureDisabled.kt");
@@ -19790,6 +19800,11 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
             @TestMetadata("enumEntryNoExpectedType.kt")
             public void testEnumEntryNoExpectedType() throws Exception {
                 runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryNoExpectedType.kt");
+            }
+
+            @TestMetadata("enumEntryQualifierRedundantByImport.kt")
+            public void testEnumEntryQualifierRedundantByImport() throws Exception {
+                runTest("testData/inspectionsLocal/redundantContextSensitiveResolutionQualifier/enumEntryQualifierRedundantByImport.kt");
             }
 
             @TestMetadata("sealedSubclassInAsCast.kt")

@@ -17,7 +17,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.MultiplePsiFilesPerDocumentFileViewProvider
 import com.intellij.psi.PsiManager
 import com.intellij.python.sdk.backend.getSdkAPI
-import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
+import com.intellij.python.pyproject.model.evolution.findEvoPyProject
 import com.jetbrains.python.PyPsiPackageUtil
 import com.jetbrains.python.packaging.management.PythonPackageManager
 import com.jetbrains.python.psi.PyFile
@@ -49,7 +49,7 @@ internal class PackageDaemonTaskExecutor(private val project: Project, private v
   fun execute(vFile: VirtualFile): Job {
     return cs.launch {
       // Wait for the Python project structure, so a file opened before it is ready is still counted.
-      val snapshot = EvoPyProjectModel.getInstance(project).snapshot()
+      val evoPyProject = project.findEvoPyProject(vFile, mainForOrphans = false) ?: return@launch
       constrainedReadAction(ReadConstraint.inSmartMode(project)) readAction@{
         val fileIndex = ProjectFileIndex.getInstance(project)
         if (!fileIndex.isInProject(vFile) || fileIndex.isInLibrary(vFile)) {
@@ -62,7 +62,6 @@ internal class PackageDaemonTaskExecutor(private val project: Project, private v
           viewProvider.allFiles.firstOrNull { it is PyFile }
         } else psiFile
         if (pyPsiFile !is PyFile) return@readAction emptyList()
-        val evoPyProject = snapshot.forFile(vFile, mainForOrphans = false) ?: return@readAction emptyList()
         val interpreter = evoPyProject.interpreter
         @Suppress("DEPRECATION") // The statistics read the SDK type and target.
         val sdk = interpreter?.getSdkAPI()

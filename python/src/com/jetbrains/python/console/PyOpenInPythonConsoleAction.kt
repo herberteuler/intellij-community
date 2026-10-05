@@ -57,12 +57,12 @@ internal class PyOpenInPythonConsoleAction : AnAction(), DumbAware {
     val file = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
     // A modal progress, not runBlockingCancellable: this runs on the EDT, where that call is forbidden because it
     // does not pump the event queue. Once a project has opened the lookup is a cached one, so no dialog appears.
-    val target = runWithModalProgressBlocking(project, PyBundle.message("progress.title.starting.python.console")) {
-      resolveConsoleTarget(project, file)
+    val (module, title) = runWithModalProgressBlocking(project, PyBundle.message("progress.title.starting.python.console")) {
+      val module = resolveConsoleTarget(project, file)?.pyProject?.residesOnModule ?: return@runWithModalProgressBlocking null
+      module to consoleTabTitle(project, module, PyConsoleType.PYTHON.title)
     } ?: return
-    val module = target.pyProject.residesOnModule
 
-    if (focusExistingConsole(project, consoleTabTitle(project, module, PyConsoleType.PYTHON.title))) return
+    if (focusExistingConsole(project, title)) return
 
     launchPythonConsoleRunner(project, module) { runner ->
       runner.addConsoleListener { PythonConsoleToolWindow.getInstance(project)?.toolWindow?.show(null) }

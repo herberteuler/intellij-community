@@ -608,9 +608,9 @@ public final class PythonSdkUpdater {
         // This step also includes setting mapped interpreter paths
         generateSkeletons(pythonInterpreter, indicator);
         if (myRequestData.withPackagesUpdate) {
-          refreshPackages(manager, indicator);
+          refreshPackages(mySdk, manager, indicator);
         }
-        addBundledPyiStubsToInterpreterPaths(manager);
+        addBundledPyiStubsToInterpreterPaths(mySdk, manager);
       }
       catch (ExecutionException | InvalidSdkException e) {
         LOG.warn("Update for SDK " + mySdk.getName() + " failed", e);
@@ -626,7 +626,7 @@ public final class PythonSdkUpdater {
       }
     }
 
-    private static void addBundledPyiStubsToInterpreterPaths(@NotNull PythonPackageManager packageManager) {
+    private static void addBundledPyiStubsToInterpreterPaths(@NotNull Sdk sdk, @NotNull PythonPackageManager packageManager) {
       List<VirtualFile> allStubRoots = new ArrayList<>();
       ContainerUtil.addIfNotNull(allStubRoots, PyTypeShed.INSTANCE.getThirdPartyStubRoot());
       ContainerUtil.addIfNotNull(allStubRoots, PyBundledStubs.INSTANCE.getRoot());
@@ -647,8 +647,8 @@ public final class PythonSdkUpdater {
         })
         .toList();
 
-      LOG.info("Bundled .pyi stub roots for SDK " + packageManager.getSdk() + ":" + bundledStubRoots);
-      commitBundledStubRootsIfChanged(packageManager.getSdk(), bundledStubRoots);
+      LOG.info("Bundled .pyi stub roots for SDK " + sdk + ":" + bundledStubRoots);
+      commitBundledStubRootsIfChanged(sdk, bundledStubRoots);
     }
 
     private @NotNull Disposable getIndicatorDisposable(@NotNull ProgressIndicator indicator) {
@@ -663,8 +663,8 @@ public final class PythonSdkUpdater {
       };
     }
 
-    private static void refreshPackages(@NotNull PythonPackageManager manager, @NotNull ProgressIndicator indicator) {
-      LOG.info("Performing background scan of packages for SDK " + getSdkPresentableName(manager.getSdk()));
+    private static void refreshPackages(@NotNull Sdk sdk, @NotNull PythonPackageManager manager, @NotNull ProgressIndicator indicator) {
+      LOG.info("Performing background scan of packages for SDK " + getSdkPresentableName(sdk));
       indicator.setIndeterminate(true);
       indicator.setText(PyBundle.message("python.sdk.scanning.installed.packages"));
       indicator.setText2("");

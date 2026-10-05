@@ -24,18 +24,15 @@ import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
 internal suspend fun resolveConsoleTarget(project: Project, file: VirtualFile?): EvoPyProject? =
   if (file == null) project.findMainEvoPyProject() else project.findEvoPyProject(file)
 
-/**
- * The main subproject — the one rooted at the project's own base dir — or `null` when the project has none, or when
- * the structure has not been computed yet.
- */
-internal fun mainConsoleTarget(project: Project): EvoPyProject? =
-  EvoPyProjectModel.getInstance(project).snapshotOrNull()?.main
+/** The main subproject, the one at the base dir of the project, or `null` when the project has none. */
+internal suspend fun mainConsoleTarget(project: Project): EvoPyProject? =
+  project.findMainEvoPyProject()
 
 /**
  * The tab title of a console running on [module]: [defaultTitle] for the main subproject, the module's own name for
  * any other one.
  */
-internal fun consoleTabTitle(
+internal suspend fun consoleTabTitle(
   project: Project,
   module: Module?,
   defaultTitle: @NlsContexts.TabTitle String,

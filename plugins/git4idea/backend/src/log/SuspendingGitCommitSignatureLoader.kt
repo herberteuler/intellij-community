@@ -1,13 +1,13 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.log
 
-import com.intellij.collaboration.async.childScope
 import com.intellij.openapi.application.UI
 import com.intellij.openapi.diagnostic.getOrHandleException
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.checkCanceled
 import com.intellij.openapi.progress.coroutineToIndicator
 import com.intellij.openapi.project.Project
+import com.intellij.platform.util.coroutines.childScope
 import com.intellij.platform.util.coroutines.sync.OverflowSemaphore
 import com.intellij.util.system.LowLevelLocalMachineAccess
 import com.intellij.util.system.OS
@@ -27,7 +27,7 @@ private val LOG = logger<SuspendingGitCommitSignatureLoader>()
 
 internal class SuspendingGitCommitSignatureLoader(private val project: Project, parentCs: CoroutineScope) :
   VcsCommitsDataLoader<GitCommitSignature> {
-  private val cs = parentCs.childScope(this::class)
+  private val cs = parentCs.childScope("git4idea.log.SuspendingGitCommitSignatureLoader")
 
   private val semaphore = OverflowSemaphore(overflow = BufferOverflow.DROP_OLDEST)
 

@@ -1,11 +1,11 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.changes
 
-import com.intellij.collaboration.util.RefComparisonChange
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.diff.impl.patch.FilePatch
 import com.intellij.openapi.diff.impl.patch.TextFilePatch
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.changes.RefComparisonChange
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.vcsUtil.VcsUtil
 import git4idea.GitRevisionNumber

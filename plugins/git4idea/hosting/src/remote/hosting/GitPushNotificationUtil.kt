@@ -1,11 +1,8 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package git4idea.push
+package git4idea.remote.hosting
 
 import com.intellij.collaboration.auth.ServerAccount
 import com.intellij.collaboration.util.URIUtil
-import git4idea.GitRemoteBranch
-import git4idea.branch.GitBranchUtil
-import git4idea.remote.hosting.HostedGitRepositoryMapping
 import git4idea.repo.GitRemote
 import git4idea.repo.GitRepository
 import git4idea.ui.branch.GitRepositoryMappingData
@@ -57,6 +54,3 @@ object GitPushNotificationUtil {
 @PublishedApi
 internal fun HostedGitRepositoryMapping.matchesAccount(account: ServerAccount) =
   URIUtil.equalWithoutSchema(repository.serverPath.toURI(), account.server.toURI())
-
-fun GitPushRepoResult.findRemoteBranch(repository: GitRepository): GitRemoteBranch? =
-  repository.branches.findRemoteBranch(GitBranchUtil.stripRefsPrefix(targetBranch))

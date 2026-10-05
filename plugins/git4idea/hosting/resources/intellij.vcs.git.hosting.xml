@@ -1,0 +1,31 @@
+<idea-plugin visibility="public">
+  <resource-bundle>messages.GitBundle</resource-bundle>
+
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.libraries.kotlinx.coroutines.core"/>
+    <module name="intellij.libraries.miglayout.swing"/>
+    <module name="intellij.platform.collaborationTools"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.ui"/>
+    <module name="intellij.platform.editor.ui"/>
+    <module name="intellij.platform.eel.provider"/>
+    <module name="intellij.platform.ide"/>
+    <module name="intellij.platform.ide.core"/>
+    <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.ide.progress"/>
+    <module name="intellij.platform.projectModel"/>
+    <module name="intellij.platform.util.coroutines"/>
+    <module name="intellij.platform.util.progress"/>
+    <module name="intellij.platform.util.ui"/>
+    <module name="intellij.platform.vcs"/>
+    <module name="intellij.platform.vcs.dvcs.impl"/>
+    <module name="intellij.platform.vcs.impl"/>
+    <module name="intellij.platform.vcs.impl.shared"/>
+    <module name="intellij.platform.vcs.log"/>
+    <module name="intellij.platform.vcs.log.impl"/>
+    <module name="intellij.vcs.git.backend"/>
+    <module name="intellij.vcs.git.shared"/>
+  </dependencies>
+  <!-- endregion -->
+</idea-plugin>

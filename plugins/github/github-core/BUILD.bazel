@@ -60,6 +60,7 @@ jvm_library(
         exclude = ["resources/**/icon-robots.txt"],
     ),
     visibility = ["//visibility:public"],
+    exports = ["//plugins/git4idea/hosting"],
     deps = [
         # do not sort,
         "//platform/analysis-api:analysis",
@@ -73,6 +74,7 @@ jvm_library(
         "//platform/external-process-auth-helper",
         "//plugins/git4idea:vcs-git",
         "//plugins/git4idea/backend",
+        "//plugins/git4idea/hosting",
         "//plugins/git4idea/shared",
         "//platform/core-impl",
         "//platform/vcs-impl",
@@ -135,6 +137,11 @@ jvm_library(
     ),
     module_name = "intellij.vcs.github",
     visibility = ["//visibility:public"],
+    exports = [
+        # do not sort,
+        "//plugins/git4idea/hosting",
+        "//plugins/git4idea/hosting:hosting_test_lib",
+    ],
     runtime_deps = [
         # do not sort,
         ":vcs-github",
@@ -149,6 +156,7 @@ jvm_library(
         "//platform/external-process-auth-helper:external-process-auth-helper_test_lib",
         "//plugins/git4idea:vcs-git_test_lib",
         "//plugins/git4idea/backend:backend_test_lib",
+        "//plugins/git4idea/hosting:hosting_test_lib",
         "//plugins/git4idea/shared:shared_test_lib",
         "//platform/core-impl:core-impl_test_lib",
         "//platform/vcs-impl:vcs-impl_test_lib",

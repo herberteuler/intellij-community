@@ -2374,6 +2374,7 @@
       <module fileurl="file://$PROJECT_DIR$/plugins/git-features-trainer/intellij.vcs.git.featuresTrainer.iml" filepath="$PROJECT_DIR$/plugins/git-features-trainer/intellij.vcs.git.featuresTrainer.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/git-features-trainer/intellij.vcs.git.featuresTrainer.tests.iml" filepath="$PROJECT_DIR$/plugins/git-features-trainer/intellij.vcs.git.featuresTrainer.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/git4idea/frontend/intellij.vcs.git.frontend.iml" filepath="$PROJECT_DIR$/plugins/git4idea/frontend/intellij.vcs.git.frontend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/plugins/git4idea/hosting/intellij.vcs.git.hosting.iml" filepath="$PROJECT_DIR$/plugins/git4idea/hosting/intellij.vcs.git.hosting.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/git4idea/localHistory/intellij.vcs.git.localHistory.iml" filepath="$PROJECT_DIR$/plugins/git4idea/localHistory/intellij.vcs.git.localHistory.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/git4idea/performanceTesting/intellij.vcs.git.performanceTesting.iml" filepath="$PROJECT_DIR$/plugins/git4idea/performanceTesting/intellij.vcs.git.performanceTesting.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/git4idea/rt/intellij.vcs.git.rt.iml" filepath="$PROJECT_DIR$/plugins/git4idea/rt/intellij.vcs.git.rt.iml" />

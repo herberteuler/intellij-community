@@ -1,7 +1,6 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.changes
 
-import com.intellij.collaboration.util.RefComparisonChange
 import com.intellij.diff.comparison.ComparisonManagerImpl.getInstanceImpl
 import com.intellij.diff.comparison.iterables.DiffIterableUtil
 import com.intellij.diff.tools.util.text.LineOffsetsUtil
@@ -11,6 +10,7 @@ import com.intellij.openapi.diff.impl.patch.FilePatch
 import com.intellij.openapi.diff.impl.patch.PatchHunkUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.changes.Change
+import com.intellij.openapi.vcs.changes.RefComparisonChange
 import com.intellij.openapi.vcs.ex.isValidRanges
 import com.intellij.openapi.vfs.VirtualFile
 import git4idea.GitContentRevision

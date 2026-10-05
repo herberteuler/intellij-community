@@ -1,3 +1,20 @@
+*f:com.intellij.openapi.vcs.changes.RefComparisonChange
+- *sf:Companion:com.intellij.openapi.vcs.changes.RefComparisonChange$Companion
+- <init>(com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath,com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath):V
+- f:component1():com.intellij.openapi.vcs.history.ShortVcsRevisionNumber
+- f:component2():com.intellij.openapi.vcs.FilePath
+- f:component3():com.intellij.openapi.vcs.history.ShortVcsRevisionNumber
+- f:component4():com.intellij.openapi.vcs.FilePath
+- f:copy(com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath,com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath):com.intellij.openapi.vcs.changes.RefComparisonChange
+- bs:copy$default(com.intellij.openapi.vcs.changes.RefComparisonChange,com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath,com.intellij.openapi.vcs.history.ShortVcsRevisionNumber,com.intellij.openapi.vcs.FilePath,I,java.lang.Object):com.intellij.openapi.vcs.changes.RefComparisonChange
+- equals(java.lang.Object):Z
+- f:getFilePathAfter():com.intellij.openapi.vcs.FilePath
+- f:getFilePathBefore():com.intellij.openapi.vcs.FilePath
+- f:getRevisionNumberAfter():com.intellij.openapi.vcs.history.ShortVcsRevisionNumber
+- f:getRevisionNumberBefore():com.intellij.openapi.vcs.history.ShortVcsRevisionNumber
+- hashCode():I
+*f:com.intellij.openapi.vcs.changes.RefComparisonChange$Companion
+- f:getKEY():com.intellij.openapi.util.Key
 *a:com.intellij.platform.vcs.changes.ChangeListManagerState
 - *sf:Companion:com.intellij.platform.vcs.changes.ChangeListManagerState$Companion
 - b:<init>(I,kotlinx.serialization.internal.SerializationConstructorMarker):V

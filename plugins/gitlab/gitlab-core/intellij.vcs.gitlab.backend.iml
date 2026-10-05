@@ -57,6 +57,7 @@
     <orderEntry type="module" module-name="intellij.libraries.junit4" scope="TEST" />
     <orderEntry type="module" module-name="intellij.vcs.git" />
     <orderEntry type="module" module-name="intellij.vcs.git.backend" />
+    <orderEntry type="module" module-name="intellij.vcs.git.hosting" exported="" />
     <orderEntry type="module" module-name="intellij.vcs.git.shared" />
     <orderEntry type="module" module-name="intellij.platform.vcs.log.impl" />
     <orderEntry type="module" module-name="intellij.platform.vcs.impl" />

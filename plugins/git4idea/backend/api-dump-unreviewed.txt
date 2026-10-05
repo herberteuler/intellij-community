@@ -3384,12 +3384,6 @@ e:git4idea.push.GitPushNativeResult$Type
 f:git4idea.push.GitPushNativeResultParser
 - <init>():V
 - s:parse(java.util.List):java.util.List
-f:git4idea.push.GitPushNotificationUtil
-- sf:INSTANCE:git4idea.push.GitPushNotificationUtil
-- f:findRepositoryAndAccount(java.util.Set,git4idea.repo.GitRepository,git4idea.repo.GitRemote,java.util.Collection,com.intellij.collaboration.auth.ServerAccount,com.intellij.collaboration.auth.ServerAccount):kotlin.Pair
-f:git4idea.push.GitPushNotificationUtilKt
-- sf:findRemoteBranch(git4idea.push.GitPushRepoResult,git4idea.repo.GitRepository):git4idea.GitRemoteBranch
-- sf:matchesAccount(git4idea.remote.hosting.HostedGitRepositoryMapping,com.intellij.collaboration.auth.ServerAccount):Z
 c:git4idea.push.GitPushOperation
 - <init>(com.intellij.openapi.project.Project,git4idea.push.GitPushSupport,java.util.Map,git4idea.push.GitPushTagMode,Z,Z):V
 - deriveForceWithoutLease(java.util.List):git4idea.push.GitPushOperation
@@ -3451,6 +3445,8 @@ e:git4idea.push.GitPushRepoResult$Type
 - sf:UP_TO_DATE:git4idea.push.GitPushRepoResult$Type
 - s:valueOf(java.lang.String):git4idea.push.GitPushRepoResult$Type
 - s:values():git4idea.push.GitPushRepoResult$Type[]
+f:git4idea.push.GitPushRepoResultUtilKt
+- sf:findRemoteBranch(git4idea.push.GitPushRepoResult,git4idea.repo.GitRepository):git4idea.GitRemoteBranch
 f:git4idea.push.GitPushResult
 - <init>(java.util.Map,com.intellij.openapi.vcs.update.UpdatedFiles,com.intellij.history.Label,com.intellij.history.Label,java.util.Map):V
 - getAfterUpdateLabel():com.intellij.history.Label
@@ -3927,6 +3923,10 @@ f:git4idea.remote.GitRemoteUrlCoordinates
 - f:getRepository():git4idea.repo.GitRepository
 - f:getUrl():java.lang.String
 - hashCode():I
+f:git4idea.remote.GitRemoteUrlUtil
+- sf:INSTANCE:git4idea.remote.GitRemoteUrlUtil
+- sf:match(java.net.URI,java.lang.String):Z
+- sf:matchHost(java.net.URI,java.lang.String):Z
 a:git4idea.remote.GitRepositoryHostingService
 - com.intellij.dvcs.hosting.RepositoryHostingService
 - sf:EP_NAME:com.intellij.openapi.extensions.ExtensionPointName
@@ -3935,173 +3935,6 @@ a:git4idea.remote.GitRepositoryHostingService
 - getInteractiveAuthDataProvider(com.intellij.openapi.project.Project,java.lang.String,java.lang.String):git4idea.remote.InteractiveGitHttpAuthDataProvider
 git4idea.remote.InteractiveGitHttpAuthDataProvider
 - a:getAuthData(java.awt.Component):com.intellij.util.AuthData
-f:git4idea.remote.hosting.GitAsyncExtensionsKt
-- sf:discoverServers(kotlinx.coroutines.flow.Flow,kotlinx.coroutines.flow.Flow,I,kotlin.jvm.functions.Function2):kotlinx.coroutines.flow.Flow
-- bs:discoverServers$default(kotlinx.coroutines.flow.Flow,kotlinx.coroutines.flow.Flow,I,kotlin.jvm.functions.Function2,I,java.lang.Object):kotlinx.coroutines.flow.Flow
-- sf:gitRemotesStateIn(com.intellij.openapi.project.Project,kotlinx.coroutines.CoroutineScope,kotlinx.coroutines.flow.SharingStarted):kotlinx.coroutines.flow.StateFlow
-- bs:gitRemotesStateIn$default(com.intellij.openapi.project.Project,kotlinx.coroutines.CoroutineScope,kotlinx.coroutines.flow.SharingStarted,I,java.lang.Object):kotlinx.coroutines.flow.StateFlow
-- sf:infoStateIn(git4idea.repo.GitRepository,kotlinx.coroutines.CoroutineScope):kotlinx.coroutines.flow.StateFlow
-- sf:isInCurrentHistory(git4idea.repo.GitRepository,kotlinx.coroutines.flow.Flow,java.lang.Boolean):kotlinx.coroutines.flow.Flow
-- bs:isInCurrentHistory$default(git4idea.repo.GitRepository,kotlinx.coroutines.flow.Flow,java.lang.Boolean,I,java.lang.Object):kotlinx.coroutines.flow.Flow
-- sf:localCommitsSyncStatus(kotlinx.coroutines.flow.Flow,git4idea.repo.GitRepository):kotlinx.coroutines.flow.Flow
-- sf:mapToServers(kotlinx.coroutines.flow.Flow,kotlinx.coroutines.flow.Flow,kotlin.jvm.functions.Function2):kotlinx.coroutines.flow.Flow
-f:git4idea.remote.hosting.GitHostingUrlUtil
-- sf:INSTANCE:git4idea.remote.hosting.GitHostingUrlUtil
-- sf:match(java.net.URI,java.lang.String):Z
-- sf:matchHost(java.net.URI,java.lang.String):Z
-f:git4idea.remote.hosting.GitRemoteBranchesUtil
-- sf:INSTANCE:git4idea.remote.hosting.GitRemoteBranchesUtil
-- sf:checkoutRemoteBranch(com.intellij.openapi.project.Project,java.util.List,java.lang.String):V
-- f:checkoutRemoteBranch(git4idea.repo.GitRepository,git4idea.GitRemoteBranch,java.lang.String,java.lang.Runnable):V
-- bs:checkoutRemoteBranch$default(git4idea.remote.hosting.GitRemoteBranchesUtil,git4idea.repo.GitRepository,git4idea.GitRemoteBranch,java.lang.String,java.lang.Runnable,I,java.lang.Object):V
-- f:fetchAndCheckoutRemoteBranch(git4idea.repo.GitRepository,git4idea.GitRemoteBranch,java.lang.String,kotlin.coroutines.Continuation):java.lang.Object
-- f:fetchAndCheckoutRemoteBranch(git4idea.repo.GitRepository,git4idea.remote.hosting.HostedGitRepositoryRemote,java.lang.String,java.lang.String,kotlin.coroutines.Continuation):java.lang.Object
-- bs:fetchAndCheckoutRemoteBranch$default(git4idea.remote.hosting.GitRemoteBranchesUtil,git4idea.repo.GitRepository,git4idea.GitRemoteBranch,java.lang.String,kotlin.coroutines.Continuation,I,java.lang.Object):java.lang.Object
-- f:fetchAndShowRemoteBranchInLog(git4idea.repo.GitRepository,git4idea.GitRemoteBranch,git4idea.GitRemoteBranch,kotlin.coroutines.Continuation):java.lang.Object
-- f:findOrCreateRemote(git4idea.repo.GitRepository,git4idea.remote.hosting.HostedGitRepositoryRemote,kotlin.coroutines.Continuation):java.lang.Object
-- f:findOrCreateRemoteBranch(git4idea.repo.GitRepository,git4idea.remote.hosting.HostedGitRepositoryRemote,java.lang.String,kotlin.coroutines.Continuation):java.lang.Object
-- f:findRemote(git4idea.repo.GitRepository,git4idea.remote.hosting.HostedGitRepositoryRemote):git4idea.repo.GitRemote
-- f:findRemoteBranch(git4idea.repo.GitRepoInfo,git4idea.remote.hosting.HostedGitRepositoryRemoteBranch):git4idea.GitRemoteBranch
-- f:isRemoteBranchCheckedOut(git4idea.repo.GitRepository,git4idea.GitRemoteBranch):Z
-- f:isRemoteBranchCheckedOut(git4idea.repo.GitRepository,git4idea.remote.hosting.HostedGitRepositoryRemote,java.lang.String):Z
-git4idea.remote.hosting.HostedGitRepositoriesManager
-- a:getKnownRepositoriesState():kotlinx.coroutines.flow.StateFlow
-f:git4idea.remote.hosting.HostedGitRepositoriesManagerKt
-- sf:findHostedRemoteBranchTrackedByCurrent(git4idea.remote.hosting.HostedGitRepositoriesManager,git4idea.repo.GitRepository):kotlinx.coroutines.flow.Flow
-- sf:findKnownRepositories(git4idea.remote.hosting.HostedGitRepositoriesManager,git4idea.repo.GitRepository):java.util.List
-git4idea.remote.hosting.HostedGitRepositoryConnection
-- a:awaitClose(kotlin.coroutines.Continuation):java.lang.Object
-- a:close(kotlin.coroutines.Continuation):java.lang.Object
-- a:getAccount():com.intellij.collaboration.auth.Account
-- a:getRepo():git4idea.remote.hosting.HostedGitRepositoryMapping
-git4idea.remote.hosting.HostedGitRepositoryConnectionFactory
-- a:connect(kotlinx.coroutines.CoroutineScope,git4idea.remote.hosting.HostedGitRepositoryMapping,com.intellij.collaboration.auth.ServerAccount,kotlin.coroutines.Continuation):java.lang.Object
-f:git4idea.remote.hosting.HostedGitRepositoryRemote
-- <init>(java.lang.String,java.net.URI,java.lang.String,java.lang.String,java.lang.String):V
-- f:component1():java.lang.String
-- f:component2():java.net.URI
-- f:component3():java.lang.String
-- f:component4():java.lang.String
-- f:component5():java.lang.String
-- f:copy(java.lang.String,java.net.URI,java.lang.String,java.lang.String,java.lang.String):git4idea.remote.hosting.HostedGitRepositoryRemote
-- bs:copy$default(git4idea.remote.hosting.HostedGitRepositoryRemote,java.lang.String,java.net.URI,java.lang.String,java.lang.String,java.lang.String,I,java.lang.Object):git4idea.remote.hosting.HostedGitRepositoryRemote
-- equals(java.lang.Object):Z
-- f:getHttpUrl():java.lang.String
-- f:getName():java.lang.String
-- f:getPath():java.lang.String
-- f:getServerUri():java.net.URI
-- f:getSshUrl():java.lang.String
-- hashCode():I
-f:git4idea.remote.hosting.HostedGitRepositoryRemoteBranch
-- <init>(git4idea.remote.hosting.HostedGitRepositoryRemote,java.lang.String):V
-- f:component1():git4idea.remote.hosting.HostedGitRepositoryRemote
-- f:component2():java.lang.String
-- f:copy(git4idea.remote.hosting.HostedGitRepositoryRemote,java.lang.String):git4idea.remote.hosting.HostedGitRepositoryRemoteBranch
-- bs:copy$default(git4idea.remote.hosting.HostedGitRepositoryRemoteBranch,git4idea.remote.hosting.HostedGitRepositoryRemote,java.lang.String,I,java.lang.Object):git4idea.remote.hosting.HostedGitRepositoryRemoteBranch
-- equals(java.lang.Object):Z
-- f:getBranchName():java.lang.String
-- f:getRemote():git4idea.remote.hosting.HostedGitRepositoryRemote
-- hashCode():I
-git4idea.remote.hosting.SingleHostedGitRepositoryConnectionManager
-- a:closeConnection(kotlin.coroutines.Continuation):java.lang.Object
-- a:getConnectionState():kotlinx.coroutines.flow.StateFlow
-- a:openConnection(git4idea.remote.hosting.HostedGitRepositoryMapping,com.intellij.collaboration.auth.ServerAccount,kotlin.coroutines.Continuation):java.lang.Object
-f:git4idea.remote.hosting.SingleHostedGitRepositoryConnectionManagerImpl
-- git4idea.remote.hosting.SingleHostedGitRepositoryConnectionManager
-- <init>(kotlinx.coroutines.CoroutineScope,git4idea.remote.hosting.HostedGitRepositoryConnectionFactory):V
-- getConnectionState():kotlinx.coroutines.flow.StateFlow
-- openConnection(git4idea.remote.hosting.HostedGitRepositoryMapping,com.intellij.collaboration.auth.ServerAccount,kotlin.coroutines.Continuation):java.lang.Object
-f:git4idea.remote.hosting.ValidatingHostedGitRepositoryConnectionFactory
-- git4idea.remote.hosting.HostedGitRepositoryConnectionFactory
-- <init>(kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function5):V
-- connect(kotlinx.coroutines.CoroutineScope,git4idea.remote.hosting.HostedGitRepositoryMapping,com.intellij.collaboration.auth.ServerAccount,kotlin.coroutines.Continuation):java.lang.Object
-a:git4idea.remote.hosting.action.GlobalHostedGitRepositoryReferenceActionGroup
-- git4idea.remote.hosting.action.HostedGitRepositoryReferenceActionGroup
-- <init>():V
-- <init>(java.util.function.Supplier,java.util.function.Supplier,java.util.function.Supplier):V
-- p:findReferences(com.intellij.openapi.actionSystem.DataContext):java.util.List
-- p:getUri(com.intellij.openapi.project.Project,java.net.URI,java.lang.String):java.net.URI
-- p:getUri(com.intellij.openapi.project.Project,java.net.URI,java.lang.String,java.lang.String,kotlin.ranges.IntRange):java.net.URI
-- pa:getUri(java.net.URI,java.lang.String):java.net.URI
-- pa:getUri(java.net.URI,java.lang.String,java.lang.String,kotlin.ranges.IntRange):java.net.URI
-- pa:repositoriesManager(com.intellij.openapi.project.Project):git4idea.remote.hosting.HostedGitRepositoriesManager
-git4idea.remote.hosting.action.HostedGitRepositoryReference
-- a:buildWebURI():java.net.URI
-- a:getName():java.lang.String
-f:git4idea.remote.hosting.action.HostedGitRepositoryReference$File
-- git4idea.remote.hosting.action.HostedGitRepositoryReference
-- <init>(com.intellij.openapi.project.Project,java.net.URI,com.intellij.openapi.vcs.FilePath,java.lang.String,kotlin.ranges.IntRange,kotlin.jvm.functions.Function4):V
-- buildWebURI():java.net.URI
-- f:copy(com.intellij.openapi.project.Project,java.net.URI,com.intellij.openapi.vcs.FilePath,java.lang.String,kotlin.ranges.IntRange,kotlin.jvm.functions.Function4):git4idea.remote.hosting.action.HostedGitRepositoryReference$File
-- bs:copy$default(git4idea.remote.hosting.action.HostedGitRepositoryReference$File,com.intellij.openapi.project.Project,java.net.URI,com.intellij.openapi.vcs.FilePath,java.lang.String,kotlin.ranges.IntRange,kotlin.jvm.functions.Function4,I,java.lang.Object):git4idea.remote.hosting.action.HostedGitRepositoryReference$File
-- equals(java.lang.Object):Z
-- getName():java.lang.String
-- hashCode():I
-f:git4idea.remote.hosting.action.HostedGitRepositoryReference$WebURI
-- git4idea.remote.hosting.action.HostedGitRepositoryReference
-- <init>(java.net.URI):V
-- buildWebURI():java.net.URI
-- f:copy(java.net.URI):git4idea.remote.hosting.action.HostedGitRepositoryReference$WebURI
-- bs:copy$default(git4idea.remote.hosting.action.HostedGitRepositoryReference$WebURI,java.net.URI,I,java.lang.Object):git4idea.remote.hosting.action.HostedGitRepositoryReference$WebURI
-- equals(java.lang.Object):Z
-- getName():java.lang.String
-- hashCode():I
-a:git4idea.remote.hosting.action.HostedGitRepositoryReferenceActionGroup
-- com.intellij.openapi.actionSystem.ActionGroup
-- com.intellij.openapi.project.DumbAware
-- <init>():V
-- <init>(java.util.function.Supplier,java.util.function.Supplier,java.util.function.Supplier):V
-- actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent):V
-- pa:findReferences(com.intellij.openapi.actionSystem.DataContext):java.util.List
-- getActionUpdateThread():com.intellij.openapi.actionSystem.ActionUpdateThread
-- getChildren(com.intellij.openapi.actionSystem.AnActionEvent):com.intellij.openapi.actionSystem.AnAction[]
-- pa:handleReference(git4idea.remote.hosting.action.HostedGitRepositoryReference):V
-- update(com.intellij.openapi.actionSystem.AnActionEvent):V
-f:git4idea.remote.hosting.action.HostedGitRepositoryReferenceUtil
-- sf:INSTANCE:git4idea.remote.hosting.action.HostedGitRepositoryReferenceUtil
-- f:findReferences(com.intellij.openapi.project.Project,git4idea.remote.hosting.HostedGitRepositoriesManager,com.intellij.openapi.vfs.VirtualFile,com.intellij.openapi.editor.Editor,kotlin.jvm.functions.Function4):java.util.List
-- f:findReferences(com.intellij.openapi.project.Project,git4idea.remote.hosting.HostedGitRepositoriesManager,com.intellij.openapi.vfs.VirtualFile,git4idea.GitRevisionNumber,kotlin.jvm.functions.Function2):java.util.List
-- f:findReferences(com.intellij.openapi.project.Project,git4idea.remote.hosting.HostedGitRepositoriesManager,com.intellij.openapi.vfs.VirtualFile,kotlin.ranges.IntRange,kotlin.jvm.functions.Function4):java.util.List
-- f:findReferences(com.intellij.openapi.project.Project,git4idea.remote.hosting.HostedGitRepositoriesManager,com.intellij.vcs.log.CommitId,kotlin.jvm.functions.Function2):java.util.List
-- f:findReferences(com.intellij.openapi.project.Project,git4idea.remote.hosting.HostedGitRepositoriesManager,git4idea.GitFileRevision,kotlin.jvm.functions.Function2):java.util.List
-f:git4idea.remote.hosting.ui.RepositoryAndAccountSelectorComponentFactory
-- f:create(kotlinx.coroutines.CoroutineScope,com.intellij.collaboration.auth.DefaultAccountHolder,kotlin.jvm.functions.Function1,com.intellij.collaboration.auth.ui.LoadingAccountsDetailsProvider,kotlin.jvm.functions.Function1,java.lang.String,java.util.List,com.intellij.collaboration.ui.codereview.list.error.ErrorStatusPresenter):javax.swing.JComponent
-- f:create(kotlinx.coroutines.CoroutineScope,kotlin.jvm.functions.Function1,com.intellij.collaboration.auth.ui.LoadingAccountsDetailsProvider,kotlin.jvm.functions.Function1,java.lang.String,java.util.List,com.intellij.collaboration.ui.codereview.list.error.ErrorStatusPresenter):javax.swing.JComponent
-git4idea.remote.hosting.ui.RepositoryAndAccountSelectorViewModel
-- a:getAccountSelectionState():kotlinx.coroutines.flow.MutableStateFlow
-- a:getAccountsState():kotlinx.coroutines.flow.StateFlow
-- a:getBusyState():kotlinx.coroutines.flow.StateFlow
-- getCanPersistCredentials():kotlinx.coroutines.flow.StateFlow
-- a:getErrorState():kotlinx.coroutines.flow.StateFlow
-- a:getMissingCredentialsState():kotlinx.coroutines.flow.StateFlow
-- a:getRepoSelectionState():kotlinx.coroutines.flow.MutableStateFlow
-- a:getRepositoriesState():kotlinx.coroutines.flow.StateFlow
-- a:getSubmitAvailableState():kotlinx.coroutines.flow.StateFlow
-- a:selectRepoAndAccount(git4idea.remote.hosting.HostedGitRepositoryMapping,com.intellij.collaboration.auth.ServerAccount):V
-- a:submitSelection():V
-f:git4idea.remote.hosting.ui.RepositoryAndAccountSelectorViewModel$Error$MissingCredentials
-- git4idea.remote.hosting.ui.RepositoryAndAccountSelectorViewModel$Error
-- sf:INSTANCE:git4idea.remote.hosting.ui.RepositoryAndAccountSelectorViewModel$Error$MissingCredentials
-f:git4idea.remote.hosting.ui.RepositoryAndAccountSelectorViewModel$Error$SubmissionError
-- git4idea.remote.hosting.ui.RepositoryAndAccountSelectorViewModel$Error
-- <init>(git4idea.remote.hosting.HostedGitRepositoryMapping,com.intellij.collaboration.auth.ServerAccount,java.lang.Throwable):V
-- f:getAccount():com.intellij.collaboration.auth.ServerAccount
-- f:getException():java.lang.Throwable
-- f:getRepo():git4idea.remote.hosting.HostedGitRepositoryMapping
-a:git4idea.remote.hosting.ui.RepositoryAndAccountSelectorViewModelBase
-- git4idea.remote.hosting.ui.RepositoryAndAccountSelectorViewModel
-- <init>(kotlinx.coroutines.CoroutineScope,git4idea.remote.hosting.HostedGitRepositoriesManager,com.intellij.collaboration.auth.AccountManager,kotlin.jvm.functions.Function3):V
-- f:getAccountSelectionState():kotlinx.coroutines.flow.MutableStateFlow
-- f:getAccountsState():kotlinx.coroutines.flow.StateFlow
-- f:getBusyState():kotlinx.coroutines.flow.StateFlow
-- getCanPersistCredentials():kotlinx.coroutines.flow.StateFlow
-- f:getErrorState():kotlinx.coroutines.flow.StateFlow
-- f:getMissingCredentialsState():kotlinx.coroutines.flow.StateFlow
-- f:getRepoSelectionState():kotlinx.coroutines.flow.MutableStateFlow
-- f:getRepositoriesState():kotlinx.coroutines.flow.StateFlow
-- f:getSubmitAvailableState():kotlinx.coroutines.flow.StateFlow
-- selectRepoAndAccount(git4idea.remote.hosting.HostedGitRepositoryMapping,com.intellij.collaboration.auth.ServerAccount):V
-- submitSelection():V
 c:git4idea.repo.GitBranchTrackInfo
 - <init>(git4idea.GitLocalBranch,git4idea.GitRemoteBranch,Z):V
 - equals(java.lang.Object):Z
@@ -4287,6 +4120,8 @@ f:git4idea.repo.GitRepositoryFiles
 - refresh():V
 - refreshIndexFile():V
 - refreshTagsFiles():V
+f:git4idea.repo.GitRepositoryFlowsKt
+- sf:infoStateIn(git4idea.repo.GitRepository,kotlinx.coroutines.CoroutineScope):kotlinx.coroutines.flow.StateFlow
 f:git4idea.repo.GitRepositoryImpl
 - com.intellij.dvcs.repo.RepositoryImpl
 - git4idea.repo.GitRepository
@@ -4892,6 +4727,9 @@ f:git4idea.ui.branch.GitRefDialog
 - <init>(com.intellij.openapi.project.Project,java.util.List,java.lang.String,java.lang.String):V
 - getPreferredFocusedComponent():javax.swing.JComponent
 - getReference():java.lang.String
+f:git4idea.ui.branch.GitRemoteBranchCheckoutUtil
+- sf:INSTANCE:git4idea.ui.branch.GitRemoteBranchCheckoutUtil
+- sf:checkoutRemoteBranch(com.intellij.openapi.project.Project,java.util.List,java.lang.String):V
 git4idea.ui.branch.GitRepositoryMappingData
 - a:getGitRemote():git4idea.repo.GitRemote
 - a:getGitRepository():git4idea.repo.GitRepository

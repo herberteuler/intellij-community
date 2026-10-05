@@ -27,7 +27,6 @@ import git4idea.branch.GitBranchIncomingOutgoingManager;
 import git4idea.branch.GitBrancher;
 import git4idea.config.GitSharedSettings;
 import git4idea.i18n.GitBundle;
-import git4idea.remote.hosting.GitRemoteBranchesUtil;
 import git4idea.repo.GitRepository;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
@@ -220,18 +219,18 @@ public final class GitBranchPopupActions {
     }
 
     /**
-     * @deprecated use {@link GitRemoteBranchesUtil}
+     * @deprecated use {@link GitRemoteBranchCheckoutUtil}
      */
     @Deprecated(forRemoval = true)
     public static final class CheckoutRemoteBranchAction {
       /**
-       * @deprecated use {@link GitRemoteBranchesUtil#checkoutRemoteBranch(Project, List, String, String, Runnable)}
+       * @deprecated use {@link GitRemoteBranchCheckoutUtil#checkoutRemoteBranch(Project, List, String)}
        */
       @Deprecated(forRemoval = true)
       @RequiresEdt
       public static void checkoutRemoteBranch(@NotNull Project project, @NotNull List<? extends GitRepository> repositories,
                                               @NotNull String remoteBranchName) {
-        GitRemoteBranchesUtil.checkoutRemoteBranch(project, repositories, remoteBranchName);
+        GitRemoteBranchCheckoutUtil.checkoutRemoteBranch(project, repositories, remoteBranchName);
       }
     }
   }

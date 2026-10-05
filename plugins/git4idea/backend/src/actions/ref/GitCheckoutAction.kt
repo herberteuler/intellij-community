@@ -9,9 +9,9 @@ import git4idea.GitRemoteBranch
 import git4idea.GitTag
 import git4idea.branch.GitBrancher
 import git4idea.i18n.GitBundle
-import git4idea.remote.hosting.GitRemoteBranchesUtil
 import git4idea.repo.GitRefUtil
 import git4idea.repo.GitRepository
+import git4idea.ui.branch.GitRemoteBranchCheckoutUtil
 
 class GitCheckoutAction
   : GitSingleRefAction<GitReference>(GitBundle.messagePointer("branches.checkout")) {
@@ -25,7 +25,7 @@ class GitCheckoutAction
   override fun actionPerformed(e: AnActionEvent, project: Project, repositories: List<GitRepository>, reference: GitReference) {
     val refToCheckout = if (reference is GitBranch) reference.name else reference.fullName
     if (reference is GitRemoteBranch) {
-      GitRemoteBranchesUtil.checkoutRemoteBranch(project, repositories, refToCheckout)
+      GitRemoteBranchCheckoutUtil.checkoutRemoteBranch(project, repositories, refToCheckout)
     }
     else {
       GitBrancher.getInstance(project).checkout(refToCheckout, false, repositories, null)

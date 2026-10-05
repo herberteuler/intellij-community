@@ -59,6 +59,7 @@ jvm_library(
         ["resources/**/*"],
     ),
     visibility = ["//visibility:public"],
+    exports = ["//plugins/git4idea/hosting"],
     deps = [
         # do not sort,
         "//platform/analysis-api:analysis",
@@ -86,6 +87,7 @@ jvm_library(
         "//libraries/jackson3/databind",
         "//plugins/git4idea:vcs-git",
         "//plugins/git4idea/backend",
+        "//plugins/git4idea/hosting",
         "//plugins/git4idea/shared",
         "//platform/vcs-log/impl",
         "//platform/vcs-impl",
@@ -129,6 +131,11 @@ jvm_library(
     ),
     module_name = "intellij.vcs.gitlab.backend",
     visibility = ["//visibility:public"],
+    exports = [
+        # do not sort,
+        "//plugins/git4idea/hosting",
+        "//plugins/git4idea/hosting:hosting_test_lib",
+    ],
     runtime_deps = [
         # do not sort,
         ":vcs-gitlab-backend",
@@ -160,6 +167,7 @@ jvm_library(
         "//libraries/junit4:junit4_test_lib",
         "//plugins/git4idea:vcs-git_test_lib",
         "//plugins/git4idea/backend:backend_test_lib",
+        "//plugins/git4idea/hosting:hosting_test_lib",
         "//plugins/git4idea/shared:shared_test_lib",
         "//platform/vcs-log/impl:impl_test_lib",
         "//platform/vcs-impl:vcs-impl_test_lib",

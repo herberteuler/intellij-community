@@ -1,17 +1,18 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.checkout
 
-import com.intellij.collaboration.messages.CollaborationToolsBundle
 import com.intellij.dvcs.ui.CloneDvcsValidationUtils
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.NlsContexts.NotificationTitle
 import com.intellij.openapi.vcs.CheckoutProvider
+import com.intellij.openapi.vcs.VcsBundle
 import com.intellij.openapi.vcs.VcsNotifier
 import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.util.concurrency.annotations.RequiresEdt
 import git4idea.commands.Git
 import git4idea.commands.GitShallowCloneOptions
+import git4idea.i18n.GitBundle
 import org.jetbrains.annotations.ApiStatus
 import java.nio.file.Paths
 
@@ -60,20 +61,20 @@ object GitCloneUtils {
   }
 
   private fun notifyCreateDirectoryFailed(project: Project, message: String, @NotificationTitle displayId: String) {
-    thisLogger().error(CollaborationToolsBundle.message("clone.dialog.error.unable.to.create.destination.directory"), message)
+    thisLogger().error(VcsBundle.message("clone.dialog.unable.create.destination.error"), message)
     VcsNotifier.getInstance(project).notifyError(
       displayId,
-      CollaborationToolsBundle.message("clone.dialog.clone.failed"),
-      CollaborationToolsBundle.message("clone.dialog.error.unable.to.find.destination.directory")
+      VcsBundle.message("clone.dialog.clone.failed.error"),
+      GitBundle.message("clone.dialog.error.unable.to.find.destination.directory")
     )
   }
 
   private fun notifyDestinationNotFound(project: Project, @NotificationTitle displayId: String) {
-    thisLogger().error(CollaborationToolsBundle.message("clone.dialog.error.destination.not.exist"))
+    thisLogger().error(GitBundle.message("clone.dialog.error.destination.not.exist"))
     VcsNotifier.getInstance(project).notifyError(
       displayId,
-      CollaborationToolsBundle.message("clone.dialog.clone.failed"),
-      CollaborationToolsBundle.message("clone.dialog.error.unable.to.find.destination.directory")
+      VcsBundle.message("clone.dialog.clone.failed.error"),
+      GitBundle.message("clone.dialog.error.unable.to.find.destination.directory")
     )
   }
 }

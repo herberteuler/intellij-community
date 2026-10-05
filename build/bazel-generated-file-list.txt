@@ -1292,6 +1292,7 @@ plugins/git-modal-commit
 plugins/git4idea
 plugins/git4idea/backend
 plugins/git4idea/frontend
+plugins/git4idea/hosting
 plugins/git4idea/intellij.vcs.git.coverage
 plugins/git4idea/localHistory
 plugins/git4idea/performanceTesting

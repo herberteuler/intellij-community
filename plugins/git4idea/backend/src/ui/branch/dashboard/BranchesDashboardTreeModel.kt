@@ -1,7 +1,6 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.ui.branch.dashboard
 
-import com.intellij.collaboration.async.nestedDisposable
 import com.intellij.dvcs.branch.DvcsBranchManager
 import com.intellij.dvcs.branch.DvcsBranchManager.DvcsBranchManagerListener
 import com.intellij.dvcs.branch.GroupingKey
@@ -16,6 +15,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.util.coroutines.sync.OverflowSemaphore
 import com.intellij.util.ThreeState
+import com.intellij.util.asDisposable
 import com.intellij.util.concurrency.annotations.RequiresEdt
 import com.intellij.vcs.log.data.DataPackChangeListener
 import com.intellij.vcs.log.data.VcsLogData
@@ -69,7 +69,7 @@ class AsyncBranchesDashboardTreeModel(private val cs: CoroutineScope, logData: V
   private val refreshMutex = OverflowSemaphore(1)
 
   init {
-    Disposer.register(cs.nestedDisposable(), this)
+    Disposer.register(cs.asDisposable(), this)
     updateBranchesTree()
   }
 

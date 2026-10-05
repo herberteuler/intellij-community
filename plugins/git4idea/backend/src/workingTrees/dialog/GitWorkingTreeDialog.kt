@@ -320,7 +320,7 @@ internal class GitWorkingTreeDialog(
     if (ref is GitRemoteBranch && !createNewBranch.get()) {
       val defaultLocalBranchName = ref.nameForRemoteOperations
       // can have remote conflict if git-svn is used - suggested local name will be equal to selected remote,
-      // see git4idea.remote.hosting.GitRemoteBranchesUtil.checkoutRemoteBranch
+      // see git4idea.ui.branch.GitRemoteBranchCheckoutUtil.checkoutRemoteBranch
       if (GitReference.BRANCH_NAME_HASHING_STRATEGY.equals(defaultLocalBranchName, ref.name)) {
         return error(GitBundle.message("working.tree.dialog.branch.validation.provide.explicit.local.branch.name", ref.name))
       }

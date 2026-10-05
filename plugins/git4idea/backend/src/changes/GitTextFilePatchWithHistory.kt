@@ -1,7 +1,6 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.changes
 
-import com.intellij.collaboration.ui.codereview.diff.DiffLineLocation
 import com.intellij.diff.util.Range
 import com.intellij.diff.util.Side
 import com.intellij.openapi.diagnostic.logger
@@ -83,13 +82,13 @@ class GitTextFilePatchWithHistory(val patch: TextFilePatch, val isCumulative: Bo
    * @param lineIndex index of the text line in a file
    * @param bias priority of mapping to the parent or child of commit [fromCommitSha]
    */
-  fun mapLine(fromCommitSha: String, lineIndex: Int, bias: Side): DiffLineLocation? {
+  fun mapLine(fromCommitSha: String, lineIndex: Int, bias: Side): Pair<Side, Int>? {
     // map to merge base, not left revision
     val beforeSha = if (isCumulative) fileHistory.findStartCommit()!! else patch.beforeVersionId!!
     val afterSha = patch.afterVersionId!!
 
-    if (fromCommitSha == beforeSha) return DiffLineLocation(Side.LEFT, lineIndex)
-    if (fromCommitSha == afterSha) return DiffLineLocation(Side.RIGHT, lineIndex)
+    if (fromCommitSha == beforeSha) return Side.LEFT to lineIndex
+    if (fromCommitSha == afterSha) return Side.RIGHT to lineIndex
 
     if (!fileHistory.contains(fromCommitSha, patch.filePath)) return null
 
@@ -107,7 +106,7 @@ class GitTextFilePatchWithHistory(val patch: TextFilePatch, val isCumulative: Bo
     }
   }
 
-  private fun transferToParent(lineIndex: Int, beforeSha: String, fromCommitSha: String, afterSha: String): DiffLineLocation? =
+  private fun transferToParent(lineIndex: Int, beforeSha: String, fromCommitSha: String, afterSha: String): Pair<Side, Int>? =
     if (fileHistory.compare(afterSha, fromCommitSha) < 0) {
       val patches = fileHistory.getPatchesBetween(afterSha, fromCommitSha)
       transferLine(patches, lineIndex, true).exactLocation()?.let {
@@ -124,7 +123,7 @@ class GitTextFilePatchWithHistory(val patch: TextFilePatch, val isCumulative: Bo
       null
     }
 
-  private fun transferToChild(lineIndex: Int, beforeSha: String, fromCommitSha: String, afterSha: String): DiffLineLocation? =
+  private fun transferToChild(lineIndex: Int, beforeSha: String, fromCommitSha: String, afterSha: String): Pair<Side, Int>? =
     if (fileHistory.compare(fromCommitSha, beforeSha) < 0) {
       val patches = fileHistory.getPatchesBetween(fromCommitSha, beforeSha)
       transferLine(patches, lineIndex, false).exactLocation()?.let {

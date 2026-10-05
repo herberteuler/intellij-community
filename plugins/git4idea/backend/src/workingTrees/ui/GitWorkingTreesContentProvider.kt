@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.workingTrees.ui
 
-import com.intellij.collaboration.async.cancelledWith
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vcs.changes.ui.ChangesViewContentManager
@@ -14,10 +13,12 @@ import com.intellij.ui.components.Badge
 import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
+import com.intellij.util.cancelOnDispose
 import git4idea.GitDisposable
 import git4idea.i18n.GitBundle
 import git4idea.workingTrees.GitWorkingTreesNewBadgeUtil
 import git4idea.workingTrees.GitWorkingTreesService
+import kotlinx.coroutines.job
 import java.awt.ComponentOrientation
 import java.util.function.Predicate
 
@@ -35,7 +36,8 @@ internal class GitWorkingTreesContentProvider(private val project: Project) : Ch
   override fun initTabContent(content: Content) {
     val disposable = Disposer.newDisposable()
     content.setDisposer(disposable)
-    val cs = GitDisposable.getInstance(project).childScope("GitWorktreesTab").cancelledWith(disposable)
+    val cs = GitDisposable.getInstance(project).childScope("GitWorktreesTab")
+    cs.coroutineContext.job.cancelOnDispose(disposable)
     content.component = GitWorktreesTabPanel(project, cs).component
   }
 }

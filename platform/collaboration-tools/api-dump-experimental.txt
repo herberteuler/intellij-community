@@ -279,11 +279,11 @@ f:com.intellij.collaboration.api.json.JsonHttpApiHelperKt
 *f:com.intellij.collaboration.ui.codereview.CodeReviewProgressTreeModelFromDetails
 - com.intellij.collaboration.ui.codereview.CodeReviewProgressTreeModel
 - <init>(kotlinx.coroutines.CoroutineScope,com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$WithDetails):V
-- asLeaf(com.intellij.openapi.vcs.changes.ui.ChangesBrowserNode):com.intellij.collaboration.util.RefComparisonChange
-- getUnresolvedDiscussionsCount(com.intellij.collaboration.util.RefComparisonChange):I
+- asLeaf(com.intellij.openapi.vcs.changes.ui.ChangesBrowserNode):com.intellij.openapi.vcs.changes.RefComparisonChange
+- getUnresolvedDiscussionsCount(com.intellij.openapi.vcs.changes.RefComparisonChange):I
 - isLoading():kotlinx.coroutines.flow.StateFlow
-- isLoading(com.intellij.collaboration.util.RefComparisonChange):Z
-- isRead(com.intellij.collaboration.util.RefComparisonChange):Z
+- isLoading(com.intellij.openapi.vcs.changes.RefComparisonChange):Z
+- isRead(com.intellij.openapi.vcs.changes.RefComparisonChange):Z
 *f:com.intellij.collaboration.ui.codereview.CodeReviewProgressTreeModelKt
 - sf:setupCodeReviewProgressModel(com.intellij.openapi.vcs.changes.ui.ChangesTree,com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel,com.intellij.collaboration.ui.codereview.CodeReviewProgressTreeModel):V
 *f:com.intellij.collaboration.ui.codereview.CodeReviewTitleUIUtil
@@ -534,14 +534,14 @@ f:com.intellij.collaboration.api.json.JsonHttpApiHelperKt
 - hashCode():I
 *:com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel
 - *sf:Companion:com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$Companion
-- canEdit(com.intellij.collaboration.util.RefComparisonChange):Z
+- canEdit(com.intellij.openapi.vcs.changes.RefComparisonChange):Z
 - a:getChanges():java.util.List
 - a:getChangesSelection():kotlinx.coroutines.flow.StateFlow
 - a:getProject():com.intellij.openapi.project.Project
 - a:getSelectionRequests():kotlinx.coroutines.flow.SharedFlow
 - a:showDiff():V
 - a:showDiffPreview():V
-- startEditing(com.intellij.collaboration.util.RefComparisonChange):V
+- startEditing(com.intellij.openapi.vcs.changes.RefComparisonChange):V
 - a:updateSelectedChanges(com.intellij.collaboration.util.ChangesSelection):V
 *f:com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$Companion
 - f:getDATA_KEY():com.intellij.openapi.actionSystem.DataKey
@@ -553,12 +553,12 @@ f:com.intellij.collaboration.api.json.JsonHttpApiHelperKt
 - hashCode():I
 *f:com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$SelectionRequest$OneChange
 - com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$SelectionRequest
-- <init>(com.intellij.collaboration.util.RefComparisonChange):V
-- f:component1():com.intellij.collaboration.util.RefComparisonChange
-- f:copy(com.intellij.collaboration.util.RefComparisonChange):com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$SelectionRequest$OneChange
-- bs:copy$default(com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$SelectionRequest$OneChange,com.intellij.collaboration.util.RefComparisonChange,I,java.lang.Object):com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$SelectionRequest$OneChange
+- <init>(com.intellij.openapi.vcs.changes.RefComparisonChange):V
+- f:component1():com.intellij.openapi.vcs.changes.RefComparisonChange
+- f:copy(com.intellij.openapi.vcs.changes.RefComparisonChange):com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$SelectionRequest$OneChange
+- bs:copy$default(com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$SelectionRequest$OneChange,com.intellij.openapi.vcs.changes.RefComparisonChange,I,java.lang.Object):com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$SelectionRequest$OneChange
 - equals(java.lang.Object):Z
-- f:getChange():com.intellij.collaboration.util.RefComparisonChange
+- f:getChange():com.intellij.openapi.vcs.changes.RefComparisonChange
 - hashCode():I
 *:com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel$WithDetails
 - com.intellij.collaboration.ui.codereview.details.model.CodeReviewChangeListViewModel
@@ -1129,8 +1129,8 @@ f:com.intellij.collaboration.api.json.JsonHttpApiHelperKt
 - com.intellij.collaboration.util.ChangesSelection
 - <init>(java.util.List,I,kotlin.Pair):V
 - b:<init>(java.util.List,I,kotlin.Pair,I,kotlin.jvm.internal.DefaultConstructorMarker):V
-- <init>(java.util.List,com.intellij.collaboration.util.RefComparisonChange,kotlin.Pair):V
-- b:<init>(java.util.List,com.intellij.collaboration.util.RefComparisonChange,kotlin.Pair,I,kotlin.jvm.internal.DefaultConstructorMarker):V
+- <init>(java.util.List,com.intellij.openapi.vcs.changes.RefComparisonChange,kotlin.Pair):V
+- b:<init>(java.util.List,com.intellij.openapi.vcs.changes.RefComparisonChange,kotlin.Pair,I,kotlin.jvm.internal.DefaultConstructorMarker):V
 - f:component1():java.util.List
 - f:component2():I
 - f:component3():kotlin.Pair

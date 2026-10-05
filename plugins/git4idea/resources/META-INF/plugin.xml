@@ -21,6 +21,7 @@
   <!-- endregion -->
   <content namespace="jetbrains">
     <module name="intellij.vcs.git.backend" required-if-available="intellij.platform.backend"/>
+    <module name="intellij.vcs.git.hosting"/>
 
     <module name="intellij.vcs.git.localHistory"/>
     <module name="intellij.vcs.git.terminal"/>

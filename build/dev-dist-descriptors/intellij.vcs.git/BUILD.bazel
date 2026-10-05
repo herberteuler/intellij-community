@@ -22,6 +22,7 @@ dev_dist_plugin_descriptor(
         "intellij.vcs.git.backend",
         "intellij.vcs.git.coverage",
         "intellij.vcs.git.frontend",
+        "intellij.vcs.git.hosting",
         "intellij.vcs.git.localHistory",
         "intellij.vcs.git.performanceTesting",
         "intellij.vcs.git.shared",
@@ -32,6 +33,7 @@ dev_dist_plugin_descriptor(
     mode_refused_content_modules = {
         "frontend": [
             "intellij.vcs.git.backend",
+            "intellij.vcs.git.hosting",
             "intellij.vcs.git.localHistory",
             "intellij.vcs.git.terminal",
             "intellij.vcs.git.coverage",
@@ -49,6 +51,7 @@ dev_plugin(
     name = "intellij.vcs.git_dev_plugin",
     content_module_jars = [
         "//plugins/git4idea/frontend:frontend_content_module_jar",
+        "//plugins/git4idea/hosting:hosting_content_module_jar",
         "//plugins/git4idea/intellij.vcs.git.coverage:vcs-git-coverage_content_module_jar",
         "//plugins/git4idea/localHistory:localHistory_content_module_jar",
         "//plugins/git4idea/performanceTesting:performanceTesting_content_module_jar",

@@ -1,8 +1,6 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package git4idea.ui.branch.dashboard
 
-import com.intellij.collaboration.ui.layout.SizeRestrictedSingleComponentLayout
-import com.intellij.collaboration.ui.util.DimensionRestrictions
 import com.intellij.ide.DefaultTreeExpander
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
@@ -44,6 +42,7 @@ import org.jetbrains.annotations.ApiStatus
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
+import java.awt.Dimension
 import java.awt.datatransfer.DataFlavor
 import java.awt.event.ActionEvent
 import javax.swing.AbstractAction
@@ -85,18 +84,11 @@ object BranchesDashboardTreeComponent {
         SearchFieldWithExtension(JBLabel(), branchesSearchField)
       }
       is SearchLook.Standalone -> {
-        JPanel(null).apply {
+        val preferredHeight = searchLook.preferredHeight
+        val wrapper = if (preferredHeight == null) JPanel(BorderLayout()) else FixedHeightPanel(preferredHeight)
+        wrapper.apply {
           name = "Size limit wrapper"
           isOpaque = false
-          layout = if (searchLook.preferredHeight != null) {
-            SizeRestrictedSingleComponentLayout().apply {
-              prefSize = DimensionRestrictions.ScalingConstant(height = searchLook.preferredHeight)
-              minSize = prefSize
-            }
-          }
-          else {
-            BorderLayout()
-          }
           border = JBUI.Borders.empty(0, 10)
           add(branchesSearchField)
         }
@@ -226,6 +218,22 @@ object BranchesDashboardTreeComponent {
   sealed interface SearchLook {
     data class Inline(val heightReferent: JComponent? = null) : SearchLook
     data class Standalone(val preferredHeight: Int? = null) : SearchLook
+  }
+}
+
+/**
+ * Holds one component.
+ * Sets the preferred and the minimum height to the scaled [unscaledHeight] plus the vertical insets.
+ */
+private class FixedHeightPanel(private val unscaledHeight: Int) : JPanel(BorderLayout()) {
+  override fun getPreferredSize(): Dimension = withFixedHeight(super.getPreferredSize())
+
+  override fun getMinimumSize(): Dimension = withFixedHeight(super.getMinimumSize())
+
+  private fun withFixedHeight(size: Dimension): Dimension {
+    val insets = insets
+    size.height = JBUI.scale(unscaledHeight) + insets.top + insets.bottom
+    return size
   }
 }
 

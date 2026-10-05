@@ -16,6 +16,9 @@ import git4idea.repo.GitRepoInfo
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
+import git4idea.repo.changesSignalFlow as repoChangesSignalFlow
+import git4idea.repo.infoFlow as repoInfoFlow
+import git4idea.repo.infoStateIn as repoInfoStateIn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -35,30 +38,11 @@ import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.supervisorScope
 import org.jetbrains.annotations.ApiStatus
 
-fun GitRepository.changesSignalFlow(): Flow<Unit> = channelFlow {
-  project.messageBus
-    .connect(this)
-    .subscribe(GitRepository.GIT_REPO_CHANGE, GitRepositoryChangeListener {
-      if (it == this@changesSignalFlow) {
-        trySend(Unit)
-      }
-    })
-  awaitClose()
-}
+fun GitRepository.changesSignalFlow(): Flow<Unit> = repoChangesSignalFlow()
 
-fun GitRepository.infoStateIn(cs: CoroutineScope): StateFlow<GitRepoInfo> = infoFlow().stateIn(cs, SharingStarted.Eagerly, info)
+fun GitRepository.infoStateIn(cs: CoroutineScope): StateFlow<GitRepoInfo> = repoInfoStateIn(cs)
 
-fun GitRepository.infoFlow(): Flow<GitRepoInfo> = channelFlow {
-  project.messageBus
-    .connect(this)
-    .subscribe(GitRepository.GIT_REPO_CHANGE, GitRepositoryChangeListener {
-      if (it == this@infoFlow) {
-        trySend(it.info)
-      }
-    })
-  send(info)
-  awaitClose()
-}
+fun GitRepository.infoFlow(): Flow<GitRepoInfo> = repoInfoFlow()
 
 fun gitRemotesStateIn(project: Project, cs: CoroutineScope, started: SharingStarted = SharingStarted.Lazily): StateFlow<Set<GitRemoteUrlCoordinates>> =
   gitRemotesFlow(project).stateIn(cs, started, GitRepositoryManager.getInstance(project).collectRemotes())

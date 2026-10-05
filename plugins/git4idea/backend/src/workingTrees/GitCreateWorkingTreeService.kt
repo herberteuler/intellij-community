@@ -36,6 +36,7 @@ import com.intellij.util.concurrency.annotations.RequiresReadLock
 import com.intellij.util.io.sanitizeFileName
 import com.intellij.util.text.UniqueNameGenerator
 import com.intellij.vcsUtil.VcsUtil
+import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.VisibleForTesting
 import git4idea.GitBranch
 import git4idea.GitNotificationIdsHolder
@@ -69,7 +70,8 @@ import kotlin.io.path.Path
 import kotlin.io.path.exists
 
 @Service(Service.Level.APP)
-internal class GitCreateWorkingTreeService(private val coroutineScope: CoroutineScope) {
+@ApiStatus.Internal
+class GitCreateWorkingTreeService(private val coroutineScope: CoroutineScope) {
 
   companion object {
     @JvmStatic
@@ -82,8 +84,7 @@ internal class GitCreateWorkingTreeService(private val coroutineScope: Coroutine
 
     //The system temp directory, resolved in the [eel]'s own environment (WSL/Docker/local)
     @RequiresBackgroundThread(generateAssertion = false)
-    @VisibleForTesting
-    internal fun getSystemTempDir(eel: EelApi): Path = EelSystemFolderUtils.getSystemFolder(eel).resolve("tmp")
+    fun getSystemTempDir(eel: EelApi): Path = EelSystemFolderUtils.getSystemFolder(eel).resolve("tmp")
 
     //The default new-project directory for a local [eel], or that environment's home directory otherwise. A
     //remote environment has no notion of the IDE host's "default project" setting.
@@ -99,7 +100,7 @@ internal class GitCreateWorkingTreeService(private val coroutineScope: Coroutine
    * [worktreeName] (a unique suffix is appended on collision), or opens the existing worktree if [branch] is already
    * checked out in one (no-op if that is the current worktree). Suspends until done so it stays under the caller's progress.
    */
-  internal suspend fun createOrOpenWorktreeForBranch(
+  suspend fun createOrOpenWorktreeForBranch(
     repository: GitRepository,
     branch: GitBranch,
     parentDir: Path,
@@ -156,7 +157,7 @@ internal class GitCreateWorkingTreeService(private val coroutineScope: Coroutine
   private val _pendingCreations = MutableStateFlow<Map<FilePath, GitWorktreePendingCreation>>(emptyMap())
 
   /** Worktrees whose `git worktree add` is still running, keyed by target path; feeds the tab's synthetic "creating" rows. */
-  val pendingCreations: StateFlow<Map<FilePath, GitWorktreePendingCreation>> = _pendingCreations.asStateFlow()
+  internal val pendingCreations: StateFlow<Map<FilePath, GitWorktreePendingCreation>> = _pendingCreations.asStateFlow()
 
   internal fun isWorkingTreeCreationInProgress(workingTree: GitWorkingTree): Boolean {
     return _pendingCreations.value.containsKey(workingTree.path)

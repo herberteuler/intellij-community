@@ -26,7 +26,6 @@
     <module name="intellij.platform.backend.observation"/>
     <module name="intellij.platform.builtInServer"/>
     <module name="intellij.platform.codeStyle"/>
-    <module name="intellij.platform.collaborationTools"/>
     <module name="intellij.platform.concurrency"/>
     <module name="intellij.platform.consoleView"/>
     <module name="intellij.platform.core"/>
@@ -641,7 +640,7 @@
             icon="AllIcons.Actions.ClearCash"/>
     <action id="Git.WorkingTrees.ToggleLock" class="git4idea.workingTrees.ui.actions.GitToggleLockWorkingTreeAction"/>
     <action id="Git.WorkingTrees.OpenReview" class="git4idea.workingTrees.ui.actions.OpenReviewForWorkingTreeAction"
-            icon="icons.CollaborationToolsIcons.PullRequestOpen"/>
+            icon="com.intellij.vcs.git.icons.GitIcons.PullRequestOpen"/>
 
     <group id="Git.WorkingTrees.ToolwindowGroup.Toolbar">
       <reference ref="Git.CreateNewWorkingTree"/>

@@ -148,8 +148,8 @@ f:com.intellij.collaboration.util.IncrementallyComputedValue$Value
 - s:toString-impl(java.lang.Object):java.lang.String
 - bf:unbox-impl():java.lang.Object
 f:com.intellij.collaboration.util.RefComparisonChangeKt
-- sf:getFilePath(com.intellij.collaboration.util.RefComparisonChange):com.intellij.openapi.vcs.FilePath
-- sf:getFileStatus(com.intellij.collaboration.util.RefComparisonChange):com.intellij.openapi.vcs.FileStatus
+- sf:getFilePath(com.intellij.openapi.vcs.changes.RefComparisonChange):com.intellij.openapi.vcs.FilePath
+- sf:getFileStatus(com.intellij.openapi.vcs.changes.RefComparisonChange):com.intellij.openapi.vcs.FileStatus
 f:com.intellij.collaboration.util.SingleCoroutineLauncher
 - <init>(kotlinx.coroutines.CoroutineScope):V
 - f:cancel():V

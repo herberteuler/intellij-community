@@ -352,7 +352,7 @@ e:com.intellij.collaboration.ui.codereview.details.data.ReviewState
 - s:valueOf(java.lang.String):com.intellij.collaboration.ui.codereview.details.data.ReviewState
 - s:values():com.intellij.collaboration.ui.codereview.details.data.ReviewState[]
 f:com.intellij.collaboration.util.ChangesSelectionKt
-- sf:getSelectedChange(com.intellij.collaboration.util.ChangesSelection):com.intellij.collaboration.util.RefComparisonChange
+- sf:getSelectedChange(com.intellij.collaboration.util.ChangesSelection):com.intellij.openapi.vcs.changes.RefComparisonChange
 - sf:withLocation(com.intellij.collaboration.util.ChangesSelection$Precise,kotlin.Pair):com.intellij.collaboration.util.ChangesSelection$Precise
 f:com.intellij.collaboration.util.CodeReviewFilesUtil
 - sf:INSTANCE:com.intellij.collaboration.util.CodeReviewFilesUtil

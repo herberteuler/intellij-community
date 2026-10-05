@@ -40,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.Nls
 import java.nio.file.Path
 
@@ -199,8 +200,9 @@ internal fun hasRemotes(project: Project): Boolean {
 
 internal fun hasAnyRemotes(repositories: Collection<GitRepository>): Boolean = repositories.any { it.remotes.isNotEmpty() }
 
-internal fun hasTrackingConflicts(conflictingLocalBranches: Map<GitRepository, GitLocalBranch>,
-                                  remoteBranchName: String): Boolean =
+@ApiStatus.Internal
+fun hasTrackingConflicts(conflictingLocalBranches: Map<GitRepository, GitLocalBranch>,
+                         remoteBranchName: String): Boolean =
   conflictingLocalBranches.any { (repo, branch) ->
     val trackInfo = GitBranchUtil.getTrackInfoForBranch(repo, branch)
     trackInfo != null && !GitReference.BRANCH_NAME_HASHING_STRATEGY.equals(remoteBranchName, trackInfo.remoteBranch.name)

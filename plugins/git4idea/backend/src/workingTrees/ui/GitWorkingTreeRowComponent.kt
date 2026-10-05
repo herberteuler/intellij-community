@@ -20,9 +20,9 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.NamedColorUtil
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.accessibility.AccessibleContextUtil
+import com.intellij.vcs.git.icons.GitIcons
 import git4idea.i18n.GitBundle
 import git4idea.ui.branch.GitBranchReviewPresenter
-import icons.CollaborationToolsIcons
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -103,7 +103,7 @@ internal class GitWorkingTreeRowComponent {
     submoduleHintLabel.isVisible = row is GitWorktreeRow && row.repositoryKind == GitRepositoryKind.SUBMODULE
     branchLabel.clear()
     branchLabel.append(row.presentableBranchName, SimpleTextAttributes.REGULAR_ATTRIBUTES)
-    prIconLabel.icon = if (review != null) IconUtil.colorize(CollaborationToolsIcons.PullRequestOpen, prTitleLabel.foreground) else null
+    prIconLabel.icon = if (review != null) IconUtil.colorize(GitIcons.PullRequestOpen, prTitleLabel.foreground) else null
     prIconLabel.isVisible = review != null
     prTitleLabel.text = review?.title
     prTitleLabel.isVisible = review != null

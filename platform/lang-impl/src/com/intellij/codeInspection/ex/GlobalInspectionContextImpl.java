@@ -175,6 +175,10 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
   @TestOnly
   public static volatile boolean TESTING_VIEW;
 
+  @SuppressWarnings("StaticNonFinalField")
+  @TestOnly
+  public static volatile boolean TESTING_NON_HEADLESS;
+
   public static final String NOTIFICATION_GROUP = "Inspection Results";
 
   private final NotNullLazyValue<? extends ContentManager> myContentManager;
@@ -408,7 +412,8 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
       }
     }
 
-    boolean headlessEnvironment = ApplicationManager.getApplication().isHeadlessEnvironment();
+    //noinspection TestOnlyProblems
+    boolean headlessEnvironment = ApplicationManager.getApplication().isHeadlessEnvironment() && !TESTING_NON_HEADLESS;
 
     Map<String, InspectionToolWrapper<?, ?>> map = getInspectionWrappersMap(localTools);
 
@@ -764,7 +769,7 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
       return null; //do not inspect binary files
     }
 
-    if (myViewClosed && !headlessEnvironment) {
+    if (myViewClosed && !headlessEnvironment && !isExportRun()) {
       throw new ProcessCanceledException();
     }
 
@@ -992,7 +997,8 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
   @Override
   public void close(boolean noSuspiciousCodeFound) {
     if (!noSuspiciousCodeFound) {
-      if (myView.isRerun()) {
+      InspectionResultsView view = myView;
+      if (view != null && view.isRerun()) {
         myViewClosed = true;
         myView = null;
       }
@@ -1312,9 +1318,24 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
     return myViewClosed;
   }
 
+  /**
+   * Runs started via {@link #performInspectionsWithProgressAndExportResults} or {@link #launchInspectionsOffline} write their results
+   * to the output directory and never create an {@link InspectionResultsView}, so there is no view for the user to close
+   * and nothing to show in the tool window.
+   */
+  private boolean isExportRun() {
+    return getOutputPath() != null;
+  }
+
   private void addProblemsToView(@NotNull List<? extends Tools> tools) {
     //noinspection TestOnlyProblems
-    if (ApplicationManager.getApplication().isHeadlessEnvironment() && !TESTING_VIEW) {
+    if (ApplicationManager.getApplication().isHeadlessEnvironment() && !TESTING_VIEW && !TESTING_NON_HEADLESS) {
+      return;
+    }
+    if (isExportRun()) {
+      return;
+    }
+    if (isExportRun()) {
       return;
     }
     if (myView == null && !InspectionResultsView.hasProblems(tools, this, new InspectionRVContentProviderImpl())) {

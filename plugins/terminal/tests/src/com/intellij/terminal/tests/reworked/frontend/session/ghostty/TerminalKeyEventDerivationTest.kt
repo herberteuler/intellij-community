@@ -147,6 +147,20 @@ internal class TerminalKeyEventDerivationTest {
   }
 
   @Test
+  fun `shift stays a modifier of a typed character it did not change`() {
+    // Shift types the same space on the Space key, so Shift+Space is a chord a program can bind
+    // under the Kitty keyboard protocol. A key outside the US table counts as changed: its symbol
+    // is all there is.
+    press(KeyEvent.VK_SPACE, ' ', SHIFT_MASK)
+    type(' ', SHIFT_MASK)
+    type('Ö', SHIFT_MASK)
+    assertThat(events).containsExactly(
+      TerminalKeyEvent(TerminalKey.SPACE, modifiers = setOf(SHIFT), text = " ", unshiftedCodepoint = ' '.code),
+      TerminalKeyEvent(TerminalKey.UNIDENTIFIED, modifiers = setOf(SHIFT), text = "Ö", unshiftedCodepoint = 'ö'.code, consumedModifiers = setOf(SHIFT)),
+    )
+  }
+
+  @Test
   fun `a ctrl chord carries the character without ctrl`() {
     press(KeyEvent.VK_C, Char(3), CTRL_MASK)
     press(KeyEvent.VK_M, Char(13), CTRL_MASK or SHIFT_MASK)

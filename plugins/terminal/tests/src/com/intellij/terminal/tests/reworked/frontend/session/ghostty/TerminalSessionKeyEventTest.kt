@@ -89,6 +89,19 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
   }
 
   @Test
+  fun `shift+space is a chord under the Kitty keyboard protocol and a space outside it`() = runSessionTest { session, connector, _ ->
+    fun shiftSpace(): String {
+      assertThat(session.processKeyEvent(pressed(KeyEvent.VK_SPACE, ' ', InputEvent.SHIFT_DOWN_MASK))).isEqualTo(KeyEventProcessingResultDto.Unhandled)
+      val result = session.processKeyEvent(typed(' ', InputEvent.SHIFT_DOWN_MASK))
+      assertThat(result).isInstanceOf(KeyEventProcessingResultDto.StringResult::class.java)
+      return (result as KeyEventProcessingResultDto.StringResult).string
+    }
+    assertThat(shiftSpace()).isEqualTo(" ")
+    applyModes(connector, csi(">1u"))
+    assertThat(shiftSpace()).isEqualTo(csi("32;2u"))
+  }
+
+  @Test
   fun `a typed character carries the physical key of its pressed half`() = runSessionTest { session, connector, _ ->
     applyModes(connector, csi(">13u")) // disambiguate + report alternates + report all
     assertThat(session.processKeyEvent(pressed(KeyEvent.VK_2, '@', InputEvent.SHIFT_DOWN_MASK))).isEqualTo(KeyEventProcessingResultDto.Unhandled)

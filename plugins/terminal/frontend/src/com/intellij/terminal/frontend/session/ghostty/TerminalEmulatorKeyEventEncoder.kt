@@ -161,14 +161,15 @@ internal class TerminalEmulatorKeyEventEncoder(
       return KeyEventProcessingResultDto.Unhandled // Cmd+backtick cycles macOS windows; never type it
     }
 
-    // Shift is consumed: the character already includes it. Otherwise, the Kitty keyboard
-    // protocol reports Shift+2 as a CSI u chord instead of typing "@".
+    // Shift is consumed when it changed the character: under the Kitty keyboard protocol "@"
+    // is Shift+2 typed, not a chord. Shift+Space types the same space, so Shift stays a
+    // modifier and a program can bind the chord.
     val event = TerminalKeyEvent(
       writingKey?.key ?: TerminalKey.UNIDENTIFIED,
       modifiers = typedModifiers(e),
       text = e.keyChar.toString(),
       unshiftedCodepoint = unshiftedCodepoint(writingKey, e.keyChar, e.isShiftDown),
-      consumedModifiers = if (e.isShiftDown) setOf(TerminalInputModifier.SHIFT) else emptySet(),
+      consumedModifiers = if (e.isShiftDown && shiftChangesCharacter(writingKey)) setOf(TerminalInputModifier.SHIFT) else emptySet(),
     )
     val bytes = emulator.encodeKeyEvent(event)
     if (bytes.isEmpty()) {
@@ -231,6 +232,13 @@ internal class TerminalEmulatorKeyEventEncoder(
     }
     return ch.lowercaseChar().code
   }
+
+  /**
+   * Whether Shift changes what the key types. The US table says it does on every key but
+   * Space. A key outside the table counts as changed: the layout's own symbol is all there is.
+   */
+  private fun shiftChangesCharacter(writingKey: WritingKey?): Boolean =
+    writingKey == null || writingKey.shiftedCodepoint != writingKey.codepoint
 
   /** A C0 control character or DEL: the bytes the encoder's text must never carry. */
   private fun isControlByte(ch: Char): Boolean = ch.code < 0x20 || ch.code == 0x7F

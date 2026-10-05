@@ -1053,6 +1053,39 @@ class MarkdownLivePreviewFoldingTest : BasePlatformTestCase() {
     assertEquals(rules, blockQuoteRules().map { it.startOffset to it.endOffset })
   }
 
+  fun testAlertCaretRevealsItsTitle() {
+    val content = "> [!CAUTION]\n> text\n\ntail"
+    configure("$content<caret>")
+    val concealedText = " CAUTION\n text\n\ntail"
+    assertEquals(concealedText, visibleText())
+
+    moveCaretTo(content.indexOf("CAUTION"))
+    assertEquals(" [!CAUTION]\n text\n\ntail", visibleText())
+
+    moveCaretTo(0)
+    assertEquals("> CAUTION\n text\n\ntail", visibleText())
+
+    moveCaretTo(content.length)
+    assertEquals(concealedText, visibleText())
+  }
+
+  fun testAlertRuleTakesTheAlertTitleColor() {
+    configure("> [!CAUTION]\n> text\n\ntail<caret>")
+    val editor = myFixture.editor
+    editor.colorsScheme.setAttributes(MarkdownHighlighterColors.ALERT_TITLE_CAUTION, TextAttributes(Color.BLUE, null, null, null, Font.PLAIN))
+    val rule = blockQuoteRules().minBy { it.startOffset }
+    val bitmap = BufferedImage(1000, editor.lineHeight, BufferedImage.TYPE_INT_ARGB)
+    val graphics = bitmap.createGraphics()
+    try {
+      rule.customRenderer!!.paint(editor, rule, graphics)
+    }
+    finally {
+      graphics.dispose()
+    }
+
+    assertEquals(Color.BLUE.rgb, bitmap.getRGB(editor.offsetToXY(rule.startOffset).x, editor.lineHeight / 2))
+  }
+
   fun testBlockquoteRuleFillsThePlaceholdersOfItsQuoteWithTheQuoteBackground() {
     configure("- > - item\n\ntail<caret>")
     val editor = myFixture.editor

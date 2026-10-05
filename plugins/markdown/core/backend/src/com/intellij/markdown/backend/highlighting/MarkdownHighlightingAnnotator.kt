@@ -11,6 +11,7 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiElement
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.OuterLanguageElementType
+import com.intellij.psi.tree.TokenSet
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.elementType
 import com.intellij.psi.util.parents
@@ -38,6 +39,9 @@ private val CITATION_KEY_IN_LABEL = Regex("""(?:^|[\s;,])-?@[\p{L}\p{N}_][\p{L}\
  */
 private typealias HighlightingKeys = Set<TextAttributesKey>
 
+/** An alert is a blockquote with a title, so its lines get the blockquote background too. */
+private val BlockQuoteTypes = TokenSet.create(MarkdownElementTypes.BLOCK_QUOTE, MarkdownElementTypes.ALERT)
+
 internal class MarkdownHighlightingAnnotator : Annotator, DumbAware {
   private val syntaxHighlighter = MarkdownSyntaxHighlighter()
 
@@ -61,7 +65,7 @@ internal class MarkdownHighlightingAnnotator : Annotator, DumbAware {
    * The line break after the last line is outside the quote, so [annotateBlockQuoteLastLineBreak] highlights it.
    */
   private fun annotateBlockQuoteLines(element: PsiElement, holder: AnnotationHolder) {
-    if (element.elementType != MarkdownElementTypes.BLOCK_QUOTE || element.parentOfType(MarkdownElementTypes.BLOCK_QUOTE) != null) return
+    if (element.elementType !in BlockQuoteTypes || element.parents(withSelf = false).any { it.elementType in BlockQuoteTypes }) return
     val contents = element.containingFile.viewProvider.contents
     val quoteRange = element.textRange
     var lineStart = quoteRange.startOffset
@@ -81,7 +85,7 @@ internal class MarkdownHighlightingAnnotator : Annotator, DumbAware {
 
   private fun annotateBlockQuoteLastLineBreak(element: PsiElement, holder: AnnotationHolder) {
     if (element.firstChild != null || element.node.chars.firstOrNull() != '\n') return
-    val quote = PsiTreeUtil.prevLeaf(element)?.parents(withSelf = false)?.lastOrNull { it.elementType == MarkdownElementTypes.BLOCK_QUOTE }
+    val quote = PsiTreeUtil.prevLeaf(element)?.parents(withSelf = false)?.lastOrNull { it.elementType in BlockQuoteTypes }
     if (quote?.textRange?.endOffset != element.textRange.startOffset) return
     holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
       .textAttributes(MarkdownHighlighterColors.BLOCK_QUOTE)
@@ -268,9 +272,6 @@ internal class MarkdownHighlightingAnnotator : Annotator, DumbAware {
     return when {
       element.hasType(MarkdownTokenTypes.CODE_FENCE_CONTENT) && (element.parent as? MarkdownCodeFence)?.fenceLanguage != null -> {
         emptySet()
-      }
-      element.hasType(MarkdownTokenTypes.BLOCK_QUOTE) && element.parentOfType(MarkdownElementTypes.ALERT) != null -> {
-        setOf(MarkdownHighlighterColors.TEXT)
       }
       else -> null
     }

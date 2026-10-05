@@ -3,6 +3,7 @@ package com.intellij.markdown.frontend.editor.livepreview
 
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.FoldRegion
+import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.openapi.editor.ex.FoldingModelEx
 import com.intellij.openapi.editor.impl.FoldingKeys
 import com.intellij.openapi.editor.markup.CustomHighlighterRenderer
@@ -25,8 +26,21 @@ internal class MarkdownLivePreviewBlockQuoteRenderer(private val editor: Editor)
     return listOf(MarkdownLivePreviewTextFold(
       range = blockQuote.markerRange.toTextRange(),
       placeholderText = blockQuote.placeholderText,
-      decoration = BlockQuoteMarkerDecoration(editor, blockQuote.ruleRange.toTextRange()),
+      decoration = BlockQuoteMarkerDecoration(
+        editor,
+        blockQuote.ruleRange.toTextRange(),
+        ruleColorKey(blockQuote.alertType),
+      ),
     ))
+  }
+
+  private fun ruleColorKey(alertType: MarkdownLivePreviewSpec.AlertType?): TextAttributesKey = when (alertType) {
+    MarkdownLivePreviewSpec.AlertType.NOTE -> MarkdownHighlighterColors.ALERT_TITLE_NOTE
+    MarkdownLivePreviewSpec.AlertType.TIP -> MarkdownHighlighterColors.ALERT_TITLE_TIP
+    MarkdownLivePreviewSpec.AlertType.IMPORTANT -> MarkdownHighlighterColors.ALERT_TITLE_IMPORTANT
+    MarkdownLivePreviewSpec.AlertType.WARNING -> MarkdownHighlighterColors.ALERT_TITLE_WARNING
+    MarkdownLivePreviewSpec.AlertType.CAUTION -> MarkdownHighlighterColors.ALERT_TITLE_CAUTION
+    null -> MarkdownHighlighterColors.BLOCK_QUOTE_MARKER
   }
 
   override fun documentChanged() = Unit
@@ -36,6 +50,7 @@ internal class MarkdownLivePreviewBlockQuoteRenderer(private val editor: Editor)
   private class BlockQuoteMarkerDecoration(
     private val editor: Editor,
     private val ruleRange: TextRange,
+    private val ruleColorKey: TextAttributesKey,
   ) : MarkdownLivePreviewFoldDecoration {
     override fun create(region: FoldRegion): MarkdownLivePreviewMountedDecoration {
       val highlighter = editor.markupModel.addRangeHighlighter(
@@ -44,10 +59,10 @@ internal class MarkdownLivePreviewBlockQuoteRenderer(private val editor: Editor)
         ruleRange.endOffset,
         HighlighterLayer.ADDITIONAL_SYNTAX,
         HighlighterTargetArea.EXACT_RANGE,
-      ).also { it.customRenderer = MarkdownBlockQuotePainter(region) }
+      ).also { it.customRenderer = MarkdownBlockQuotePainter(region, ruleColorKey) }
       return object : MarkdownLivePreviewMountedDecoration {
         override fun update(decoration: MarkdownLivePreviewFoldDecoration): Boolean {
-          return decoration is BlockQuoteMarkerDecoration && highlighter.isValid &&
+          return decoration is BlockQuoteMarkerDecoration && highlighter.isValid && decoration.ruleColorKey == ruleColorKey &&
                  highlighter.startOffset == decoration.ruleRange.startOffset &&
                  highlighter.endOffset == decoration.ruleRange.endOffset
         }
@@ -62,13 +77,16 @@ internal class MarkdownLivePreviewBlockQuoteRenderer(private val editor: Editor)
  * Paints the vertical rule of one blockquote marker without changing editor layout or input handling.
  * The rule starts on the marker line at the x position of the marker.
  * A highlighter that ends at a line start stops the rule above that line.
- * The rule takes the foreground of [MarkdownHighlighterColors.BLOCK_QUOTE_MARKER].
+ * The rule takes the foreground of [ruleColorKey].
  * A placeholder with [FoldingKeys.HIDE_PLACEHOLDER_BACKGROUND] ignores highlighters and shows the editor background.
  * Thus the painter fills each such placeholder on the marker line, from the marker on, with the background of the quote lines.
  * This covers the marker itself and a list bullet in the quote.
  */
 @ApiStatus.Internal
-class MarkdownBlockQuotePainter internal constructor(private val markerRegion: FoldRegion) : CustomHighlighterRenderer {
+class MarkdownBlockQuotePainter internal constructor(
+  private val markerRegion: FoldRegion,
+  private val ruleColorKey: TextAttributesKey,
+) : CustomHighlighterRenderer {
   override fun paint(editor: Editor, highlighter: RangeHighlighter, graphics: Graphics) {
     if (editor.isDisposed || !highlighter.isValid || !markerRegion.isValid) return
     val markerOffset = markerRegion.startOffset
@@ -89,7 +107,7 @@ class MarkdownBlockQuotePainter internal constructor(private val markerRegion: F
         child.color = it
         fillPlaceholders(editor, markerOffset, child)
       }
-      child.color = scheme.getAttributes(MarkdownHighlighterColors.BLOCK_QUOTE_MARKER)?.foregroundColor ?: scheme.defaultForeground
+      child.color = scheme.getAttributes(ruleColorKey)?.foregroundColor ?: scheme.defaultForeground
       child.fillRect(x, start, JBUI.scale(2), end - start)
     }
     finally {

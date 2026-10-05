@@ -125,7 +125,12 @@ sealed interface MarkdownLivePreviewSpec {
     val ruleRange: MarkdownLivePreviewRange,
     /** Keeps each quote level two spaces wide. A space or a tab after the marker stays source text and gives the second space. */
     val placeholderText: String,
+    /** The rule takes the title color of this alert type. A regular blockquote has no alert type. */
+    val alertType: AlertType? = null,
   ) : MarkdownLivePreviewSpec
+
+  @Serializable
+  enum class AlertType { NOTE, TIP, IMPORTANT, WARNING, CAUTION }
 
   /** Conceals a full logical line and paints it as a horizontal rule. */
   @Serializable

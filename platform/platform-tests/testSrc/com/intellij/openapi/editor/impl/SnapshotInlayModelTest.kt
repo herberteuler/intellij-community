@@ -33,7 +33,7 @@ class SnapshotInlayModelTest {
       val initialSnapshot = document.core.snapshot()
       val marker = editor.inlayModel.addInlineElement(2, false, renderer)!! as SnapshotRangeMarkerImpl
       val rootStore = editor.inlayModel.rootStore()
-      val shiftedSnapshot = document.snapshotMarkerStores.applyOp(initialSnapshot, textPatch(0, 0, "xy"))
+      val shiftedSnapshot = document.snapshotMarkerStores.applyPatch(initialSnapshot, textPatch(0, 0, "xy"))
 
       BranchState(
         initialOffset = SnapshotMarkerEngineImpl.resolveRangeMarker(marker, rootStore.rootReference(initialSnapshot).get()).startOffset,

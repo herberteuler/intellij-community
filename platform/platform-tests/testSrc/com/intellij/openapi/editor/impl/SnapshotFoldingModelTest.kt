@@ -33,7 +33,7 @@ class SnapshotFoldingModelTest {
       val initialSnapshot = document.core.snapshot()
       val region = addFoldRegion(editor, 1, 4) as SnapshotRangeMarkerImpl
       val rootStore = editor.foldingModel.rootStore()
-      val shiftedSnapshot = document.snapshotMarkerStores.applyOp(initialSnapshot, textPatch(0, 0, "xy"))
+      val shiftedSnapshot = document.snapshotMarkerStores.applyPatch(initialSnapshot, textPatch(0, 0, "xy"))
 
       BranchState(
         usesSnapshotStorage = editor.foldingModel.isUsingSnapshotFoldingStorage,

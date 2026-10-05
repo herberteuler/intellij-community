@@ -83,7 +83,8 @@ interface DocumentText {
   fun lineIterator(): LineIterator
 
   /**
-   * Returns text with [op] applied. Only [DocumentTextPatch] changes the text.
+   * Returns the text with [op] applied.
+   * Only [DocumentOp.Insert] and [DocumentOp.Delete] change the text. Any other op returns this text.
    *
    * @see DocumentSnapshot.applyOp
    */

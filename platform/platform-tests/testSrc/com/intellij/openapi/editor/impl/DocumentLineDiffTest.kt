@@ -85,7 +85,7 @@ internal class DocumentLineDiffTest {
     val rootStore = document.rangeMarkers.rootStore()
 
     runConcurrently {
-      val snapshot = markerStores.applyOp(initialSnapshot, patch)
+      val snapshot = markerStores.applyPatch(initialSnapshot, patch)
       val resolution = SnapshotMarkerEngineImpl.resolveRangeMarker(marker, rootStore.rootReference(snapshot).get())
       assertEquals(expectedStart, resolution.startOffset)
       assertEquals(expectedStart + 3, resolution.endOffset)
@@ -122,7 +122,7 @@ internal class DocumentLineDiffTest {
         ),
       ) as SnapshotRangeMarkerImpl
 
-      val snapshot = document.snapshotMarkerStores.applyOp(initialSnapshot, patch)
+      val snapshot = document.snapshotMarkerStores.applyPatch(initialSnapshot, patch)
       val root = document.rangeMarkers.rootStore().rootReference(snapshot).get()
       val resolution = SnapshotMarkerEngineImpl.resolveRangeMarker(marker, root)
       return resolution.startOffset to resolution.endOffset

@@ -11,7 +11,7 @@ import com.intellij.openapi.editor.ReadOnlyFragmentModificationException
 import com.intellij.openapi.editor.actionSystem.DocCommandGroupId
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.ex.DocumentMutator
-import com.intellij.openapi.editor.ex.DocumentNewOps
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentSettings
 import com.intellij.openapi.editor.ex.DocumentSnapshot
 import com.intellij.openapi.editor.ex.DocumentTextPatch
@@ -34,14 +34,12 @@ internal abstract class DocumentMutatorImpl(
   protected abstract fun updateAndGet(update: UnaryOperator<DocumentSnapshot>): DocumentSnapshot
 
   override fun setModStamp(newModStamp: Long, incrementModSequence: Boolean) {
-    val newOps = DocumentNewOps.getInstance()
-    val op = newOps.createModStampOp(newModStamp, incrementModSequence)
+    val op = DocumentOp.modStampOp(newModStamp, incrementModSequence)
     updateAndGet { snapshotMarkerStores.applyOp(it, op) }
   }
 
   override fun clearLineFlags(startLine: Int, endLine: Int, exceptLines: IntArray) {
-    val newOps = DocumentNewOps.getInstance()
-    val op = newOps.createUnmodifiedLinesOp(startLine, endLine, exceptLines)
+    val op = DocumentOp.unmodifiedLinesOp(startLine, endLine, exceptLines)
     updateAndGet { snapshotMarkerStores.applyOp(it, op) }
   }
 
@@ -328,7 +326,7 @@ internal abstract class DocumentMutatorImpl(
     patch: DocumentTextPatch,
   ): DocumentSnapshot {
     val merged = snapshotBefore.withMetadata(latest)
-    return snapshotMarkerStores.applyOp(merged, patch)
+    return snapshotMarkerStores.applyPatch(merged, patch)
   }
 
   private fun trimToSize(hostDocument: Document, snapshot: DocumentSnapshot): DocumentSnapshot {

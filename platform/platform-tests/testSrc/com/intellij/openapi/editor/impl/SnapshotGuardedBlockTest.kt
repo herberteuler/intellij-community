@@ -34,15 +34,15 @@ class SnapshotGuardedBlockTest {
     Assertions.assertThat(SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotGuard, rootStore.rootReference(initialSnapshot).get()))
       .extracting("startOffset", "endOffset").containsExactly(4, 10)
 
-    val insertedBefore = markerStores.applyOp(initialSnapshot, textPatch(0, 0, "x\n"))
+    val insertedBefore = markerStores.applyPatch(initialSnapshot, textPatch(0, 0, "x\n"))
     Assertions.assertThat(SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotGuard, rootStore.rootReference(insertedBefore).get()))
       .extracting("startOffset", "endOffset").containsExactly(6, 12)
 
-    val replaced = markerStores.applyOp(initialSnapshot, textPatch(0, initialSnapshot.text().length(), "prefix\none\ntarget\nlast"))
+    val replaced = markerStores.applyPatch(initialSnapshot, textPatch(0, initialSnapshot.text().length(), "prefix\none\ntarget\nlast"))
     Assertions.assertThat(SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotGuard, rootStore.rootReference(replaced).get()))
       .extracting("startOffset", "endOffset").containsExactly(11, 17)
 
-    val deleted = markerStores.applyOp(initialSnapshot, textPatch(3, 11, ""))
+    val deleted = markerStores.applyPatch(initialSnapshot, textPatch(3, 11, ""))
     Assertions.assertThat(SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotGuard, rootStore.rootReference(deleted).get()).isValid)
       .isFalse()
 

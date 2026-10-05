@@ -34,8 +34,8 @@ class SnapshotCustomWrapModelTest {
       val snapshotWrap = wrap as SnapshotRangeMarkerImpl
       val rootStore = (editor.customWrapModel as CustomWrapModelImpl).rootStore()
       val markerStores = document.snapshotMarkerStores
-      val shiftedBranch = markerStores.applyOp(initialSnapshot, textPatch(0, 0, "x"))
-      val invalidBranch = markerStores.applyOp(initialSnapshot, textPatch(4, 5, ""))
+      val shiftedBranch = markerStores.applyPatch(initialSnapshot, textPatch(0, 0, "x"))
+      val invalidBranch = markerStores.applyPatch(initialSnapshot, textPatch(4, 5, ""))
       val initialResolution = SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotWrap, rootStore.rootReference(initialSnapshot).get())
       val shiftedResolution = SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotWrap, rootStore.rootReference(shiftedBranch).get())
       val invalidResolution = SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotWrap, rootStore.rootReference(invalidBranch).get())

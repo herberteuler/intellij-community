@@ -29,7 +29,7 @@ class SnapshotFocusModeModelTest {
     assertThat(SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotRegion, rootStore.rootReference(initialSnapshot).get()))
       .extracting("startOffset", "endOffset").containsExactly(2, 4)
 
-    val branch = document.snapshotMarkerStores.applyOp(initialSnapshot, textPatch(0, 0, "x"))
+    val branch = document.snapshotMarkerStores.applyPatch(initialSnapshot, textPatch(0, 0, "x"))
     assertThat(SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotRegion, rootStore.rootReference(branch).get()))
       .extracting("startOffset", "endOffset").containsExactly(3, 5)
     assertThat(SnapshotMarkerEngineImpl.resolveRangeMarker(snapshotRegion, rootStore.rootReference(initialSnapshot).get()))

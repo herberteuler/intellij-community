@@ -2,10 +2,8 @@
 package com.intellij.openapi.editor.impl.marker
 
 import com.intellij.openapi.editor.elf.Elf
-import com.intellij.openapi.editor.ex.DocumentNewOps
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentSnapshot
-import com.intellij.openapi.editor.ex.DocumentSputnik
 import com.intellij.openapi.editor.ex.DocumentTextPatch
 import com.intellij.openapi.editor.ex.RangeMarkerEx
 import com.intellij.openapi.editor.impl.DocumentImpl
@@ -46,8 +44,8 @@ class SnapshotMarkerEngineImplTest {
   fun `clean snapshot merge keeps markers created in both branches`() {
     val fixture = Fixture("abcdef")
     val initialSnapshot = fixture.initialSnapshot
-    val primary = fixture.applyOp(initialSnapshot, DocumentNewOps.getInstance().createModStampOp(1, true))
-    val metadata = fixture.applyOp(initialSnapshot, DocumentNewOps.getInstance().createModStampOp(2, true))
+    val primary = fixture.applyOp(initialSnapshot, DocumentOp.modStampOp(1, true))
+    val metadata = fixture.applyOp(initialSnapshot, DocumentOp.modStampOp(2, true))
     val primaryMarker = SnapshotMarkerEngineImpl.createRangeMarker(
       document = fixture.document,
       snapshot = primary,
@@ -651,7 +649,7 @@ class SnapshotMarkerEngineImplTest {
     val parent = document.core.snapshot()
     val strongMarker = createStrongMarker(document, startOffset = 2, endOffset = 4)
 
-    document.snapshotMarkerStores.applyOp(parent, textPatch(1, 5, ""))
+    document.snapshotMarkerStores.applyPatch(parent, textPatch(1, 5, ""))
     GCUtil.tryGcSoftlyReachableObjects()
 
     assertNotNull(strongMarker.reference.get())
@@ -663,7 +661,7 @@ class SnapshotMarkerEngineImplTest {
     val parent = document.core.snapshot()
     val strongMarker = createStrongMarker(document, startOffset = 2, endOffset = 4)
     val rootStore = document.rangeMarkers.rootStore()
-    val child = document.snapshotMarkerStores.applyOp(parent, textPatch(0, 0, "X"))
+    val child = document.snapshotMarkerStores.applyPatch(parent, textPatch(0, 0, "X"))
 
     disposeMarker(strongMarker)
     GCUtil.tryGcSoftlyReachableObjects()
@@ -1295,7 +1293,7 @@ class SnapshotMarkerEngineImplTest {
     affectedMarkerConsumer: LongConsumer = PMarkerRoot.EMPTY_LONG_CONSUMER,
   ): PMarkerRoot {
     val beforeText = DocumentImpl(before, true).core.snapshot().text()
-    val afterText = beforeText.applyOp(patch)
+    val afterText = patch.ops().fold(beforeText) { text, op -> text.applyOp(op) }
     return root.applyPatch(patch, beforeText, afterText, invalidatedMarkerConsumer, affectedMarkerConsumer)
   }
 
@@ -1306,7 +1304,6 @@ class SnapshotMarkerEngineImplTest {
 
     private val markerStores: SnapshotMarkerStores = document.snapshotMarkerStores
 
-    private val newOps = DocumentNewOps.getInstance()
     private var nextModSequence = initialSnapshot.modState().sequence() + 1
     private var nextModStamp = initialSnapshot.modState().stamp() + 1
 
@@ -1331,14 +1328,14 @@ class SnapshotMarkerEngineImplTest {
       require(startOffset in 0..endOffset)
       require(endOffset <= parent.text().length())
 
-      val targetModSequence = maxOf(nextModSequence, parent.modState().sequence() + 1)
       var newModStamp = nextModStamp++
 
       var child = applyTextEdit(parent, startOffset, endOffset, newFragment, newModStamp)
+      val targetModSequence = maxOf(nextModSequence, child.modState().sequence())
 
       while (child.modState().sequence() < targetModSequence) {
         newModStamp = nextModStamp++
-        child = markerStores.applyOp(child, newOps.createModStampOp(newModStamp, true))
+        child = markerStores.applyOp(child, DocumentOp.modStampOp(newModStamp, true))
       }
 
       check(child.modState().sequence() == targetModSequence) {
@@ -1356,7 +1353,7 @@ class SnapshotMarkerEngineImplTest {
       newFragment: String,
       newModStamp: Long,
     ): DocumentSnapshot {
-      return markerStores.applyOp(
+      return markerStores.applyPatch(
         parent,
         DocumentTextPatch.simple(
           startOffset = startOffset,

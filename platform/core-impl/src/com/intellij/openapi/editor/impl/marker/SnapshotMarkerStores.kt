@@ -33,6 +33,22 @@ class SnapshotMarkerStores {
     return additionalApply(op, beforeSnapshot, afterSnapshot, capturedRoots)
   }
 
+  fun applyPatch(beforeSnapshot: DocumentSnapshot, patch: DocumentTextPatch): DocumentSnapshot {
+    val capturedRoots = captureRoots(beforeSnapshot)
+    val afterSnapshot = applyPatch0(beforeSnapshot, patch)
+    if (afterSnapshot === beforeSnapshot) return afterSnapshot
+
+    return additionalApply(patch, beforeSnapshot, afterSnapshot, capturedRoots)
+  }
+
+  fun applyPatch0(beforeSnapshot: DocumentSnapshot, patch: DocumentTextPatch): DocumentSnapshot {
+    var snapshot = beforeSnapshot
+    for (op in patch.ops()) {
+      snapshot = snapshot.applyOp(op)
+    }
+    return snapshot
+  }
+
   private fun additionalApply(
     op: DocumentOp,
     beforeSnapshot: DocumentSnapshot,
@@ -49,6 +65,31 @@ class SnapshotMarkerStores {
     else {
       require(beforeSnapshot.text() === afterSnapshot.text()) {
         "Snapshots must share the same text instance, but op: $op corrupted the text"
+      }
+      for (i in capturedRoots.indices) {
+        val it = capturedRoots[i]
+        it.store.inherit(it.root, afterSnapshot)
+      }
+    }
+    return afterSnapshot
+  }
+
+  private fun additionalApply(
+    patch: DocumentTextPatch,
+    beforeSnapshot: DocumentSnapshot,
+    afterSnapshot: DocumentSnapshot,
+    capturedRoots: List<CapturedRoot>,
+  ): DocumentSnapshot {
+    if (patch is DocumentTextPatch) {
+      validatePatch(beforeSnapshot, afterSnapshot, patch)
+      for (i in capturedRoots.indices) {
+        val it = capturedRoots[i]
+        it.store.applyPatch(it.root, beforeSnapshot, afterSnapshot, patch)
+      }
+    }
+    else {
+      require(beforeSnapshot.text() === afterSnapshot.text()) {
+        "Snapshots must share the same text instance, but op: $patch corrupted the text"
       }
       for (i in capturedRoots.indices) {
         val it = capturedRoots[i]

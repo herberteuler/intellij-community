@@ -362,11 +362,6 @@
     <reference ref="PinActiveTabToggle"/>
     <reference ref="NonModalWindow.PinUnpin"/>
 
-    <reference ref="ResetSettingsNewBadges"/>
-
-    <reference ref="PluginManagerFiltersConfigureTrustOnlyJetBrainsDebugAction"/>
-    <reference ref="PluginManagerFiltersConfigureResetTrustDebugAction"/>
-
     <reference ref="CloseGotItTooltip"/>
     <reference ref="CallSaul"/>
 
@@ -573,8 +568,6 @@
         <reference ref="EditorDecreaseFontSizeGlobal"/>
         <reference ref="EditorResetFontSizeGlobal"/>
 
-        <reference ref="ToggleFocusMode"/>
-
         <separator/>
         <group id="EditorBidiTextDirection" popup="true">
           <reference ref="EditorSetContentBasedBidiTextDirection"/>
@@ -755,7 +748,6 @@
           <separator/>
           <reference ref="LogDebugConfigure"/>
           <reference ref="BrowseSpecialPaths"/>
-          <reference ref="CollectTroubleshootingInformation"/>
           <reference ref="ResetWindowsDefenderNotification"/>
         </group>
 
@@ -1034,8 +1026,6 @@
       <reference ref="EditorToggleUseSoftWraps"/>
       <reference ref="ConfigureSoftWraps"/>
       <separator/>
-      <reference ref="ToggleFocusMode"/>
-      <separator/>
       <reference ref="EditorGutterPopupMenu.Appearance"/>
     </group>
 
@@ -1066,40 +1056,21 @@
       <reference ref="Console.History.Browse"/>
     </group>
 
-    <reference ref="MoveFileToAnotherModule"/>
-
     <reference ref="CreateAllServicesAndExtensions"/>
 
     <reference ref="ShowTrustProjectDialog"/>
-    <group id="Internal.Trust" popup="true">
-      <reference ref="TrustProject"/>
-      <reference ref="UntrustProject"/>
-    </group>
+    <group id="Internal.Trust" popup="true"/>
 
     <!-- Make sure groups you add-to-group are marked with `internal="true"` as well -->
     <group id="Internal" internal="true" popup="true" compact="true">
-      <group id="Internal.Errors" popup="true">
-        <reference ref="DropAnError"/>
-        <reference ref="DropAnErrorWithAttachments"/>
-        <reference ref="DropPluginError"/>
-        <reference ref="DropAnOutOfMemoryError"/>
-      </group>
+      <group id="Internal.Errors" popup="true"/>
       <separator/>
-      <group id="Internal.WorkspaceModel" popup="true">
-        <reference ref="WorkspaceEntitiesJsonClipboard"/>
-        <reference ref="WorkspaceEntitiesJsonLog"/>
-        <reference ref="WorkspaceEntitiesJsonLogFile"/>
-      </group>
+      <group id="Internal.WorkspaceModel" popup="true"/>
       <separator/>
       <group id="Internal.Editor" popup="true"/>
 
       <group id="Internal.UI" internal="true" popup="true">
-        <reference ref="ShowSplash"/>
-        <reference ref="EnableMetalRendering"/>
-        <reference ref="EnableWayland"/>
-        <reference ref="ShowHideDebugInfoInUi"/>
         <separator/>
-        <reference ref="ShowBundleLocalizationDialogAction"/>
 
         <group id="Internal.UI.Ex" internal="true">
           <group id="Internal.UI.Demos" popup="true" internal="true"/>
@@ -1107,6 +1078,8 @@
       </group>
       <reference ref="DataSharingOptions"/>
       <separator/>
+
+      <group id="Internal.VFS" popup="true" internal="true"/>
 
       <add-to-group group-id="ToolsMenu" anchor="last"/>
     </group>
@@ -1224,8 +1197,6 @@
       <add-to-group group-id="Other.KeymapGroup"/>
     </group>
 
-    <reference ref="TriggerLowMemoryNotification"/>
-
     <reference ref="NextWindow"/>
     <reference ref="PreviousWindow"/>
 
@@ -1333,29 +1304,9 @@
     </group>
 
     <reference ref="FocusMainToolbar"/>
-
     <reference ref="FocusStatusBar"/>
-
-    <reference ref="RemoveMainToolbarActionsAction"/>
-
-    <reference ref="plugins.autoupdate.repository.view"/>
-
     <reference ref="ToolWindowShowNamesAction"/>
-
-    <group id="Internal.VFS" popup="true" internal="true">
-      <reference ref="VirtualFileInfo"/>
-      <separator/>
-      <reference ref="CheckVfsSanityInMenu"/>
-      <reference ref="MarkVfsCorrupted"/>
-      <reference ref="RequestCachesDefragmentation"/>
-      <separator/>
-      <reference ref="PruneEmptyDirectories"/>
-      <reference ref="FixLineSeparators"/>
-      <separator/>
-      <add-to-group group-id="Internal" anchor="last"/>
-    </group>
     <reference ref="ShowUsageFeatures"/>
-
     <reference ref="CheckVfsSanity"/>
 
     <group id="CustomizeMainToolbarGroup" popup="true" searchable="false">
@@ -1363,9 +1314,6 @@
       <separator key="group.MainToolbarQuickActions.text"/>
       <reference ref="MainToolbarQuickActionsRaw"/>
     </group>
-
-    <reference ref="UndoDumpAction"/>
-    <reference ref="UndoClearAction"/>
 
     <reference ref="OpenInBrowser"/>
     <reference ref="OpenInBrowserGroup">
@@ -1376,7 +1324,5 @@
     <reference ref="OpenInBrowserEditorContextBarGroupAction">
       <add-to-group group-id="OpenInBrowserEditorContextBarGroup" anchor="last"/>
     </reference>
-
-    <reference ref="PluginUpdateSourcesResetAction"/>
   </actions>
 </idea-plugin>

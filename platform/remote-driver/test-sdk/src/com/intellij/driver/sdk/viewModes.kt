@@ -21,4 +21,4 @@ fun Driver.toggleFullscreenMode() {
 
 fun Driver.toggleToolbarVisibility() = invokeAction("ViewToolBar")
 
-fun Driver.removeMainToolbarActions() = invokeAction("RemoveMainToolbarActionsAction")
+fun Driver.removeMainToolbarActions() = invokeAction("RemoveMainToolbarActions")

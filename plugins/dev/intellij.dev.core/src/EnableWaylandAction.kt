@@ -1,5 +1,5 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ui
+package com.intellij.dev.core
 
 import com.intellij.diagnostic.VMOptions
 import com.intellij.ide.ui.RegistryBooleanOptionDescriptor

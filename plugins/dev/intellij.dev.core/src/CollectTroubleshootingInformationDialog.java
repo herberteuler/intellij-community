@@ -1,5 +1,5 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.troubleshooting.ui;
+package com.intellij.dev.core;
 
 import com.intellij.CommonBundle;
 import com.intellij.ide.IdeBundle;
@@ -60,7 +60,7 @@ final class CollectTroubleshootingInformationDialog extends DialogWrapper {
       gbc.anchor = GridBagConstraints.WEST;
       centerPanel.add(troubleTypeBox, gbc);
       final JBLabel jBLabel1 = new JBLabel();
-      this.$$$loadLabelText$$$(jBLabel1, this.$$$getMessageFromBundle$$$("messages/DiagnosticBundle", "label.issue.type"));
+      this.$$$loadLabelText$$$(jBLabel1, this.$$$getMessageFromBundle$$$("messages/DevCoreBundle", "label.issue.type"));
       gbc = new GridBagConstraints();
       gbc.gridx = 0;
       gbc.gridy = 0;
@@ -68,7 +68,7 @@ final class CollectTroubleshootingInformationDialog extends DialogWrapper {
       final JBLabel jBLabel2 = new JBLabel();
       jBLabel2.setHorizontalAlignment(2);
       jBLabel2.setHorizontalTextPosition(2);
-      this.$$$loadLabelText$$$(jBLabel2, this.$$$getMessageFromBundle$$$("messages/DiagnosticBundle",
+      this.$$$loadLabelText$$$(jBLabel2, this.$$$getMessageFromBundle$$$("messages/DevCoreBundle",
                                                                          "label.the.information.may.contain.sensitive.data"));
       gbc = new GridBagConstraints();
       gbc.gridx = 0;
@@ -79,7 +79,7 @@ final class CollectTroubleshootingInformationDialog extends DialogWrapper {
       gbc.ipady = 10;
       centerPanel.add(jBLabel2, gbc);
     }
-    setTitle(IdeBundle.message("dialog.title.collect.troubleshooting.information"));
+    setTitle(DevCoreBundle.message("dialog.title.collect.troubleshooting.information"));
     CompositeGeneralTroubleInfoCollector generalInfoCollector = new CompositeGeneralTroubleInfoCollector();
     troubleTypeBox.addItem(generalInfoCollector);
     TroubleInfoCollector[] extensions = TroubleInfoCollector.EP_SETTINGS.getExtensions();

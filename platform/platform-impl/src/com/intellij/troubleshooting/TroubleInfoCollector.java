@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
  * Implement this interface and register the implementation as com.intellij.troubleInfoCollector extension
  * to see a result of {@link #collectInfo} in "Help|Collect Troubleshooting Information" dialog.
  * <p>
- * Implement toString() for better presentation in {@link com.intellij.troubleshooting.ui.CollectTroubleshootingInformationDialog}
+ * Implement toString() for better presentation in the "Collect Troubleshooting Information" dialog
  */
 public interface TroubleInfoCollector {
   ExtensionPointName<TroubleInfoCollector> EP_SETTINGS = ExtensionPointName.create("com.intellij.troubleInfoCollector");

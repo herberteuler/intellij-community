@@ -1,8 +1,7 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.actions.cache
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.intellij.dev.core
 
 import com.intellij.CommonBundle
-import com.intellij.core.CoreBundle
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ex.ApplicationManagerEx
@@ -19,15 +18,15 @@ internal class RequestCachesDefragmentationAction : AnAction(), DumbAware {
   override fun actionPerformed(e: AnActionEvent) {
     val app = ApplicationManagerEx.getApplicationEx()
 
-    val defragmentNowText = if (app.isRestartCapable) CoreBundle.message("vfs.defragmentation.dialog.action.restart")
-                                                 else CoreBundle.message("vfs.defragmentation.dialog.action.shutdown")
+    val defragmentNowText = if (app.isRestartCapable) DevCoreBundle.message("vfs.defragmentation.dialog.action.restart")
+    else DevCoreBundle.message("vfs.defragmentation.dialog.action.shutdown")
 
     val answer = Messages.showYesNoCancelDialog(
       e.project,
-      CoreBundle.message("vfs.defragmentation.dialog.message"),
-      CoreBundle.message("vfs.defragmentation.dialog.title"),
+      DevCoreBundle.message("vfs.defragmentation.dialog.message"),
+      DevCoreBundle.message("vfs.defragmentation.dialog.title"),
       defragmentNowText,
-      CoreBundle.message("vfs.defragmentation.dialog.action.later"),
+      DevCoreBundle.message("vfs.defragmentation.dialog.action.later"),
       CommonBundle.getCancelButtonText(),
       Messages.getQuestionIcon()
     )

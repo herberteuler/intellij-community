@@ -77,6 +77,18 @@
 
     <action id="PerformGC" internal="true" class="com.intellij.dev.core.PerformGCAction"/>
 
+    <action id="WorkspaceEntitiesJsonClipboard" internal="true"
+            class="com.intellij.dev.core.DumpWorkspaceEntitiesToClipboardAction">
+      <add-to-group group-id="Internal.WorkspaceModel"/>
+    </action>
+    <action id="WorkspaceEntitiesJsonLog" internal="true"
+            class="com.intellij.dev.core.DumpWorkspaceEntitiesToLogAction">
+      <add-to-group group-id="Internal.WorkspaceModel"/>
+    </action>
+    <action id="WorkspaceEntitiesJsonLogFile" internal="true"
+            class="com.intellij.dev.core.DumpWorkspaceEntitiesToLogFileAction">
+      <add-to-group group-id="Internal.WorkspaceModel"/>
+    </action>
     <action id="PrintModulesAndEntitySources" internal="true"
             class="com.intellij.dev.core.PrintModulesAndEntitySources">
       <add-to-group group-id="Internal.WorkspaceModel"/>
@@ -216,6 +228,24 @@
       <add-to-group group-id="Internal" anchor="last"/>
     </action>
 
+    <action id="VirtualFileInfo" internal="true" class="com.intellij.dev.core.VirtualFileInfoAction">
+      <add-to-group group-id="Internal.VFS" anchor="first"/>
+    </action>
+    <action id="CheckVfsSanityInMenu" internal="true" class="com.intellij.openapi.vfs.newvfs.persistent.CheckVFSHealthAction">
+      <add-to-group group-id="Internal.VFS"/>
+    </action>
+    <action id="MarkVfsCorrupted" internal="true" class="com.intellij.dev.core.MarkVfsCorruptedAction">
+      <add-to-group group-id="Internal.VFS"/>
+    </action>
+    <action id="RequestCachesDefragmentation" internal="true" class="com.intellij.dev.core.RequestCachesDefragmentationAction">
+      <add-to-group group-id="Internal.VFS"/>
+    </action>
+    <action id="PruneEmptyDirectories" internal="true" class="com.intellij.dev.core.PruneEmptyDirectoriesAction">
+      <add-to-group group-id="Internal.VFS"/>
+    </action>
+    <action id="FixLineSeparators" internal="true" class="com.intellij.dev.core.FixLineSeparatorsAction">
+      <add-to-group group-id="Internal.VFS"/>
+    </action>
     <action id="LoadAllContent" internal="true" class="com.intellij.dev.core.LoadAllContentsAction">
       <add-to-group group-id="Internal.VFS"/>
     </action>
@@ -277,5 +307,65 @@
             class="com.intellij.dev.core.PaintEditorLineStripeHintComponentAction"/>
     <action id="ShowInlineCompletionStatistics" internal="true"
             class="com.intellij.dev.core.ShowCompletionLocalStatisticsAction"/>
+    <action id="ResetSettingsNewBadges" internal="true" class="com.intellij.dev.core.ResetSettingsNewBadgesAction"/>
+    <action id="MoveFileToAnotherModule" internal="true" class="com.intellij.dev.core.MoveFileToAnotherModuleAction"/>
+    <action id="UndoDumpAction" internal="true" class="com.intellij.dev.core.UndoDumpHistoryAction"/>
+    <action id="UndoClearAction" internal="true" class="com.intellij.dev.core.UndoClearHistoryAction"/>
+    <action id="TriggerLowMemoryNotification" internal="true" class="com.intellij.dev.core.TriggerLowMemoryNotificationAction"/>
+    <action id="RemoveMainToolbarActions" internal="true" class="com.intellij.dev.core.RemoveMainToolbarActionsAction"/>
+
+    <action id="TrustProject" internal="true" class="com.intellij.dev.core.YesTrustAction">
+      <add-to-group group-id="Internal.Trust"/>
+    </action>
+    <action id="UntrustProject" internal="true" class="com.intellij.dev.core.NoTrustAction">
+      <add-to-group group-id="Internal.Trust"/>
+    </action>
+
+    <action id="DropAnError" internal="true" class="com.intellij.dev.core.DropAnErrorAction">
+      <add-to-group group-id="Internal.Errors" anchor="first"/>
+    </action>
+    <action id="DropAnErrorWithAttachments" internal="true" class="com.intellij.dev.core.DropAnErrorWithAttachmentsAction">
+      <add-to-group group-id="Internal.Errors" anchor="after" relative-to-action="DropAnError"/>
+    </action>
+    <action id="DropPluginError" internal="true" class="com.intellij.dev.core.DropPluginErrorAction">
+      <add-to-group group-id="Internal.Errors" anchor="after" relative-to-action="DropAnErrorWithAttachments"/>
+    </action>
+    <action id="DropAnOutOfMemoryError" internal="true" class="com.intellij.dev.core.DropAnOutOfMemoryErrorAction">
+      <add-to-group group-id="Internal.Errors" anchor="after" relative-to-action="DropPluginError"/>
+    </action>
+
+    <action id="ShowSplash" internal="true" class="com.intellij.dev.core.ShowSplashAction">
+      <add-to-group group-id="Internal.UI" anchor="first"/>
+    </action>
+    <action id="EnableMetalRendering" internal="true" class="com.intellij.dev.core.EnableMetalRenderingAction">
+      <abbreviation value="metal"/>
+      <add-to-group group-id="Internal.UI" anchor="after" relative-to-action="ShowSplash"/>
+    </action>
+    <action id="EnableWayland" internal="true" class="com.intellij.dev.core.EnableWaylandAction">
+      <abbreviation value="wayland"/>
+      <add-to-group group-id="Internal.UI" anchor="after" relative-to-action="EnableMetalRendering"/>
+    </action>
+    <action id="ShowHideDebugInfoInUi" internal="true" class="com.intellij.dev.core.ShowHideDebugInfoInUiAction">
+      <add-to-group group-id="Internal.UI" anchor="after" relative-to-action="EnableWayland"/>
+    </action>
+    <action id="ShowBundleLocalizationDialogAction" internal="true" class="com.intellij.dev.core.ShowBundleMessagesDialogAction">
+      <add-to-group group-id="Internal.UI" anchor="before" relative-to-action="Internal.UI.Ex"/>
+    </action>
+    <action id="PluginUpdateSourcesResetAction" internal="true" class="com.intellij.dev.core.PluginUpdateSourcesResetAction"/>
+    <action id="PluginUpdateSourcesReinitializeAction" internal="true"
+            class="com.intellij.dev.core.PluginUpdateSourcesReinitializeAction"/>
+    <action id="ViewPluginsAutoUpdateRepository" internal="true" class="com.intellij.dev.core.PluginsAutoUpdateRepositoryViewAction"/>
+    <action id="PluginManagerFiltersConfigureTrustOnlyJetBrainsDebugAction" internal="true"
+            class="com.intellij.dev.core.PluginManagerFiltersConfigureTrustOnlyJetBrainsDebugAction"/>
+    <action id="PluginManagerFiltersConfigureResetTrustDebugAction" internal="true"
+            class="com.intellij.dev.core.PluginManagerFiltersConfigureResetTrustDebugAction"/>
+    <action id="CollectTroubleshootingInformation" internal="true"
+            class="com.intellij.dev.core.CollectTroubleshootingInformationAction">
+      <add-to-group group-id="HelpDiagnosticTools" anchor="after" relative-to-action="BrowseSpecialPaths"/>
+    </action>
+    <action id="ToggleFocusMode" internal="true" class="com.intellij.dev.core.ToggleFocusViewModeAction">
+      <add-to-group group-id="ViewMenu" anchor="after" relative-to-action="EditorResetFontSizeGlobal"/>
+      <add-to-group group-id="EditorGutterPopupMenu" anchor="before" relative-to-action="EditorGutterPopupMenu.Appearance"/>
+    </action>
   </actions>
 </idea-plugin>

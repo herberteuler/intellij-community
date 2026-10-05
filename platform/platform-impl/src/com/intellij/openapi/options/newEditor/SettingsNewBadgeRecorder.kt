@@ -6,6 +6,7 @@ package com.intellij.openapi.options.newEditor
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.ex.ConfigurableVisitor
+import org.jetbrains.annotations.ApiStatus
 
 internal const val KEY_PREFIX: String = "settings.new.badge.shown.count."
 internal const val MAX_SHOWS: Int = 1
@@ -16,4 +17,12 @@ internal fun recordOpened(configurable: Configurable) {
 
 internal fun shownCount(configurable: Configurable): Int {
   return PropertiesComponent.getInstance().getInt(KEY_PREFIX + ConfigurableVisitor.getId(configurable), 0)
+}
+
+/**
+ * Clears the "New" badge view counter of the configurable with the given [configurableId].
+ */
+@ApiStatus.Internal
+fun resetConfigurableShownCount(configurableId: String) {
+  PropertiesComponent.getInstance().unsetValue(KEY_PREFIX + configurableId)
 }

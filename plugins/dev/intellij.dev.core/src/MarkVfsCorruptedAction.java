@@ -1,9 +1,10 @@
 // Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.openapi.vfs.newvfs.persistent;
+package com.intellij.dev.core;
 
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAwareAction;
+import com.intellij.openapi.vfs.newvfs.persistent.FSRecords;
 import org.jetbrains.annotations.NotNull;
 
 final class MarkVfsCorruptedAction extends DumbAwareAction {

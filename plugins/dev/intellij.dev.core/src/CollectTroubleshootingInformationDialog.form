@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="com.intellij.troubleshooting.ui.CollectTroubleshootingInformationDialog">
+<form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="com.intellij.dev.core.CollectTroubleshootingInformationDialog">
   <grid id="27dc6" binding="centerPanel" layout-manager="GridBagLayout">
     <constraints>
       <xy x="20" y="20" width="500" height="400"/>
@@ -36,7 +36,7 @@
           <gridbag weightx="0.0" weighty="0.0"/>
         </constraints>
         <properties>
-          <text resource-bundle="messages/DiagnosticBundle" key="label.issue.type"/>
+          <text resource-bundle="messages/DevCoreBundle" key="label.issue.type"/>
         </properties>
       </component>
       <component id="21bc" class="com.intellij.ui.components.JBLabel">
@@ -47,7 +47,7 @@
         <properties>
           <horizontalAlignment value="2"/>
           <horizontalTextPosition value="2"/>
-          <text resource-bundle="messages/DiagnosticBundle" key="label.the.information.may.contain.sensitive.data"/>
+          <text resource-bundle="messages/DevCoreBundle" key="label.the.information.may.contain.sensitive.data"/>
         </properties>
       </component>
     </children>

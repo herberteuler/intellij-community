@@ -35,6 +35,14 @@ import java.util.Random
 internal const val REGISTRY_KEY_DISABLE_UPDATE_SOURCES_FOR_INTERNAL_USERS =
   "platform.disable.plugin.update.sources.ui.and.filtering.for.internal.users"
 
+/**
+ * Erases all data about the repositories from which plugins were downloaded.
+ */
+@ApiStatus.Internal
+fun resetPluginUpdateSources() {
+  PluginUpdateSourceServiceImpl.getImplInstance().resetPluginUpdateSources()
+}
+
 @State(name = "PluginUpdateSources", storages = [Storage("pluginUpdateSources.xml", roamingType = RoamingType.DISABLED)])
 internal class PluginUpdateSourceServiceImpl : PluginUpdateSourceService,
                                                SerializablePersistentStateComponent<PluginUpdateSourceServiceImpl.State>(State()) {

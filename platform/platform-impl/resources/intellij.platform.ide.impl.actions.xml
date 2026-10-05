@@ -310,12 +310,6 @@
     <action id="PreviousTab" class="com.intellij.ide.actions.PreviousTabAction"/>
     <action id="PinActiveTab" class="com.intellij.ide.actions.PinActiveTabAction"/>
     <action id="PinActiveTabToggle" class="com.intellij.ide.actions.PinActiveTabAction$Toggle"/>
-    <action id="ResetSettingsNewBadges" internal="true"
-            class="com.intellij.openapi.options.newEditor.ResetSettingsNewBadgesAction"/>
-    <action id="PluginManagerFiltersConfigureTrustOnlyJetBrainsDebugAction" internal="true"
-            class="com.intellij.ide.plugins.org.PluginManagerFiltersConfigureTrustOnlyJetBrainsDebugAction"/>
-    <action id="PluginManagerFiltersConfigureResetTrustDebugAction" internal="true"
-            class="com.intellij.ide.plugins.org.PluginManagerFiltersConfigureResetTrustDebugAction"/>
     <action id="CallSaul" class="com.intellij.ide.actions.cache.CallSaulAction"/>
     <action id="OpenInAssociatedApplication" class="com.intellij.ide.actions.OpenInAssociatedApplicationAction"/>
     <action id="OpenFile" class="com.intellij.ide.actions.OpenFileAction" icon="AllIcons.Actions.MenuOpen"/>
@@ -407,7 +401,6 @@
     <action id="EditorToggleShowGutterIcons" class="com.intellij.openapi.editor.actions.ToggleShowGutterIconsAction"/>
     <action id="EditorToggleShowIndentLines" class="com.intellij.openapi.editor.actions.ToggleShowIndentLinesAction"/>
     <action id="EditorResetFontSizeGlobal" class="com.intellij.openapi.editor.actions.ResetFontSizeGlobalAction"/>
-    <action id="ToggleFocusMode" class="com.intellij.ide.actions.ToggleFocusViewModeAction" internal="true"/>
     <action id="EditorSetContentBasedBidiTextDirection"
             class="com.intellij.openapi.editor.actions.SetEditorBidiTextDirectionAction$ContentBased"/>
     <action id="EditorSetLtrBidiTextDirection" class="com.intellij.openapi.editor.actions.SetEditorBidiTextDirectionAction$Ltr"/>
@@ -522,8 +515,6 @@
     <action id="Performance.DumpThreads" class="com.intellij.ide.actions.DumpThreadsAction"/>
     <action id="LogDebugConfigure" class="com.intellij.ide.actions.DebugLogConfigureAction"/>
     <action id="BrowseSpecialPaths" class="com.intellij.diagnostic.specialPaths.BrowseSpecialPathsAction"/>
-    <action id="CollectTroubleshootingInformation" class="com.intellij.troubleshooting.ui.CollectTroubleshootingInformationAction"
-            internal="true"/>
     <action class="com.intellij.diagnostic.ResetWindowsDefenderNotification" id="ResetWindowsDefenderNotification"/>
     <action id="performancePlugin.ShowMemoryDialogAction" class="com.intellij.diagnostic.ShowMemoryDialogAction"/>
     <action id="EditCustomProperties" class="com.intellij.ide.actions.EditCustomPropertiesAction"/>
@@ -615,26 +606,9 @@
     <action id="ChangeIdeScale" class="com.intellij.ide.actions.QuickChangeIdeScaleAction">
       <override-text place="GoToAction"/>
     </action>
-    <action id="MoveFileToAnotherModule" internal="true" class="com.intellij.ide.actions.MoveFileToAnotherModuleAction"/>
     <action id="CreateAllServicesAndExtensions" internal="true"
             class="com.intellij.ide.plugins.CreateAllServicesAndExtensionsAction"/>
     <action id="ShowTrustProjectDialog" class="com.intellij.ide.trustedProjects.impl.ShowTrustProjectDialogAction"/>
-    <action id="TrustProject" internal="true" class="com.intellij.ide.trustedProjects.impl.YesTrustAction"/>
-    <action id="UntrustProject" internal="true" class="com.intellij.ide.trustedProjects.impl.NoTrustAction"/>
-    <action id="DropAnError" internal="true" class="com.intellij.diagnostic.DropAnErrorAction"/>
-    <action id="DropAnErrorWithAttachments" internal="true" class="com.intellij.diagnostic.DropAnErrorWithAttachmentsAction"/>
-    <action id="DropPluginError" internal="true" class="com.intellij.diagnostic.DropPluginErrorAction"/>
-    <action id="DropAnOutOfMemoryError" internal="true" class="com.intellij.diagnostic.DropAnOutOfMemoryErrorAction"/>
-    <action id="ShowSplash" internal="true" class="com.intellij.ui.ShowSplashAction"/>
-    <action id="EnableMetalRendering" internal="true" class="com.intellij.ui.EnableMetalRenderingAction">
-      <abbreviation value="metal"/>
-    </action>
-    <action id="EnableWayland" internal="true" class="com.intellij.ui.EnableWaylandAction">
-      <abbreviation value="wayland"/>
-    </action>
-    <action id="ShowHideDebugInfoInUi" internal="true" class="com.intellij.ide.actions.ShowHideDebugInfoInUiAction"/>
-    <action id="ShowBundleLocalizationDialogAction" internal="true"
-            class="com.intellij.openapi.wm.impl.status.ShowBundleMessagesDialogAction"/>
     <action id="DataSharingOptions" class="com.intellij.ide.actions.DataSharingOptionsAction" internal="true"/>
 
     <action id="EditorToggleUseSoftWrapsInPreview" class="com.intellij.openapi.editor.actions.ToggleUseSoftWrapsInPreviewAction"
@@ -674,7 +648,6 @@
     <action id="ToggleFloatingMode" class="com.intellij.ide.actions.ToggleFloatingModeAction"/>
     <action id="ToggleWindowedMode" class="com.intellij.ide.actions.ToggleWindowedModeAction"/>
     <action id="ToggleSideMode" class="com.intellij.ide.actions.ToggleSideModeAction"/>
-    <action id="TriggerLowMemoryNotification" class="com.intellij.diagnostic.TriggerLowMemoryNotificationAction" internal="true"/>
     <action id="OpenMouseWheelSmoothScrollSettings" class="com.intellij.ui.mouse.MouseWheelSmoothScrollOptionsAction"/>
     <action id="EditorToggleShowBreadcrumbs" class="com.intellij.xml.breadcrumbs.ToggleBreadcrumbsAction$ShowHide"/>
     <action id="EditorBreadcrumbsShowAbove" class="com.intellij.xml.breadcrumbs.ToggleBreadcrumbsSettingsAction$ShowAbove"/>
@@ -714,22 +687,10 @@
       <keyboard-shortcut keymap="Visual Studio for Mac" first-keystroke="alt PAGE_DOWN" remove="true"/>
       <keyboard-shortcut keymap="Xcode" first-keystroke="alt PAGE_DOWN" remove="true"/>
     </action>
-    <action id="RemoveMainToolbarActionsAction" class="com.intellij.openapi.wm.impl.headertoolbar.RemoveMainToolbarActionsAction"
-            internal="true"/>
-    <action id="plugins.autoupdate.repository.view" class="com.intellij.openapi.application.PluginsAutoUpdateRepositoryViewAction"
-            internal="true"/>
     <action id="ToolWindowShowNamesAction" class="com.intellij.ide.actions.ToolWindowShowNamesAction"/>
-    <action id="VirtualFileInfo" internal="true" class="com.intellij.openapi.vfs.impl.local.VirtualFileInfoAction"/>
-    <action id="CheckVfsSanityInMenu" internal="true" class="com.intellij.openapi.vfs.newvfs.persistent.CheckVFSHealthAction"/>
-    <action id="MarkVfsCorrupted" internal="true" class="com.intellij.openapi.vfs.newvfs.persistent.MarkVfsCorruptedAction"/>
-    <action id="RequestCachesDefragmentation" class="com.intellij.ide.actions.cache.RequestCachesDefragmentationAction" internal="true"/>
-    <action internal="true" id="PruneEmptyDirectories" class="com.intellij.ide.actions.PruneEmptyDirectoriesAction"/>
-    <action internal="true" id="FixLineSeparators" class="com.intellij.ide.actions.FixLineSeparatorsAction"/>
     <!-- copy of CheckVfsSanityInMenu: !internal so could be invoked via 'search everywhere' -->
     <action id="CheckVfsSanity" class="com.intellij.openapi.vfs.newvfs.persistent.CheckVFSHealthAction"/>
     <action id="CustomizeMainToolbarAction" class="com.intellij.ide.actions.CustomizeMainToolbarAction"/>
-    <action id="UndoDumpAction" internal="true" class="com.intellij.ide.actions.UndoDumpHistoryAction"/>
-    <action id="UndoClearAction" internal="true" class="com.intellij.ide.actions.UndoClearHistoryAction"/>
     <!-- id should be "OpenInDefaultBrowser", but existing name preserved to keep compatibility - if user configured shortcut for action, it should not be lost -->
     <action id="OpenInBrowser" class="com.intellij.ide.browsers.actions.OpenFileInDefaultBrowserAction"
             icon="AllIcons.Nodes.PpWeb">
@@ -739,10 +700,6 @@
     </group>
     <group id="OpenInBrowserEditorContextBarGroupAction"
            class="com.intellij.ide.browsers.actions.OpenInBrowserBaseGroupAction$OpenInBrowserEditorContextBarGroupAction"/>
-    <action class="com.intellij.openapi.updateSettings.impl.PluginUpdateSourcesResetAction" internal="true"
-            id="PluginUpdateSourcesResetAction"/>
-    <action class="com.intellij.openapi.updateSettings.impl.PluginUpdateSourcesReinitializeAction" internal="true"
-            id="PluginUpdateSourcesReinitializeAction"/>
     <action class="com.intellij.openapi.updateSettings.impl.InitializeMissingPluginUpdateSourcesAction"
             id="InitializeMissingPluginUpdateSourcesAction"/>
     <group id="SettingsEntryPointGroup" class="com.intellij.ide.actions.SettingsEntryPointGroup" overrides="true" keep-content="true"/>
@@ -803,13 +760,5 @@
     </group>
 
     <action id="WelcomeReopenProjectAction" class="com.intellij.ide.welcomeScreen.WelcomeReopenProjectAction" icon="AllIcons.Nodes.HomeFolder"/>
-  </actions>
-  <actions resource-bundle="messages.WorkspaceModelIdeBundle">
-    <action id="WorkspaceEntitiesJsonClipboard" internal="true"
-            class="com.intellij.workspaceModel.ide.impl.jsonDump.DumpWorkspaceEntitiesToClipboardAction"/>
-    <action id="WorkspaceEntitiesJsonLog" internal="true"
-            class="com.intellij.workspaceModel.ide.impl.jsonDump.DumpWorkspaceEntitiesToLogAction"/>
-    <action id="WorkspaceEntitiesJsonLogFile" internal="true"
-            class="com.intellij.workspaceModel.ide.impl.jsonDump.DumpWorkspaceEntitiesToLogFileAction"/>
   </actions>
 </idea-plugin>

@@ -9,6 +9,7 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.util.SystemProperties.getIntProperty
 import com.intellij.util.SystemProperties.getLongProperty
 import kotlinx.coroutines.delay
+import org.jetbrains.annotations.ApiStatus
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.DurationUnit.MILLISECONDS
@@ -30,9 +31,10 @@ private val CHANGES_COUNT_TO_START_ASKING = getIntProperty(
   Int.MAX_VALUE / 2
 )
 
-internal object VFSDefragmentationCheckerStopper {
+@ApiStatus.Internal
+object VFSDefragmentationCheckerStopper {
   @Volatile
-  var stopChecking = false
+  var stopChecking: Boolean = false
 
   fun stopChecking() {
     stopChecking = true
@@ -54,9 +56,10 @@ internal class VFSDefragmentationChecker : ApplicationActivity {
     while (!VFSDefragmentationCheckerStopper.stopChecking) {
       val vfs = FSRecords.getInstance()
 
-      if (isWorthToRebuild(vfs)) {
+      //The action is registered by the DevKit Runtime plugin, so it is absent in some IDEs:
+      val scheduleDefragmentationAction = ActionManager.getInstance().getAction("RequestCachesDefragmentation")
+      if (scheduleDefragmentationAction != null && isWorthToRebuild(vfs)) {
         //Ask user does it want to rebuild VFS+Indexes:
-        val scheduleDefragmentationAction = ActionManager.getInstance().getAction("RequestCachesDefragmentation")
         val notificationGroup = NotificationGroupManager.getInstance().getNotificationGroup("IDE Caches")
         notificationGroup.createNotification(
           CoreBundle.message("vfs.defragmentation.notification.title"),

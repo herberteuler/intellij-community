@@ -2,19 +2,16 @@
 package com.intellij.ide.plugins.org
 
 import com.intellij.ide.plugins.IdeaPluginDescriptor
-import com.intellij.openapi.actionSystem.ActionUpdateThread
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.BaseState
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.SimplePersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
-import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.util.text.VersionComparatorUtil
 import com.intellij.util.xmlb.annotations.Tag
 import com.intellij.util.xmlb.annotations.XCollection
+import org.jetbrains.annotations.ApiStatus
 
 /**
  * This is the common service to deal with organizational
@@ -75,26 +72,12 @@ internal class PluginManagerConfigurableForOrgStateRule : BaseState() {
   var versionToInclusive by string()
 }
 
-internal abstract class PluginManagerFiltersConfigureDebugActionBase : DumbAwareAction() {
-  override fun update(e: AnActionEvent) {
-    e.presentation.isEnabledAndVisible = ApplicationManager.getApplication().isInternal
-  }
-
-  override fun getActionUpdateThread(): ActionUpdateThread {
-    return ActionUpdateThread.BGT
-  }
-
-  protected abstract fun updateState(state: PluginManagerConfigurableForOrgState)
-
-  override fun actionPerformed(e: AnActionEvent) {
-    val state = service<PluginManagerConfigurableForOrgConfig>().state
-    updateState(state)
-    state.intIncrementModificationCount()
-  }
-}
-
-internal class PluginManagerFiltersConfigureTrustOnlyJetBrainsDebugAction : PluginManagerFiltersConfigureDebugActionBase() {
-  override fun updateState(state: PluginManagerConfigurableForOrgState) {
+/**
+ * Sets the organization plugin filter to allow only the plugins of JetBrains.
+ */
+@ApiStatus.Internal
+fun configurePluginFiltersToTrustOnlyJetBrains() {
+  updatePluginFiltersState { state ->
     state.denyRules.clear()
     state.allowRules.clear()
     state.allowRules.add(PluginManagerConfigurableForOrgStateRule().apply {
@@ -103,12 +86,22 @@ internal class PluginManagerFiltersConfigureTrustOnlyJetBrainsDebugAction : Plug
   }
 }
 
-internal class PluginManagerFiltersConfigureResetTrustDebugAction : PluginManagerFiltersConfigureDebugActionBase() {
-  override fun updateState(state: PluginManagerConfigurableForOrgState) {
+/**
+ * Removes all rules from the organization plugin filter and allows the installation from disk.
+ */
+@ApiStatus.Internal
+fun resetPluginFilters() {
+  updatePluginFiltersState { state ->
     state.allowRules.clear()
     state.denyRules.clear()
     state.allowInstallFromDisk = true
   }
+}
+
+private fun updatePluginFiltersState(update: (PluginManagerConfigurableForOrgState) -> Unit) {
+  val state = service<PluginManagerConfigurableForOrgConfig>().state
+  update(state)
+  state.intIncrementModificationCount()
 }
 
 private fun PluginManagerConfigurableForOrgState.isAllowed(descriptor: IdeaPluginDescriptor): Boolean {

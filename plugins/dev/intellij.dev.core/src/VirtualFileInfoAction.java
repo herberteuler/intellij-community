@@ -1,5 +1,5 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.openapi.vfs.impl.local;
+package com.intellij.dev.core;
 
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -14,30 +14,25 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.IOException;
 import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 
-/**
- * author: lesya
- */
 @SuppressWarnings({"HardCodedStringLiteral"})
-public final class VirtualFileInfoAction extends AnAction implements DumbAware {
+final class VirtualFileInfoAction extends AnAction implements DumbAware {
 
-  public static final DateFormat DATE_FORMAT =
-    SimpleDateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.LONG);
-
+  private static final DateFormat DATE_FORMAT =
+    DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.LONG);
 
   @Override
   public void actionPerformed(@NotNull AnActionEvent e) {
     String pathToFile = Messages.showInputDialog("Path to file: ",
-                                 "Virtual File Info",
-                                 Messages.getQuestionIcon());
+                                                 "Virtual File Info",
+                                                 Messages.getQuestionIcon());
     if (pathToFile == null) return;
     VirtualFile virtualFile = LocalFileSystem.getInstance().findFileByIoFile(new File(pathToFile));
-    if (virtualFile == null){
+    if (virtualFile == null) {
       Messages.showErrorDialog("Cannot find virtual file", "Virtual File Info");
-      return;
-    } else {
+    }
+    else {
       StringBuilder info = new StringBuilder();
       info.append("Path: ");
       info.append(virtualFile.getPath());

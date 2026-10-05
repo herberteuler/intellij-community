@@ -1,12 +1,13 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.openapi.updateSettings.impl
+package com.intellij.dev.core
 
-import com.intellij.ide.IdeBundle
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.updateSettings.impl.PluginUpdateSourceService
+import com.intellij.openapi.updateSettings.impl.resetPluginUpdateSources
 
 internal class PluginUpdateSourcesResetAction : DumbAwareAction() {
 
@@ -20,10 +21,10 @@ internal class PluginUpdateSourcesResetAction : DumbAwareAction() {
 
   override fun actionPerformed(e: AnActionEvent) {
     if (!PluginUpdateSourceService.isFunctionalitySupported()) return
-    PluginUpdateSourceServiceImpl.getImplInstance().resetPluginUpdateSources()
+    resetPluginUpdateSources()
     NotificationGroupManager.getInstance()
       .getNotificationGroup("Plugin Update Sources Reset")
-      .createNotification(IdeBundle.message("notification.content.plugin.update.sources.are.reset"), NotificationType.INFORMATION)
+      .createNotification(DevCoreBundle.message("notification.content.plugin.update.sources.are.reset"), NotificationType.INFORMATION)
       .notify(e.project)
   }
 

@@ -22,7 +22,6 @@ import com.intellij.openapi.actionSystem.ActionGroupWrapper
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionToolbar
-import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.AnActionWrapper
@@ -39,7 +38,6 @@ import com.intellij.openapi.actionSystem.impl.PresentationFactory
 import com.intellij.openapi.actionSystem.toolbarLayout.CompressingLayoutStrategy
 import com.intellij.openapi.actionSystem.toolbarLayout.ToolbarLayoutStrategy
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.UiWithModelAccess
 import com.intellij.openapi.application.impl.InternalUICustomization
 import com.intellij.openapi.components.service
@@ -47,7 +45,6 @@ import com.intellij.openapi.components.serviceAsync
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.keymap.KeymapUtil
 import com.intellij.openapi.keymap.impl.ui.ActionsTreeUtil
-import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.util.SystemInfoRt
 import com.intellij.openapi.wm.ex.ProjectFrameTypeService
@@ -71,6 +68,7 @@ import com.intellij.ui.WindowMoveListener
 import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.mac.touchbar.TouchbarSupport
 import com.intellij.util.asDisposable
+import com.intellij.util.concurrency.annotations.RequiresEdt
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.ui.JBInsets
 import com.intellij.util.ui.JBUI
@@ -658,31 +656,31 @@ private class HeaderIconUpdater {
 
 private data class GroupInfo(@JvmField val id: String, @JvmField val name: String, @JvmField val align: HorizontalLayout.Group)
 
-@Suppress("HardCodedStringLiteral", "ActionPresentationInstantiatedInCtor")
-internal class RemoveMainToolbarActionsAction private constructor() : DumbAwareAction("Remove Actions From Main Toolbar") {
-  override fun actionPerformed(e: AnActionEvent) {
-    val schema = CustomActionsSchema.getInstance()
-    val groups = blockingComputeMainActionGroups(schema)
+/**
+ * Removes all actions from the groups of the main toolbar in the customization schema.
+ */
+@Internal
+@RequiresEdt
+fun removeAllMainToolbarActions() {
+  val schema = CustomActionsSchema.getInstance()
+  val groups = blockingComputeMainActionGroups(schema)
 
-    val mainToolbarName = schema.getDisplayName(MAIN_TOOLBAR_ID)!!
-    val mainToolbarPath = listOf("root", mainToolbarName)
+  val mainToolbarName = schema.getDisplayName(MAIN_TOOLBAR_ID)!!
+  val mainToolbarPath = listOf("root", mainToolbarName)
 
-    for (group in groups) {
-      val actionsToRemove = group.first.getChildren(null)
-      if (actionsToRemove.isNotEmpty()) {
-        val actionManager = ActionManager.getInstance()
-        val fromPath = ArrayList(mainToolbarPath + group.first.templatePresentation.text)
-        for (action in actionsToRemove) {
-          val actionId = actionManager.getId(action)
-          schema.addAction(ActionUrl(fromPath, actionId, ActionUrl.DELETED, 0))
-        }
+  for (group in groups) {
+    val actionsToRemove = group.first.getChildren(null)
+    if (actionsToRemove.isNotEmpty()) {
+      val actionManager = ActionManager.getInstance()
+      val fromPath = ArrayList(mainToolbarPath + group.first.templatePresentation.text)
+      for (action in actionsToRemove) {
+        val actionId = actionManager.getId(action)
+        schema.addAction(ActionUrl(fromPath, actionId, ActionUrl.DELETED, 0))
       }
     }
-
-    schemaChanged()
   }
 
-  override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+  schemaChanged()
 }
 
 private fun schemaChanged() {

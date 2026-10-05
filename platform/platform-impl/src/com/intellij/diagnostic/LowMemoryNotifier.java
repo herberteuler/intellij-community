@@ -41,7 +41,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * time period, to separate a long-term memory deficit.
  */
 @ApiStatus.Internal
-@VisibleForTesting
 public final class LowMemoryNotifier implements Disposable {
   private static final Logger LOG = Logger.getInstance(LowMemoryNotifier.class);
 
@@ -96,7 +95,7 @@ public final class LowMemoryNotifier implements Disposable {
     showNotification(MemoryKind.HEAP, true, true);
   }
 
-  static void showNotification(@NotNull MemoryKind kind, boolean oomError) {
+  public static void showNotification(@NotNull MemoryKind kind, boolean oomError) {
     showNotification(kind, oomError, false);
   }
 

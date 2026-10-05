@@ -1,13 +1,15 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.openapi.updateSettings.impl
+package com.intellij.dev.core
 
-import com.intellij.ide.IdeBundle
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.updateSettings.impl.PluginUpdateSourceInitializer
+import com.intellij.openapi.updateSettings.impl.PluginUpdateSourceService
+import com.intellij.openapi.updateSettings.impl.resetPluginUpdateSources
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,14 +31,14 @@ internal class PluginUpdateSourcesReinitializeAction : DumbAwareAction() {
     val project = e.project
     if (!PluginUpdateSourceService.isFunctionalitySupported()) return
     e.coroutineScope.launch(Dispatchers.IO) {
-      PluginUpdateSourceServiceImpl.getImplInstance().resetPluginUpdateSources()
+      resetPluginUpdateSources()
       val result = PluginUpdateSourceInitializer.enforceInitialization()
       withContext(Dispatchers.EDT) {
         val message: String
         val notificationType: NotificationType
         when (result) {
           is PluginUpdateSourceInitializer.Result.Success -> {
-            message = IdeBundle.message(
+            message = DevCoreBundle.message(
               "notification.content.plugin.update.sources.are.reset.and.initialized",
               result.loadedPluginsWithoutUpdateSource,
             )
@@ -44,8 +46,8 @@ internal class PluginUpdateSourcesReinitializeAction : DumbAwareAction() {
           }
           is PluginUpdateSourceInitializer.Result.Failure -> {
             message = result.errorMessage?.let { errorMessage ->
-              IdeBundle.message("notification.content.plugin.update.sources.are.reset.but.not.initialized.with.error", errorMessage)
-            } ?: IdeBundle.message("notification.content.plugin.update.sources.are.reset.but.not.initialized")
+              DevCoreBundle.message("notification.content.plugin.update.sources.are.reset.but.not.initialized.with.error", errorMessage)
+            } ?: DevCoreBundle.message("notification.content.plugin.update.sources.are.reset.but.not.initialized")
             notificationType = NotificationType.WARNING
           }
         }

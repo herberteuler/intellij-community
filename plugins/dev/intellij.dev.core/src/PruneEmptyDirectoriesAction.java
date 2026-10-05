@@ -1,7 +1,6 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.actions;
+package com.intellij.dev.core;
 
-import com.intellij.ide.IdeBundle;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -12,13 +11,11 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileVisitor;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 
-@ApiStatus.Internal
-public final class PruneEmptyDirectoriesAction extends AnAction {
+final class PruneEmptyDirectoriesAction extends AnAction {
   @Override
   public void update(@NotNull AnActionEvent e) {
     VirtualFile[] files = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY);
@@ -80,7 +77,7 @@ public final class PruneEmptyDirectoriesAction extends AnAction {
       }
       catch (IOException e) {
         //noinspection HardCodedStringLiteral
-        Messages.showErrorDialog(IdeBundle.message("message.cannot.delete.0.1", file.getPresentableUrl(), e.getLocalizedMessage()), "IOException");
+        Messages.showErrorDialog(DevCoreBundle.message("message.cannot.delete.0.1", file.getPresentableUrl(), e.getLocalizedMessage()), "IOException");
       }
     });
   }

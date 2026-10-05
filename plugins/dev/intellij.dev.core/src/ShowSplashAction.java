@@ -1,27 +1,26 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ui;
+package com.intellij.dev.core;
 
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.application.impl.ApplicationInfoImpl;
 import com.intellij.openapi.project.DumbAwareAction;
-import com.intellij.platform.ide.bootstrap.Splash;
 import org.jetbrains.annotations.NotNull;
 
+import java.awt.Window;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.util.Objects;
 
-import static com.intellij.platform.ide.bootstrap.SplashManagerKt.blockingLoadSplashImage;
+import static com.intellij.platform.ide.bootstrap.SplashManagerKt.blockingCreateSplash;
 
 final class ShowSplashAction extends DumbAwareAction {
   @Override
   public void actionPerformed(@NotNull AnActionEvent e) {
-    Splash splash = new Splash(Objects.requireNonNull(blockingLoadSplashImage(ApplicationInfoImpl.getShadowInstance())));
+    Window splash = blockingCreateSplash(ApplicationInfoImpl.getShadowInstance());
     splash.setVisible(true);
     splash.toFront();
 
@@ -37,9 +36,9 @@ final class ShowSplashAction extends DumbAwareAction {
   }
 
   private static final class SplashListener implements KeyListener, MouseListener, FocusListener {
-    private final Splash mySplash;
+    private final Window mySplash;
 
-    private SplashListener(Splash splash) {
+    private SplashListener(Window splash) {
       mySplash = splash;
     }
 

@@ -202,7 +202,7 @@ object IjentSessionMediatorUtils {
     isExitExpected: Boolean,
   ): Nothing {
     if (isExitExpected) {
-      val error = EelUnavailableException.ClosedByApplication("IJent process exited successfully", null)
+      val error = EelUnavailableException.IntendedExit("IJent process exited successfully", null)
       currentCoroutineContext()[IjentScope.Key]?.destroy(error)
       IjentLogger.LIFETIME_LOG.debug { error.message }
       // Carrying the domain exception as the cancellation cause makes expected shutdown look like a test failure.
@@ -259,7 +259,7 @@ object IjentSessionMediatorUtils {
 
       if (actualErrors.isEmpty()) {
         // A plain cancellation is an application-initiated close; publish the canonical reason but keep the control flow.
-        val closed = EelUnavailableException.ClosedByApplication("The coroutine scope of $ijentLabel was cancelled", err)
+        val closed = EelUnavailableException.IntendedExit("The coroutine scope of $ijentLabel was cancelled", err)
         currentCoroutineContext()[IjentScope.Key]?.destroy(closed)
       }
       // A real failure is not an application close; the exit-code handler publishes the authoritative reason.

@@ -276,7 +276,7 @@ class IjentDeployingOverShellProcessStrategyUnitTest {
       completion.await().shouldBeInstanceOf<Throwable>()
       session.sessionCoroutineScope.s.coroutineContext[IjentScope.Key]!!
         .resolveExitReason(1.seconds)
-        .shouldBeInstanceOf<EelUnavailableException.ClosedByApplication>()
+        .shouldBeInstanceOf<EelUnavailableException.IntendedExit>()
       session.sessionCoroutineScope.s.isActive shouldBe false
       parentScope.isActive shouldBe true
     }

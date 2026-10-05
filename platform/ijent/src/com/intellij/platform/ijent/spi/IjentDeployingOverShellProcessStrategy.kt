@@ -402,7 +402,7 @@ private class ShellProcessWrapper(
         catch (e: Exception) {
           cleanupFailure = e
 
-          val error = EelUnavailableException.ClosedByApplication(
+          val error = EelUnavailableException.IntendedExit(
             "Failed to destroy the shell process during deployment cleanup",
             e,
           )
@@ -415,7 +415,7 @@ private class ShellProcessWrapper(
     if (!processCompleted && cleanupFailure == null) {
       val timeoutFailure = CommunicationFailure("Timed out while terminating the deployment shell process", null)
       cleanupFailure = timeoutFailure
-      terminateProcessScope(EelUnavailableException.ClosedByApplication(timeoutFailure.message, timeoutFailure))
+      terminateProcessScope(EelUnavailableException.IntendedExit(timeoutFailure.message, timeoutFailure))
     }
     val processFailure =
       if (processCompleted && !processTerminationWasRequested) {
@@ -434,7 +434,7 @@ private class ShellProcessWrapper(
   fun close() {
     if (cleanupStarted.compareAndSet(false, true)) {
       mediator.ijentProcessScope.destroy(
-        EelUnavailableException.ClosedByApplication("Deployment closed before process handoff", null),
+        EelUnavailableException.IntendedExit("Deployment closed before process handoff", null),
       )
     }
   }

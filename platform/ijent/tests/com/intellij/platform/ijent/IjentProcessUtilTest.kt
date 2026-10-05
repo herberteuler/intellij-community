@@ -4,7 +4,6 @@
 package com.intellij.platform.ijent
 
 import com.intellij.platform.eel.EelUnavailableException
-import com.intellij.platform.eel.EelUnavailableException.ClosedByApplication
 import com.intellij.platform.eel.EelUnavailableException.CommunicationFailure
 import com.intellij.platform.eel.EelUnavailableException.IntendedExit
 import com.intellij.platform.eel.SafeDeferred
@@ -46,7 +45,7 @@ class IjentProcessUtilTest {
     val ijentScope = ParentOfIjentScopes(this).createIjentScope("test")
 
     withContext(ijentScope) {
-      val thrown = shouldThrow<ClosedByApplication> {
+      val thrown = shouldThrow<IntendedExit> {
         IjentSessionMediatorUtils.ijentProcessExitCodeHandler(
           ijentLabel = "test",
           lastStderrMessages = MutableSharedFlow<String?>(),
@@ -56,7 +55,7 @@ class IjentProcessUtilTest {
       }
 
       thrown.cause shouldBe null
-      ijentScope.resolveExitReason(1.seconds).shouldBeInstanceOf<EelUnavailableException.ClosedByApplication>()
+      ijentScope.resolveExitReason(1.seconds).shouldBeInstanceOf<IntendedExit>()
     }
   }
 
@@ -137,7 +136,7 @@ class IjentProcessUtilTest {
         throw ex
       }
       finally {
-        val err = ClosedByApplication(rightErrorMessage, null)
+        val err = IntendedExit(rightErrorMessage, null)
         ijentScope.destroy(err)
         throw CommunicationFailure("And even this error should not propagate", null)
       }

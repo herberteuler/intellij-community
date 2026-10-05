@@ -84,9 +84,6 @@ sealed class EelUnavailableException(
     override fun copyForCaller(): EelUnavailableException = IntendedExit(message, this)
   }
 
-  @Deprecated("Inline me")
-  typealias ClosedByApplication = IntendedExit
-
   /**
    * Creates a new exception of the same type and with the same message, and this exception becomes its cause.
    *

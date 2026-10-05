@@ -17,7 +17,7 @@ class IjentUnavailableException(message: @Nls String) : EelUnavailableException.
   class ClosedByApplication(
     message: String,
     cause: Throwable?,
-  ) : EelUnavailableException.ClosedByApplication(message, cause)
+  ) : IntendedExit(message, cause)
 
   @Deprecated("Use EelUnavailableException instead")
   class CommunicationFailure(

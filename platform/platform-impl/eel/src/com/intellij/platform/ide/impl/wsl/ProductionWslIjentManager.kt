@@ -178,7 +178,7 @@ class ProductionWslIjentManager(private val scope: CoroutineScope) : WslIjentMan
         if (it == null) deferredToCancel.getCompleted().close()
       }
       val message = "Explicitly unregistered and closed during initialization: $label"
-      deferredToCancel.cancel(message, EelUnavailableException.ClosedByApplication(message, null))
+      deferredToCancel.cancel(message, EelUnavailableException.IntendedExit(message, null))
     }
   }
 }

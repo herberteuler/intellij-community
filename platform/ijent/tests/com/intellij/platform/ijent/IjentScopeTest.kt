@@ -2,7 +2,6 @@
 package com.intellij.platform.ijent
 
 import com.intellij.platform.eel.EelUnavailableException
-import com.intellij.platform.eel.EelUnavailableException.ClosedByApplication
 import com.intellij.platform.eel.EelUnavailableException.CommunicationFailure
 import com.intellij.platform.eel.EelUnavailableException.IntendedExit
 import com.intellij.platform.eel.SafeDeferred
@@ -144,7 +143,7 @@ class IjentScopeTest {
           firstChildCanFinish.await()
         }
       }
-      val expected = ClosedByApplication("The session closed", null)
+      val expected = IntendedExit("The session closed", null)
       ijentScope.s.launch(start = CoroutineStart.ATOMIC) {
         try {
           awaitCancellation()
@@ -167,7 +166,7 @@ class IjentScopeTest {
         ijentScope.resolveExitReason(timeout = 1.seconds)
       }
       firstChildCanFinish.complete(Unit)
-      resolved.await().shouldBeInstanceOf<ClosedByApplication>().cause shouldBeSameInstanceAs expected
+      resolved.await().shouldBeInstanceOf<IntendedExit>().cause shouldBeSameInstanceAs expected
     }
   }
 
@@ -191,7 +190,7 @@ class IjentScopeTest {
       thrown.cause.shouldBeInstanceOf<IllegalStateException>().message shouldBe "An ordinary API failure"
 
       child.isActive shouldBe true
-      ijentScope.destroy(ClosedByApplication("The test is over", null))
+      ijentScope.destroy(IntendedExit("The test is over", null))
     }
   }
 
@@ -410,7 +409,7 @@ class IjentScopeTest {
 
   @TestFactory
   fun `a later root cause is suppressed in the first root cause`() = differentDispatchersTest {
-    val first = ClosedByApplication("The first root cause", null)
+    val first = IntendedExit("The first root cause", null)
     val second = TestConclusive("The second root cause", null)
     lateinit var ijentScope: IjentScope
 
@@ -464,7 +463,7 @@ class IjentScopeTest {
             throw ex
           }
           finally {
-            val err = ClosedByApplication(rightErrorMessage, null)
+            val err = IntendedExit(rightErrorMessage, null)
             ijentScope.destroy(err)
             throw CommunicationFailure("And even this error should not propagate", null)
           }
@@ -475,7 +474,7 @@ class IjentScopeTest {
     val errorFromExternalCall = shouldThrow<SafeDeferred.FailedDeferred> {
       functionThatWorksLikeAnyEelApiMethod()
     }.cause
-    errorFromExternalCall.shouldBeInstanceOf<ClosedByApplication>().message shouldBe rightErrorMessage
+    errorFromExternalCall.shouldBeInstanceOf<IntendedExit>().message shouldBe rightErrorMessage
   }
 
   @TestFactory
@@ -544,7 +543,7 @@ class IjentScopeTest {
 
     loggedError.shouldBeNull()
 
-    ijentScope.resolveExitReason().shouldBeInstanceOf<ClosedByApplication>()
+    ijentScope.resolveExitReason().shouldBeInstanceOf<IntendedExit>()
   }
 
   @TestFactory
@@ -564,7 +563,7 @@ class IjentScopeTest {
     }
 
     val reason = ijentScope.resolveExitReason()
-    reason.shouldBeInstanceOf<ClosedByApplication>()
+    reason.shouldBeInstanceOf<IntendedExit>()
     reason.suppressed.toList().shouldBeEmpty()
     loggedErrors.shouldBeEmpty()
     uncaught.shouldBeEmpty()

@@ -7,14 +7,12 @@ import com.intellij.openapi.editor.impl.AbstractEditorTest;
 import com.intellij.openapi.fileTypes.PlainTextFileType;
 import com.intellij.openapi.util.registry.Registry;
 import com.intellij.testFramework.EditorTestUtil;
-import org.junit.Ignore;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Ignore("AT-4013")
 public class SoftWrapTest extends AbstractEditorTest {
   public void testCollapsedRegionWithLongPlaceholderAtLineStart1() {
     doTestSoftWraps(10, "<fold text='veryVeryVeryLongPlaceholder'>foo</fold>");

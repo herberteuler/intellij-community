@@ -17,9 +17,7 @@ package com.intellij.codeInsight.editorActions;
 
 import com.intellij.openapi.editor.LogicalPosition;
 import com.intellij.testFramework.LightPlatformCodeInsightTestCase;
-import org.junit.Ignore;
 
-@Ignore("AT-4013")
 public class IndentingBackspaceHandlerVirtualSpaceTest extends LightPlatformCodeInsightTestCase {
   public void testAfterLargeIndent() {
     doTest("""

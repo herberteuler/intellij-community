@@ -25,14 +25,12 @@ import com.intellij.openapi.util.registry.Registry;
 import com.intellij.testFramework.TestDataPath;
 import com.intellij.ui.IslandsState;
 import org.jetbrains.annotations.NotNull;
-import org.junit.Ignore;
 
 import java.awt.Color;
 import java.awt.Font;
 
 
 @TestDataPath("$CONTENT_ROOT/testData/editor/painting/right")
-@Ignore("AT-4013")
 public class RightAlignedEditorPaintingTest extends EditorPaintingTestCase {
   private record SelectionState(boolean enabled, boolean islands) {}
 

@@ -1,7 +1,6 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl;
 
-import com.intellij.idea.IJIgnore;
 import com.intellij.openapi.actionSystem.IdeActions;
 import com.intellij.openapi.editor.Caret;
 import com.intellij.openapi.editor.VisualPosition;
@@ -26,7 +25,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
 
   /* Tests for the positioning of a single caret (no selections) */
 
-  @IJIgnore(issue = "AT-4013")
   public void testCaretNotificationsDuringTyping() {
     @SuppressWarnings("SpellCheckingInspection")
     /*
@@ -72,7 +70,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
     );
   }
 
-  @IJIgnore(issue = "AT-4013")
   public void testCaretNotificationsOfCaretMovementsWithoutTextModifications() {
     @SuppressWarnings("SpellCheckingInspection")
     /*
@@ -181,7 +178,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
     );
   }
 
-  @IJIgnore(issue = "AT-4013")
   public void testCaretNotificationsWithinEmptyEditor() {
     // Any attempts to move the caret within an empty editor aren't supposed to cause caret movements => no caret updates are expected.
 
@@ -200,7 +196,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
     );
   }
 
-  @IJIgnore(issue = "AT-4013")
   public void testCaretNotificationsCausedByUndo() {
     // Undoing a modifying operation near the caret has to cause a caret update notification
 
@@ -231,7 +226,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
 
   /* Tests for the positioning of the selection of a single caret */
 
-  @IJIgnore(issue = "AT-4013")
   public void testCaretNotificationsOfSelectionMovementsWithoutTextModificationsFromTopLeft() {
     @SuppressWarnings("SpellCheckingInspection")
     /*
@@ -422,7 +416,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
     );
   }
 
-  @IJIgnore(issue = "AT-4013")
   public void testCaretNotificationsOfSelectionMovementsWithoutTextModificationsFromBottomRight() {
     // the "reflection" of the testCaretNotificationsOfSelectionMovementsWithoutTextModificationsFromTopLeft
 
@@ -496,7 +489,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
     );
   }
 
-  @IJIgnore(issue = "AT-4013")
   public void testCaretNotificationsOfSelectionMovementsWithinEmptyEditor() {
     // Similar to testCaretNotificationsWithinEmptyEditor:
     // any attempts to move the selection within an empty editor aren't supposed to cause caret movements => no caret updates are expected.
@@ -524,7 +516,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
 
   /* Tests for the positioning of multiple caret (no selections) */
 
-  @IJIgnore(issue = "AT-4013")
   public void testMultiCaretNotificationsDuringTyping() {
     // Similar to testCaretNotificationsDuringTyping, but for multiple carets
 
@@ -598,7 +589,6 @@ public class EditorComponentCaretListenerTest extends AbstractEditorTest {
 
   /* Tests for the positioning of the selections of multiple carets */
 
-  @IJIgnore(issue = "AT-4013")
   public void testMultiCaretNotificationsOfSelectionMovementsWithoutTextModifications() {
     /*
      * (0th) Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.

@@ -2,9 +2,7 @@ package com.intellij.openapi.editor.actions;
 
 import com.intellij.openapi.actionSystem.IdeActions;
 import com.intellij.openapi.editor.impl.AbstractEditorTest;
-import org.junit.Ignore;
 
-@Ignore("AT-4013")
 public class ForwardBackwardParagraphActionTest extends AbstractEditorTest {
   public void testForwardFromNonEmptyLine() {
     doTestForward("""

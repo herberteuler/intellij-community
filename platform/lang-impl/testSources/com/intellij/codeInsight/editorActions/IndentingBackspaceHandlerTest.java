@@ -17,17 +17,21 @@ package com.intellij.codeInsight.editorActions;
 
 import com.intellij.testFramework.FileBasedTestCaseHelper;
 import com.intellij.testFramework.LightPlatformCodeInsightTestCase;
+import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.TestDataPath;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-@Ignore("AT-4013")
 @RunWith(com.intellij.testFramework.Parameterized.class)
-@TestDataPath("/testData/../../../platform/lang-impl/testData/editor/indentingBackspace/")
+@TestDataPath("$CONTENT_ROOT/testData/editor/indentingBackspace/")
 public class IndentingBackspaceHandlerTest extends LightPlatformCodeInsightTestCase implements FileBasedTestCaseHelper {
+  @Override
+  protected @NotNull String getTestDataPath() {
+    return myTestDataPath == null ? PlatformTestUtil.getCommunityPath() + "/platform/lang-impl/testData" : super.getTestDataPath();
+  }
+
   @Test
   public void testAction() {
     configureByFile(myFileSuffix);

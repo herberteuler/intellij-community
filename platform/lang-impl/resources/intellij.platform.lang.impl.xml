@@ -229,6 +229,7 @@
     <extensionPoint qualifiedName="com.intellij.daemon.tooltipActionProvider" interface="com.intellij.codeInsight.daemon.impl.tooltips.TooltipActionProvider" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.daemon.indentGuidePassFilter" interface="com.intellij.codeInsight.daemon.impl.indentGuide.IndentGuidePassFilter" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.daemon.statusItemMerger" interface="com.intellij.codeInsight.daemon.impl.StatusItemMerger" dynamic="true"/>
+    <extensionPoint qualifiedName="com.intellij.daemon.testDaemonStartWaiter" interface="com.intellij.codeInsight.daemon.impl.TestDaemonStartWaiter" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.lang.structureViewExtension" interface="com.intellij.ide.structureView.StructureViewExtension" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.multiLangCommenter" interface="com.intellij.psi.templateLanguages.MultipleLangCommentProvider" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.gotoActionAliasMatcher" interface="com.intellij.ide.util.gotoByName.GotoActionAliasMatcher" dynamic="true"/>

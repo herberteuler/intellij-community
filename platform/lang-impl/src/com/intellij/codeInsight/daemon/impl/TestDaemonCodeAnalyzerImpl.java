@@ -159,7 +159,8 @@ public final class TestDaemonCodeAnalyzerImpl {
       dispatchAllInvocationEventsInIdeEventQueueReleasingWIL();
       // refresh will fire write actions interfering with highlighting
     }
-    while (RefreshQueueImpl.isRefreshInProgress() || DaemonCodeAnalyzerImpl.heavyProcessIsRunning());
+    while (RefreshQueueImpl.isRefreshInProgress() || DaemonCodeAnalyzerImpl.heavyProcessIsRunning() ||
+           ContainerUtil.exists(TestDaemonStartWaiter.EP_NAME.getExtensionList(), waiter -> waiter.isBusy(myProject)));
     long deadline = System.currentTimeMillis() + timeoutMs;
     while (mustWaitForSmartMode && DumbService.getInstance(myProject).isDumb()) {
       if (System.currentTimeMillis() > deadline) {

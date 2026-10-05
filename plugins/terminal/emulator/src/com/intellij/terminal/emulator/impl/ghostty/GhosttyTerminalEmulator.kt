@@ -18,6 +18,7 @@ import com.intellij.terminal.emulator.TerminalCustomCommandListener
 import com.intellij.terminal.emulator.TerminalEmulator
 import com.intellij.terminal.emulator.TerminalInputModifier
 import com.intellij.terminal.emulator.TerminalKeyAction
+import com.intellij.terminal.emulator.KittyKeyboardFlag
 import com.intellij.terminal.emulator.TerminalKeyEvent
 import com.intellij.terminal.emulator.TerminalListener
 import com.intellij.terminal.emulator.TerminalMouseAction
@@ -66,7 +67,9 @@ import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyLayouts.STYLE
 import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyLayouts.STRING
 import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyLayouts.STRING_OFF_LEN
 import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyLayouts.STYLE_SIZE
+import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyKeyEncoderOption
 import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyMode
+import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyOptionAsAlt
 import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyMods
 import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyMouseAction
 import com.intellij.terminal.emulator.impl.ghostty.bindings.GhosttyMouseButton
@@ -235,6 +238,9 @@ internal class GhosttyTerminalEmulator(
   private var scratchKeyText: MemorySegment = scratchArena.allocate(64L)  // grows on demand (IME strings)
   private val scratchMousePosition: MemorySegment = scratchArena.allocate(GhosttyLayouts.MOUSE_POSITION)
   private val scratchMouseSize: MemorySegment = scratchArena.allocate(GhosttyLayouts.MOUSE_ENCODER_SIZE_BYTES)
+
+  /** See [setOptionAsAlt]; applied on every encode, because `setopt_from_terminal` resets it. */
+  private var optionAsAlt = false
 
   init {
     // Tracks what has been created so far, so a failure partway through can roll back what already
@@ -565,6 +571,11 @@ internal class GhosttyTerminalEmulator(
   override val applicationCursorKeys: Boolean get() = modeEnabled(GhosttyMode.DECCKM)
   override val applicationKeypad: Boolean get() = modeEnabled(GhosttyMode.KEYPAD_KEYS)
   override val bracketedPaste: Boolean get() = modeEnabled(GhosttyMode.BRACKETED_PASTE)
+  override val kittyKeyboardFlags: Set<KittyKeyboardFlag>
+    get() {
+      val bits = terminalGetU8(GhosttyTerminalData.KITTY_KEYBOARD_FLAGS)
+      return KittyKeyboardFlag.entries.filterTo(HashSet()) { bits and (1 shl it.ordinal) != 0 }
+    }
   override val synchronizedOutput: Boolean get() = modeEnabled(GhosttyMode.SYNC_OUTPUT)
 
   override val mouseProtocol: MouseProtocol
@@ -652,6 +663,10 @@ internal class GhosttyTerminalEmulator(
 
   // ---- encoding input into PTY bytes ----
 
+  override fun setOptionAsAlt(enabled: Boolean) {
+    optionAsAlt = enabled
+  }
+
   override fun encodeKeyEvent(event: TerminalKeyEvent): ByteArray {
     ensureOpen()
     try {
@@ -665,6 +680,9 @@ internal class GhosttyTerminalEmulator(
       LibGhosttyVt.keyEventSetComposing(keyEvent, event.composing)
 
       LibGhosttyVt.keyEncoderSetoptFromTerminal(keyEncoder, terminal)
+      // No terminal mode carries this option, and setopt_from_terminal has just reset it.
+      scratchOut.set(C_INT, 0L, (if (optionAsAlt) GhosttyOptionAsAlt.TRUE else GhosttyOptionAsAlt.FALSE).code)
+      LibGhosttyVt.keyEncoderSetopt(keyEncoder, GhosttyKeyEncoderOption.MACOS_OPTION_AS_ALT.code, scratchOut)
       return encodeToBytes { buf, size, outLen -> LibGhosttyVt.keyEncoderEncode(keyEncoder, keyEvent, buf, size, outLen) }
     } catch (t: Throwable) {
       throw RuntimeException("ghostty key encoding failed", t)
@@ -1355,6 +1373,20 @@ internal class GhosttyTerminalEmulator(
       return (r shl 16) or (g shl 8) or b
     }
     return 0
+  }
+
+  private fun terminalGetU8(dataKind: GhosttyTerminalData): Int {
+    ensureOpen()
+    scratchOut.set(C_BYTE, 0L, 0.toByte())
+    try {
+      val r = LibGhosttyVt.terminalGet(terminal, dataKind.code, scratchOut)
+      if (r != GhosttyResult.SUCCESS) {
+        throw IllegalStateException("ghostty_terminal_get($dataKind) returned $r")
+      }
+    } catch (t: Throwable) {
+      throw RuntimeException("ghostty_terminal_get failed", t)
+    }
+    return scratchOut.get(C_BYTE, 0L).toInt() and 0xFF
   }
 
   private fun terminalGetU16(dataKind: GhosttyTerminalData): Int {

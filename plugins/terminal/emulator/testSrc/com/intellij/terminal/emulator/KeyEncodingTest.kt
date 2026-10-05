@@ -175,7 +175,40 @@ class KeyEncodingTest {
     assertThat(k.session.emulator.encodeKeyEvent(event)).isEmpty()
   }
 
+  // ---- Alt chords ----
+
+  @Test
+  fun `alt chords get an ESC prefix in legacy mode when Option acts as Alt`() = keys { k ->
+    // No JediTerm cross-check: it prefixes ESC above its encoder table.
+    val alt = setOf(TerminalInputModifier.ALT)
+    val altShift = setOf(TerminalInputModifier.ALT, TerminalInputModifier.SHIFT)
+    k.session.emulator.setOptionAsAlt(true)
+    k.assertEncodes(esc("f"), TerminalKey.F, mods = alt, text = "f", unshifted = 'f'.code)
+    k.assertEncodes(esc("F"), TerminalKey.F, mods = altShift, text = "F", unshifted = 'f'.code)
+    k.assertEncodes(esc(">"), TerminalKey.PERIOD, mods = altShift, text = ">", unshifted = '.'.code)
+
+    // Only macOS has an Option key that composes text; elsewhere mode 1036 prefixes ESC regardless.
+    k.session.emulator.setOptionAsAlt(false)
+    val optionComposesText = System.getProperty("os.name").startsWith("Mac")
+    k.assertEncodes(if (optionComposesText) "f" else esc("f"), TerminalKey.F, mods = alt, text = "f", unshifted = 'f'.code)
+  }
+
   // ---- Kitty keyboard protocol ----
+
+  @Test
+  fun `kitty flags are readable, and alt chords become CSI u under them`() = keys { k ->
+    assertThat(k.session.emulator.kittyKeyboardFlags).isEmpty()
+    k.session.write(csi(">1u"))
+    assertThat(k.session.emulator.kittyKeyboardFlags).containsExactly(KittyKeyboardFlag.DISAMBIGUATE_ESCAPE_CODES)
+    k.session.emulator.setOptionAsAlt(true)
+    k.assertEncodes(csi("102;3u"), TerminalKey.F, mods = setOf(TerminalInputModifier.ALT), text = "f", unshifted = 'f'.code)
+
+    k.session.write(csi(">31u")) // every flag; the stack now holds two entries
+    assertThat(k.session.emulator.kittyKeyboardFlags).containsExactlyInAnyOrderElementsOf(KittyKeyboardFlag.entries)
+    k.session.write(csi("<u"))
+    k.session.write(csi("<u"))
+    assertThat(k.session.emulator.kittyKeyboardFlags).isEmpty()
+  }
 
   @Test
   fun `kitty disambiguate mode changes escape and ctrl chords`() = keys { k ->

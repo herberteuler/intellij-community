@@ -90,6 +90,16 @@ internal class GhosttyEnumsTest {
     assertMirrors<GhosttyMouseAction>("GhosttyMouseAction", Coverage.EXHAUSTIVE) { it.code }
   }
 
+  @Test
+  fun ghosttyKeyEncoderOption() {
+    assertMirrors<GhosttyKeyEncoderOption>("GhosttyKeyEncoderOption", Coverage.EXHAUSTIVE) { it.code }
+  }
+
+  @Test
+  fun ghosttyOptionAsAlt() {
+    assertMirrors<GhosttyOptionAsAlt>("GhosttyOptionAsAlt", Coverage.EXHAUSTIVE) { it.code }
+  }
+
   // GhosttyCursorVisualStyle mirrors two distinct C enums that happen to share one numeric layout
   // (see its KDoc) — check both independently so a future drift between them is caught either way.
 

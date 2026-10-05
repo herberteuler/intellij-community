@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.projectRoots;
 
-import com.intellij.execution.runners.ExecutionUtil;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
@@ -10,6 +9,7 @@ import com.intellij.openapi.util.io.JarUtil;
 import com.intellij.platform.eel.provider.EelProviderUtil;
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread;
 import com.intellij.util.lang.JavaVersion;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JdkVersionDetector;
@@ -29,6 +29,8 @@ public final class JdkUtil {
   /// The VM property is needed to workaround incorrect escaped URLs handling in WebSphere,
   /// see [IDEA-126859](https://youtrack.jetbrains.com/issue/IDEA-126859#comment=27-778948) for additional details
   public static final String PROPERTY_DO_NOT_ESCAPE_CLASSPATH_URL = "idea.do.not.escape.classpath.url";
+  @ApiStatus.Internal
+  public static final String PROPERTY_DYNAMIC_CLASSPATH = "dynamic.classpath";
 
   private JdkUtil() { }
 
@@ -100,7 +102,7 @@ public final class JdkUtil {
   public static boolean useDynamicClasspath(@Nullable Project project) {
     var hasDynamicProperty = Boolean.parseBoolean(System.getProperty("idea.dynamic.classpath", "false"));
     return project != null
-           ? PropertiesComponent.getInstance(project).getBoolean(ExecutionUtil.PROPERTY_DYNAMIC_CLASSPATH, hasDynamicProperty)
+           ? PropertiesComponent.getInstance(project).getBoolean(PROPERTY_DYNAMIC_CLASSPATH, hasDynamicProperty)
            : hasDynamicProperty;
   }
 

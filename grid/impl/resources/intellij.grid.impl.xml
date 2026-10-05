@@ -78,7 +78,8 @@
     <database.datagrid.valueEditorTab implementation="com.intellij.database.run.ui.EditorValueEditorTab"/>
     <database.datagrid.valueEditorTab implementation="com.intellij.database.run.ui.RecordViewTab"/>
 
-    <colorSettingsPage implementation="com.intellij.database.editor.DataGridColorSettingsPage"/>
+    <colorSettings implementation="com.intellij.database.editor.DataGridColorSettingsPage"
+                   bundle="messages.DataGridBundle" key="DataGridColorSettingsPage.configurable.name.database"/>
 
     <applicationConfigurable id="database.data.csv.formats" groupId="tools"
                              bundle="messages.DataGridBundle"

@@ -61,7 +61,7 @@ internal class CustomComponentDestructuringMigrationInspection : AbstractKotlinI
     }
 
     private fun processDestructuringDeclaration(holder: ProblemsHolder, declaration: KtDestructuringDeclaration) {
-        if (declaration.hasSquareBrackets()) return
+        if (declaration.isFullForm || declaration.hasSquareBrackets()) return
         if (declaration.entries.isEmpty()) return
 
         val requiresPositionBasedDestructuringMigration = analyze(declaration) {

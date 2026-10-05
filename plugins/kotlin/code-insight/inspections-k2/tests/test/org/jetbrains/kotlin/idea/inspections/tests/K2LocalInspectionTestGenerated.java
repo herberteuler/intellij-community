@@ -28569,6 +28569,11 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
             runTest("../../../idea/tests/testData/inspectionsLocal/customComponentDestructuringMigration/fullForm.kt");
         }
 
+        @TestMetadata("fullFormNonDataClass.kt")
+        public void testFullFormNonDataClass() throws Exception {
+            runTest("../../../idea/tests/testData/inspectionsLocal/customComponentDestructuringMigration/fullFormNonDataClass.kt");
+        }
+
         @TestMetadata("fullValueClass.kt")
         public void testFullValueClass() throws Exception {
             runTest("../../../idea/tests/testData/inspectionsLocal/customComponentDestructuringMigration/fullValueClass.kt");

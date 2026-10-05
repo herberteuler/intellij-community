@@ -65,7 +65,7 @@ _DECLARATIONS = intellij_dev_dist_declarations(struct(
     build_package = "//build",
     product_info_label = _product_info_label,
     launcher_jvm_flags = None,
-    before_run = None,
+    check_before_run = None,
     community = None,
 ))
 
@@ -89,6 +89,9 @@ intellij_dev_run_configurations = _DECLARATIONS.run_configurations
 
 # One dev launcher written by hand over a distribution of its own. Bazel names the symbolic macro after this global.
 intellij_dev_run_configuration = _DECLARATIONS.run_configuration
+
+# A `build_test` of the launchers of some rows. On Windows it builds the launcher of ADR 0014 of a java row.
+intellij_dev_launch_assembles_test = _DECLARATIONS.launch_assembles_test
 
 def intellij_dev_project_model_tree_community():
     """Declares `//build:dev_project_model_tree`, the checkout-shaped tree of the community half.

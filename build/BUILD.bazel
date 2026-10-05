@@ -1,11 +1,10 @@
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@intellij_add_opens//:intellij_add_opens.bzl", "INTELLIJ_ADD_OPENS")
 load("@jps_dynamic_deps_community//:targets.bzl", "ALL_COMMUNITY_IML_TARGETS", "ALL_COMMUNITY_MODULE_DESCRIPTOR_TARGETS", "ALL_COMMUNITY_PLUGIN_DISTRIBUTION_TARGETS", "ALL_COMMUNITY_TARGETS", "ALL_LIBRARY_COMMUNITY_TARGETS", "ALL_PRODUCTION_COMMUNITY_TARGETS", "ALL_TEST_COMMUNITY_TARGETS", "BAZEL_TARGETS_JSON_COMMUNITY", "JPS_TO_BAZEL_TREAT_KOTLIN_DEV_VERSION_AS_SNAPSHOT")
 load("@rules_java//java:defs.bzl", "java_binary")
 load("@rules_jvm//:jvm.bzl", "jvm_library")
 load("//build:dev_dist_local_launch_test.bzl", "dev_dist_local_launch_test")
 load("//build:dev_dist_products.bzl", "DEV_DIST_PRODUCTS")
-load("//build:intellij_dev_community.bzl", "intellij_dev_platform_set_community")
+load("//build:intellij_dev_community.bzl", "intellij_dev_launch_assembles_test", "intellij_dev_platform_set_community")
 load("//build:jps_to_bazel_targets_json.bzl", "jps_to_bazel_targets_json")
 load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
 load("//platform/build-scripts/bazel-rules:dev_dist_plugin_descriptor.bzl", "dev_dist_product_info")
@@ -259,15 +258,15 @@ alias(
 )
 
 # The plain `Idea` run configuration on the split path, `:idea_community`. The first test checks that the launch-only
-# distribution states its home. The second test checks that the launcher and its distribution build.
+# distribution states its home. The second test checks that the launchers of the row build.
 dev_dist_local_launch_test(
     name = "idea_community_local_launch_test",
     target_under_test = ":idea_community_dist_launch",
 )
 
-build_test(
+intellij_dev_launch_assembles_test(
     name = "idea_community_assembles_test",
-    targets = [":idea_community"],
+    rows = [":idea_community"],
 )
 
 # The `AndroidStudio` run configuration on the split path, `:android_studio_dev_build`: the same pair of checks.
@@ -276,9 +275,9 @@ dev_dist_local_launch_test(
     target_under_test = ":android_studio_dev_build_dist_launch",
 )
 
-build_test(
+intellij_dev_launch_assembles_test(
     name = "android_studio_dev_build_assembles_test",
-    targets = [":android_studio_dev_build"],
+    rows = [":android_studio_dev_build"],
 )
 
 # buildifier: disable=load-on-top

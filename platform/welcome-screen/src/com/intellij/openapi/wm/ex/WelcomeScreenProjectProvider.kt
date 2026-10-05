@@ -12,8 +12,16 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.util.PlatformUtils
 import org.jetbrains.annotations.ApiStatus.Internal
+import java.io.IOException
+import java.nio.file.LinkOption
 import java.nio.file.Path
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.absolute
+import kotlin.io.path.createDirectories
+import kotlin.io.path.deleteRecursively
+import kotlin.io.path.exists
+import kotlin.io.path.forEachDirectoryEntry
+import kotlin.io.path.name
 
 private val LOG = logger<WelcomeScreenProjectProvider>()
 private val EP_NAME: ExtensionPointName<WelcomeScreenProjectProvider> = ExtensionPointName("com.intellij.welcomeScreenProjectProvider")
@@ -138,9 +146,40 @@ abstract class WelcomeScreenProjectProvider {
     return Path.of(getProjectsBasePath(), getWelcomeScreenProjectDirName()).absolute()
   }
 
+  @OptIn(ExperimentalPathApi::class)
   @Internal
   fun getWelcomeScreenProjectPathForInternalUsage(): Path {
-    return getWelcomeScreenProjectPath()
+    val projectPath = getWelcomeScreenProjectPath()
+
+    if (!projectPath.exists(LinkOption.NOFOLLOW_LINKS)) {
+      try {
+        projectPath.createDirectories()
+      }
+      catch (_: IOException) {
+      }
+    }
+    else {
+      try {
+        projectPath.forEachDirectoryEntry { child ->
+          val name = child.name
+          if (name == ".idea") {
+            return@forEachDirectoryEntry
+          }
+          if (PlatformUtils.isPyCharm() && name == ".venv") {
+            return@forEachDirectoryEntry
+          }
+          try {
+            child.deleteRecursively()
+          }
+          catch (_: IOException) {
+          }
+        }
+      }
+      catch (_: IOException) {
+      }
+    }
+
+    return projectPath
   }
 
   protected open fun getWelcomeScreenProjectDirName(): String {

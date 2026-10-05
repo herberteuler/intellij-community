@@ -12,11 +12,7 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.platform.PlatformProjectOpenProcessor
 import com.intellij.platform.PlatformProjectOpenProcessor.Companion.configureToOpenDotIdeaOrCreateNewIfNotExists
-import java.io.IOException
-import java.nio.file.LinkOption
 import java.nio.file.Path
-import kotlin.io.path.createDirectories
-import kotlin.io.path.exists
 
 private val LOG = logger<WelcomeScreenProjectSupportImpl>()
 
@@ -42,13 +38,6 @@ internal class WelcomeScreenProjectSupportImpl : WelcomeScreenProjectSupport {
 
     val projectPath = extension.getWelcomeScreenProjectPathForInternalUsage()
 
-    if (!projectPath.exists(LinkOption.NOFOLLOW_LINKS)) {
-      try {
-        projectPath.createDirectories()
-      }
-      catch (_: IOException) {
-      }
-    }
     // the path is a system path, so TrustedProjects trusts it implicitly, without a persistent record
     serviceAsync<WindowsDefenderChecker>().markProjectPath(projectPath, /*skip =*/ true)
 

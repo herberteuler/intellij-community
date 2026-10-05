@@ -38,10 +38,9 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.diagnostic.trace
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
-import com.intellij.platform.ide.navigation.NavigationOptions
-import com.intellij.platform.ide.navigation.NavigationService
 import com.intellij.platform.projectView.actions.legacyProjectViewOption
 import com.intellij.platform.projectView.impl.DataContextCutCopyPasteDeleteHandler
+import com.intellij.platform.projectView.impl.navigateSafely
 import com.intellij.platform.projectView.pane.PROJECT_VIEW_SELECTED_NODE_IDS_KEY
 import com.intellij.platform.projectView.pane.ProjectViewDnDOptions
 import com.intellij.platform.projectView.pane.ProjectViewNodeModel
@@ -641,11 +640,7 @@ private class AbstractProjectViewPaneStateManager(
     val node = nodeById[id] ?: return false
     val navigatable = TreeUtil.getUserObject(node.modelNode) as? Navigatable? ?: return false
     val navigationRequest = readAction { navigatable.navigationRequest() } ?: return false
-    return NavigationService.getInstance(project).navigate(
-      request = navigationRequest,
-      options = NavigationOptions.defaultOptions()
-        .requestFocus(requestFocus),
-    )
+    return navigateSafely(project, navigationRequest, requestFocus)
   }
 
   private fun loadInitialState() {

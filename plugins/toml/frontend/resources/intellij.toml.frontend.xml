@@ -20,7 +20,7 @@
 
         <lang.syntaxHighlighter language="TOML" implementationClass="org.toml.ide.TomlHighlighter"/>
 
-        <colorSettingsPage implementation="org.toml.ide.colors.TomlColorSettingsPage"/>
+        <colorSettings implementation="org.toml.ide.colors.TomlColorSettingsPage" displayName="TOML"/>
 
         <enterBetweenBracesDelegate language="TOML"
                                     implementationClass="com.intellij.codeInsight.editorActions.enter.EnterBetweenBracesAndBracketsDelegate"/>

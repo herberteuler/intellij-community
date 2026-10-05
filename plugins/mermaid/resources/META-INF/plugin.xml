@@ -191,7 +191,8 @@
                              id="Settings.Mermaid"/>
     <applicationSettings service="com.intellij.mermaid.settings.MermaidSettings"/>
 
-    <colorSettingsPage implementation="com.intellij.mermaid.lang.highlighting.MermaidColorSettingsPage"/>
+    <colorSettings implementation="com.intellij.mermaid.lang.highlighting.MermaidColorSettingsPage"
+                   bundle="messages.MermaidBundle" key="mermaid.colors.name"/>
     <additionalTextAttributes scheme="Default" file="colorSchemes/MermaidDefault.xml"/>
     <additionalTextAttributes scheme="Darcula" file="colorSchemes/MermaidDarcula.xml"/>
 

@@ -57,7 +57,8 @@
 
 
     <!-- Highlighting -->
-    <colorSettingsPage implementation="com.intellij.json.highlighting.JsonColorsPage"/>
+    <colorSettings implementation="com.intellij.json.highlighting.JsonColorsPage"
+                   bundle="messages.JsonBundle" key="settings.display.name.json"/>
     <lang.syntaxHighlighterFactory language="JSON" implementationClass="com.intellij.json.highlighting.JsonSyntaxHighlighterFactory"/>
     <lang.syntaxHighlighterFactory language="JSON5"
                                    implementationClass="com.intellij.json.json5.highlighting.Json5SyntaxHighlightingFactory"/>

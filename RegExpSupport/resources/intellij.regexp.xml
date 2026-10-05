@@ -46,7 +46,8 @@
     <lang.syntaxHighlighterFactory language="RegExp" implementationClass="org.intellij.lang.regexp.RegExpSyntaxHighlighterFactory"/>
     <lang.braceMatcher language="RegExp" implementationClass="org.intellij.lang.regexp.RegExpBraceMatcher"/>
     <lang.surroundDescriptor language="RegExp" implementationClass="org.intellij.lang.regexp.surroundWith.SimpleSurroundDescriptor"/>
-    <colorSettingsPage implementation="org.intellij.lang.regexp.RegExpColorsPage"/>
+    <colorSettings implementation="org.intellij.lang.regexp.RegExpColorsPage"
+                   bundle="messages.RegExpBundle" key="color.settings.title.regexp"/>
     <basicWordSelectionFilter implementation="org.intellij.lang.regexp.RegExpWordSelectionFilter"/>
     <regExpMatcherProvider language="JSRegexp" implementationClass="org.intellij.lang.regexp.ecmascript.EcmaScriptRegExpMatcherProvider"/>
     <lang.parserDefinition language="JSRegexp" implementationClass="org.intellij.lang.regexp.ecmascript.EcmaScriptRegexpParserDefinition"/>

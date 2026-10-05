@@ -96,7 +96,8 @@
     <refactoring.safeDeleteProcessor implementation="com.intellij.lang.properties.refactoring.PropertiesFilesSafeDeleteProcessor"/>
     <refactoring.safeDeleteProcessor implementation="com.intellij.lang.properties.refactoring.PropertyKeysSafeDeleteProcessor"/>
     <refactoring.moveHandler implementation="com.intellij.lang.properties.projectView.ResourceBundleMoveProvider"/>
-    <colorSettingsPage implementation="com.intellij.lang.properties.PropertiesColorsPage"/>
+    <colorSettings implementation="com.intellij.lang.properties.PropertiesColorsPage"
+                   bundle="messages.OptionsBundle" key="properties.options.display.name"/>
     <treeStructureProvider implementation="com.intellij.lang.properties.projectView.ResourceBundleGrouper"/>
     <elementDescriptionProvider implementation="com.intellij.lang.properties.PropertiesDescriptionProvider"/>
     <fileType name="ResourceBundle" fieldName="INSTANCE" implementationClass="com.intellij.lang.properties.editor.ResourceBundleFileType"/>

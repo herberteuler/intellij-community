@@ -143,6 +143,7 @@
                  description="Split Java code folding between frontend (syntax-based) and backend (resolve-based) builders"/>
     <applicationSettings service="com.intellij.codeInsight.folding.impl.JavaCodeFoldingSettingsImpl"/>
 
-    <colorSettingsPage implementation="com.intellij.java.frontend.codeInsight.highlighting.JavaColorSettingsPage"/>
+    <colorSettings implementation="com.intellij.java.frontend.codeInsight.highlighting.JavaColorSettingsPage"
+                   bundle="messages.JavaOptionBundle" key="options.java.display.name" priority="KEY_LANGUAGE_SETTINGS"/>
   </extensions>
 </idea-plugin>

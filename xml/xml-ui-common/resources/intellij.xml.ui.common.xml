@@ -34,8 +34,10 @@
     <lang.rearranger language="XML" implementationClass="com.intellij.xml.arrangement.XmlRearranger"/>
     <lang.rearranger language="HTML" implementationClass="com.intellij.xml.arrangement.HtmlRearranger"/>
 
-    <colorSettingsPage implementation="com.intellij.openapi.options.colors.pages.XMLColorsPage"/>
-    <colorSettingsPage implementation="com.intellij.openapi.options.colors.pages.HTMLColorsPage"/>
+    <colorSettings implementation="com.intellij.openapi.options.colors.pages.XMLColorsPage"
+                   bundle="messages.XmlCoreBundle" key="options.xml.display.name"/>
+    <colorSettings implementation="com.intellij.openapi.options.colors.pages.HTMLColorsPage"
+                   bundle="messages.XmlCoreBundle" key="options.html.display.name"/>
 
     <additionalTextAttributes scheme="IntelliJ Light" file="colorSchemes/XmlIntelliJLight.xml"/>
     <additionalTextAttributes scheme="Darcula" file="colorSchemes/XmlDarcula.xml"/>

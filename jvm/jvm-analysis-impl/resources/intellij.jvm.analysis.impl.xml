@@ -228,7 +228,8 @@
               implementationClass="com.intellij.analysis.logging.resolve.LoggingArgumentUsageSearcher"/>
 
     <!--console filter-->
-    <colorSettingsPage implementation="com.intellij.analysis.customization.console.ClassFinderConsoleColorsPage"/>
+    <colorSettings implementation="com.intellij.analysis.customization.console.ClassFinderConsoleColorsPage"
+                   bundle="messages.JavaBundle" key="jvm.logging.configurable.display.name" priority="COMMON_SETTINGS"/>
     <consoleFilterProvider implementation="com.intellij.analysis.customization.console.ClassLoggingConsoleFilterProvider"/>
     <advancedSetting id="process.console.output.to.find.class.names" default="true" groupKey="group.advanced.settings.jvm" bundle="messages.JvmAnalysisBundle"/>
     <statistics.counterUsagesCollector implementationClass="com.intellij.analysis.customization.console.LogConsoleLogHandlerCollectors"/>

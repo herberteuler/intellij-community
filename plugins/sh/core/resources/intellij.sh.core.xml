@@ -49,7 +49,7 @@
     <editor.backspaceModeOverride language="Shell Script" implementationClass="com.intellij.sh.ShBackspaceModeOverride"/>
 
     <annotator language="Shell Script" implementationClass="com.intellij.sh.ShAnnotator"/>
-    <colorSettingsPage implementation="com.intellij.sh.highlighter.ShColorPage"/>
+    <colorSettings implementation="com.intellij.sh.highlighter.ShColorPage" displayName="Shell Script"/>
     <additionalTextAttributes scheme="Default" file="colors/ShDefault.xml"/>
     <additionalTextAttributes scheme="Darcula" file="colors/ShDarcula.xml"/>
 

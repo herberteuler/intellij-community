@@ -30,7 +30,8 @@
   <extensions defaultExtensionNs="com.intellij">
     <langCodeStyleSettingsProvider implementation="org.jetbrains.yaml.settingsSync.YAMLLanguageCodeStyleSettingsProvider"/>
 
-    <colorSettingsPage implementation="org.jetbrains.yaml.YAMLColorsPage"/>
+    <colorSettings implementation="org.jetbrains.yaml.YAMLColorsPage"
+                   bundle="messages.YAMLBundle" key="color.settings.yaml.name"/>
     <lang.parserDefinition language="yaml" implementationClass="org.jetbrains.yaml.YAMLParserDefinition"/>
     <fileType name="YAML" implementationClass="org.jetbrains.yaml.YAMLFileType" fieldName="YML" language="yaml"
               extensions="yaml;yml"/>

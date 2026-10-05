@@ -196,6 +196,9 @@ internal class GhosttyTerminalEmulator(
   // outlive one buildRow.
   private val rowStyleCache = HashMap<Int, CellStyle>()
 
+  // The style of the last background-only cell; see backgroundOnlyStyle.
+  private var lastBackgroundOnlyStyle: BackgroundOnlyStyle? = null
+
   // The one and only input buffer for [write], which feeds longer input through it a chunk at a time. Both
   // halves of that matter: the arena is shared and frees nothing before close(), so allocating per write
   // would grow native usage with the *total* bytes ever written, and growing this buffer on demand would
@@ -1191,13 +1194,13 @@ internal class GhosttyTerminalEmulator(
         // the engine skips the style map for a cell with no text.
         GhosttyCellContentTag.BG_COLOR_PALETTE -> {
           val index = scratchCellOut.get(C_BYTE, CELL_OUT_OFF_COLOR_PALETTE).toInt() and 0xFF
-          CellStyle(background = toColor(GhosttyStyleColorTag.PALETTE, index))
+          backgroundOnlyStyle(GhosttyStyleColorTag.PALETTE, index)
         }
         GhosttyCellContentTag.BG_COLOR_RGB -> {
           val r = scratchCellOut.get(C_BYTE, CELL_OUT_OFF_COLOR_RGB).toInt() and 0xFF
           val g = scratchCellOut.get(C_BYTE, CELL_OUT_OFF_COLOR_RGB + 1).toInt() and 0xFF
           val b = scratchCellOut.get(C_BYTE, CELL_OUT_OFF_COLOR_RGB + 2).toInt() and 0xFF
-          CellStyle(background = toColor(GhosttyStyleColorTag.RGB, (r shl 16) or (g shl 8) or b))
+          backgroundOnlyStyle(GhosttyStyleColorTag.RGB, (r shl 16) or (g shl 8) or b)
         }
         else -> styleForId(scratchCellOut.get(C_SHORT, CELL_OUT_OFF_STYLE_ID).toInt() and 0xFFFF)
       }
@@ -1218,6 +1221,18 @@ internal class GhosttyTerminalEmulator(
   private fun styleForId(styleId: Int): CellStyle {
     if (styleId == 0) return CellStyle.Default
     return rowStyleCache.getOrPut(styleId) { readStyleFromGridRef() }
+  }
+
+  /**
+   * The [CellStyle] of a background-only cell with the color [value] of kind [tag]. A painted background is a run
+   * of equal cells, so the last style is kept and shared. The color is not page-local, so the style stays valid.
+   */
+  private fun backgroundOnlyStyle(tag: GhosttyStyleColorTag, value: Int): CellStyle {
+    val last = lastBackgroundOnlyStyle
+    if (last != null && last.tag == tag && last.value == value) return last.style
+    val created = BackgroundOnlyStyle(tag, value, CellStyle(background = toColor(tag, value)))
+    lastBackgroundOnlyStyle = created
+    return created.style
   }
 
   /** Read the current grid ref's style; the default style if the engine fails the read. */
@@ -1477,6 +1492,9 @@ internal class GhosttyTerminalEmulator(
     val packed = paletteCache[index]
     return TerminalColor.Rgb((packed shr 16) and 0xFF, (packed shr 8) and 0xFF, packed and 0xFF)
   }
+
+  /** A background-only [style] and the raw color it was made from: [value] of kind [tag]. */
+  private class BackgroundOnlyStyle(val tag: GhosttyStyleColorTag, val value: Int, val style: CellStyle)
 
   /** Mutable, reusable holder for a ghostty cell's raw content + style (avoids per-cell allocation). */
   private class CellData {

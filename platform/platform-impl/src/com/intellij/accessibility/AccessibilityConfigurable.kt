@@ -50,10 +50,7 @@ import com.intellij.ui.layout.ComponentPredicate
 import com.intellij.ui.layout.and
 import com.intellij.util.ui.RestartDialogImpl
 import org.jetbrains.annotations.Nls
-import java.awt.event.InputEvent
-import java.awt.event.KeyEvent
 import javax.swing.JCheckBox
-import javax.swing.KeyStroke
 
 internal class AccessibilityConfigurable : BoundSearchableConfigurable(
   message("configurable.AccessibilityConfigurable.display.name"), "preferences.lookFeel", "preferences.accessibility",
@@ -175,12 +172,9 @@ internal class AccessibilityConfigurable : BoundSearchableConfigurable(
     group(message("accessibility.group.screen.reader.mode")) {
       row {
         val isOverridden = isSupportScreenReadersOverridden()
-        val ctrlTab = KeymapUtil.getKeystrokeText(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, InputEvent.CTRL_DOWN_MASK))
-        val ctrlShiftTab = KeymapUtil.getKeystrokeText(
-          KeyStroke.getKeyStroke(KeyEvent.VK_TAB, InputEvent.CTRL_DOWN_MASK + InputEvent.SHIFT_DOWN_MASK))
         screenReaderCell = checkBox(message("checkbox.support.screen.readers"))
           .bindSelected(generalSettings::isSupportScreenReaders) { generalSettings.isSupportScreenReaders = it }
-          .comment(message("support.screen.readers.tab", ctrlTab, ctrlShiftTab))
+          .comment(message("support.screen.readers.comment"))
           .commentRight(if (isOverridden) message("overridden.by.jvm.property", GeneralSettings.SUPPORT_SCREEN_READERS)
                         else message("ide.restart.required.comment"))
           .enabled(!isOverridden)

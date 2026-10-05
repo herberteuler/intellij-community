@@ -1,12 +1,12 @@
 # `component` API
 
-The component contract that the collector, the composer and the launcher share. Each line names one `pub` item of
+The component contract that the collector and the composer share. Each line names one `pub` item of
 `src/`, with its module path. The crate root also exports `ComponentManifest` and `ComponentEntry`.
 
 The crate implements only the inputs that the repository produces. Every other input fails with an error that names
 it. The collector writes the manifests, and the composer reads them. `intellij_dev_dist.bzl` writes the metadata
-catalogue with `json.encode`, and the collector reads it with `json::read`. The composer writes the local layout, and
-the launcher reads it.
+catalogue with `json.encode`, and the collector reads it with `json::read`. The composer still writes the local layout, and
+no tool reads it now.
 
 A host path is a `Path` or a `PathBuf`. A path inside a distribution is a `str` in slash form. A list of names is a
 `&[S]` with `S: AsRef<str>`.
@@ -98,5 +98,5 @@ The collector writes and checks the record of each plugin component. The compose
   only for a directory.
 - `LocalFileKind { Directory }`: the JSON `kind`, which is `directory`.
 - `LocalLayoutFile::is_directory() -> bool`: `kind` is `Directory`.
-- `layout::read_local_layout(path) -> Result<LocalLayout>`: decodes the layout by the JSON rules. The launcher checks
-  the version and the files before it links a local home.
+- `layout::read_local_layout(path) -> Result<LocalLayout>`: decodes the layout by the JSON rules. No tool calls it now,
+  because a row links its home from the placement and not from this file.

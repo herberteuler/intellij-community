@@ -86,11 +86,7 @@ public final class PythonSdkUtil {
   }
 
   public static @Unmodifiable @NotNull List<@NotNull Sdk> getAllSdks() {
-    return getAllSdks(false);
-  }
-
-  public static @Unmodifiable @NotNull List<@NotNull Sdk> getAllSdks(boolean allowRemoteInFreeTier) {
-    return ContainerUtil.filter(ProjectJdkTable.getInstance().getAllJdks(), sdk -> isPythonSdk(sdk, allowRemoteInFreeTier));
+    return ContainerUtil.filter(ProjectJdkTable.getInstance().getAllJdks(), sdk -> isPythonSdk(sdk, false));
   }
 
   /**

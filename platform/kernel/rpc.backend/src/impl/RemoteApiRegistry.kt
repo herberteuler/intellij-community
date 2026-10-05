@@ -55,7 +55,31 @@ internal class RemoteApiRegistry(coroutineScope: CoroutineScope) : RemoteApiProv
     @JvmField val registrations: Map<String, RemoteApiRegistration>,
     /** The providers without the `apiInterfaces` attribute. Only an instance knows their APIs. */
     @JvmField val unattributedProviders: List<LazyExtension<RemoteApiProvider>>,
-  )
+    /** Every provider the index was built from. */
+    @JvmField val knownProviders: Set<ExtensionKey>,
+    /** Every bean registration the index was built from. */
+    @JvmField val knownRegistrations: List<RemoteApiRegistration>,
+  ) {
+    /**
+     * @return true when an extension point holds an extension that was added after the index was built.
+     */
+    fun hasUnknownExtension(): Boolean {
+      return RemoteApiProvider.EP_NAME.filterableLazySequence().any { ExtensionKey(it) !in knownProviders }
+             || RemoteApiRegistration.EP_NAME.extensionList.any { registration -> knownRegistrations.none { it === registration } }
+    }
+  }
+
+  /** Identifies a provider extension. A [LazyExtension] is a new wrapper on each read, so it cannot serve as the key. */
+  private class ExtensionKey(extension: LazyExtension<*>) {
+    private val pluginDescriptor = extension.pluginDescriptor
+    private val implementationClassName = extension.implementationClassName
+
+    override fun equals(other: Any?): Boolean {
+      return other is ExtensionKey && pluginDescriptor === other.pluginDescriptor && implementationClassName == other.implementationClassName
+    }
+
+    override fun hashCode(): Int = System.identityHashCode(pluginDescriptor) * 31 + implementationClassName.hashCode()
+  }
 
   private class MaterializedProvider(
     @JvmField val pluginDescriptor: PluginDescriptor,
@@ -70,7 +94,9 @@ internal class RemoteApiRegistry(coroutineScope: CoroutineScope) : RemoteApiProv
   private fun buildIndex(): Index {
     val providers = HashMap<String, LazyExtension<RemoteApiProvider>>()
     val unattributedProviders = ArrayList<LazyExtension<RemoteApiProvider>>()
+    val knownProviders = HashSet<ExtensionKey>()
     for (extension in RemoteApiProvider.EP_NAME.filterableLazySequence()) {
+      knownProviders.add(ExtensionKey(extension))
       val declaredApis = extension.getCustomAttribute(API_INTERFACES_ATTRIBUTE)
       if (declaredApis == null) {
         unattributedProviders.add(extension)
@@ -85,14 +111,21 @@ internal class RemoteApiRegistry(coroutineScope: CoroutineScope) : RemoteApiProv
     }
 
     val registrations = HashMap<String, RemoteApiRegistration>()
-    for (registration in RemoteApiRegistration.EP_NAME.extensionList) {
+    val knownRegistrations = RemoteApiRegistration.EP_NAME.extensionList
+    for (registration in knownRegistrations) {
       val apiFqn = registration.apiFqn
       val previous = providers.get(apiFqn)?.implementationClassName ?: registrations.putIfAbsent(apiFqn, registration)?.implementationClass
       if (previous != null) {
         warnDuplicateDeclaration(apiFqn, previous, registration.implementationClass)
       }
     }
-    return Index(providers = providers, registrations = registrations, unattributedProviders = unattributedProviders)
+    return Index(
+      providers = providers,
+      registrations = registrations,
+      unattributedProviders = unattributedProviders,
+      knownProviders = knownProviders,
+      knownRegistrations = knownRegistrations,
+    )
   }
 
   private fun warnDuplicateDeclaration(apiFqn: String, first: String, second: String) {
@@ -156,22 +189,34 @@ internal class RemoteApiRegistry(coroutineScope: CoroutineScope) : RemoteApiProv
     remoteApis.get(apiFqn)?.let { return it }
     synchronized(lock) {
       remoteApis.get(apiFqn)?.let { return it }
-      val index = index
-      val provider = index.providers.get(apiFqn)
-      if (provider != null) {
-        materialize(provider, declaredApis = parseApiInterfaces(provider.getCustomAttribute(API_INTERFACES_ATTRIBUTE)!!))
-        return remoteApis.get(apiFqn)
+      val current = index
+      resolveFromIndex(current, apiFqn)?.let { return it }
+      // A dynamic plugin load registers the extensions before the change listener rebuilds the index.
+      // When an EP holds an extension the index does not know, read the EPs list again.
+      if (!current.hasUnknownExtension()) {
+        return null
       }
-      val registration = index.registrations.get(apiFqn)
-      if (registration != null) {
-        materialize(registration)
-        return remoteApis.get(apiFqn)
-      }
-      for (extension in index.unattributedProviders) {
-        materialize(extension, declaredApis = null)
-      }
-      return remoteApis.get(apiFqn)
+      val fresh = buildIndex()
+      index = fresh
+      return resolveFromIndex(fresh, apiFqn)
     }
+  }
+
+  private fun resolveFromIndex(index: Index, apiFqn: String): ServiceImplementation? {
+    val provider = index.providers.get(apiFqn)
+    if (provider != null) {
+      materialize(provider, declaredApis = parseApiInterfaces(provider.getCustomAttribute(API_INTERFACES_ATTRIBUTE)!!))
+      return remoteApis[apiFqn]
+    }
+    val registration = index.registrations.get(apiFqn)
+    if (registration != null) {
+      materialize(registration)
+      return remoteApis[apiFqn]
+    }
+    for (extension in index.unattributedProviders) {
+      materialize(extension, declaredApis = null)
+    }
+    return remoteApis[apiFqn]
   }
 
   /** Runs `remoteApis()` of the provider once. Guarded by [lock]. */

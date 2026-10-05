@@ -4,6 +4,12 @@ package com.intellij.platform.rpc.tests
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
+import com.intellij.openapi.extensions.DefaultPluginDescriptor
+import com.intellij.openapi.extensions.ExtensionDescriptor
+import com.intellij.openapi.extensions.LoadingOrder
+import com.intellij.openapi.extensions.PluginId
+import com.intellij.openapi.extensions.impl.ExtensionPointDeferredListenersNotification
+import com.intellij.openapi.extensions.impl.ExtensionPointImpl
 import com.intellij.openapi.util.Disposer
 import com.intellij.platform.rpc.RemoteApiProviderService
 import com.intellij.platform.rpc.backend.RemoteApiProvider
@@ -17,6 +23,7 @@ import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.SystemProperty
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
+import com.intellij.util.xml.dom.XmlElement
 import fleet.rpc.RemoteApi
 import fleet.rpc.Rpc
 import fleet.rpc.remoteApiDescriptor
@@ -62,6 +69,32 @@ class RemoteApiRegistryLazyTest {
     }
   }
 
+  /**
+   * Registers [LazyTestApiProvider] the way a dynamic plugin load does: the extension is visible at once,
+   * the change listeners are notified later. Runs [block] in that window, then notifies and unregisters.
+   */
+  private fun withDeferredProviderRegistration(apiInterfaces: String?, block: () -> Unit) {
+    val point = RemoteApiProvider.EP_NAME.point as ExtensionPointImpl<RemoteApiProvider>
+    val descriptor = ExtensionDescriptor(
+      implementation = LazyTestApiProvider::class.java.name,
+      os = null,
+      orderId = null,
+      order = LoadingOrder.ANY,
+      element = apiInterfaces?.let { XmlElement("remoteApiProvider", mapOf("apiInterfaces" to it)) },
+      hasExtraAttributes = apiInterfaces != null,
+    )
+    val pluginDescriptor = DefaultPluginDescriptor(PluginId.getId("RemoteApiRegistryLazyTest"), LazyTestApiProvider::class.java.classLoader)
+    val deferred = ArrayList<ExtensionPointDeferredListenersNotification>()
+    point.registerExtensions(listOf(descriptor), pluginDescriptor, deferred)
+    try {
+      block()
+    }
+    finally {
+      deferred.forEach { it.notify.run() }
+      point.unregisterExtensions({ className, _ -> className != LazyTestApiProvider::class.java.name }, false)
+    }
+  }
+
   @Test
   @Timeout(60)
   fun `provider is constructed on the first call, and released with the plugin`(): Unit = timeoutRunBlocking(30.seconds) {
@@ -98,6 +131,22 @@ class RemoteApiRegistryLazyTest {
     }
     finally {
       unload(plugin)
+    }
+  }
+
+  @Test
+  @Timeout(60)
+  fun `a declared API is resolved before the change listener rebuilds the index`() {
+    withDeferredProviderRegistration(apiInterfaces = LazyTestApi::class.java.name) {
+      assertThat(LiteRemoteApiProviderService.tryResolve(remoteApiDescriptor<LazyTestApi>())).isSameAs(LazyTestApiImpl)
+    }
+  }
+
+  @Test
+  @Timeout(60)
+  fun `an undeclared API is resolved before the change listener rebuilds the index`() {
+    withDeferredProviderRegistration(apiInterfaces = null) {
+      assertThat(LiteRemoteApiProviderService.tryResolve(remoteApiDescriptor<LazyTestApi>())).isSameAs(LazyTestApiImpl)
     }
   }
 }

@@ -3115,6 +3115,7 @@ c:com.intellij.openapi.fileEditor.TextEditorWithPreview
 - getState(com.intellij.openapi.fileEditor.FileEditorStateLevel):com.intellij.openapi.fileEditor.FileEditorState
 - getTextEditor():com.intellij.openapi.fileEditor.TextEditor
 - pf:handleLayoutChange(Z):V
+- p:initialize():V
 - isModified():Z
 - p:isShowActionsInTabs():Z
 - isVerticalSplit():Z

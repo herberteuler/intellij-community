@@ -17,6 +17,7 @@ import com.intellij.openapi.fileEditor.TextEditorWithPreview;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBSplitter;
 import org.intellij.plugins.markdown.MarkdownBundle;
+import org.intellij.plugins.markdown.MarkdownUsageCollector;
 import org.intellij.plugins.markdown.editor.livepreview.MarkdownLivePreviewSpecKt;
 import org.intellij.plugins.markdown.settings.MarkdownSettings;
 import org.jetbrains.annotations.NotNull;
@@ -136,6 +137,11 @@ public final class MarkdownEditorWithPreview extends TextEditorWithPreview imple
     setViewMode(Layout.SHOW_EDITOR, true);
   }
 
+  @Override
+  protected void initialize() {
+    MarkdownUsageCollector.logEditorLayoutChanged(this);
+  }
+
   /**
    * Returns true when the text editor is shown alone with Markdown live preview on.
    */
@@ -144,9 +150,15 @@ public final class MarkdownEditorWithPreview extends TextEditorWithPreview imple
   }
 
   private void setViewMode(@NotNull Layout layout, boolean livePreview) {
+    var oldLayout = getLayout();
+    var oldLivePreview = isLivePreviewLayout();
     PropertiesComponent.getInstance().setValue(LIVE_PREVIEW_PROPERTY, livePreview, false);
     MarkdownLivePreviewSpecKt.setLivePreviewEnabledness(myEditor.getEditor(), livePreview);
-    super.setLayout(supportedLayout(layout));
+    var newLayout = supportedLayout(layout);
+    super.setLayout(newLayout);
+    if (oldLayout != newLayout || oldLivePreview != isLivePreviewLayout()) {
+      MarkdownUsageCollector.logEditorLayoutChanged(this);
+    }
   }
 
   private @NotNull Layout supportedLayout(@NotNull Layout layout) {

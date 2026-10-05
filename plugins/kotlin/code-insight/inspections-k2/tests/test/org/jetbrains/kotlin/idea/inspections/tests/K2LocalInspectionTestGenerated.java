@@ -9282,24 +9282,19 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
             runTest("../../../idea/tests/testData/inspectionsLocal/selfAssignment/property3.kt");
         }
 
-        @TestMetadata("property4.k2.kt")
-        public void testProperty4_k2() throws Exception {
-            runTest("../../../idea/tests/testData/inspectionsLocal/selfAssignment/property4.k2.kt");
+        @TestMetadata("property4.kt")
+        public void testProperty4() throws Exception {
+            runTest("../../../idea/tests/testData/inspectionsLocal/selfAssignment/property4.kt");
         }
 
-        @TestMetadata("property5.k2.kt")
-        public void testProperty5_k2() throws Exception {
-            runTest("../../../idea/tests/testData/inspectionsLocal/selfAssignment/property5.k2.kt");
+        @TestMetadata("property5.kt")
+        public void testProperty5() throws Exception {
+            runTest("../../../idea/tests/testData/inspectionsLocal/selfAssignment/property5.kt");
         }
 
         @TestMetadata("propertyHasDelegate.kt")
         public void testPropertyHasDelegate() throws Exception {
             runTest("../../../idea/tests/testData/inspectionsLocal/selfAssignment/propertyHasDelegate.kt");
-        }
-
-        @TestMetadata("propertyHasDelegate.k2.kt")
-        public void testPropertyHasDelegate_k2() throws Exception {
-            runTest("../../../idea/tests/testData/inspectionsLocal/selfAssignment/propertyHasDelegate.k2.kt");
         }
 
         @TestMetadata("propertyHasGetter.kt")
@@ -27959,29 +27954,14 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
             runTest("../../../idea/tests/testData/inspectionsLocal/mainFunctionReturnUnit/explicitReturnTypeBlockBody.kt");
         }
 
-        @TestMetadata("explicitReturnTypeBlockBody.k2.kt")
-        public void testExplicitReturnTypeBlockBody_k2() throws Exception {
-            runTest("../../../idea/tests/testData/inspectionsLocal/mainFunctionReturnUnit/explicitReturnTypeBlockBody.k2.kt");
-        }
-
         @TestMetadata("explicitReturnTypeExpressionBody.kt")
         public void testExplicitReturnTypeExpressionBody() throws Exception {
             runTest("../../../idea/tests/testData/inspectionsLocal/mainFunctionReturnUnit/explicitReturnTypeExpressionBody.kt");
         }
 
-        @TestMetadata("explicitReturnTypeExpressionBody.k2.kt")
-        public void testExplicitReturnTypeExpressionBody_k2() throws Exception {
-            runTest("../../../idea/tests/testData/inspectionsLocal/mainFunctionReturnUnit/explicitReturnTypeExpressionBody.k2.kt");
-        }
-
         @TestMetadata("implicitReturnTypeExpressionBody.kt")
         public void testImplicitReturnTypeExpressionBody() throws Exception {
             runTest("../../../idea/tests/testData/inspectionsLocal/mainFunctionReturnUnit/implicitReturnTypeExpressionBody.kt");
-        }
-
-        @TestMetadata("implicitReturnTypeExpressionBody.k2.kt")
-        public void testImplicitReturnTypeExpressionBody_k2() throws Exception {
-            runTest("../../../idea/tests/testData/inspectionsLocal/mainFunctionReturnUnit/implicitReturnTypeExpressionBody.k2.kt");
         }
 
         @TestMetadata("notMainFunName.kt")

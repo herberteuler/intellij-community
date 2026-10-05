@@ -423,6 +423,7 @@ object CoreModuleSets {
     // Base RPC (rpcMinimal) already available from corePlatform
     // Only add backend/frontend/topics functionality
     module("intellij.platform.rpc.backend")
+    module("intellij.platform.kernel.backend.baseline")
     module("intellij.platform.kernel.backend")
     module("intellij.platform.kernel.impl")
 

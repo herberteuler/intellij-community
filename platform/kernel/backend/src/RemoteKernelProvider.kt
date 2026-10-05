@@ -4,27 +4,16 @@ package com.intellij.platform.kernel.backend
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
-import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.progress.runBlockingCancellable
 import com.intellij.platform.kernel.KernelService
 import com.intellij.platform.kernel.util.CommonInstructionSet
-import com.intellij.platform.kernel.util.handleEntityTypes
 import com.intellij.platform.kernel.util.kernelCoroutineContext
-import com.intellij.platform.kernel.util.updateDbInTheEventDispatchThread
 import com.intellij.platform.rpc.backend.RemoteApiProvider
 import com.intellij.platform.util.coroutines.childScope
-import com.jetbrains.rhizomedb.DbContext
-import fleet.kernel.change
 import fleet.kernel.rebase.RemoteKernel
 import fleet.kernel.rebase.RemoteKernelImpl
-import fleet.kernel.rebase.initWorkspaceClock
 import fleet.kernel.transactor
 import fleet.rpc.remoteApiDescriptor
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-
-private val LOG = fileLogger()
 
 @Service
 private class RemoteKernelScopeHolder {
@@ -47,24 +36,6 @@ internal class RemoteKernelProvider : RemoteApiProvider {
       runBlockingCancellable {
         ApplicationManager.getApplication().service<RemoteKernelScopeHolder>().createRemoteKernel()
       }
-    }
-  }
-}
-
-internal class BackendKernelService(coroutineScope: CoroutineScope) : KernelService {
-
-  override val kernelCoroutineScope: CompletableDeferred<CoroutineScope> = CompletableDeferred()
-
-  init {
-    LOG.info("Backend started Kernel")
-    coroutineScope.launch {
-      change {
-        initWorkspaceClock()
-      }
-      handleEntityTypes(transactor(), this)
-      // Create a supervisor child scope to avoid kernel coroutine getting canceled by exceptions coming under `withKernel`
-      kernelCoroutineScope.complete(this.childScope(name = "KernelCoroutineScope", supervisor = true))
-      updateDbInTheEventDispatchThread(DbContext.threadBound)
     }
   }
 }

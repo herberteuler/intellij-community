@@ -64,6 +64,10 @@ object ProductModeCapabilities {
     setModuleAvailability(FRONTEND_MODULE_ID, productMode.providesFrontendModule)
     setModuleAvailability(BACKEND_MODULE_ID, productMode.providesBackendModule)
 
+    // temporary marker, see community/platform/backend/baseline/README.md
+    val backendBaseline = PluginModuleId("intellij.platform.backend.baseline", PluginModuleId.JETBRAINS_NAMESPACE)
+    setModuleAvailability(backendBaseline, productMode.providesBackendModule || productMode == ProductMode.LIGHT_MONOLITH)
+
     val platformSplit = PluginModuleId("intellij.platform.split", PluginModuleId.JETBRAINS_NAMESPACE)
     val backendSplit = PluginModuleId("intellij.platform.backend.split", PluginModuleId.JETBRAINS_NAMESPACE)
     setModuleAvailability(backendSplit, productMode == ProductMode.BACKEND)

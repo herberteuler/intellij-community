@@ -74,6 +74,7 @@ import java.lang.ref.Reference;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1051,10 +1052,8 @@ public final class HighlightInfoUpdaterImpl extends HighlightInfoUpdater impleme
     return toolHighlights1.latencies.compareLatencies(toolHighlights2.latencies);
   }
 
-  /// sort `elements` by the number of produced diagnostics:
-  ///  - put first the elements for which this `toolWrapper` has produced some diagnostics on previous run
-  ///  - in case of a tie, put elements which generated higher severity diagnostics first
-  ///  - followed by all other elements
+  /// Put elements with diagnostics from the previous run first, in descending severity order.
+  /// Preserve the input order for equal severities and for elements without diagnostics.
   @ApiStatus.Internal
   public static @NotNull @Unmodifiable List<? extends PsiElement> sortByPsiElementFertility(@NotNull PsiFile psiFile,
                                                                                             @NotNull LocalInspectionToolWrapper toolWrapper,
@@ -1064,31 +1063,49 @@ public final class HighlightInfoUpdaterImpl extends HighlightInfoUpdater impleme
     if (map.isEmpty()) return elements;
     ToolHighlights toolHighlights = map.get(toolId);
     if (toolHighlights == null) return elements;
-    Map<PsiElement, List<? extends HighlightInfo>> highlights = toolHighlights.elementHighlights;
+    return sortByPsiElementFertility(elements, toolHighlights.elementHighlights);
+  }
+
+  @VisibleForTesting
+  static @NotNull @Unmodifiable List<? extends PsiElement> sortByPsiElementFertility(
+    @NotNull @Unmodifiable List<? extends PsiElement> elements,
+    @NotNull Map<PsiElement, ? extends List<? extends HighlightInfo>> highlights) {
+    ProgressManager.checkCanceled();
     if (highlights.isEmpty()) return elements;
-    return ContainerUtil.sorted(elements,
-    (e1, e2) -> {
-      List<? extends HighlightInfo> infos1 = highlights.get(e1);
-      List<? extends HighlightInfo> infos2 = highlights.get(e2);
-      if (infos1 == null || infos2 == null) {
-        if (infos1 != null) { // put fertile element first
-          return -1;
-        }
-        else if (infos2 != null) {
-          return 1;
-        }
-        else {
-          return Integer.compare(System.identityHashCode(e1), System.identityHashCode(e2)); // for consistency
-        }
+    record FertileElement(@NotNull PsiElement element, @NotNull HighlightSeverity maxSeverity) { }
+    var fertileElements = new ArrayList<FertileElement>();
+    var otherElements = new ArrayList<PsiElement>();
+    for (PsiElement element : elements) {
+      ProgressManager.checkCanceled();
+      var infos = highlights.get(element);
+      if (infos == null) {
+        otherElements.add(element);
       }
-      // put error-generating element first
-      return maxSeverity(infos2).compareTo(maxSeverity(infos1));
+      else {
+        fertileElements.add(new FertileElement(element, maxSeverity(infos)));
+      }
+    }
+    if (fertileElements.isEmpty()) return elements;
+    fertileElements.sort((e1, e2) -> {
+      ProgressManager.checkCanceled();
+      return e2.maxSeverity().compareTo(e1.maxSeverity());
     });
+    var result = new ArrayList<PsiElement>(elements.size());
+    for (FertileElement element : fertileElements) {
+      ProgressManager.checkCanceled();
+      result.add(element.element());
+    }
+    for (PsiElement element : otherElements) {
+      ProgressManager.checkCanceled();
+      result.add(element);
+    }
+    return Collections.unmodifiableList(result);
   }
 
   private static @NotNull HighlightSeverity maxSeverity(@NotNull List<? extends HighlightInfo> infos) {
     HighlightSeverity max = HighlightSeverity.INFORMATION;
     for (HighlightInfo info : infos) {
+      ProgressManager.checkCanceled();
       HighlightSeverity severity = info.getSeverity();
       if (severity.compareTo(max) > 0) max = severity;
     }

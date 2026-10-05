@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.terminal.emulator.impl.ghostty.bindings
 
+import com.intellij.terminal.emulator.TerminalKey
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
@@ -20,6 +21,9 @@ import kotlin.enums.enumEntries
  *   Every Kotlin member must still match its C counterpart by name and value; the C side may have more.
  * - [Coverage.EXHAUSTIVE]: an enum meant to mirror the whole C enum. The two must describe exactly
  *   the same set of names, so a C-side addition fails the test until the Kotlin side is updated.
+ *
+ * [TerminalKey] is checked here too, although it is API rather than a binding: the Ghostty backend
+ * passes its ordinal as the C value, so it must mirror `GhosttyKey` exhaustively.
  *
  * Not covered: [GhosttyMode] (a `uint16_t` packed DEC/ANSI mode id, not a C `enum`) and [GhosttyMods]
  * (a bit-flag object, not an `enum class`) — `ghostty_type_json()` has no enum descriptor for either.
@@ -98,6 +102,11 @@ internal class GhosttyEnumsTest {
   @Test
   fun ghosttyOptionAsAlt() {
     assertMirrors<GhosttyOptionAsAlt>("GhosttyOptionAsAlt", Coverage.EXHAUSTIVE) { it.code }
+  }
+
+  @Test
+  fun terminalKeyMirrorsGhosttyKey() {
+    assertMirrors<TerminalKey>("GhosttyKey", Coverage.EXHAUSTIVE) { it.ordinal }
   }
 
   // GhosttyCursorVisualStyle mirrors two distinct C enums that happen to share one numeric layout

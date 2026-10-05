@@ -12,8 +12,8 @@ import org.jetbrains.annotations.ApiStatus
  * separately in [TerminalKeyEvent.text].
  *
  * The declaration order mirrors `GhosttyKey` (`ghostty/vt/key/event.h`), and the Ghostty backend
- * uses the ordinal as the C ABI value: do not reorder or insert entries. The encoding tests fail
- * loudly if the orders drift apart.
+ * uses the ordinal as the C ABI value: do not reorder or insert entries. `GhosttyEnumsTest` checks
+ * the order against the ABI manifest compiled into the library.
  */
 @Suppress("unused") // the complete physical-key set is the API, referenced or not
 @ApiStatus.Internal

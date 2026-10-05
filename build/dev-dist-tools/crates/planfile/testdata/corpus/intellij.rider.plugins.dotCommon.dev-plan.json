@@ -28,7 +28,7 @@
             }
         },
         {
-            "destination": "",
+            "destination": "DotFiles",
             "inputs": [
                 "layout-assets:platform-resource-generator:0:output"
             ],
@@ -49,6 +49,7 @@
             "manifest": "keep",
             "layoutAssets": {
                 "format": "tree",
+                "root": "DotFiles",
                 "assets": [
                     {
                         "destination": "",

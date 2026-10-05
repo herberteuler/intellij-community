@@ -10,6 +10,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.pom.Navigatable;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.concurrency.annotations.RequiresReadLock;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
@@ -74,15 +75,15 @@ public final class MavenDependencyAnalyzeConsoleFilter implements Filter {
   }
 
   /**
-   * Navigates to the {@code <dependency>} declaration of {@code groupId:artifactId}. Package-private so that the
-   * resolution logic can be exercised directly by tests.
+   * Navigates to the {@code <dependency>} declaration of {@code groupId:artifactId}.
    */
-  static final class DependencyHyperlinkInfo implements HyperlinkInfo {
+  @ApiStatus.Internal
+  public static final class DependencyHyperlinkInfo implements HyperlinkInfo {
     private final @NotNull String myGroupId;
     private final @NotNull String myArtifactId;
     private final @Nullable String myModuleArtifactId;
 
-    DependencyHyperlinkInfo(@NotNull String groupId, @NotNull String artifactId, @Nullable String moduleArtifactId) {
+    public DependencyHyperlinkInfo(@NotNull String groupId, @NotNull String artifactId, @Nullable String moduleArtifactId) {
       myGroupId = groupId;
       myArtifactId = artifactId;
       myModuleArtifactId = moduleArtifactId;
@@ -100,8 +101,9 @@ public final class MavenDependencyAnalyzeConsoleFilter implements Filter {
         .submit(AppExecutorUtil.getAppExecutorService());
     }
 
+    @VisibleForTesting
     @RequiresReadLock
-    @Nullable Navigatable findTargetNavigatable(@NotNull Project project) {
+    public @Nullable Navigatable findTargetNavigatable(@NotNull Project project) {
       if (project.isDisposed()) return null;
       MavenProjectsManager manager = MavenProjectsManager.getInstance(project);
 
@@ -133,17 +135,17 @@ public final class MavenDependencyAnalyzeConsoleFilter implements Filter {
     }
 
     @VisibleForTesting
-    @NotNull String getGroupId() {
+    public @NotNull String getGroupId() {
       return myGroupId;
     }
 
     @VisibleForTesting
-    @NotNull String getArtifactId() {
+    public @NotNull String getArtifactId() {
       return myArtifactId;
     }
 
     @VisibleForTesting
-    @Nullable String getModuleArtifactId() {
+    public @Nullable String getModuleArtifactId() {
       return myModuleArtifactId;
     }
   }

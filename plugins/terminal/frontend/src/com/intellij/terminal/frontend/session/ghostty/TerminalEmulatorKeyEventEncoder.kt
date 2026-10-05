@@ -126,11 +126,14 @@ internal class TerminalEmulatorKeyEventEncoder(
       if (e.isShiftDown) add(TerminalInputModifier.SHIFT)
       if (e.isMetaDown) add(TerminalInputModifier.SUPER)
     }
+    // Shift is consumed: the character already includes it. Otherwise, the Kitty keyboard
+    // protocol reports Shift+2 as a CSI u chord instead of typing "@".
     val event = TerminalKeyEvent(
       TerminalKey.UNIDENTIFIED,
       modifiers = modifiers,
       text = e.keyChar.toString(),
       unshiftedCodepoint = e.keyChar.lowercaseChar().code,
+      consumedModifiers = if (e.isShiftDown) setOf(TerminalInputModifier.SHIFT) else emptySet(),
     )
     val bytes = emulator.encodeKeyEvent(event)
     if (bytes.isEmpty()) {

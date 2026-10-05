@@ -233,6 +233,9 @@ enum class TerminalKeyAction {
  *   (`'a'.code` for the A key); 0 when not applicable. Used to derive control characters and Kitty
  *   key codes for keys whose [text] is suppressed by modifiers.
  * @param composing whether an IME composition is in progress; composing events produce no bytes.
+ * @param consumedModifiers the subset of [modifiers] the keyboard layout used to produce
+ *   [text], e.g. [TerminalInputModifier.SHIFT] for "@" typed as Shift+2. The Kitty keyboard
+ *   protocol sends [text] as is only when no unconsumed modifier is left.
  */
 @ApiStatus.Internal
 class TerminalKeyEvent(
@@ -242,4 +245,5 @@ class TerminalKeyEvent(
   val text: String = "",
   val unshiftedCodepoint: Int = 0,
   val composing: Boolean = false,
+  val consumedModifiers: Set<TerminalInputModifier> = emptySet(),
 )

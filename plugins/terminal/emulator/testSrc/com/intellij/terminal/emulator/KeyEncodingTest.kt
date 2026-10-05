@@ -188,6 +188,16 @@ class KeyEncodingTest {
   }
 
   @Test
+  fun `kitty disambiguate mode types shifted characters when shift is consumed`() = keys { k ->
+    k.session.write(csi(">1u"))
+    val shift = setOf(TerminalInputModifier.SHIFT)
+    k.assertEncodes("@", TerminalKey.UNIDENTIFIED, mods = shift, consumed = shift, text = "@", unshifted = '@'.code)
+    k.assertEncodes("A", TerminalKey.UNIDENTIFIED, mods = shift, consumed = shift, text = "A", unshifted = 'a'.code)
+    // An unconsumed shift makes the text a chord, which fish ignores (IJPL-255707).
+    k.assertEncodes(csi("64;2u"), TerminalKey.UNIDENTIFIED, mods = shift, text = "@", unshifted = '@'.code)
+  }
+
+  @Test
   fun `kitty report-events mode encodes key releases`() = keys { k ->
     k.session.write(csi(">3u")) // disambiguate + report release events
     k.assertEncodes(csi("97;5u"), TerminalKey.A, mods = setOf(TerminalInputModifier.CTRL), unshifted = 'a'.code)
@@ -220,13 +230,16 @@ class KeyEncodingTest {
       key: TerminalKey,
       action: TerminalKeyAction = TerminalKeyAction.PRESS,
       mods: Set<TerminalInputModifier> = emptySet(),
+      consumed: Set<TerminalInputModifier> = emptySet(),
       text: String = "",
       unshifted: Int = 0,
       awtKey: Int? = null,
       awtMods: Int = 0,
+      composing: Boolean = false,
     ) {
-      val event = TerminalKeyEvent(key, action, mods, text, unshifted)
-      val actual = session.emulator.encodeKeyEvent(event).toString(Charsets.ISO_8859_1)
+      val event = TerminalKeyEvent(key, action, mods, text, unshifted, composing, consumed)
+      // UTF-8, not Latin-1: the encoder writes escape sequences and UTF-8 text, never a lone high byte.
+      val actual = session.emulator.encodeKeyEvent(event).toString(Charsets.UTF_8)
       assertThat(actual.escaped())
         .describedAs("ghostty encoding of $key action=$action mods=$mods")
         .isEqualTo(expected.escaped())

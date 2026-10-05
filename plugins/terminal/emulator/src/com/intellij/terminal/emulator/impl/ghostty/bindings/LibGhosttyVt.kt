@@ -225,6 +225,11 @@ internal object LibGhosttyVt {
     KEY_EVENT_SET_MODS.invokeExact(event, mods)
   }
 
+  /** `ghostty_key_event_set_consumed_mods`: set the [GhosttyMods] bitmask the layout used to produce the text. */
+  fun keyEventSetConsumedMods(event: MemorySegment, mods: Short) {
+    KEY_EVENT_SET_CONSUMED_MODS.invokeExact(event, mods)
+  }
+
   /** `ghostty_key_event_set_utf8`: set the layout-produced text; the event borrows [utf8] until re-set. */
   fun keyEventSetUtf8(event: MemorySegment, utf8: MemorySegment, len: Long) {
     KEY_EVENT_SET_UTF8.invokeExact(event, utf8, len)
@@ -480,6 +485,8 @@ internal object LibGhosttyVt {
   private val KEY_EVENT_SET_KEY: MethodHandle by lazy { downcall("ghostty_key_event_set_key",
     FunctionDescriptor.ofVoid(C_PTR, C_INT)) }
   private val KEY_EVENT_SET_MODS: MethodHandle by lazy { downcall("ghostty_key_event_set_mods",
+    FunctionDescriptor.ofVoid(C_PTR, C_SHORT)) }
+  private val KEY_EVENT_SET_CONSUMED_MODS: MethodHandle by lazy { downcall("ghostty_key_event_set_consumed_mods",
     FunctionDescriptor.ofVoid(C_PTR, C_SHORT)) }
   private val KEY_EVENT_SET_UTF8: MethodHandle by lazy { downcall("ghostty_key_event_set_utf8",
     FunctionDescriptor.ofVoid(C_PTR, C_PTR, C_LONG)) }

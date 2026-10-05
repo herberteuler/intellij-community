@@ -659,6 +659,7 @@ internal class GhosttyTerminalEmulator(
       // TerminalKey mirrors GhosttyKey entry by entry, so the ordinal is the C value.
       LibGhosttyVt.keyEventSetKey(keyEvent, event.key.ordinal)
       LibGhosttyVt.keyEventSetMods(keyEvent, modsBits(event.modifiers))
+      LibGhosttyVt.keyEventSetConsumedMods(keyEvent, modsBits(event.consumedModifiers))
       setKeyEventText(event.text)
       LibGhosttyVt.keyEventSetUnshiftedCodepoint(keyEvent, event.unshiftedCodepoint)
       LibGhosttyVt.keyEventSetComposing(keyEvent, event.composing)

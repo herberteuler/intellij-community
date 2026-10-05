@@ -99,6 +99,18 @@ internal class TerminalSessionKeyEventTest : GhosttyTerminalSessionTestCase() {
   }
 
   @Test
+  fun `shifted characters are sent as text under the Kitty keyboard protocol`() = runSessionTest { session, connector, _ ->
+    applyModes(connector, csi(">1u")) // fish pushes "disambiguate escape codes"
+    for (ch in listOf('@', 'A', '?')) {
+      val result = session.processKeyEvent(typed(ch, InputEvent.SHIFT_DOWN_MASK))
+      assertThat(result).isInstanceOf(KeyEventProcessingResultDto.StringResult::class.java)
+      assertThat((result as KeyEventProcessingResultDto.StringResult).string).isEqualTo(ch.toString())
+    }
+  }
+
+  // ---- policy of this layer ----
+
+  @Test
   fun `key releases are left to the IDE`() = runSessionTest { session, _, _ ->
     val release = KeyEvent(eventSource, KeyEvent.KEY_RELEASED, 0, 0, KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED)
     assertThat(session.processKeyEvent(release)).isEqualTo(KeyEventProcessingResultDto.Unhandled)

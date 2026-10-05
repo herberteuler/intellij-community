@@ -120,6 +120,14 @@ internal class EditorEmptyStateComponentController(
    * later, so the request is remembered until there is something to focus, and dropped as soon as the area stops being empty.
    */
   private var focusRequest: EmptyStateFocusRequest? = null
+
+  /**
+   * The honoured request whose focus transfer has not finished yet.
+   *
+   * Its focus listener holds the focus target, which is the component of this empty state. The transfer can stay unfinished, for
+   * example when the frame never gets the focus, so [disposeComponents] settles the request, and the listener lets go of the component.
+   */
+  private var pendingFocusTransfer: EmptyStateFocusRequest? = null
   private var focusRequesterForTests: ((JComponent, () -> Unit) -> Unit)? = null
 
   init {
@@ -248,6 +256,10 @@ internal class EditorEmptyStateComponentController(
     try {
       val outcome = focusClaimedComponent(request)
       focusTransferPending = outcome == FocusOutcome.TRANSFER_PENDING
+      if (focusTransferPending) {
+        pendingFocusTransfer?.settled?.complete(Unit)
+        pendingFocusTransfer = request
+      }
       if (outcome == FocusOutcome.UNCLAIMED) {
         request.onFocusUnclaimed?.invoke()
       }
@@ -361,6 +373,8 @@ internal class EditorEmptyStateComponentController(
     // being empty when an editor takes it over, and that editor is focused by whoever opened it.
     focusRequest?.settled?.complete(Unit)
     focusRequest = null
+    pendingFocusTransfer?.settled?.complete(Unit)
+    pendingFocusTransfer = null
     val host = componentHost ?: return
     // uninstalling fires `removeNotify` on a provider's component, which may release an editor — see [mount]
     WriteIntentReadAction.run {

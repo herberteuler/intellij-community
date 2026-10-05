@@ -22,7 +22,6 @@ import java.lang.ref.WeakReference
 
 @TestApplication
 @UsePMarkerImplementation
-@RegistryKey(key = "editor.use.new.soft.wraps.impl", value = "true")
 @RegistryKey(key = "editor.custom.soft.wraps.support.enabled", value = "true")
 class SnapshotCustomWrapModelTest {
   @Test

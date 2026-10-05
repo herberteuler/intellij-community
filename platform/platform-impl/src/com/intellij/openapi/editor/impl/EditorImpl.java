@@ -612,9 +612,7 @@ public final class EditorImpl extends UserDataHolderBase implements EditorEx, Hi
     else {
       myCustomWrapModel = EmptyCustomWrapModel.INSTANCE;
     }
-    mySoftWrapModel = Registry.is("editor.use.new.soft.wraps.impl")
-                      ? new ExperimentalSoftWrapModelImpl(this)
-                      : new LegacySoftWrapModelImpl(this);
+    mySoftWrapModel = new SoftWrapModelImpl(this);
 
     myCommandProcessor = CommandProcessor.getInstance();
 

@@ -42,7 +42,6 @@ public class SoftWrapApplianceOnDocumentModificationTest extends AbstractEditorT
   @Override
   protected void setUp() throws Exception {
     super.setUp();
-    Registry.get("editor.use.new.soft.wraps.impl").setValue(false, getTestRootDisposable());
     if (getEditor() == null) {
       return;
     }

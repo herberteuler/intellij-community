@@ -231,6 +231,19 @@ f:com.intellij.openapi.editor.impl.EditorImpl
 - *:addHighlightingPredicate(com.intellij.openapi.util.Key,com.intellij.openapi.editor.impl.EditorHighlightingPredicate):com.intellij.openapi.editor.impl.EditorHighlightingPredicate
 - *:getCustomWrapModel():com.intellij.openapi.editor.CustomWrapModel
 - *:removeHighlightingPredicate(com.intellij.openapi.util.Key):com.intellij.openapi.editor.impl.EditorHighlightingPredicate
+f:com.intellij.openapi.editor.impl.SoftWrapModelImpl
+- com.intellij.openapi.editor.InlayModel$SimpleAdapter
+- com.intellij.diagnostic.Dumpable
+- com.intellij.openapi.Disposable
+- com.intellij.openapi.editor.CustomWrapModel$Listener
+- com.intellij.openapi.editor.ex.FoldingListener
+- com.intellij.openapi.editor.ex.PrioritizedDocumentListener
+- com.intellij.openapi.editor.ex.SoftWrapModelEx
+- java.beans.PropertyChangeListener
+- *:customWrapAdded(com.intellij.openapi.editor.CustomWrap):V
+- *:customWrapBatchMutationFinished():V
+- *:customWrapBatchMutationStarted():V
+- *:customWrapRemoved(com.intellij.openapi.editor.CustomWrap):V
 *f:com.intellij.openapi.editor.impl.event.EditorGutterHoverEvent
 - java.util.EventObject
 - <init>(com.intellij.openapi.editor.ex.EditorGutterComponentEx,com.intellij.openapi.editor.markup.GutterIconRenderer):V

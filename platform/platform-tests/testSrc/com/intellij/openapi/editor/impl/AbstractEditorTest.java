@@ -259,7 +259,6 @@ public abstract class AbstractEditorTest extends LightPlatformCodeInsightTestCas
 
   @ApiStatus.Experimental
   protected void setUpCustomWrapSupport(@NotNull Disposable disposable) {
-    Registry.get("editor.use.new.soft.wraps.impl").setValue(true, disposable);
     Registry.get("editor.custom.soft.wraps.support.enabled").setValue(true, disposable);
   }
 

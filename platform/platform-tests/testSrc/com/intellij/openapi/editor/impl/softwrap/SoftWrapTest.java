@@ -16,12 +16,6 @@ import java.util.regex.Pattern;
 
 @Ignore("AT-4013")
 public class SoftWrapTest extends AbstractEditorTest {
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-    Registry.get("editor.use.new.soft.wraps.impl").setValue(false, getTestRootDisposable());
-  }
-
   public void testCollapsedRegionWithLongPlaceholderAtLineStart1() {
     doTestSoftWraps(10, "<fold text='veryVeryVeryLongPlaceholder'>foo</fold>");
   }

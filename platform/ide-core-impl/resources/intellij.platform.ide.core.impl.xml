@@ -301,10 +301,7 @@ The refresh itself is toggled by (Preferences | Appearance &amp; Behavior | Syst
     <registryKey key="ide.suppress.low.memory.notifications.when.dumb" defaultValue="false"
                  description="Disables Low Memory notifications during indexing for the sake of less false-positive detection for users" />
     <registryKey key="editor.custom.soft.wraps.support.enabled" defaultValue="true"
-                 description="Enables support for custom soft wraps in the editor. Only takes effect if editor.use.new.soft.wraps.impl=true." restartRequired="true"/>
-    <registryKey key="editor.use.new.soft.wraps.impl" defaultValue="true"
-                 description="Use the new custom-wrap aware soft wraps implementation (in favor of the legacy implementation)."
-                 restartRequired="true"/>
+                 description="Enables support for custom soft wraps in the editor." restartRequired="true"/>
     <registryKey key="editor.invisible.hyperlink.popup.delay.ms" defaultValue="180"
                  description="Delay in milliseconds before showing the 'Open' popup for an invisible hyperlink on a single click.\n
                   Multi-clicks within the delay suppress the popup, so text selection with double-/triple-clicks doesn't flash it.\n

@@ -3,7 +3,6 @@ package com.intellij.openapi.editor
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.registry.Registry
-import com.intellij.util.concurrency.annotations.RequiresEdt
 import org.jetbrains.annotations.ApiStatus
 import java.util.EventListener
 
@@ -48,6 +47,7 @@ interface CustomWrapModel {
      * @param indentInColumns Non-negative number of columns to indent after the wrap.
      */
     fun addWrap(offset: Int, indentInColumns: Int = 0, priority: Int = 0): CustomWrap?
+
     /**
      * @return Whether [wrap] was removed as a result of this operation
      */
@@ -64,7 +64,6 @@ interface CustomWrapModel {
   companion object {
     @JvmStatic
     fun isCustomWrapsSupportEnabled(): Boolean =
-      Registry.`is`("editor.custom.soft.wraps.support.enabled") &&
-      Registry.`is`("editor.use.new.soft.wraps.impl")
+      Registry.`is`("editor.custom.soft.wraps.support.enabled")
   }
 }

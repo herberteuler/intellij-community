@@ -2844,7 +2844,7 @@ f:com.intellij.openapi.editor.impl.SelectionModelImpl
 - addSelectionListener(com.intellij.openapi.editor.event.SelectionListener):V
 - getBlockSelectionEnds():I[]
 - getBlockSelectionStarts():I[]
-Fa:com.intellij.openapi.editor.impl.SoftWrapModelImpl
+f:com.intellij.openapi.editor.impl.SoftWrapModelImpl
 - com.intellij.openapi.editor.InlayModel$SimpleAdapter
 - com.intellij.diagnostic.Dumpable
 - com.intellij.openapi.Disposable
@@ -2853,11 +2853,35 @@ Fa:com.intellij.openapi.editor.impl.SoftWrapModelImpl
 - com.intellij.openapi.editor.ex.PrioritizedDocumentListener
 - com.intellij.openapi.editor.ex.SoftWrapModelEx
 - java.beans.PropertyChangeListener
-- <init>():V
-- a:getApplianceManager():com.intellij.openapi.editor.impl.softwrap.mapping.SoftWrapApplianceManager
-- f:getRegisteredSoftWraps():java.util.List
-- f:getSoftWrap(I):com.intellij.openapi.editor.SoftWrap
-- a:isDirty():Z
+- addSoftWrapChangeListener(com.intellij.openapi.editor.ex.SoftWrapChangeListener):Z
+- beforeDocumentChange(com.intellij.openapi.editor.event.DocumentEvent):V
+- beforeDocumentChangeAtCaret():V
+- beforeFoldRegionDisposed(com.intellij.openapi.editor.FoldRegion):V
+- dispose():V
+- documentChanged(com.intellij.openapi.editor.event.DocumentEvent):V
+- dumpState():java.lang.String
+- forceAdditionalColumnsUsage():V
+- getApplianceManager():com.intellij.openapi.editor.impl.softwrap.mapping.SoftWrapApplianceManager
+- getMinDrawingWidthInPixels(com.intellij.openapi.editor.impl.softwrap.SoftWrapDrawingType):I
+- getPriority():I
+- getRegisteredSoftWraps():java.util.List
+- getSoftWrap(I):com.intellij.openapi.editor.SoftWrap
+- getSoftWrapIndex(I):I
+- getSoftWrapsForLine(I):java.util.List
+- getSoftWrapsForRange(I,I):java.util.List
+- isDirty():Z
+- isInsideOrBeforeSoftWrap(com.intellij.openapi.editor.VisualPosition):Z
+- isInsideSoftWrap(com.intellij.openapi.editor.VisualPosition):Z
+- isRespectAdditionalColumns():Z
+- isSoftWrappingEnabled():Z
+- isVisible(com.intellij.openapi.editor.SoftWrap):Z
+- onBatchModeFinish(com.intellij.openapi.editor.Editor):V
+- onFoldProcessingEnd():V
+- onFoldRegionStateChange(com.intellij.openapi.editor.FoldRegion):V
+- onUpdated(com.intellij.openapi.editor.Inlay,I):V
+- paint(java.awt.Graphics,com.intellij.openapi.editor.impl.softwrap.SoftWrapDrawingType,I,I,I):I
+- propertyChange(java.beans.PropertyChangeEvent):V
+- release():V
 com.intellij.openapi.editor.impl.TextDrawingCallback
 - a:drawChars(java.awt.Graphics,C[],I,I,I,I,java.awt.Color,com.intellij.openapi.editor.impl.FontInfo):V
 f:com.intellij.openapi.editor.impl.TrailingSpacesStripper

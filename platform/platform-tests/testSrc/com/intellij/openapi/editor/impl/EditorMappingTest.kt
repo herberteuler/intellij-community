@@ -136,15 +136,7 @@ class EditorMappingTest : AbstractEditorTest() {
     assertEquals(2, editorImpl.offsetToVisualLine(8, false))
   }
 
-  fun `test offsetToVisualLine with legacy soft wrap implementation`() {
-    doTestOffsetToVisualLineWithSoftWrapImplementation(useNewSoftWraps = false)
-  }
-
-  fun `test offsetToVisualLine with experimental soft wrap implementation`() {
-    doTestOffsetToVisualLineWithSoftWrapImplementation(useNewSoftWraps = true)
-  }
-
-  fun `test offsetToVisualLine with experimental custom soft wrap`() {
+  fun `test offsetToVisualLine with custom soft wrap`() {
     setUpCustomWrapSupport()
     initText("abcdefghi")
 
@@ -434,15 +426,7 @@ class EditorMappingTest : AbstractEditorTest() {
     assertEquals(4, editorImpl.visualLineStartOffset(1))
   }
 
-  fun `test visualLineStartOffset with legacy soft wrap implementation`() {
-    doTestVisualLineStartOffsetWithSoftWrapImplementation(useNewSoftWraps = false)
-  }
-
-  fun `test visualLineStartOffset with experimental soft wrap implementation`() {
-    doTestVisualLineStartOffsetWithSoftWrapImplementation(useNewSoftWraps = true)
-  }
-
-  fun `test visualLineStartOffset with experimental custom soft wrap`() {
+  fun `test visualLineStartOffset with custom soft wrap`() {
     setUpCustomWrapSupport()
     initText("abcdefghi")
 
@@ -456,30 +440,6 @@ class EditorMappingTest : AbstractEditorTest() {
     initText("a\n${SURROGATE_PAIR}bcde")
 
     assertEquals(2, editorImpl.visualLineStartOffset(1))
-  }
-
-  private fun doTestVisualLineStartOffsetWithSoftWrapImplementation(useNewSoftWraps: Boolean) {
-    Registry.get("editor.use.new.soft.wraps.impl").setValue(useNewSoftWraps, getTestRootDisposable())
-    initText("abcdefghi")
-    configureSoftWraps(4)
-    verifySoftWrapPositions(4, 7)
-
-    assertEquals(0, editorImpl.visualLineStartOffset(0))
-    assertEquals(4, editorImpl.visualLineStartOffset(1))
-    assertEquals(7, editorImpl.visualLineStartOffset(2))
-    assertEquals(editor.document.textLength, editorImpl.visualLineStartOffset(3))
-  }
-
-  private fun doTestOffsetToVisualLineWithSoftWrapImplementation(useNewSoftWraps: Boolean) {
-    Registry.get("editor.use.new.soft.wraps.impl").setValue(useNewSoftWraps, getTestRootDisposable())
-    initText("abcdefghi")
-    configureSoftWraps(4)
-    verifySoftWrapPositions(4, 7)
-
-    assertEquals(0, editorImpl.offsetToVisualLine(4, true))
-    assertEquals(1, editorImpl.offsetToVisualLine(4, false))
-    assertEquals(1, editorImpl.offsetToVisualLine(7, true))
-    assertEquals(2, editorImpl.offsetToVisualLine(7, false))
   }
 
   private fun assertVisualLineStartOffsets(vararg expectedOffsets: Int) {

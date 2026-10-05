@@ -320,6 +320,7 @@
   {"apiName": "com.intellij.codeInsight.editorActions.enter.EnterHandlerDelegateAdapter", "extensionPointNames": ["com.intellij.enterHandlerDelegate"], "targetModules": ["backend", "shared"], "restrictionKind": "genericPlatformApi"},
   {"apiName": "com.intellij.codeInsight.editorActions.smartEnter.SmartEnterProcessor", "extensionPointNames": ["com.intellij.lang.smartEnterProcessor"], "targetModules": ["backend", "shared"], "restrictionKind": "genericPlatformApi"},
   {"apiName": "com.intellij.codeInsight.highlighting.BraceMatcher", "extensionPointNames": ["com.intellij.braceMatcher", "com.intellij.lang.braceMatcher"], "targetModules": ["backend", "shared"], "restrictionKind": "genericPlatformApi"},
+  {"apiName": "org.jetbrains.plugins.terminal.startup.ShellExecOptionsCustomizer", "extensionPointNames": ["org.jetbrains.plugins.terminal.shellExecOptionsCustomizer"], "targetModules": ["backend", "shared"], "restrictionKind": "genericPlatformApi"},
 
 
 
@@ -338,5 +339,6 @@
   {"apiName": "com.intellij.psi.codeStyle.CodeStyleSettingsProvider", "extensionPointNames": ["com.intellij.codeStyleSettingsProvider"], "targetModules": ["frontend", "shared"], "restrictionKind": "genericPlatformApi", "hint": "Language supporting extensions belong to shared, if the language supports injections. Otherwise frontend."},
   {"apiName": "com.intellij.openapi.fileTypes.SyntaxHighlighter", "extensionPointNames": ["com.intellij.syntaxHighlighter", "com.intellij.lang.syntaxHighlighter"], "targetModules": ["frontend", "shared"], "restrictionKind": "genericPlatformApi", "hint": "Language supporting extensions belong to shared, if the language supports injections. Otherwise frontend."},
   {"apiName": "com.intellij.openapi.fileTypes.SyntaxHighlighterFactory", "extensionPointNames": ["com.intellij.lang.syntaxHighlighterFactory"], "targetModules": ["frontend", "shared"], "restrictionKind": "genericPlatformApi", "hint": "Language supporting extensions belong to shared, if the language supports injections. Otherwise frontend."},
-  {"apiName": "com.intellij.openapi.fileTypes.EditorHighlighterProvider", "extensionPointNames": ["com.intellij.editorHighlighterProvider"], "targetModules": ["frontend", "shared"], "restrictionKind": "genericPlatformApi", "hint": "Language supporting extensions belong to shared, if the language supports injections. Otherwise frontend."}
+  {"apiName": "com.intellij.openapi.fileTypes.EditorHighlighterProvider", "extensionPointNames": ["com.intellij.editorHighlighterProvider"], "targetModules": ["frontend", "shared"], "restrictionKind": "genericPlatformApi", "hint": "Language supporting extensions belong to shared, if the language supports injections. Otherwise frontend."},
+  {"apiName": "org.jetbrains.plugins.terminal.startup.TerminalWorkingDirectoryCustomizer", "extensionPointNames": ["org.jetbrains.plugins.terminal.workingDirectoryCustomizer"], "targetModules": ["frontend", "shared"], "restrictionKind": "genericPlatformApi"}
 ]

@@ -261,7 +261,7 @@ public final class ToolsImpl implements Tools {
   @Override
   public @NotNull InspectionToolWrapper<?, ?> getTool() {
     if (myTools == null) return myDefaultState.getTool();
-    return myTools.iterator().next().getTool();
+    return myTools.getFirst().getTool();
   }
 
   @Override
@@ -516,11 +516,13 @@ public final class ToolsImpl implements Tools {
   public boolean equals(Object o) {
     if (!(o instanceof ToolsImpl tools)) return false;
     if (myEnabled != tools.myEnabled) return false;
-    if (getTools().size() != tools.getTools().size()) return false;
-    for (int i = 0; i < getTools().size(); i++) {
-      ScopeToolState state = getTools().get(i);
-      ScopeToolState toolState = tools.getTools().get(i);
-      if (!state.equalTo(toolState)) {
+    List<ScopeToolState> myTools = getTools();
+    List<ScopeToolState> theirTools = tools.getTools();
+    if (myTools.size() != theirTools.size()) return false;
+    for (int i = 0; i < myTools.size(); i++) {
+      ScopeToolState myState = myTools.get(i);
+      ScopeToolState theirState = theirTools.get(i);
+      if (!myState.equalTo(theirState)) {
         return false;
       }
     }

@@ -372,6 +372,8 @@ object CommunityModuleSets {
     onDemandModule("intellij.rd.client", restricted = true)
     onDemandModule("intellij.rd.client.debugger", restricted = true)
     onDemandModule("intellij.rd.client.baseline", restricted = true)
+    // the old ID of `intellij.rd.client.baseline`, kept for the plugins that still depend on it
+    onDemandModule("intellij.rd.client.base", restricted = true)
     onDemandModule("intellij.rd.client.internal", restricted = true)
   }
 
@@ -381,7 +383,7 @@ object CommunityModuleSets {
    */
   fun rdClientActivation(): ModuleActivation = ModuleActivation.create(
     required = listOf("intellij.rd.client", "intellij.rd.client.baseline"),
-    allowed = listOf("intellij.rd.client.debugger", "intellij.rd.client.internal", "intellij.rd.client.testFramework"),
+    allowed = listOf("intellij.rd.client.debugger", "intellij.rd.client.base", "intellij.rd.client.internal", "intellij.rd.client.testFramework"),
   )
 
   /**

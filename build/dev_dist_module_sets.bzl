@@ -1597,6 +1597,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.rd.client",
             "intellij.rd.client.debugger",
             "intellij.rd.client.baseline",
+            "intellij.rd.client.base",
             "intellij.rd.client.internal",
         ],
         nested = [
@@ -1604,6 +1605,7 @@ DEV_DIST_MODULE_SETS = {
         loading = {
             "intellij.platform.split.protocol": "on-demand",
             "intellij.rd.client": "on-demand",
+            "intellij.rd.client.base": "on-demand",
             "intellij.rd.client.baseline": "on-demand",
             "intellij.rd.client.debugger": "on-demand",
             "intellij.rd.client.internal": "on-demand",

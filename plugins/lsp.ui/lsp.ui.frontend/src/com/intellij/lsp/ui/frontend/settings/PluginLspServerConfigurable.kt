@@ -86,7 +86,6 @@ internal class PluginLspServerConfigurable(
         }
       }
 
-      separator()
 
       group(LspUiBundle.message("lsp.settings.server.configuration.section")) {
         row(LspUiBundle.message("lsp.settings.server.executable")) {
@@ -161,6 +160,7 @@ internal class PluginLspServerConfigurable(
 
       row {
         label(LspUiBundle.message("lsp.settings.server.init"))
+          .contextHelp(LspUiBundle.message("lsp.settings.server.init.comment"))
       }
       row {
         cell(initializationOptionsEditor.component)
@@ -169,7 +169,6 @@ internal class PluginLspServerConfigurable(
           }
           .align(Align.FILL)
           .resizableColumn()
-          .comment(LspUiBundle.message("lsp.settings.server.init.comment"))
           .onApply { configuration = configuration.copy(initializationOptions = initializationOptionsEditor.document.text) }
           .onIsModified { configuration.initializationOptions != initializationOptionsEditor.document.text }
           .onReset {
@@ -177,6 +176,7 @@ internal class PluginLspServerConfigurable(
           }
         panel {}
       }.resizableRow()
+        .bottomGap(BottomGap.SMALL)
     }
   }
 
@@ -193,7 +193,7 @@ internal class PluginLspServerNamedConfigurable(
   private val configuration: LspPluginServerConfiguration,
   private val pluginDescriptor: PluginDescriptor,
   private val updateTree: Runnable,
-) : com.intellij.openapi.ui.NamedConfigurable<LspPluginServerConfiguration>(), Disposable {
+) : NamedConfigurable<LspPluginServerConfiguration>(), Disposable {
   private var serverConfigurable: PluginLspServerConfigurable? = null
 
   override fun setDisplayName(name: String) {

@@ -86,8 +86,6 @@ internal class LspServerConfigurable(
           .focused()
       }
 
-      separator()
-
       group(LspUiBundle.message("lsp.settings.server.configuration.section")) {
         lateinit var stdioRadioButton: Cell<JBRadioButton>
         lateinit var socketRadioButton: Cell<JBRadioButton>
@@ -180,6 +178,7 @@ internal class LspServerConfigurable(
 
       row {
         label(LspUiBundle.message("lsp.settings.server.init"))
+          .contextHelp(LspUiBundle.message("lsp.settings.server.init.comment"))
       }
       row {
         cell(initializationOptionsEditor.component)
@@ -188,7 +187,6 @@ internal class LspServerConfigurable(
           }
           .align(AlignX.FILL)
           .resizableColumn()
-          .comment(LspUiBundle.message("lsp.settings.server.init.comment"))
           .onApply { configuration.initializationOptions = initializationOptionsEditor.document.text }
           .onIsModified { configuration.initializationOptions != initializationOptionsEditor.document.text }
           .onReset {
@@ -196,6 +194,7 @@ internal class LspServerConfigurable(
           }
         panel {}
       }.resizableRow()
+        .bottomGap(BottomGap.SMALL)
     }
   }
 

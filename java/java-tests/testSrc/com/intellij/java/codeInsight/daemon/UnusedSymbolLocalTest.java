@@ -35,25 +35,18 @@ public class UnusedSymbolLocalTest extends DaemonAnalyzerTestCase {
     enableInspectionTool(new UnusedDeclarationInspection(true));
   }
 
-  public void testInnerClass() throws Exception { doTest(); }
-  public void testInnerClassWithMainMethod() throws Exception { doTest(); }
-  public void testInnerUsesSelf() throws Exception { doTest(); }
-  public void testLocalClass() throws Exception { doTest(); }
-  public void testRepeatableAnnotation() throws Exception { doTest(); }
-  public void testPrivateConstructor() throws Exception { doTest(); }
-  public void testEnumValueOf() throws Exception { doTest(); }
-  public void testImplicitClassInstanceMainWithoutParams() {
-    IdeaTestUtil.withLevel(myModule, LanguageLevel.JDK_21_PREVIEW, () -> {
-      try {
-        doTest();
-      }
-      catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    });
-  }
+  public void testInnerClass() { doTest(); }
+  public void testInnerClassWithMainMethod() { doTest(); }
+  public void testInnerUsesSelf() { doTest(); }
+  public void testLocalClass() { doTest(); }
+  public void testRepeatableAnnotation() { doTest(); }
+  public void testPrivateConstructor() { doTest(); }
+  public void testEnumValueOf() { doTest(); }
+  public void testJustIncremented() { doTest(); }
+  public void testImplicitClassInstanceMainWithoutParams() { IdeaTestUtil.withLevel(myModule, LanguageLevel.JDK_21_PREVIEW, () -> doTest()); }
+  public void testUnaryExpressionInSwitch() { IdeaTestUtil.withLevel(myModule, LanguageLevel.JDK_21_PREVIEW, () -> doTest()); }
 
-  public void testImplicitReadsWrites() throws Exception {
+  public void testImplicitReadsWrites() {
     ImplicitUsageProvider.EP_NAME.getPoint().registerExtension(new ImplicitUsageProvider() {
       @Override
       public boolean isImplicitUsage(@NotNull PsiElement element) {
@@ -71,25 +64,23 @@ public class UnusedSymbolLocalTest extends DaemonAnalyzerTestCase {
       }
     }, getTestRootDisposable());
 
-    doTest(); 
+    doTest();
   }
 
-  public void testChangeInsideCodeBlock() throws Exception {
+  public void testChangeInsideCodeBlock() {
     doTest();
     final Document document = myEditor.getDocument();
     Collection<HighlightInfo> collection = doHighlighting(HighlightSeverity.WARNING);
     assertEquals(2, collection.size());
 
-    final int offset = myEditor.getCaretModel().getOffset();
-    WriteCommandAction.runWriteCommandAction(null, () -> document.insertString(offset, "//"));
-
+    WriteCommandAction.runWriteCommandAction(null, () -> document.insertString(myEditor.getCaretModel().getOffset(), "//"));
     PsiDocumentManager.getInstance(getProject()).commitDocument(document);
 
     Collection<HighlightInfo> infos = doHighlighting(HighlightSeverity.WARNING);
     assertEquals(3, infos.size());
   }
 
-  public void testIgnoreUsagesFromTests() throws Exception {
+  public void testIgnoreUsagesFromTests() {
     UnusedDeclarationInspection inspection = new UnusedDeclarationInspection(true);
     inspection.setTestEntryPoints(false);
     enableInspectionTool(inspection);
@@ -105,7 +96,7 @@ public class UnusedSymbolLocalTest extends DaemonAnalyzerTestCase {
     doTest();
   }
 
-  public void testUsagesFromTests() throws Exception {
+  public void testUsagesFromTests() {
     createTestSourceFile("IconoclastTest.java", """
       public class IconoclastTest {
       
@@ -116,24 +107,34 @@ public class UnusedSymbolLocalTest extends DaemonAnalyzerTestCase {
     doTest();
   }
 
-  private void createTestSourceFile(String fileName, String text) throws IOException {
-    final @NotNull VirtualFile vDir = getTempDir().createVirtualDir();
-    VirtualFile virtualFile = WriteAction.computeAndWait(() -> {
-      if (!ModuleRootManager.getInstance(myModule).getFileIndex().isInSourceContent(vDir)) {
-        PsiTestUtil.addSourceContentToRoots(myModule, vDir, true);
-      }
+  private void createTestSourceFile(String fileName, String text) {
+    try {
+      final @NotNull VirtualFile vDir = getTempDir().createVirtualDir();
+      VirtualFile virtualFile = WriteAction.computeAndWait(() -> {
+        if (!ModuleRootManager.getInstance(myModule).getFileIndex().isInSourceContent(vDir)) {
+          PsiTestUtil.addSourceContentToRoots(myModule, vDir, true);
+        }
 
-      VirtualFile vFile = Objects.requireNonNull(vDir.createChildData(vDir, fileName));
-      VfsUtil.saveText(vFile, text);
-      return vFile;
-    });
-    IndexingTestUtil.waitUntilIndexesAreReady(myProject);
-    Objects.requireNonNull(myPsiManager.findFile(virtualFile));
-    allowTreeAccessForAllFiles();
+        VirtualFile vFile = Objects.requireNonNull(vDir.createChildData(vDir, fileName));
+        VfsUtil.saveText(vFile, text);
+        return vFile;
+      });
+      IndexingTestUtil.waitUntilIndexesAreReady(myProject);
+      Objects.requireNonNull(myPsiManager.findFile(virtualFile));
+      allowTreeAccessForAllFiles();
+    }
+    catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  private void doTest() throws Exception {
+  private void doTest() {
+    try {
     doTest(BASE_PATH + "/" + getTestName(false) + ".java", true, false);
+    }
+    catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override

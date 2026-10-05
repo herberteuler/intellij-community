@@ -45,6 +45,8 @@ import com.intellij.psi.PsiRecursiveElementWalkingVisitor;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiSubstitutor;
+import com.intellij.psi.PsiSwitchExpression;
+import com.intellij.psi.PsiSwitchLabeledRuleStatement;
 import com.intellij.psi.PsiVariable;
 import com.intellij.psi.ServerPageFile;
 import com.intellij.psi.impl.IncompleteModelUtil;
@@ -280,12 +282,14 @@ public final class LocalRefUseInfo {
     return null;
   }
 
-  // "var++;"
+  /// `var++;` or `var += x;`, but not when the result of a switch expression
   private static boolean isJustIncremented(@NotNull ReadWriteAccessDetector.Access access, @NotNull PsiElement refElement) {
     return access == ReadWriteAccessDetector.Access.ReadWrite &&
            refElement instanceof PsiExpression &&
-           refElement.getParent() instanceof PsiExpression &&
-           refElement.getParent().getParent() instanceof PsiExpressionStatement;
+           refElement.getParent() instanceof PsiExpression expression &&
+           expression.getParent() instanceof PsiExpressionStatement statement &&
+           !(statement.getParent() instanceof PsiSwitchLabeledRuleStatement rule &&
+             rule.getEnclosingSwitchBlock() instanceof PsiSwitchExpression);
   }
 
   public boolean isReferencedForWrite(@NotNull PsiVariable variable) {

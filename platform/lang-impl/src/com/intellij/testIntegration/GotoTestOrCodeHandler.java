@@ -135,8 +135,11 @@ public class GotoTestOrCodeHandler extends GotoTargetHandler {
   @Override
   protected @Nullable String getAdText(PsiElement source, int length) {
     if (length > 0 && !TestFinderHelper.isTest(source)) {
-      @Nls String advertisement = ApplicationManager.getApplication().getService(RunSelectedTestAdvertisement.class).generateAdvertisementText();
-      if (advertisement != null) return advertisement;
+      RunSelectedTestAdvertisement service = ApplicationManager.getApplication().getService(RunSelectedTestAdvertisement.class);
+      if (service != null) {
+        @Nls String advertisement = service.generateAdvertisementText();
+        if (advertisement != null) return advertisement;
+      }
     }
     return null;
   }

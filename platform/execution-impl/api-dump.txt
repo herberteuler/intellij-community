@@ -438,6 +438,16 @@ f:com.intellij.execution.runToolbar.RunToolbarRunProcess
 - getPillColor():com.intellij.ui.JBColor
 - getShortName():java.lang.String
 - getShowInBar():Z
+a:com.intellij.execution.runners.AbstractConsoleRunnerWithHistory
+- p:createConsoleExecAction(com.intellij.execution.console.ProcessBackedConsoleExecuteActionHandler):com.intellij.openapi.actionSystem.AnAction
+- p:createContentDescriptorAndActions():V
+- getConsoleExecuteActionHandler():com.intellij.execution.console.ProcessBackedConsoleExecuteActionHandler
+- getConsoleTitle():java.lang.String
+- getConsoleView():com.intellij.execution.console.LanguageConsoleView
+- getProcessHandler():com.intellij.execution.process.ProcessHandler
+- getProject():com.intellij.openapi.project.Project
+- getWorkingDir():java.lang.String
+- initAndRun():V
 c:com.intellij.execution.runners.ConsoleTitleGen
 - p:getActiveConsoles(java.lang.String):java.util.List
 - f:makeTitle():java.lang.String
@@ -912,9 +922,6 @@ f:com.intellij.terminal.TerminalUiSettingsManager
 - f:getTerminalColorPalette():com.intellij.terminal.TerminalColorPalette
 f:com.intellij.terminal.TerminalUiSettingsManager$Companion
 - f:getInstance():com.intellij.terminal.TerminalUiSettingsManager
-f:com.intellij.terminal.TerminalUtils
-- s:getTextInTerminal(java.awt.Component):java.lang.String
-- s:isTerminalComponent(java.awt.Component):Z
 c:com.intellij.terminal.pty.PtyProcessTtyConnector
 - com.jediterm.terminal.ProcessTtyConnector
 - com.jediterm.terminal.TtyConnectorResizeStrategyProvider

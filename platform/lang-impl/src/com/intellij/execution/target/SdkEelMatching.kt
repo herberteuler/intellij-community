@@ -4,6 +4,7 @@
 package com.intellij.execution.target
 
 import com.intellij.openapi.projectRoots.Sdk
+import com.intellij.openapi.projectRoots.TargetBasedSdkAdditionalDataMarker
 import com.intellij.platform.eel.EelMachine
 import com.intellij.platform.eel.provider.LocalEelMachine
 import com.intellij.platform.eel.provider.ownsPath
@@ -18,7 +19,7 @@ import java.nio.file.Path
  */
 @ApiStatus.Internal
 fun sdkMatchesEel(eelMachine: EelMachine, sdk: Sdk): Boolean {
-  if (sdk.sdkAdditionalData is TargetBasedSdkAdditionalData) {
+  if (sdk.sdkAdditionalData is TargetBasedSdkAdditionalDataMarker) {
     return true
   }
   val sdkHomePath = sdk.homePath ?: return false

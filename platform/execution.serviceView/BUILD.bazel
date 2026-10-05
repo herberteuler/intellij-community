@@ -54,6 +54,7 @@ jvm_library(
         "//libraries/fastutil",
         "//platform/util:util-ui",
         "//fleet/rhizomedb",
+        "//platform/execution-impl",
     ],
 )
 
@@ -99,6 +100,7 @@ jvm_library(
         "//libraries/fastutil:fastutil_test_lib",
         "//platform/util:util-ui_test_lib",
         "//fleet/rhizomedb:rhizomedb_test_lib",
+        "//platform/execution-impl:execution-impl_test_lib",
     ],
 )
 ### auto-generated section `build intellij.platform.execution.serviceView` end

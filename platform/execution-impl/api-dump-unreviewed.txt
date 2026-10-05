@@ -899,6 +899,23 @@ c:com.intellij.execution.runToolbar.components.TrimmedMiddleLabel
 - javax.swing.JLabel
 - <init>():V
 - p:paintComponent(java.awt.Graphics):V
+a:com.intellij.execution.runners.AbstractConsoleRunnerWithHistory
+- <init>(com.intellij.openapi.project.Project,java.lang.String,java.lang.String):V
+- p:constructConsoleTitle(java.lang.String):java.lang.String
+- p:createCloseAction(com.intellij.execution.Executor,com.intellij.execution.ui.RunContentDescriptor):com.intellij.openapi.actionSystem.AnAction
+- pa:createConsoleView():com.intellij.execution.console.LanguageConsoleView
+- pa:createExecuteActionHandler():com.intellij.execution.console.ProcessBackedConsoleExecuteActionHandler
+- pa:createProcess():java.lang.Process
+- pa:createProcessHandler(java.lang.Process):com.intellij.execution.process.OSProcessHandler
+- p:createStopAction():com.intellij.openapi.actionSystem.AnAction
+- p:fillToolBarActions(com.intellij.openapi.actionSystem.DefaultActionGroup,com.intellij.execution.Executor,com.intellij.execution.ui.RunContentDescriptor):java.util.List
+- p:finishConsole():V
+- p:getConsoleIcon():javax.swing.Icon
+- p:getExecutor():com.intellij.execution.Executor
+- isAutoFocusContent():Z
+- s:registerActionShortcuts(java.util.List,javax.swing.JComponent):V
+- p:shouldAddNumberToTitle():Z
+- p:showConsole(com.intellij.execution.Executor,com.intellij.execution.ui.RunContentDescriptor):V
 c:com.intellij.execution.runners.ConsoleTitleGen
 - <init>(com.intellij.openapi.project.Project,java.lang.String):V
 - <init>(com.intellij.openapi.project.Project,java.lang.String,Z):V
@@ -1818,9 +1835,6 @@ f:com.intellij.terminal.TerminalUiSettingsManager$State
 - f:setAutoShowDocumentationPopup(Z):V
 - f:setCursorShape(com.intellij.terminal.TerminalUiSettingsManager$CursorShape):V
 - f:setMaxVisibleCompletionItemsCount(I):V
-f:com.intellij.terminal.TerminalUtils
-- s:getSelectedTextInTerminal(java.awt.Component):java.lang.String
-- s:hasSelectionInTerminal(java.awt.Component):Z
 f:com.intellij.terminal.actions.TerminalActionUtil
 - s:createTerminalAction(com.intellij.terminal.JBTerminalWidget,com.intellij.openapi.actionSystem.AnAction):com.jediterm.terminal.ui.TerminalAction
 - s:createTerminalAction(com.intellij.terminal.JBTerminalWidget,com.jediterm.terminal.ui.TerminalActionPresentation,java.util.function.Predicate):com.jediterm.terminal.ui.TerminalAction

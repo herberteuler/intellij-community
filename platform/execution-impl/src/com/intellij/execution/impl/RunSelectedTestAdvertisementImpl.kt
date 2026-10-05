@@ -1,10 +1,11 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.testIntegration
+package com.intellij.execution.impl
 
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.lang.LangBundle
 import com.intellij.openapi.keymap.KeymapUtil.getPrimaryShortcut
 import com.intellij.openapi.keymap.KeymapUtil.getShortcutText
+import com.intellij.testIntegration.RunSelectedTestAdvertisement
 import org.jetbrains.annotations.Nls
 
 internal class RunSelectedTestAdvertisementImpl : RunSelectedTestAdvertisement {

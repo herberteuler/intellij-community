@@ -1,5 +1,5 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.platform.templates
+package com.intellij.execution.impl
 
 import com.intellij.execution.RunManager.Companion.getInstance
 import com.intellij.execution.configurations.ModuleBasedConfiguration
@@ -7,6 +7,7 @@ import com.intellij.execution.impl.RunManagerImpl.Companion.getInstanceImpl
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
+import com.intellij.platform.templates.TemplateModuleBuilderPostprocessing
 
 internal class RunConfigurationTemplateModuleBuilderPostprocessing : TemplateModuleBuilderPostprocessing {
   override fun postProcessCreatedModule(module: Module) {

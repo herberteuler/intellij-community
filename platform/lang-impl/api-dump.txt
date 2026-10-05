@@ -1935,16 +1935,6 @@ c:com.intellij.execution.console.ProcessBackedConsoleExecuteActionHandler
 - processLine(java.lang.String):V
 f:com.intellij.execution.filters.impl.HyperlinkInfoFactoryImpl
 - com.intellij.execution.filters.HyperlinkInfoFactory
-a:com.intellij.execution.runners.AbstractConsoleRunnerWithHistory
-- p:createConsoleExecAction(com.intellij.execution.console.ProcessBackedConsoleExecuteActionHandler):com.intellij.openapi.actionSystem.AnAction
-- p:createContentDescriptorAndActions():V
-- getConsoleExecuteActionHandler():com.intellij.execution.console.ProcessBackedConsoleExecuteActionHandler
-- getConsoleTitle():java.lang.String
-- getConsoleView():com.intellij.execution.console.LanguageConsoleView
-- getProcessHandler():com.intellij.execution.process.ProcessHandler
-- getProject():com.intellij.openapi.project.Project
-- getWorkingDir():java.lang.String
-- initAndRun():V
 c:com.intellij.execution.services.ServiceViewToolWindowFactory
 - com.intellij.openapi.project.DumbAware
 - com.intellij.openapi.wm.ToolWindowFactory
@@ -5220,6 +5210,9 @@ com.intellij.slicer.SliceUsageTransformer
 com.intellij.slicer.SliceValueFilter
 - a:allowed(com.intellij.psi.PsiElement):Z
 - a:getPresentationText(com.intellij.psi.PsiElement):java.lang.String
+f:com.intellij.terminal.TerminalUtils
+- s:getTextInTerminal(java.awt.Component):java.lang.String
+- s:isTerminalComponent(java.awt.Component):Z
 c:com.intellij.testIntegration.GotoTestOrCodeAction
 - com.intellij.codeInsight.actions.BaseCodeInsightAction
 - <init>():V

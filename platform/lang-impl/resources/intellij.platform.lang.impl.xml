@@ -50,8 +50,6 @@
     <module name="intellij.platform.editor.ex"/>
     <module name="intellij.platform.editor.ui"/>
     <module name="intellij.platform.eel.provider"/>
-    <module name="intellij.platform.execution"/>
-    <module name="intellij.platform.execution.impl"/>
     <module name="intellij.platform.experiment"/>
     <module name="intellij.platform.foldings"/>
     <module name="intellij.platform.ide.codeinsight.inline"/>
@@ -673,7 +671,6 @@
     <projectEntitiesAttacher implementation="com.intellij.platform.ProjectRootEntityAttacher"/>
     <appStarter id="traverseUI" implementation="com.intellij.ide.ui.search.TraverseUIStarter" internal="true"/>
     <appStarter id="format" implementation="com.intellij.formatting.commandLine.FormatterStarter" bundle="messages.CodeStyleBundle" key="formatter.help"/>
-    <appStarter id="ideScript" implementation="com.intellij.ide.script.IdeScriptStarter" internal="true"/>
     <applicationService serviceInterface="com.intellij.model.psi.PsiSymbolService"
                         serviceImplementation="com.intellij.model.psi.impl.PsiSymbolServiceImpl"/>
     <applicationService serviceInterface="com.intellij.navigation.SymbolNavigationService"
@@ -900,7 +897,6 @@
     <todoExtraPlaces implementation="com.intellij.ide.scratch.ScratchTodoExtraPlaces"/>
     <scratch.rootType implementation="com.intellij.ide.scratch.ScratchRootType"/>
     <scratch.rootType implementation="com.intellij.execution.console.HistoryRootType"/>
-    <scratch.rootType implementation="com.intellij.ide.script.IdeConsoleRootType"/>
     <scratch.rootType implementation="com.intellij.ide.actions.WelcomeFilesRootType"/>
     <nonProjectFileWritingAccessExtension implementation="com.intellij.ide.actions.WelcomeNonProjectFileWritingAccessExtension"/>
     <virtualFilePreCloseCheck implementation="com.intellij.ide.actions.WelcomeFilePreCloseCheck"/>
@@ -1084,14 +1080,10 @@
                             implementationClass="com.intellij.codeInsight.completion.command.CommandCompletionContributor"/>
     <modcompletion.completionItemProvider language="any" implementationClass="com.intellij.codeInsight.template.impl.LiveTemplateModCompletionItemProvider"
                                           id="liveTemplates" order="first"/>
-    <templateModuleBuilderPostprocessing implementation="com.intellij.platform.templates.RunConfigurationTemplateModuleBuilderPostprocessing"/>
-    <uiDataRule implementation="com.intellij.codeEditor.printing.RunProfileNameForPrintingRule"/>
     <codeCompletionConfigurable provider="com.intellij.codeInsight.completion.command.configuration.CommandCompletionConfigurableProvider"/>
     <applicationService serviceImplementation="com.intellij.execution.console.ConsoleFoldingSettings"/>
     <applicationSettings service="com.intellij.execution.console.ConsoleFoldingSettings"/>
     <console.folding implementation="com.intellij.execution.console.SubstringConsoleFolding"/>
-    <applicationService serviceInterface="com.intellij.testIntegration.RunSelectedTestAdvertisement"
-                        serviceImplementation="com.intellij.testIntegration.RunSelectedTestAdvertisementImpl"/>
     <lookup.charFilter implementation="com.intellij.codeInsight.template.impl.LiveTemplateCharFilter" order="first" id="liveTemplate"/>
     <lookup.charFilter implementation="com.intellij.codeInsight.completion.DefaultCharFilter" order="last" id="default"/>
     <lookup.charFilter implementation="com.intellij.psi.impl.source.resolve.reference.impl.providers.FileReferenceCharFilter" id="fileRef"
@@ -1633,7 +1625,6 @@
     <platform.backend.documentation.inlineDocumentationProvider order="last"
       implementation="com.intellij.codeInsight.documentation.render.CompatibilityInlineDocumentationProvider"/>
     <psi.treeChangeListener implementation="com.intellij.openapi.fileEditor.impl.FileEditorPsiTreeChangeListener"/>
-    <postStartupActivity implementation="com.intellij.ide.script.IdeStartupScripts" order="last"/>
     <psi.treeChangePreprocessor implementation="com.intellij.util.indexing.events.FileBasedIndexTreeChangePreprocessor"/>
     <fileSetDescriptorFactory implementation="com.intellij.application.options.codeStyle.excludedFiles.NamedScopeDescriptor$Factory"/>
     <fileSetDescriptorFactory implementation="com.intellij.application.options.codeStyle.excludedFiles.GlobPatternDescriptor$Factory"/>

@@ -71,7 +71,6 @@
     <orderEntry type="module" module-name="intellij.libraries.lz4" />
     <orderEntry type="module" module-name="intellij.platform.util" exported="" />
     <orderEntry type="module" module-name="intellij.platform.serviceContainer" />
-    <orderEntry type="module" module-name="intellij.platform.execution.impl" />
     <orderEntry type="module" module-name="intellij.libraries.jackson3" />
     <orderEntry type="module" module-name="intellij.libraries.jackson3.databind" />
     <orderEntry type="module" module-name="intellij.libraries.jackson3.module.kotlin" />
@@ -137,7 +136,6 @@
     <orderEntry type="module" module-name="intellij.platform.kernel" />
     <orderEntry type="module" module-name="intellij.platform.ide.rpc" />
     <orderEntry type="module" module-name="intellij.platform.ide.progress" />
-    <orderEntry type="module" module-name="intellij.platform.execution" />
     <orderEntry type="module" module-name="intellij.java.guiForms.rt" />
     <orderEntry type="module" module-name="intellij.platform.locking.impl" />
     <orderEntry type="module" module-name="fleet.rhizomedb" />

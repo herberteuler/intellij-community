@@ -42,6 +42,7 @@
     <module name="intellij.platform.kernel"/>
     <module name="intellij.platform.lang"/>
     <module name="intellij.platform.lang.core"/>
+    <module name="intellij.platform.lang.impl"/>
     <module name="intellij.platform.macro"/>
     <module name="intellij.platform.project"/>
     <module name="intellij.platform.projectFrame"/>
@@ -147,6 +148,10 @@
 
     <searchEverywhereContributor implementation="com.intellij.ide.actions.searcheverywhere.RunConfigurationsSEContributor$Factory"/>
 
+    <templateModuleBuilderPostprocessing implementation="com.intellij.execution.impl.RunConfigurationTemplateModuleBuilderPostprocessing"/>
+    <applicationService serviceInterface="com.intellij.testIntegration.RunSelectedTestAdvertisement"
+                        serviceImplementation="com.intellij.execution.impl.RunSelectedTestAdvertisementImpl"/>
+
     <advancedSetting id="terminal.show.application.title" default="false" groupKey="group.advanced.settings.terminal" visible="false"/>
 
     <colorSettings implementation="com.intellij.openapi.options.colors.pages.ANSIColoredConsoleColorsPage"
@@ -158,9 +163,13 @@
                  restartRequired="true"/>
     <remote.customDataContextSerializer implementation="com.intellij.execution.RunContentDescriptorIdSerializer"/>
     <remote.customDataContextSerializer implementation="com.intellij.execution.ExecutionEnvironmentIdSerializer"/>
+    <uiDataRule implementation="com.intellij.execution.impl.printing.RunProfileNameForPrintingRule"/>
     <uiDataRule implementation="com.intellij.execution.RunContentDescriptorIdDataRule"/>
     <uiDataRule implementation="com.intellij.execution.ExecutionEnvironmentIdDataRule"/>
     <runToolbarProcess implementation="com.intellij.execution.runToolbar.RunToolbarRunProcess"/>
+    <scratch.rootType implementation="com.intellij.ide.script.IdeConsoleRootType"/>
+    <appStarter id="ideScript" implementation="com.intellij.ide.script.IdeScriptStarter" internal="true"/>
+    <postStartupActivity implementation="com.intellij.ide.script.IdeStartupScripts" order="last"/>
     <projectSettings service="com.intellij.execution.startup.ProjectStartupLocalConfiguration"/>
     <projectSettings service="com.intellij.execution.startup.ProjectStartupSharedConfiguration"/>
     <projectSettings service="com.intellij.execution.impl.IprRunManagerImpl"/>

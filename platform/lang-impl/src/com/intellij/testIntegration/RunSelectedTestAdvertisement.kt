@@ -6,5 +6,5 @@ import org.jetbrains.annotations.Nls
 
 @ApiStatus.Internal
 interface RunSelectedTestAdvertisement {
-  fun generateAdvertisementText(): @Nls String? = null
+  fun generateAdvertisementText(): @Nls String?
 }

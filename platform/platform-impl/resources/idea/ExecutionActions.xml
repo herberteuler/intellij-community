@@ -72,6 +72,7 @@
         </group>
       </group>
       <separator/>
+      <add-to-group group-id="RunContextPopupGroup"/>
     </group>
 
     <reference ref="RunContextPopupGroup"/>

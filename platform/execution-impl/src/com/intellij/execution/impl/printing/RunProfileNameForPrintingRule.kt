@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.codeEditor.printing
+package com.intellij.execution.impl.printing
 
+import com.intellij.codeEditor.printing.TextPrintHandler
 import com.intellij.openapi.actionSystem.DataSink
 import com.intellij.openapi.actionSystem.DataSnapshot
 import com.intellij.openapi.actionSystem.ExecutionDataKeys

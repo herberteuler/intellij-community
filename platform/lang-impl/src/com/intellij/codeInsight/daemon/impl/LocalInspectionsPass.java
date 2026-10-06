@@ -17,7 +17,6 @@ import com.intellij.codeInspection.ProblemDescriptorUtil;
 import com.intellij.codeInspection.ProblemDescriptorUtil.ProblemPresentation;
 import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.QuickFix;
-import com.intellij.codeInspection.ex.GlobalInspectionToolWrapper;
 import com.intellij.codeInspection.ex.InspectionProfileImpl;
 import com.intellij.codeInspection.ex.InspectionProfileWrapper;
 import com.intellij.codeInspection.ex.InspectionToolWrapper;
@@ -124,7 +123,7 @@ final class LocalInspectionsPass extends ProgressableTextEditorHighlightingPass 
   @Override
   protected void collectInformationWithProgress(@NotNull ProgressIndicator progress) {
     List<HighlightInfo> fileInfos = Collections.synchronizedList(new ArrayList<>());
-    List<? extends LocalInspectionToolWrapper> toolWrappers = getInspectionTools(myProfileWrapper);
+    List<? extends InspectionToolWrapper<?, ?>> toolWrappers = getInspectionTools(myProfileWrapper);
     var result = new Object() {
       List<? extends InspectionRunner.InspectionContext> resultContexts = List.of();
       List<PsiFile> injectedFragments = List.of();
@@ -490,7 +489,7 @@ final class LocalInspectionsPass extends ProgressableTextEditorHighlightingPass 
     return result;
   }
 
-  private @NotNull List<LocalInspectionToolWrapper> getInspectionTools(@NotNull InspectionProfileWrapper profile) {
+  private @NotNull List<InspectionToolWrapper<?, ?>> getInspectionTools(@NotNull InspectionProfileWrapper profile) {
     List<InspectionToolWrapper<?, ?>> toolWrappers = profile.getInspectionProfile().getInspectionTools(getFile());
 
     if (LOG.isDebugEnabled()) {
@@ -498,7 +497,7 @@ final class LocalInspectionsPass extends ProgressableTextEditorHighlightingPass 
       InspectionProfileWrapper.checkInspectionsDuplicates(toolWrappers);
     }
 
-    List<LocalInspectionToolWrapper> enabled = new ArrayList<>();
+    List<InspectionToolWrapper<?, ?>> enabled = new ArrayList<>();
     Set<String> projectTypes = ProjectTypeService.getProjectTypeIds(myProject);
     boolean isTests = ApplicationManager.getApplication().isUnitTestMode();
 
@@ -510,23 +509,16 @@ final class LocalInspectionsPass extends ProgressableTextEditorHighlightingPass 
       HighlightDisplayKey key = toolWrapper.getDisplayKey();
       if (!profile.isToolEnabled(key, getFile())) continue;
       if (HighlightDisplayLevel.DO_NOT_SHOW.equals(profile.getErrorLevel(key, getFile()))) continue;
-      LocalInspectionToolWrapper wrapper;
-      if (toolWrapper instanceof LocalInspectionToolWrapper local) {
-        wrapper = local;
-      }
-      else {
-        wrapper = ((GlobalInspectionToolWrapper)toolWrapper).getSharedLocalInspectionToolWrapper();
-        if (wrapper == null) continue;
-      }
-      String language = wrapper.getLanguage();
+      String language = toolWrapper.getLanguage();
       if (language != null && Language.findLanguageByID(language) == null) {
         continue; // filter out at least unknown languages
       }
 
       try {
         if (myIgnoreSuppressed
-            && wrapper.isApplicable(getFile().getLanguage())
-            && wrapper.getTool().isSuppressedFor(getFile())) {
+            && toolWrapper instanceof LocalInspectionToolWrapper local
+            && local.isApplicable(getFile().getLanguage())
+            && local.getTool().isSuppressedFor(getFile())) {
           // inspections that do not match file language are excluded later in InspectionRunner.inspect
           continue;
         }
@@ -534,7 +526,7 @@ final class LocalInspectionsPass extends ProgressableTextEditorHighlightingPass 
       catch (IndexNotReadyException ex) {
         continue;
       }
-      enabled.add(wrapper);
+      enabled.add(toolWrapper);
     }
     return enabled;
   }

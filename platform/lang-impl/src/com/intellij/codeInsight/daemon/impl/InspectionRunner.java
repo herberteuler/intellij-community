@@ -20,6 +20,7 @@ import com.intellij.codeInspection.ex.InspectionElementsMerger;
 import com.intellij.codeInspection.ex.InspectionProfileWrapper;
 import com.intellij.codeInspection.ex.InspectionToolWrapper;
 import com.intellij.codeInspection.ex.LocalInspectionToolWrapper;
+import com.intellij.codeInspection.ex.ToolLanguageUtil;
 import com.intellij.concurrency.JobLauncher;
 import com.intellij.diagnostic.PluginException;
 import com.intellij.injected.editor.DocumentWindow;
@@ -67,6 +68,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -89,6 +91,7 @@ final class InspectionRunner {
   private final boolean myIgnoreSuppressed;
   private final InspectionProfileWrapper myInspectionProfileWrapper;
   private final Map<String, Set<PsiElement>> mySuppressedElements;
+  private final boolean myRunWholeFileTools;
   private final List<PsiFile> myInjectedFragments = Collections.synchronizedList(new ArrayList<>());
 
   InspectionRunner(@NotNull PsiFile psiFile,
@@ -101,6 +104,24 @@ final class InspectionRunner {
                    boolean ignoreSuppressed,
                    @NotNull InspectionProfileWrapper inspectionProfileWrapper,
                    @NotNull Map<String, Set<PsiElement>> suppressedElements) {
+    this(psiFile, restrictRange, priorityRange, inspectInjected, isOnTheFly, dumbMode, progress, ignoreSuppressed,
+         inspectionProfileWrapper, suppressedElements, true);
+  }
+
+  /**
+   * Creates a runner that skips whole-file tools when {@code runWholeFileTools} is {@code false}.
+   */
+  private InspectionRunner(@NotNull PsiFile psiFile,
+                           @NotNull TextRange restrictRange,
+                           @NotNull TextRange priorityRange,
+                           boolean inspectInjected,
+                           boolean isOnTheFly,
+                           boolean dumbMode,
+                           @NotNull ProgressIndicator progress,
+                           boolean ignoreSuppressed,
+                           @NotNull InspectionProfileWrapper inspectionProfileWrapper,
+                           @NotNull Map<String, Set<PsiElement>> suppressedElements,
+                           boolean runWholeFileTools) {
     myPsiFile = psiFile;
     myRestrictRange = restrictRange;
     myPriorityRange = priorityRange;
@@ -111,6 +132,7 @@ final class InspectionRunner {
     myIgnoreSuppressed = ignoreSuppressed;
     myInspectionProfileWrapper = inspectionProfileWrapper;
     mySuppressedElements = suppressedElements;
+    myRunWholeFileTools = runWholeFileTools;
   }
 
   record InspectionContext(@NotNull LocalInspectionToolWrapper tool,
@@ -127,11 +149,24 @@ final class InspectionRunner {
     }
   }
 
+  /**
+   * Runs the applicable inspections for this runner's file and its injected fragments.
+   * The method filters wrappers by the PSI languages before it initializes global inspection tools.
+   * It does not run whole-file tools on injected fragments.
+   *
+   * @param toolWrappers candidate inspection wrappers
+   * @param minimumSeverity the minimum severity for the inspection session
+   * @param addRedundantSuppressions whether to report redundant suppressions
+   * @param applyIncrementallyCallback a callback for newly reported problems
+   * @param contextFinishedCallback a callback for each completed inspection context
+   * @param enabledToolsPredicate an additional filter for materialized local wrappers, or {@code null}
+   * @return the completed inspection contexts for the file and its injected fragments
+   */
   @RequiresBackgroundThread
   @RequiresReadLock
   @Unmodifiable
   @NotNull
-  List<InspectionContext> inspect(@NotNull List<? extends LocalInspectionToolWrapper> toolWrappers,
+  List<InspectionContext> inspect(@NotNull List<? extends InspectionToolWrapper<?, ?>> toolWrappers,
                                   @Nullable HighlightSeverity minimumSeverity,
                                   boolean addRedundantSuppressions,
                                   @NotNull ApplyIncrementallyCallback applyIncrementallyCallback,
@@ -149,8 +184,20 @@ final class InspectionRunner {
     List<InspectionContext> injectedContexts = Collections.synchronizedList(new ArrayList<>());
     Project project = myPsiFile.getProject();
 
-    boolean hasWholeFileTools = ContainerUtil.exists(toolWrappers, tool->tool.runForWholeFile());
     Set<String> dialectIdsInRestricted = InspectionEngine.calcElementDialectIds(restrictedInside, restrictedOutside);
+    List<InspectionToolWrapper<?, ?>> potentiallyApplicable =
+      filterGlobalToolsPotentiallyApplicableByLanguage(toolWrappers, dialectIdsInRestricted);
+    List<LocalInspectionToolWrapper> materializedToolWrappers = ContainerUtil.mapNotNull(potentiallyApplicable, toolWrapper -> {
+      if (toolWrapper instanceof LocalInspectionToolWrapper local) {
+        return local;
+      }
+      return ((GlobalInspectionToolWrapper)toolWrapper).getSharedLocalInspectionToolWrapper();
+    });
+    List<LocalInspectionToolWrapper> localToolWrappers = myRunWholeFileTools
+                                                         ? materializedToolWrappers
+                                                         : ContainerUtil.filter(materializedToolWrappers, tool -> !tool.runForWholeFile());
+
+    boolean hasWholeFileTools = ContainerUtil.exists(localToolWrappers, tool -> tool.runForWholeFile());
     Set<String> dialectIdsInWhole;
     List<PsiElement> wholeInside;
     List<PsiElement> wholeOutside;
@@ -169,7 +216,7 @@ final class InspectionRunner {
     }
 
     List<LocalInspectionToolWrapper> applicableByLanguage =
-      InspectionEngine.filterToolsApplicableByLanguage(toolWrappers, dialectIdsInRestricted, dialectIdsInWhole);
+      InspectionEngine.filterToolsApplicableByLanguage(localToolWrappers, dialectIdsInRestricted, dialectIdsInWhole);
 
     List<InspectionContext> init = new ArrayList<>(applicableByLanguage.size());
     List<InspectionContext> redundantContexts = new ArrayList<>();
@@ -230,10 +277,9 @@ final class InspectionRunner {
 
         if (myInspectInjected && InjectionUtils.shouldInspectInjectedFiles(myPsiFile)) {
           // we don't run whole-file tools on injected fragments
-          List<LocalInspectionToolWrapper> localTools = ContainerUtil.filter(toolWrappers, t -> !t.runForWholeFile());
           getInjectedWithHosts(
             ContainerUtil.concat(restrictedInside, restrictedOutside), session,
-            localTools, injectedContexts, applyIncrementallyCallback,
+            toolWrappers, injectedContexts, applyIncrementallyCallback,
             contextFinishedCallback, enabledToolsPredicate);
         }
       })) {
@@ -246,10 +292,41 @@ final class InspectionRunner {
         InspectionProfilerDataHolder.saveStats(myPsiFile, init, highlightInfoUpdater);
       }
       if (myIsOnTheFly && addRedundantSuppressions) {
-        addRedundantSuppressions(init, toolWrappers, redundantContexts, applyIncrementallyCallback, contextFinishedCallback, enabledToolsPredicate);
+        addRedundantSuppressions(init, localToolWrappers, redundantContexts, applyIncrementallyCallback, contextFinishedCallback,
+                                 enabledToolsPredicate);
       }
     });
     return ContainerUtil.concat(init, redundantContexts, injectedContexts);
+  }
+
+  /**
+   * Keeps all local wrappers and the global wrappers that can apply to one of the specified dialects.
+   * A global wrapper with no language restriction remains a candidate.
+   * This method reads wrapper metadata only. It does not initialize an inspection tool.
+   *
+   * @param tools candidate inspection wrappers
+   * @param elementDialectIds the language and dialect IDs in the inspected PSI
+   * @return the local wrappers and potentially applicable global wrappers
+   */
+  private static @NotNull @Unmodifiable List<InspectionToolWrapper<?, ?>> filterGlobalToolsPotentiallyApplicableByLanguage(
+    @NotNull Collection<? extends InspectionToolWrapper<?, ?>> tools,
+    @NotNull Set<String> elementDialectIds) {
+    Map<String, Boolean> resultsWithDialects = new HashMap<>();
+    Map<String, Boolean> resultsNoDialects = new HashMap<>();
+    return ContainerUtil.filter(tools, tool -> {
+      if (tool instanceof LocalInspectionToolWrapper) return true;
+
+      String toolLanguageId = tool.getLanguage();
+      if (toolLanguageId == null || toolLanguageId.isBlank() || "any".equals(toolLanguageId)) {
+        return true;
+      }
+
+      boolean applyToDialects = tool.applyToDialects();
+      Map<String, Boolean> results = applyToDialects ? resultsWithDialects : resultsNoDialects;
+      return results.computeIfAbsent(
+        toolLanguageId,
+        _ -> ToolLanguageUtil.isToolLanguageOneOf(elementDialectIds, toolLanguageId, applyToDialects));
+    });
   }
 
   private static void contextCompleted(@NotNull InspectionContext context,
@@ -461,7 +538,7 @@ final class InspectionRunner {
   }
 
   private void injectedFound(@NotNull PsiFile injectedPsi, @NotNull PsiElement host, @NotNull LocalInspectionToolSession session,
-                             @NotNull List<? extends LocalInspectionToolWrapper> wrappers,
+                             @NotNull List<? extends InspectionToolWrapper<?, ?>> wrappers,
                              @NotNull List<? super InspectionContext> outInjectedContexts,
                              @NotNull ApplyIncrementallyCallback addDescriptorIncrementallyCallback,
                              @NotNull Consumer<? super InspectionContext> contextFinishedCallback,
@@ -491,7 +568,7 @@ final class InspectionRunner {
     }
     InspectionRunner injectedRunner = new InspectionRunner(injectedPsi, injectedPsi.getTextRange(), injectedPriorityRange,
                                                            false, myIsOnTheFly, myDumbMode, myProgress, myIgnoreSuppressed,
-                                                           myInspectionProfileWrapper, mySuppressedElements);
+                                                           myInspectionProfileWrapper, mySuppressedElements, false);
     ApplyIncrementallyCallback applyInjectionsIncrementallyCallback = (descriptors, holder, visitingPsiElement, shortName) ->
       applyInjectedDescriptor(descriptors, holder, visitingPsiElement, shortName, host, addDescriptorIncrementallyCallback);
     List<? extends InspectionContext> injectedContexts = injectedRunner.inspect(
@@ -536,7 +613,7 @@ final class InspectionRunner {
 
   private void getInjectedWithHosts(@NotNull List<? extends PsiElement> elements,
                                     @NotNull LocalInspectionToolSession session,
-                                    @NotNull List<? extends LocalInspectionToolWrapper> wrappers,
+                                    @NotNull List<? extends InspectionToolWrapper<?, ?>> wrappers,
                                     @NotNull List<? super InspectionContext> outInjectedContexts,
                                     @NotNull ApplyIncrementallyCallback addDescriptorIncrementallyCallback,
                                     @NotNull Consumer<? super InspectionContext> contextFinishedCallback,

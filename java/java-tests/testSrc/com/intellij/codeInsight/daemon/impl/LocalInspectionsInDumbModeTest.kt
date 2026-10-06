@@ -1,8 +1,11 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInsight.daemon.impl
 
+import com.intellij.codeHighlighting.Pass
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase.CanChangeDocumentDuringHighlighting
+import com.intellij.codeInspection.GlobalInspectionTool
+import com.intellij.codeInspection.InspectionEP
 import com.intellij.codeInspection.LanguageInspectionSuppressors
 import com.intellij.codeInspection.LocalInspectionEP
 import com.intellij.codeInspection.LocalInspectionTool
@@ -10,9 +13,11 @@ import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.codeInspection.RedundantSuppressInspection
 import com.intellij.codeInspection.RedundantSuppressionDetector
+import com.intellij.codeInspection.ex.GlobalInspectionToolWrapper
 import com.intellij.codeInspection.ex.InspectionProfileWrapper
 import com.intellij.codeInspection.ex.LocalInspectionToolWrapper
 import com.intellij.ide.highlighter.JavaFileType
+import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.DumbService
@@ -22,6 +27,7 @@ import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.util.use
 import com.intellij.psi.JavaElementVisitor
 import com.intellij.psi.PsiComment
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiLiteralExpression
 import com.intellij.testFramework.DumbModeTestUtils
@@ -129,6 +135,41 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     }
   }
 
+  fun testLocalInspectionDontInitializeUnrelatedGlobalTools() {
+    enableInspectionTools(project, testRootDisposable, DumbInspection(), SmartInspection())
+
+    val unrelatedToolWrapper = createGlobalToolWrapper("UnrelatedGlobal", "TEXT")
+    enableInspectionTool(project, unrelatedToolWrapper, testRootDisposable)
+    InspectionProfileWrapper.runWithNoDuplicateCheckInTests {
+      @Language("JAVA")
+      val text = """
+      // comment
+    """
+      configureByText(JavaFileType.INSTANCE, text)
+
+      doHighlightingWithoutIntentions()
+
+      assertFalse(unrelatedToolWrapper.isToolInstantiated())
+    }
+  }
+
+  fun testLocalInspectionInitializesApplicableGlobalToolOnFirstPass() {
+    val globalToolWrapper = createGlobalToolWrapper("ApplicableGlobal", "JAVA")
+    enableInspectionTool(project, globalToolWrapper, testRootDisposable)
+    InspectionProfileWrapper.runWithNoDuplicateCheckInTests {
+      @Language("JAVA")
+      val text = """
+      // comment
+    """
+      configureByText(JavaFileType.INSTANCE, text)
+
+      val infos = doHighlightingWithoutIntentions()
+
+      assertTrue(globalToolWrapper.isToolInstantiated())
+      assertExistsInfo(infos, "Global")
+    }
+  }
+
   fun testJavaSuppressor() {
     enableInspectionTools(project, testRootDisposable, RedundantSuppressInspection(), StringInspection())
 
@@ -230,6 +271,11 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     return result!!
   }
 
+  private fun doHighlightingWithoutIntentions(): List<HighlightInfo> {
+    PsiDocumentManager.getInstance(project).commitAllDocuments()
+    return CodeInsightTestFixtureImpl.instantiateAndRun(file, editor, intArrayOf(Pass.POPUP_HINTS), true, true)
+  }
+
   private class DumbInspection : LocalInspectionTool(), DumbAware {
     val counter = AtomicInteger()
 
@@ -276,8 +322,19 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     return UnrelatedToolWrapper(ep)
   }
 
+  private fun createGlobalToolWrapper(shortName: String, language: String): TestGlobalToolWrapper {
+    val pluginDescriptor = requireNotNull(PluginManagerCore.getPlugin(PluginManagerCore.CORE_ID))
+    val ep = InspectionEP(MyGlobalInspection::class.java.name, pluginDescriptor)
+    ep.shortName = shortName
+    ep.language = language
+    ep.displayName = shortName
+    ep.groupDisplayName = shortName
+    ep.enabledByDefault = true
+    return TestGlobalToolWrapper(ep)
+  }
+
   private class UnrelatedToolWrapper(ep: LocalInspectionEP) : LocalInspectionToolWrapper(ep) {
-    private val toolIsInstantiated = AtomicBoolean(false)
+    private val toolIsInstantiated: AtomicBoolean = AtomicBoolean(false)
 
     override fun getTool(): LocalInspectionTool {
       toolIsInstantiated.set(true)
@@ -291,6 +348,40 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     private class MyLocalInspection : LocalInspectionTool() {
       override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor {
         return PsiElementVisitor.EMPTY_VISITOR
+      }
+    }
+  }
+
+  private class TestGlobalToolWrapper(ep: InspectionEP) : GlobalInspectionToolWrapper(ep) {
+    private val shortName: String = ep.shortName
+    private val toolIsInstantiated: AtomicBoolean = AtomicBoolean(false)
+
+    override fun getTool(): GlobalInspectionTool {
+      toolIsInstantiated.set(true)
+      return MyGlobalInspection(shortName)
+    }
+
+    fun isToolInstantiated(): Boolean {
+      return toolIsInstantiated.get()
+    }
+  }
+
+  private class MyGlobalInspection(private val shortName: String) : GlobalInspectionTool() {
+    override fun getSharedLocalInspectionTool(): LocalInspectionTool {
+      return MySharedLocalInspection(shortName)
+    }
+  }
+
+  private class MySharedLocalInspection(private val shortName: String) : LocalInspectionTool() {
+    override fun getShortName(): String {
+      return shortName
+    }
+
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor {
+      return object : PsiElementVisitor() {
+        override fun visitComment(comment: PsiComment) {
+          holder.registerProblem(comment, "Global")
+        }
       }
     }
   }

@@ -3164,6 +3164,30 @@
         <constraint name="__context__" within="" contains="" />
         <constraint name="Expr" within="" contains="" />
       </replaceConfiguration>
+      <searchConfiguration name="Retreiving PsiFile without CodeInsightContext" description="Do not use PsiManager.findFile(VirtualFile) or PsiDocumentManager.getPsiFile(Document). &#10;&#10;Use PsiManager.findFile(VirtualFile, context) or PsiDocumentManager.getPsiFile(Document, context).&#10;&#10;The inspection is useful if multiverse is used" suppressId="PsiFileRetrievingWithoutCodeInsightContext" text="$PsiDocumentManager$.$getPsiFile$($argument$)" recursive="true" caseInsensitive="true" type="Kotlin" pattern_context="default">
+        <constraint name="__context__" within="" contains="" />
+        <constraint name="argument" within="" contains="" />
+        <constraint name="PsiDocumentManager" nameOfExprType="com.intellij.psi.PsiDocumentManager!?\??" exprTypeWithinHierarchy="true" within="" contains="" />
+        <constraint name="getPsiFile" regexp="getPsiFile" target="true" within="" contains="" />
+      </searchConfiguration>
+      <searchConfiguration name="Retreiving PsiFile without CodeInsightContext" text="$PsiDocumentManager$?.$getPsiFile$($argument$)" recursive="true" caseInsensitive="true" type="Kotlin" pattern_context="default">
+        <constraint name="__context__" within="" contains="" />
+        <constraint name="argument" within="" contains="" />
+        <constraint name="PsiDocumentManager" nameOfExprType="com.intellij.psi.PsiDocumentManager!?\??" exprTypeWithinHierarchy="true" within="" contains="" />
+        <constraint name="getPsiFile" regexp="getPsiFile" target="true" within="" contains="" />
+      </searchConfiguration>
+      <searchConfiguration name="Retreiving PsiFile without CodeInsightContext" text="$PsiManager$.$findFile$($argument$)" recursive="true" caseInsensitive="true" type="Kotlin" pattern_context="default">
+        <constraint name="__context__" within="" contains="" />
+        <constraint name="argument" within="" contains="" />
+        <constraint name="PsiManager" nameOfExprType="com.intellij.psi.PsiManager!?\??" exprTypeWithinHierarchy="true" within="" contains="" />
+        <constraint name="findFile" regexp="findFile" target="true" within="" contains="" />
+      </searchConfiguration>
+      <searchConfiguration name="Retreiving PsiFile without CodeInsightContext" text="$PsiManager$?.$findFile$($argument$)" recursive="true" caseInsensitive="true" type="Kotlin" pattern_context="default">
+        <constraint name="__context__" within="" contains="" />
+        <constraint name="argument" within="" contains="" />
+        <constraint name="PsiManager" nameOfExprType="com.intellij.psi.PsiManager!?\??" exprTypeWithinHierarchy="true" within="" contains="" />
+        <constraint name="findFile" regexp="findFile" target="true" within="" contains="" />
+      </searchConfiguration>
       <searchConfiguration name="Rpc functions must be suspend" text="interface $Class$: RemoteApi&lt;Unit&gt; {&#10;  suspend fun $Method$ ($Parameter$ : $ParameterType$)&#10;&#10;  fun $Method2$($Parameter2$ : $ParameterType2$): $ReturnType$&#10;}" recursive="true" caseInsensitive="false" type="Kotlin" pattern_context="default">
         <constraint name="__context__" within="" contains="" />
         <constraint name="Class" within="" contains="" />

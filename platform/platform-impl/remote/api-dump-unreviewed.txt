@@ -213,8 +213,5 @@ f:com.intellij.remote.ui.ApplicationOnlySdkScopeController
 com.intellij.remote.ui.BundleAccessor
 - a:message(java.lang.String,java.lang.Object[]):java.lang.String
 - a:messageOrNull(java.lang.String,java.lang.Object[]):java.lang.String
-com.intellij.remote.ui.RemoteSdkEditorContainer
-- a:getDisposable():com.intellij.openapi.Disposable
-- a:updateSize():V
 com.intellij.remote.ui.RemoteSdkUpdatedCallback
 - a:updated(com.intellij.remote.RemoteSdkProperties):V

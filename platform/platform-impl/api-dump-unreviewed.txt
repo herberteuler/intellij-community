@@ -5140,6 +5140,9 @@ a:com.intellij.platform.ProjectTemplatesFactory
 - getGroupWeight(java.lang.String):I
 - a:getGroups():java.lang.String[]
 - getParentGroup(java.lang.String):java.lang.String
+com.intellij.remote.ui.RemoteSdkEditorContainer
+- a:getDisposable():com.intellij.openapi.Disposable
+- a:updateSize():V
 f:com.intellij.toolWindow.StripeButton
 - getAnchor():com.intellij.openapi.wm.ToolWindowAnchor
 - getMnemonic():I

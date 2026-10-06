@@ -1,18 +1,22 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.discoverability
 
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.junit5.TestApplication
 import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.node.ObjectNode
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
 
-class DiscoveryServiceSchemaTest : BasePlatformTestCase() {
+@TestApplication
+class DiscoveryServiceSchemaTest {
+  @Test
   fun `test discovery info JSON matches schema`() {
     val schemaStream = javaClass.classLoader.getResourceAsStream("com/intellij/platform/discoverability/ide-instance-schema.json")
                        ?: error("Schema resource not found on classpath")
@@ -31,7 +35,7 @@ class DiscoveryServiceSchemaTest : BasePlatformTestCase() {
     }
 
     val errors = schema.validate(out.toString(Charsets.UTF_8.name()), InputFormat.JSON)
-    assertTrue("JSON schema validation errors:\n${errors.joinToString("\n") { it.message }}", errors.isEmpty())
+    assertTrue(errors.isEmpty(), "JSON schema validation errors:\n${errors.joinToString("\n") { it.message }}")
   }
 
   private fun removeFormatKeywords(node: JsonNode) {

@@ -11,9 +11,6 @@
   </dependencies>
   <!-- endregion -->
 
-  <extensions defaultExtensionNs="com.intellij">
-    <platform.entityTypes implementation="com.intellij.platform.kernel.backend.BackendValueEntityTypesProvider"/>
-  </extensions>
   <extensions defaultExtensionNs="com.intellij.platform">
     <rpc.backend.remoteApiProvider implementation="com.intellij.platform.kernel.backend.RemoteKernelProvider"
                                    apiInterfaces="fleet.kernel.rebase.RemoteKernel"/>

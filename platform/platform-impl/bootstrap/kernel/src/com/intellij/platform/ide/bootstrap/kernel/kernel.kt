@@ -2,14 +2,12 @@
 package com.intellij.platform.ide.bootstrap.kernel
 
 import com.intellij.platform.kernel.util.kernelCoroutineContext
-import com.intellij.platform.pasta.common.ChangeDocument
 import com.jetbrains.rhizomedb.Part
 import fleet.kernel.FrontendPart
 import fleet.kernel.TransactorMiddleware
 import fleet.kernel.WorkspacePart
 import fleet.kernel.rebase.DefaultInstructionSet
 import fleet.kernel.rebase.FollowerTransactorMiddleware
-import fleet.kernel.rebase.InstructionSet
 import fleet.kernel.rebase.LeaderTransactorMiddleware
 import fleet.kernel.rete.withRete
 import fleet.kernel.withTransactor
@@ -20,18 +18,14 @@ import kotlinx.coroutines.launch
 import org.jetbrains.annotations.ApiStatus
 import kotlin.coroutines.CoroutineContext
 
-private val CommonInstructionSet: InstructionSet =
-  DefaultInstructionSet +
-  ChangeDocument
-
 @ApiStatus.Internal
 suspend fun startClientKernel(scope: CoroutineScope): KernelStarted {
-  return startKernel(scope, FollowerTransactorMiddleware(CommonInstructionSet.encoder()), partition = FrontendPart)
+  return startKernel(scope, FollowerTransactorMiddleware(DefaultInstructionSet.encoder()), partition = FrontendPart)
 }
 
 @ApiStatus.Internal
 suspend fun startServerKernel(scope: CoroutineScope): KernelStarted {
-  return startKernel(scope, LeaderTransactorMiddleware(CommonInstructionSet.encoder()), partition = WorkspacePart)
+  return startKernel(scope, LeaderTransactorMiddleware(DefaultInstructionSet.encoder()), partition = WorkspacePart)
 }
 
 private suspend fun startKernel(scope: CoroutineScope, middleware: TransactorMiddleware, partition: Part): KernelStarted {

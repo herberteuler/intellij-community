@@ -1603,10 +1603,7 @@
       <module fileurl="file://$PROJECT_DIR$/platform/distribution-content/intellij.platform.distributionContent.iml" filepath="$PROJECT_DIR$/platform/distribution-content/intellij.platform.distributionContent.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/duplicates-analysis/intellij.platform.duplicates.analysis.iml" filepath="$PROJECT_DIR$/platform/duplicates-analysis/intellij.platform.duplicates.analysis.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-tests/durability/intellij.platform.durability.iml" filepath="$PROJECT_DIR$/platform/platform-tests/durability/intellij.platform.durability.iml" />
-      <module fileurl="file://$PROJECT_DIR$/platform/editor/shared/intellij.platform.editor.iml" filepath="$PROJECT_DIR$/platform/editor/shared/intellij.platform.editor.iml" />
-      <module fileurl="file://$PROJECT_DIR$/platform/editor/backend/intellij.platform.editor.backend.iml" filepath="$PROJECT_DIR$/platform/editor/backend/intellij.platform.editor.backend.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/editor-ui-ex/intellij.platform.editor.ex.iml" filepath="$PROJECT_DIR$/platform/editor-ui-ex/intellij.platform.editor.ex.iml" />
-      <module fileurl="file://$PROJECT_DIR$/platform/editor/frontend/intellij.platform.editor.frontend.iml" filepath="$PROJECT_DIR$/platform/editor/frontend/intellij.platform.editor.frontend.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/editor-ui-api/intellij.platform.editor.ui.iml" filepath="$PROJECT_DIR$/platform/editor-ui-api/intellij.platform.editor.ui.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/editor-tab-grouping/plugin/intellij.platform.editorTabGrouping.iml" filepath="$PROJECT_DIR$/plugins/editor-tab-grouping/plugin/intellij.platform.editorTabGrouping.iml" />
       <module fileurl="file://$PROJECT_DIR$/plugins/editor-tab-grouping/intellij.platform.editorTabGrouping.impl.iml" filepath="$PROJECT_DIR$/plugins/editor-tab-grouping/intellij.platform.editorTabGrouping.impl.iml" />
@@ -1829,7 +1826,6 @@
       <module fileurl="file://$PROJECT_DIR$/platform/object-serializer/intellij.platform.objectSerializer.iml" filepath="$PROJECT_DIR$/platform/object-serializer/intellij.platform.objectSerializer.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/object-serializer/intellij.platform.objectSerializer.annotations.iml" filepath="$PROJECT_DIR$/platform/object-serializer/intellij.platform.objectSerializer.annotations.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/object-serializer/intellij.platform.objectSerializer.tests.iml" filepath="$PROJECT_DIR$/platform/object-serializer/intellij.platform.objectSerializer.tests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/platform/kernel/pasta/intellij.platform.pasta.iml" filepath="$PROJECT_DIR$/platform/kernel/pasta/intellij.platform.pasta.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/build-scripts/product-dsl/plugin-graph/intellij.platform.pluginGraph.iml" filepath="$PROJECT_DIR$/platform/build-scripts/product-dsl/plugin-graph/intellij.platform.pluginGraph.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/build-scripts/product-dsl/plugin-graph/intellij.platform.pluginGraph.tests.iml" filepath="$PROJECT_DIR$/platform/build-scripts/product-dsl/plugin-graph/intellij.platform.pluginGraph.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/pluginManager/backend/intellij.platform.pluginManager.backend.iml" filepath="$PROJECT_DIR$/platform/pluginManager/backend/intellij.platform.pluginManager.backend.iml" />

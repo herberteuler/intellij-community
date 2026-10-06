@@ -155,7 +155,6 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.ide.json",
             "intellij.platform.ide.dnd",
             "intellij.platform.ide.codeinsight.inline",
-            "intellij.platform.pasta",
             "intellij.platform.diagnostic.startUpPerformanceReporter",
             "intellij.platform.ide.util.io.native",
             "intellij.platform.ide.osCertificates",
@@ -237,7 +236,6 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.lang.impl": "embedded",
             "intellij.platform.lvcs": "embedded",
             "intellij.platform.macro": "embedded",
-            "intellij.platform.pasta": "embedded",
             "intellij.platform.project": "embedded",
             "intellij.platform.rd.community": "embedded",
             "intellij.platform.refactoring": "embedded",
@@ -310,7 +308,6 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.lang.impl": "//platform/lang-impl:lang-impl_content_module_jar",
             "intellij.platform.lvcs": "//platform/lvcs-api:lvcs_content_module_jar",
             "intellij.platform.macro": "//platform/macro:macro_content_module_jar",
-            "intellij.platform.pasta": "//platform/kernel/pasta:pasta_content_module_jar",
             "intellij.platform.project": "//platform/project/shared:project_content_module_jar",
             "intellij.platform.rd.community": "//platform/rd-platform-community:rd-community_content_module_jar",
             "intellij.platform.refactoring": "//platform/refactoring:refactoring_content_module_jar",
@@ -594,30 +591,6 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.duplicates.analysis",
         ],
     ),
-    "intellij.moduleSets.editor": struct(
-        modules = [
-            "intellij.platform.editor",
-            "intellij.platform.editor.backend",
-            "intellij.platform.editor.frontend",
-        ],
-        nested = [
-        ],
-        packed = {
-            "intellij.platform.editor": "//platform/editor/shared:editor_content_module_jar",
-            "intellij.platform.editor.backend": "//platform/editor/backend:backend_content_module_jar",
-            "intellij.platform.editor.frontend": "//platform/editor/frontend:frontend_content_module_jar",
-        },
-        module_system_loaded = [
-            "intellij.platform.editor",
-            "intellij.platform.editor.backend",
-            "intellij.platform.editor.frontend",
-        ],
-        mode_refused = {
-            "frontend": [
-                "intellij.platform.editor.backend",
-            ],
-        },
-    ),
     "intellij.moduleSets.essential": struct(
         modules = [
             "intellij.libraries.download.pgp.verifier",
@@ -649,7 +622,6 @@ DEV_DIST_MODULE_SETS = {
             "intellij.moduleSets.core.lang",
             "intellij.moduleSets.split.core",
             "intellij.moduleSets.credentialStore",
-            "intellij.moduleSets.editor",
             "intellij.moduleSets.searchEverywhere",
             "intellij.moduleSets.scopes",
             "intellij.moduleSets.find",

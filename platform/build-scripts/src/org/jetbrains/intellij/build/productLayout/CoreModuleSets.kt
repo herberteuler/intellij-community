@@ -291,7 +291,6 @@ object CoreModuleSets {
     embeddedModule("intellij.platform.ide.json")
     embeddedModule("intellij.platform.ide.dnd")
     embeddedModule("intellij.platform.ide.codeinsight.inline")
-    embeddedModule("intellij.platform.pasta")
     embeddedModule("intellij.platform.diagnostic.startUpPerformanceReporter")
     // optional: it depends on `intellij.libraries.pty4j`, which the bundled plugin `intellij.pty4j.plugin` holds.
     // A product without that plugin skips this module at startup.

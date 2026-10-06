@@ -32,7 +32,6 @@ jvm_library(
         "//platform/core-api:core",
         "//platform/util",
         "//platform/util/coroutines",
-        "//platform/kernel/pasta",
         "//fleet/rhizomedb",
     ],
 )
@@ -60,7 +59,6 @@ jvm_library(
         "//platform/core-api:core_test_lib",
         "//platform/util:util_test_lib",
         "//platform/util/coroutines:coroutines_test_lib",
-        "//platform/kernel/pasta:pasta_test_lib",
         "//fleet/rhizomedb:rhizomedb_test_lib",
     ],
 )

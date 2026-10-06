@@ -53,7 +53,6 @@ exports_files(
         "generated/META-INF/intellij.moduleSets.credentialStore.xml",
         "generated/META-INF/intellij.moduleSets.debugger.xml",
         "generated/META-INF/intellij.moduleSets.duplicates.xml",
-        "generated/META-INF/intellij.moduleSets.editor.xml",
         "generated/META-INF/intellij.moduleSets.elevation.xml",
         "generated/META-INF/intellij.moduleSets.essential.xml",
         "generated/META-INF/intellij.moduleSets.execution.split.xml",

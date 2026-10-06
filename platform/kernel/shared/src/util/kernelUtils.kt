@@ -4,7 +4,6 @@ package com.intellij.platform.kernel.util
 import com.intellij.openapi.extensions.ExtensionPointListener
 import com.intellij.openapi.extensions.PluginDescriptor
 import com.intellij.platform.kernel.EntityTypeProvider
-import com.intellij.platform.pasta.common.ChangeDocument
 import com.jetbrains.rhizomedb.DbContext
 import com.jetbrains.rhizomedb.EffectInstruction
 import com.jetbrains.rhizomedb.MapAttribute
@@ -12,7 +11,6 @@ import com.jetbrains.rhizomedb.Novelty
 import com.jetbrains.rhizomedb.ReifyEntities
 import fleet.kernel.DbSource
 import fleet.kernel.Transactor
-import fleet.kernel.TransactorMiddleware
 import fleet.kernel.rebase.AddCoder
 import fleet.kernel.rebase.CompositeCoder
 import fleet.kernel.rebase.CreateEntityCoder
@@ -23,21 +21,11 @@ import fleet.kernel.rebase.RetractAttributeCoder
 import fleet.kernel.rebase.RetractEntityCoder
 import fleet.kernel.rebase.ValidateCoder
 import fleet.kernel.rete.Rete
-import fleet.kernel.rete.withRete
 import fleet.kernel.transactor
-import fleet.kernel.withTransactor
 import kotlinx.coroutines.CoroutineScope
 import org.jetbrains.annotations.ApiStatus
 import javax.swing.SwingUtilities
 import kotlin.coroutines.CoroutineContext
-
-suspend fun <T> withKernel(middleware: TransactorMiddleware, body: suspend CoroutineScope.() -> T) {
-  withTransactor(middleware = middleware, registerEntityTypeOnEntityCreation = false) { _ ->
-    withRete {
-      body()
-    }
-  }
-}
 
 fun handleEntityTypes(transactor: Transactor, coroutineScope: CoroutineScope) {
   //in analyzer extensions are not available inside transaction
@@ -99,7 +87,6 @@ val CommonInstructionSet: InstructionSet =
     LocalInstructionCoder(ReifyEntities::class),
     ValidateCoder,
     CreateEntityCoder,
-    ChangeDocument,
   ))
 
 /**

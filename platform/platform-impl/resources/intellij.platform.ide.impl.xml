@@ -93,7 +93,6 @@
     <module name="intellij.platform.locking.impl"/>
     <module name="intellij.platform.lvcs"/>
     <module name="intellij.platform.objectSerializer"/>
-    <module name="intellij.platform.pasta"/>
     <module name="intellij.platform.pluginSystem.parser.impl"/>
     <module name="intellij.platform.pratt"/>
     <module name="intellij.platform.project"/>

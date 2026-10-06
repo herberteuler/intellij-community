@@ -795,9 +795,6 @@ platform/dvcs-impl
 platform/dvcs-impl/shared
 platform/editor-ui-api
 platform/editor-ui-ex
-platform/editor/backend
-platform/editor/frontend
-platform/editor/shared
 platform/eel
 platform/eel-impl
 platform/eel-impl-base
@@ -885,7 +882,6 @@ platform/kernel/backend
 platform/kernel/backend/baseline
 platform/kernel/intellij.platform.kernel.impl
 platform/kernel/klogger
-platform/kernel/pasta
 platform/kernel/rpc
 platform/kernel/rpc.backend
 platform/kernel/rpc.lite

@@ -306,7 +306,6 @@
     <module name="intellij.platform.ide.json" loading="embedded"/>
     <module name="intellij.platform.ide.dnd" loading="embedded"/>
     <module name="intellij.platform.ide.codeinsight.inline" loading="embedded"/>
-    <module name="intellij.platform.pasta" loading="embedded"/>
     <module name="intellij.platform.diagnostic.startUpPerformanceReporter" loading="embedded"/>
     <module name="intellij.platform.ide.util.io.native"/>
     <module name="intellij.platform.ide.osCertificates" loading="required"/>
@@ -375,12 +374,6 @@
     <!-- region nested: credentialStore -->
     <module name="intellij.platform.credentialStore.ui"/>
     <module name="intellij.platform.credentialStore.impl"/>
-    <!-- endregion -->
-
-    <!-- region nested: editor -->
-    <module name="intellij.platform.editor"/>
-    <module name="intellij.platform.editor.backend"/>
-    <module name="intellij.platform.editor.frontend"/>
     <!-- endregion -->
 
     <!-- region nested: searchEverywhere -->

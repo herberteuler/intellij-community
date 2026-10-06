@@ -4,16 +4,14 @@ package com.intellij.openapi.progress.impl
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.platform.ide.progress.BackgroundTaskOwner
 import com.intellij.platform.ide.progress.BackgroundTaskOwnerKind
-import com.intellij.platform.ide.progress.TaskInfoEntity
+import com.intellij.platform.ide.progress.TaskStorage
 import com.intellij.platform.ide.progress.withBackgroundProgress
-import com.intellij.platform.kernel.withKernel
 import com.intellij.platform.project.ProjectId
 import com.intellij.platform.project.projectId
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.common.waitUntil
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.projectFixture
-import com.jetbrains.rhizomedb.all
 import fleet.util.UID
 import kotlinx.coroutines.CoroutineScope
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -100,16 +98,14 @@ internal class BackgroundTaskOwnerTest {
   ): StoredTask {
     val title = "BackgroundTaskOwnerTest task ${UID.random()}"
     return start(title) {
-      withKernel {
-        var stored: StoredTask? = null
-        waitUntil("The task '$title' should be stored", timeout = TIMEOUT) {
-          stored = TaskInfoEntity.TitleType.all()
-            .firstOrNull { (_, taskTitle) -> taskTitle == title }
-            ?.let { (task, _) -> StoredTask(task.ownerKind, task.projectId) }
-          stored != null
-        }
-        checkNotNull(stored)
+      var stored: StoredTask? = null
+      waitUntil("The task '$title' should be stored", timeout = TIMEOUT) {
+        stored = TaskStorage.getInstance().tasks.value.values
+          .firstOrNull { it.info.title == title }
+          ?.let { StoredTask(it.info.ownerKind, it.info.projectId) }
+        stored != null
       }
+      checkNotNull(stored)
     }
   }
 

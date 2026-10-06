@@ -11,23 +11,17 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.NlsContexts.ProgressText
 import com.intellij.openapi.util.NlsContexts.ProgressTitle
 import com.intellij.platform.ide.progress.TaskCancellation
-import com.intellij.platform.ide.progress.TaskInfoEntity
-import com.intellij.platform.ide.progress.TaskManager
+import com.intellij.platform.ide.progress.TaskHandle
+import com.intellij.platform.ide.progress.TaskId
 import com.intellij.platform.ide.progress.TaskStatus
-import com.intellij.platform.ide.progress.activeTasks
-import com.intellij.platform.ide.progress.updates
+import com.intellij.platform.ide.progress.TaskStorage
 import com.intellij.platform.project.ProjectId
 import com.intellij.platform.project.projectIdOrNull
 import com.intellij.util.text.nullize
-import com.jetbrains.rhizomedb.EID
-import com.jetbrains.rhizomedb.exists
-import fleet.kernel.rete.asValuesFlow
-import fleet.kernel.rete.filter
-import fleet.kernel.rete.tokenSetsFlow
-import fleet.kernel.tryWithEntities
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
@@ -41,9 +35,9 @@ import java.util.concurrent.atomic.AtomicLong
  */
 @Service(Service.Level.APP)
 internal class RecentProjectTaskTracker(private val coroutineScope: CoroutineScope) {
-  // Every task running on any followed project, by task entity id. Flat rather than grouped by project: the id is unique on its own, a
+  // Every task running on any followed project, by task id. Flat rather than grouped by project: the id is unique on its own, a
   // held project runs a handful of tasks at most, and the value then needs no mutable state of its own.
-  private val runningTasks = ConcurrentHashMap<EID, RunningTask>()
+  private val runningTasks = ConcurrentHashMap<TaskId, RunningTask>()
 
   // Orders the tasks of a project by when they started, so the row keeps showing the one it picked while an equal one runs beside it.
   private val startedTasks = AtomicLong()
@@ -65,29 +59,33 @@ internal class RecentProjectTaskTracker(private val coroutineScope: CoroutineSco
   }
 
   private fun followTasksJob(projectId: ProjectId, projectPath: Path): Job =
-    coroutineScope.launch {
-      activeTasks.filter { it.projectId == projectId }.tokenSetsFlow().collect { tokenSet ->
-        tokenSet.retracted.forEach { runningTasks.remove(it.value.eid) }
-        tokenSet.asserted.map { it.value }.filter { it.exists() }.forEach { this@launch.startFollowing(it, projectPath) }
-        notifyRowsChanged()
+    TaskStorage.getInstance().collectEachTask(coroutineScope) { task ->
+      if (task.info.projectId == projectId) {
+        follow(task, projectPath)
       }
     }
 
-  // Records [task] as running on the project at [projectPath], and follows its progress. Does nothing for a task already recorded: the
-  // same one is asserted again when the query is rematched.
-  private fun CoroutineScope.startFollowing(task: TaskInfoEntity, projectPath: Path) {
-    val running = RunningTask(
+  // Records [task] as running on the project at [projectPath], and follows its progress until the task is removed.
+  private suspend fun follow(task: TaskHandle, projectPath: Path) {
+    val info = task.info
+    runningTasks[info.id] = RunningTask(
       projectPath = projectPath,
-      entity = task,
-      prominent = task.visibleInStatusBar,
+      task = task,
+      prominent = info.visibleInStatusBar,
       startOrder = startedTasks.incrementAndGet(),
-      progress = RecentProjectTaskProgress(task.title,
+      progress = RecentProjectTaskProgress(info.title,
                                            text = null,
                                            fraction = null,
-                                           cancellable = task.cancellation is TaskCancellation.Cancellable),
+                                           cancellable = info.cancellation is TaskCancellation.Cancellable),
     )
-    if (runningTasks.putIfAbsent(task.eid, running) == null) {
-      launch { followTaskProgress(task) }
+    try {
+      notifyRowsChanged()
+      followTaskProgress(task)
+    }
+    finally {
+      runningTasks.remove(info.id)
+      // This coroutine is cancelled already, so the rebuild runs in the service scope.
+      coroutineScope.launch { notifyRowsChanged() }
     }
   }
 
@@ -108,14 +106,12 @@ internal class RecentProjectTaskTracker(private val coroutineScope: CoroutineSco
    * Cancels the background task running on the recent project of [item].
    *
    * Does nothing when the project runs none, or when the task cannot be cancelled: the row offers this only for a task whose
-   * [RecentProjectTaskProgress.cancellable] is set, and [TaskManager] refuses it for any other.
+   * [RecentProjectTaskProgress.cancellable] is set, and [TaskStorage] refuses it for any other.
    */
   fun cancelRunningTask(item: RecentProjectItem) {
     // The same task the row shows, so the button cancels what it sits next to.
     val task = shownTask(item) ?: return
-    coroutineScope.launch {
-      TaskManager.cancelTask(task.entity, TaskStatus.Source.USER)
-    }
+    TaskStorage.getInstance().setStatus(task.task, TaskStatus.Canceled(TaskStatus.Source.USER))
   }
 
   /**
@@ -132,13 +128,11 @@ internal class RecentProjectTaskTracker(private val coroutineScope: CoroutineSco
       .minWithOrNull(compareBy({ !it.prominent }, { !it.progress.cancellable }, { it.startOrder }))
   }
 
-  // Keeps the row's progress text and fraction current. Ends with the task: the entity is deleted when it finishes.
-  private suspend fun followTaskProgress(task: TaskInfoEntity) {
-    tryWithEntities(task) {
-      task.updates.asValuesFlow().collect { state ->
-        runningTasks.computeIfPresent(task.eid) { _, running ->
-          running.copy(progress = running.progress.copy(text = state.text?.nullize(nullizeSpaces = true), fraction = state.fraction))
-        }
+  // Keeps the row's progress text and fraction current. Ends with the task: the storage removes it when it finishes.
+  private suspend fun followTaskProgress(task: TaskHandle) {
+    task.progress.filterNotNull().collect { state ->
+      runningTasks.computeIfPresent(task.info.id) { _, running ->
+        running.copy(progress = running.progress.copy(text = state.text?.nullize(nullizeSpaces = true), fraction = state.fraction))
       }
     }
   }
@@ -148,10 +142,10 @@ internal class RecentProjectTaskTracker(private val coroutineScope: CoroutineSco
   }
 }
 
-/** A task of a followed project: the entity, which cancelling it needs, the ordering inputs, and the snapshot the row is painted from. */
+/** A task of a followed project: the handle, which cancelling it needs, the ordering inputs, and the snapshot the row is painted from. */
 private data class RunningTask(
   val projectPath: Path,
-  val entity: TaskInfoEntity,
+  val task: TaskHandle,
   /** Whether the platform means the task to be seen, or keeps it out of the status bar as background noise. */
   val prominent: Boolean,
   val startOrder: Long,

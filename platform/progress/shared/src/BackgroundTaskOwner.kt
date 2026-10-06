@@ -58,12 +58,12 @@ object AllFramesBackgroundTaskOwner : BackgroundTaskOwner {
 }
 
 /**
- * Rhizome adapter
+ * The serializable form of a [BackgroundTaskOwner], without the project.
  */
 @Internal
 @Serializable
 enum class BackgroundTaskOwnerKind {
-  /** The frame of [TaskInfoEntity.projectId] shows the task. */
+  /** The frame of [TaskInfo.projectId] shows the task. */
   PROJECT,
 
   // the semantics is intentionally unclear -- it is defined at least in monolith.

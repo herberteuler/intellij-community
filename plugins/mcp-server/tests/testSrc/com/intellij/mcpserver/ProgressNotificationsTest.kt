@@ -54,14 +54,12 @@ class ProgressNotificationsTest : McpToolsetTestBase() {
   @McpTool(title = "Flow completed background task")
   suspend fun flow_completed_background_task(): String {
     val taskStorage = TaskStorage.getInstance()
-    val task = checkNotNull(
-      taskStorage.addTask(
-        project = project,
-        title = "Short-lived background task",
-        cancellation = TaskCancellation.nonCancellable(),
-        suspendable = TaskSuspension.NonSuspendable,
-        visibleInStatusBar = false,
-      )
+    val task = taskStorage.addTask(
+      project = project,
+      title = "Short-lived background task",
+      cancellation = TaskCancellation.nonCancellable(),
+      suspendable = TaskSuspension.NonSuspendable,
+      visibleInStatusBar = false,
     )
     taskStorage.removeTask(task)
 

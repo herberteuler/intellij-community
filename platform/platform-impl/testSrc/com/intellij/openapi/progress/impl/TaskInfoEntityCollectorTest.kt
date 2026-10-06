@@ -1,158 +1,128 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.progress.impl
 
-import com.intellij.platform.ide.progress.BackgroundTaskOwnerKind
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectCloseListener
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.project.ex.ProjectManagerEx
 import com.intellij.platform.ide.progress.TaskCancellation
-import com.intellij.platform.ide.progress.TaskInfoEntity
-import com.intellij.platform.ide.progress.TaskStatus
+import com.intellij.platform.ide.progress.TaskHandle
+import com.intellij.platform.ide.progress.TaskStorage
 import com.intellij.platform.ide.progress.suspender.TaskSuspension
-import com.intellij.platform.kernel.withKernel
-import com.intellij.platform.project.ProjectEntity
-import com.intellij.platform.project.ProjectId
-import com.intellij.testFramework.common.waitUntil
+import com.intellij.platform.project.findProjectOrNull
+import com.intellij.platform.project.projectIdOrNull
+import com.intellij.testFramework.closeProjectAsync
+import com.intellij.testFramework.common.timeoutRunBlocking
+import com.intellij.testFramework.createTestOpenProjectOptions
 import com.intellij.testFramework.junit5.TestApplication
-import com.jetbrains.rhizomedb.entities
-import com.jetbrains.rhizomedb.exists
-import fleet.kernel.change
-import fleet.util.UID
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import com.intellij.testFramework.useProjectAsync
+import com.intellij.testFramework.withProjectAsync
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.seconds
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Pins down why [TaskInfoEntity.projectId] is a plain value and not a ref to [ProjectEntity]:
- * a project's entity may legitimately be deleted and re-created with the same id (both peers create
- * one; in IJ Light the id is re-bound on connect), and a `CASCADE_DELETE_BY` ref silently wiped the
- * tasks on every such replacement. Cleanup is explicit instead — see [collectStaleProjectTasks] and
- * the [removeTasksForUnregisteredProjects] decision it drives.
+ * A task keeps its project as a plain id. [TaskStorage] removes the tasks of a project when the project is disposed.
  */
 @TestApplication
-@Suppress("DEPRECATION")
 internal class TaskInfoEntityCollectorTest {
 
   @Test
-  fun `the collector removes task info entities once the project entity is gone`(): Unit = runBlocking {
-    withKernel {
-      registerEntityTypes()
+  fun `closing a project removes its tasks and keeps the other tasks`(@TempDir tempDir: Path): Unit = timeoutRunBlocking {
+    val storage = TaskStorage.getInstance()
 
-      val projectId = newProjectId()
-      val projectEntity = createProjectEntity(projectId)
-      val taskInfoEntity = createTaskInfoEntity(projectId)
+    openProject(tempDir.resolve("open")).useProjectAsync { openProject ->
+      lateinit var closedTask: TaskHandle
+      val closedProject = openProject(tempDir.resolve("closed")).withProjectAsync { closedTask = addTask(storage, it) }
+      val openTask = addTask(storage, openProject)
+      val defaultTask = addTask(storage, ProjectManager.getInstance().defaultProject)
 
-      withCollector {
-        change { projectEntity.delete() }
-
-        waitUntil("TaskInfoEntity should be removed after ProjectEntity deregistration", timeout = TIMEOUT) {
-          !taskInfoEntity.exists() && entities(TaskInfoEntity.ProjectIdType, projectId).isEmpty()
-        }
-      }
-    }
-  }
-
-  @Test
-  fun `the collector keeps task info entities when the project entity is replaced with the same id`(): Unit = runBlocking {
-    withKernel {
-      registerEntityTypes()
-
-      val projectId = newProjectId()
-      val projectEntity = createProjectEntity(projectId)
-      val taskInfoEntity = createTaskInfoEntity(projectId)
-
-      withCollector {
-        // one transaction: the collector sees the old entity retracted and the new one asserted together
-        val replacement = change {
-          projectEntity.delete()
-          ProjectEntity.new {
-            it[ProjectEntity.ProjectIdValue] = projectId
-          }
-        }
-
-        // there is nothing to wait for here — an unwanted removal can only be observed by not happening,
-        // so drive a second, unambiguous change through the collector and assert the task outlived both
-        change { replacement.delete() }
-
-        waitUntil("TaskInfoEntity should be removed after the replacement ProjectEntity is removed", timeout = TIMEOUT) {
-          !taskInfoEntity.exists()
-        }
-      }
-    }
-  }
-
-  @Test
-  fun `tasks of a project whose entity was replaced under the same id are not removed`(): Unit = runBlocking {
-    withKernel {
-      registerEntityTypes()
-
-      val projectId = newProjectId()
-      val projectEntity = createProjectEntity(projectId)
-      val taskInfoEntity = createTaskInfoEntity(projectId)
-
-      change {
-        projectEntity.delete()
-        ProjectEntity.new {
-          it[ProjectEntity.ProjectIdValue] = projectId
-        }
-      }
-      removeTasksForUnregisteredProjects(setOf(projectId))
-
-      assertTrue(taskInfoEntity.exists(), "TaskInfoEntity should survive same-id ProjectEntity replacement")
-    }
-  }
-
-  /**
-   * Runs [body] with [collectStaleProjectTasks] observing the DB.
-   *
-   * [CoroutineStart.UNDISPATCHED] is what makes this deterministic: the collector runs up to its first
-   * real suspension — that is, past subscribing to `ProjectEntity.each()` — before [body] gets to change
-   * anything. A dispatched start could queue behind the change and miss the entity it is supposed to track.
-   */
-  private suspend fun withCollector(body: suspend () -> Unit) {
-    coroutineScope {
-      val collector: Job = launch(start = CoroutineStart.UNDISPATCHED) { collectStaleProjectTasks(this) }
+      val idResolvesInProjectClosed = AtomicBoolean()
+      val connection = ApplicationManager.getApplication().messageBus.connect()
       try {
-        body()
+        connection.subscribe(ProjectCloseListener.TOPIC, object : ProjectCloseListener {
+          override fun projectClosed(project: Project) {
+            if (project === closedProject) {
+              idResolvesInProjectClosed.set(project.projectIdOrNull()?.findProjectOrNull() === project)
+            }
+          }
+        })
+
+        closedProject.closeProjectAsync()
+
+        assertTrue(idResolvesInProjectClosed.get(), "The project id must still resolve in projectClosed")
+        assertTrue(closedTask.removed.isCompleted, "The task of the closed project must be removed")
+        assertFalse(openTask.removed.isCompleted, "The task of an open project must stay")
+        assertFalse(defaultTask.removed.isCompleted, "The task of the default project must stay")
       }
       finally {
-        collector.cancel()
+        connection.disconnect()
+        storage.removeTask(closedTask)
+        storage.removeTask(openTask)
+        storage.removeTask(defaultTask)
       }
     }
   }
 
-  private suspend fun registerEntityTypes() {
-    change {
-      register(ProjectEntity, TaskInfoEntity)
+  @Test
+  fun `disposing a project that never opened removes its tasks`(@TempDir tempDir: Path): Unit = timeoutRunBlocking {
+    val storage = TaskStorage.getInstance()
+    val project = loadProject(tempDir.resolve("loaded"))
+    val task = addTask(storage, project)
+
+    val projectClosed = AtomicBoolean()
+    val connection = ApplicationManager.getApplication().messageBus.connect()
+    try {
+      connection.subscribe(ProjectCloseListener.TOPIC, object : ProjectCloseListener {
+        override fun projectClosed(closedProject: Project) {
+          if (closedProject === project) projectClosed.set(true)
+        }
+      })
+
+      ProjectManagerEx.getInstanceEx().forceCloseProjectAsync(project)
+
+      assertTrue(project.isDisposed, "The project must be disposed")
+      assertFalse(projectClosed.get(), "A project that never opened must not fire projectClosed")
+      assertTrue(task.removed.isCompleted, "The task of the disposed project must be removed")
+      assertFalse(task.info.id in storage.tasks.value, "The storage must not keep the task of the disposed project")
+    }
+    finally {
+      connection.disconnect()
+      storage.removeTask(task)
     }
   }
 
-  private fun newProjectId(): ProjectId = ProjectId.deserializeFromString(UID.random().toString())
+  @Test
+  fun `a task added to a disposed project is removed at once`(@TempDir tempDir: Path): Unit = timeoutRunBlocking {
+    val storage = TaskStorage.getInstance()
+    val project = loadProject(tempDir.resolve("disposed"))
+    ProjectManagerEx.getInstanceEx().forceCloseProjectAsync(project)
 
-  private suspend fun createProjectEntity(projectId: ProjectId): ProjectEntity {
-    return change {
-      ProjectEntity.new {
-        it[ProjectEntity.ProjectIdValue] = projectId
-      }
-    }
+    val task = addTask(storage, project)
+
+    assertTrue(task.removed.isCompleted, "The task of a disposed project must be removed")
+    assertFalse(task.info.id in storage.tasks.value, "The storage must not keep the task of a disposed project")
   }
 
-  private suspend fun createTaskInfoEntity(projectId: ProjectId): TaskInfoEntity {
-    return change {
-      TaskInfoEntity.new {
-        it[TaskInfoEntity.ProjectIdType] = projectId
-        it[TaskInfoEntity.OwnerKindType] = BackgroundTaskOwnerKind.PROJECT
-        it[TaskInfoEntity.TitleType] = "test task"
-        it[TaskInfoEntity.TaskCancellationType] = TaskCancellation.nonCancellable()
-        it[TaskInfoEntity.TaskSuspensionType] = TaskSuspension.NonSuspendable
-        it[TaskInfoEntity.ProgressStateType] = null
-        it[TaskInfoEntity.TaskStatusType] = TaskStatus.Running(source = TaskStatus.Source.SYSTEM)
-        it[TaskInfoEntity.ProgressBarVisibilityType] = true
-      }
-    }
+  private suspend fun loadProject(dir: Path): Project {
+    Files.createDirectories(dir.resolve(Project.DIRECTORY_STORE_FOLDER))
+    return withContext(Dispatchers.IO) { ProjectManagerEx.getInstanceEx().loadProject(dir) }
+  }
+
+  private suspend fun openProject(dir: Path): Project {
+    val options = createTestOpenProjectOptions(runPostStartUpActivities = false).copy(isNewProject = true)
+    return checkNotNull(ProjectManagerEx.getInstanceEx().openProjectAsync(dir, options))
+  }
+
+  private fun addTask(storage: TaskStorage, project: Project): TaskHandle {
+    return storage.addTask(project, "task of $project", TaskCancellation.nonCancellable(), TaskSuspension.NonSuspendable,
+                           visibleInStatusBar = true)
   }
 }
-
-private val TIMEOUT = 10.seconds

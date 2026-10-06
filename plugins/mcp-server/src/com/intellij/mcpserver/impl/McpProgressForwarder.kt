@@ -3,17 +3,13 @@ package com.intellij.mcpserver.impl
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.registry.Registry
-import com.intellij.platform.ide.progress.TaskInfoEntity
-import com.intellij.platform.ide.progress.activeTasks
-import com.intellij.platform.ide.progress.updates
+import com.intellij.platform.ide.progress.TaskHandle
+import com.intellij.platform.ide.progress.TaskStorage
 import com.intellij.platform.project.projectId
 import com.intellij.platform.util.coroutines.flow.throttle
 import com.intellij.platform.util.progress.ProgressPipe
 import com.intellij.platform.util.progress.ProgressState
 import com.intellij.platform.util.progress.createProgressPipe
-import fleet.kernel.rete.asValuesFlow
-import fleet.kernel.rete.getOrNull
-import fleet.kernel.tryWithEntities
 import io.modelcontextprotocol.kotlin.sdk.server.ServerSession
 import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotification
 import io.modelcontextprotocol.kotlin.sdk.types.ProgressNotificationParams
@@ -21,7 +17,6 @@ import io.modelcontextprotocol.kotlin.sdk.types.ProgressToken
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -29,7 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flatMapMerge
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.merge
@@ -132,36 +127,25 @@ private fun inlineProgressFlow(pipe: ProgressPipe): Flow<McpProgressEvent> = flo
   }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
 private fun backgroundProgressFlow(project: Project?, observeBackgroundTasks: AtomicBoolean): Flow<McpProgressEvent> {
   if (project == null) {
     return emptyFlow()
   }
 
-  return flow {
-    val seenTaskIds = HashSet<Any>()
-    activeTasks.asValuesFlow().collect { task ->
-      if (!observeBackgroundTasks.get()) return@collect
-      if (!taskBelongsToProject(task, project)) return@collect
-      if (!seenTaskIds.add(task.eid)) return@collect
-      emit(task)
-    }
-  }.flatMapMerge { task ->
-    channelFlow {
-      tryWithEntities(task) {
-        task.updates.asValuesFlow()
-          .mapNotNull { state -> normalizeProgressState(state, includeEmpty = false) }
-          .collect { send(it) }
-      }
+  return channelFlow {
+    TaskStorage.getInstance().collectEachTask(this) { task ->
+      if (!observeBackgroundTasks.get()) return@collectEachTask
+      if (!taskBelongsToProject(task, project)) return@collectEachTask
+      task.progress
+        .filterNotNull()
+        .mapNotNull { state -> normalizeProgressState(state, includeEmpty = false) }
+        .collect { send(it) }
     }
   }
 }
 
-internal suspend fun taskBelongsToProject(task: TaskInfoEntity, project: Project): Boolean {
-  val projectId = project.projectId()
-  return tryWithEntities(task) {
-    task.projectId == projectId
-  }.getOrNull() == true
+internal fun taskBelongsToProject(task: TaskHandle, project: Project): Boolean {
+  return !task.removed.isCompleted && task.info.projectId == project.projectId()
 }
 
 private fun heartbeatFlow(

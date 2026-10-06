@@ -15,7 +15,4 @@
     <module name="intellij.platform.util.progress"/>
   </dependencies>
   <!-- endregion -->
-  <extensions defaultExtensionNs="com.intellij">
-    <platform.entityTypes implementation="com.intellij.platform.ide.progress.TaskInfoEntityTypeProvider"/>
-  </extensions>
 </idea-plugin>

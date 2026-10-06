@@ -12,42 +12,28 @@ import com.intellij.openapi.progress.util.ProgressIndicatorBase
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.platform.ide.progress.BackgroundTaskOwnerKind
-import com.intellij.platform.ide.progress.TaskInfoEntity
-import com.intellij.platform.ide.progress.TaskManager
+import com.intellij.platform.ide.progress.TaskHandle
 import com.intellij.platform.ide.progress.TaskStatus
-import com.intellij.platform.ide.progress.activeTasks
-import com.intellij.platform.ide.progress.statuses
+import com.intellij.platform.ide.progress.TaskStorage
 import com.intellij.platform.ide.progress.suspender.TaskSuspension
-import com.intellij.platform.ide.progress.suspensionState
-import com.intellij.platform.ide.progress.updates
-import com.intellij.platform.project.ProjectEntity
 import com.intellij.platform.project.ProjectId
 import com.intellij.platform.project.projectId
-import com.jetbrains.rhizomedb.EID
-import com.jetbrains.rhizomedb.entities
-import com.jetbrains.rhizomedb.exists
-import fleet.kernel.change
-import fleet.kernel.rete.asValuesFlow
-import fleet.kernel.rete.collect
-import fleet.kernel.rete.collectLatest
-import fleet.kernel.rete.each
-import fleet.kernel.rete.filter
-import fleet.kernel.rete.tokenSetsFlow
-import fleet.kernel.tryWithEntities
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 private val LOG = logger<TaskInfoEntityCollector>()
 
 internal class TaskInfoEntityCollector(cs: CoroutineScope) {
   init {
-    LOG.trace { "TaskInfoEntityCollector started for application"}
+    LOG.trace { "TaskInfoEntityCollector started for application" }
     collectActiveTasks(cs, project = null)
-    collectStaleProjectTasks(cs)
   }
 }
 
@@ -60,12 +46,10 @@ internal class PerProjectTaskInfoEntityCollector(private val project: Project, p
 }
 
 private fun collectActiveTasks(cs: CoroutineScope, project: Project?) {
-  cs.launch {
-    activeTasks
-      .filter { isTaskShownByCollector(it.ownerKind, it.projectId, project?.projectId()) }
-      .collect { task ->
-        showTaskIndicator(cs, project, task)
-      }
+  TaskStorage.getInstance().collectEachTask(cs) { task ->
+    if (isTaskShownByCollector(task.info.ownerKind, task.info.projectId, project?.projectId())) {
+      showTaskIndicator(project, task)
+    }
   }
 }
 
@@ -92,98 +76,44 @@ internal fun isTaskShownByCollector(
   }
 }
 
-/**
- * Tasks reference their project by a plain id (see [TaskInfoEntity.projectId]), so nothing cascades
- * when a `ProjectEntity` disappears. This watches project entities and removes the tasks of a project
- * that is truly unregistered — as opposed to one whose entity got replaced by another with the same id
- * (both peers create one; in IJ Light the id itself is re-bound on connect), which used to trip the
- * cascade delete and silently wipe the tasks.
- */
-internal fun collectStaleProjectTasks(cs: CoroutineScope) {
-  val projectIdsByEntity = mutableMapOf<EID, ProjectId>()
-  cs.launch {
-    ProjectEntity.each().tokenSetsFlow().collect { tokenSet ->
-      val removedProjectIds = tokenSet.retracted
-        .map { it.value }
-        .mapNotNull { projectEntity ->
-          projectIdsByEntity.remove(projectEntity.eid) ?: run {
-            LOG.warn("Can't remove project entity with id ${projectEntity.eid}. It's already removed")
-            null
-          }
-        }.toSet()
+private suspend fun CoroutineScope.showTaskIndicator(project: Project?, task: TaskHandle) {
+  LOG.trace { "Showing indicator for $task, project=$project" }
 
-      tokenSet.asserted
-        .map { it.value }
-        .filter { it.exists() }
-        .forEach { projectEntity ->
-          projectIdsByEntity[projectEntity.eid] = projectEntity.projectId
-        }
+  val progressModel = ProgressIndicatorModel(task.info.title, task.info.cancellation, visibleInStatusBar = task.info.visibleInStatusBar) {
+    LOG.trace { "Cancelling $task" }
+    TaskStorage.getInstance().setStatus(task, TaskStatus.Canceled(TaskStatus.Source.USER))
+  }
 
-      removeTasksForUnregisteredProjects(removedProjectIds)
+  // a null project makes the indicator use the last focused frame
+  val indicatorProject = when {
+    project != null -> project
+    task.info.ownerKind == BackgroundTaskOwnerKind.GUESS -> null
+    else -> serviceAsync<ProjectManager>().defaultProject
+  }
+  showIndicator(
+    indicatorProject,
+    progressModel,
+    task.progress.filterNotNull()
+  )
+
+  collectSuspendableChanges(task, progressModel)
+}
+
+private suspend fun collectSuspendableChanges(task: TaskHandle, progressModel: ProgressModel) {
+  task.suspension.collectLatest { suspension ->
+    coroutineScope {
+      markSuspendable(task, suspension, progressModel)
     }
   }
 }
 
-internal suspend fun removeTasksForUnregisteredProjects(projectIds: Set<ProjectId>) {
-  projectIds
-    .filter { projectId -> entities(ProjectEntity.ProjectIdValue, projectId).isEmpty() }
-    .forEach { projectId ->
-      change {
-        entities(TaskInfoEntity.ProjectIdType, projectId).forEach { it.delete() }
-      }
-    }
-}
-
-private fun showTaskIndicator(cs: CoroutineScope, project: Project?, task: TaskInfoEntity) {
-  cs.launch {
-    tryWithEntities(task) {
-      LOG.trace { "Showing indicator for task: entityId=${task.eid}, title=${task.title}, project=$project" }
-
-      val progressModel = if (isRhizomeProgressModelEnabled()) {
-        ProgressTaskInfoEntityModel(task, cs)
-      }
-      else {
-        val entityId = task.eid
-        val title = task.title
-        ProgressIndicatorModel(task.title, task.cancellation, visibleInStatusBar = task.visibleInStatusBar) {
-          LOG.trace { "Cancelling task: entityId=$entityId, title=$title" }
-          cs.launch {
-            TaskManager.cancelTask(task, TaskStatus.Source.USER)
-          }
-        }
-      }
-
-      // a null project makes the indicator use the last focused frame
-      val indicatorProject = when {
-        project != null -> project
-        task.ownerKind == BackgroundTaskOwnerKind.GUESS -> null
-        else -> serviceAsync<ProjectManager>().defaultProject
-      }
-      showIndicator(
-        indicatorProject,
-        progressModel,
-        task.updates.asValuesFlow()
-      )
-
-      collectSuspendableChanges(task, progressModel)
-    }
-  }
-}
-
-private suspend fun collectSuspendableChanges(task: TaskInfoEntity, progressModel: ProgressModel) {
-  task.suspensionState.collectLatest {
-    markSuspendable(task, progressModel)
-  }
-}
-
-private suspend fun CoroutineScope.markSuspendable(task: TaskInfoEntity, progressModel: ProgressModel) {
-  val suspendableInfo = task.suspension
-  if (suspendableInfo !is TaskSuspension.Suspendable) return
+private suspend fun CoroutineScope.markSuspendable(task: TaskHandle, suspension: TaskSuspension, progressModel: ProgressModel) {
+  if (suspension !is TaskSuspension.Suspendable) return
 
   // HACK: tempIndicator is required to avoid runProcess stopping the original indicator when the execution is finished
   val tempIndicator = ProgressIndicatorBase()
   val suspender = ProgressManager.getInstance().runProcess<ProgressSuspender>(
-    { ProgressSuspender.markSuspendable(tempIndicator, suspendableInfo.suspendText) }, tempIndicator)
+    { ProgressSuspender.markSuspendable(tempIndicator, suspension.suspendText) }, tempIndicator)
 
   try {
     val suspenderStateChange = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -197,20 +127,21 @@ private suspend fun CoroutineScope.markSuspendable(task: TaskInfoEntity, progres
     // Instead of markSuspendable, which has to be called under runProcess, we can use attachToProgress on the already created suspender
     suspender.attachToProgress(progressModel.getProgressIndicator()) //propagate events to original indicator
 
+    val storage = TaskStorage.getInstance()
     launch {
       suspenderStateChange.collectLatest {
         if (suspender.isSuspended) {
-          TaskManager.pauseTask(task, suspender.suspendedText, TaskStatus.Source.USER)
+          storage.setStatus(task, TaskStatus.Paused(suspender.suspendedText, TaskStatus.Source.USER))
         }
         else {
-          TaskManager.resumeTask(task, TaskStatus.Source.USER)
+          storage.setStatus(task, TaskStatus.Running(TaskStatus.Source.USER))
         }
       }
     }
 
     launch {
       // We shouldn't process events generated by TaskInfoEntityCollector to avoid infinite update cycles
-      task.statuses
+      task.status
         .filter { it.source != TaskStatus.Source.USER }
         .collect { status ->
           when (status) {

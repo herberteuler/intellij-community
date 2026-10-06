@@ -22,18 +22,13 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.project.UnindexedFilesScannerExecutor
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.wm.IdeFrame
-import com.intellij.platform.ide.progress.activeTasks
-import com.intellij.platform.ide.progress.updates
+import com.intellij.platform.ide.progress.TaskStorage
 import com.intellij.util.io.DirectByteBufferAllocator
 import com.intellij.util.io.StorageLockContext
 import com.intellij.util.io.storage.HeavyProcessLatch
 import com.jetbrains.Extensions
 import com.jetbrains.JBR
-import fleet.kernel.rete.asValuesFlow
-import fleet.kernel.rete.tokensFlow
-import fleet.kernel.tryWithEntities
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -42,12 +37,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapMerge
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.ApiStatus
@@ -172,17 +164,9 @@ private fun isModal(): Boolean {
   return LaterInvocator.isInModalContext() || ProgressManager.getInstance().hasModalProgressIndicator()
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
 private fun CoroutineScope.hasActiveBackgroundTasksStateFlow(): StateFlow<Boolean> {
-  return activeTasks.asValuesFlow().flatMapMerge { task ->
-    flow {
-      emit(1)
-      tryWithEntities(task) { task.updates.tokensFlow().collect {} }
-      emit(-1)
-    }
-  }
-    .scan(0) { acc, delta -> acc + delta }
-    .map { count -> count > 0 }
+  return TaskStorage.getInstance().tasks
+    .map { tasks -> tasks.isNotEmpty() }
     .debounce { if (it) 0 else 2000 }
     .stateIn(this, SharingStarted.Eagerly, false)
 }

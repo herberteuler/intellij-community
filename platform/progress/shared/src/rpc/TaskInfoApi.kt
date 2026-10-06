@@ -21,10 +21,8 @@ import org.jetbrains.annotations.ApiStatus
  * The RPC surface of the task-progress feature: a frontend observes the backend's tasks through
  * [activeTasks] and drives them through the command methods.
  *
- * This is the only cross-process channel of the feature. Each side stores its tasks in its own local
- * Rhizome DB (see `TaskStorage`); nothing task-related is synchronized through shared kernel changes
- * anymore — that synchronous sync (one shared transaction per progress tick, plus the `ProjectEntity`
- * reference it dragged along) was a recurring deadlock source in Remote Development.
+ * This is the only cross-process channel of the feature. Each side stores its tasks in its own
+ * [com.intellij.platform.ide.progress.TaskStorage].
  */
 @ApiStatus.Internal
 @Rpc
@@ -33,8 +31,8 @@ interface TaskInfoApi : RemoteApi<Unit> {
   /**
    * All tasks alive on the backend, as an event stream: a [TaskInfoEvent.TaskAdded] per task already
    * running or started later, followed by its update events, terminated by [TaskInfoEvent.TaskRemoved].
-   * [RemoteTaskId]s are stable for the lifetime of the backend process and shared across subscriptions,
-   * so they can be passed to the command methods.
+   * A [RemoteTaskId] carries the backend [com.intellij.platform.ide.progress.TaskId].
+   * It is stable for the lifetime of the backend process, so the command methods accept it.
    */
   suspend fun activeTasks(): Flow<TaskInfoEvent>
 

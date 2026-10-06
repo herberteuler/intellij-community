@@ -125,8 +125,6 @@ jvm_library(
         "//platform/ide-core:ide-core_test_lib",
         "//platform/execution:execution_test_lib",
         "//platform/remote-core:remote-core_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//libraries/caffeine:caffeine_test_lib",
         "//libraries/jackson3/jackson:libraries-jackson3_test_lib",
         "//libraries/jackson3/databind:databind_test_lib",

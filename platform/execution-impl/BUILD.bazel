@@ -150,8 +150,6 @@ jvm_library(
         "//libraries/jediterm-core:jediterm-core_test_lib",
         "//libraries/jediterm-ui:jediterm-ui_test_lib",
         "//platform/execution:execution_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//platform/util/jdom:jdom_test_lib",
         "//platform/workspace/storage:storage_test_lib",
         "//libraries/kotlinx/coroutines/core:core_test_lib",

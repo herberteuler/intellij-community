@@ -139,8 +139,6 @@ jvm_library(
         "//platform/core-api:core_test_lib",
         "//platform/diagnostic/telemetry",
         "//platform/diagnostic/telemetry:telemetry_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//tools/intellij.tools.ide.metrics.collector:ide-metrics-collector",
         "//tools/intellij.tools.ide.metrics.collector:ide-metrics-collector_test_lib",
         "//tools/intellij.tools.ide.util.common:ide-util-common",

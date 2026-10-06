@@ -116,8 +116,6 @@ jvm_library(
         "//platform/projectModel-api:projectModel_test_lib",
         "//platform/refactoring:refactoring_test_lib",
         "//platform/structure-view-impl:structureView_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//java/java-impl-inspections:impl-inspections_test_lib",
         "//java/java-impl-refactorings:impl-refactorings_test_lib",
         "//java/codeserver/highlighting:highlighting_test_lib",

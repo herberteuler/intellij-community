@@ -89,8 +89,6 @@ jvm_library(
         "//platform/diff-impl:diff-impl_test_lib",
         "//platform/forms_rt:java-guiForms-rt_test_lib",
         "//libraries/fastutil:fastutil_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//platform/core-ui:core-ui_test_lib",
         "//platform/platform-util-io:ide-util-io_test_lib",
         "//platform/ide-core-impl:ide-core-impl_test_lib",

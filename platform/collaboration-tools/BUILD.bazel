@@ -122,8 +122,6 @@ jvm_library(
         "//platform/diff-api:diff_test_lib",
         "//libraries/fastutil:fastutil_test_lib",
         "//platform/diff-impl:diff-impl_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//platform/credential-store-ui:credentialStore-ui_test_lib",
         "//platform/vcs-impl:vcs-impl_test_lib",
         "//platform/platform-util-io:ide-util-io_test_lib",

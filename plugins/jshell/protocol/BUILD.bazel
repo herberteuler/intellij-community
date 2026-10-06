@@ -35,12 +35,7 @@ jvm_library(
     kotlinc_opts = "@community//:k11",
     module_name = "intellij.java.jshell.protocol",
     visibility = ["//visibility:public"],
-    runtime_deps = [
-        # do not sort,
-        ":protocol",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
-    ],
+    runtime_deps = [":protocol"],
 )
 ### auto-generated section `build intellij.java.jshell.protocol` end
 

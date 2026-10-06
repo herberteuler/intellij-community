@@ -117,8 +117,6 @@ jvm_library(
         "//platform/platform-impl:ide-impl_test_lib",
         "//java/java-syntax:syntax_test_lib",
         "//java/java-psi-api:psi_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//platform/diff-api:diff_test_lib",
         "//java/compiler/openapi:java-compiler_test_lib",
         "//platform/ide-core-impl:ide-core-impl_test_lib",

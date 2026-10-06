@@ -114,8 +114,6 @@ jvm_library(
         ":ant",
         "//java/openapi:java_test_lib",
         "//java/java-psi-api:psi_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//platform/analysis-api:analysis_test_lib",
         "//xml/xml-analysis-api:analysis_test_lib",
         "//platform/core-api:core_test_lib",

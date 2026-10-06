@@ -48,8 +48,6 @@ jvm_library(
         # do not sort,
         "//libraries/jetbrains/annotations",
         "//libraries/jetbrains/annotations:annotations_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//python/python-test-env/core",
         "//python/python-test-env/core:core_test_lib",
         "@lib//:kotlin-stdlib",

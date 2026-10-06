@@ -131,8 +131,6 @@ jvm_library(
         "//RegExpSupport:regexp_test_lib",
         "//xml/xml-psi-api:psi_test_lib",
         "//libraries/jaxen:jaxen_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//xml/dom-impl:dom-impl_test_lib",
         "//platform/util/nanoxml:nanoxml_test_lib",
         "//libraries/fastutil:fastutil_test_lib",

@@ -199,8 +199,6 @@ jvm_library(
         "//platform/util/coroutines:coroutines_test_lib",
         "//platform/util:util-ui_test_lib",
         "//platform/util-ex:util-ex_test_lib",
-        "//libraries/junit4",
-        "//libraries/junit4:junit4_test_lib",
         "//platform/platform-impl/ui:ui_test_lib",
         "//libraries/gson:gson_test_lib",
         "//platform/dvcs-impl/shared:shared_test_lib",

@@ -215,9 +215,9 @@ private sealed class MoveToCompanionFix(
         )
         val processor = object : K2MoveDeclarationsRefactoringProcessor(descriptor) {
             override fun openFilesAfterMoving(movedElements: List<SmartPsiElementPointer<KtNamedDeclaration>>) {
-                movedElements.singleOrNull()?.element?.takeIf { it.isValid }?.let { movedElement ->
-                    editor?.takeIf { !it.isDisposed }?.caretModel?.moveToOffset(movedElement.startOffset)
-                }
+                val movedElement = movedElements.singleOrNull()?.element?.takeIf { it.isValid } ?: return
+                val caretModel = editor?.takeIf { !it.isDisposed }?.caretModel ?: return
+                caretModel.moveToOffset(movedElement.startOffset)
             }
         }
         processor.setPrepareSuccessfulSwingThreadCallback { }

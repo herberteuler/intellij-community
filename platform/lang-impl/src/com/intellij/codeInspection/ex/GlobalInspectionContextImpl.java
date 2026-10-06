@@ -1335,9 +1335,6 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
     if (isExportRun()) {
       return;
     }
-    if (isExportRun()) {
-      return;
-    }
     if (myView == null && !InspectionResultsView.hasProblems(tools, this, new InspectionRVContentProviderImpl())) {
       return;
     }

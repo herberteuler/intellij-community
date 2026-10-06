@@ -1,7 +1,7 @@
 {
   "productCode": "IC",
   "envVarBaseName": "IDEA",
-  "dataDirectoryName": "IdeaIC2026.3",
+  "dataDirectoryName": "IdeaIC2027.1",
   "minRequiredJavaVersion": 25,
   "baseFileName": "idea",
   "launch": {
@@ -13,7 +13,7 @@
       "multiRoutingFileSystem": true,
       "classLoader": "com.intellij.util.lang.PathClassLoader",
       "vendorName": "JetBrains",
-      "pathsSelector": "IdeaIC2026.3",
+      "pathsSelector": "IdeaIC2027.1",
       "jnaNativeDir": "plugins/jna-plugin/lib/jna",
       "pty4jNativeDir": "plugins/pty4j-plugin/lib/pty4j",
       "skikoNativeDir": "plugins/platform-compose-plugin/lib/skiko-awt-runtime-all",
@@ -35,7 +35,7 @@
         "multiRoutingFileSystem": true,
         "classLoader": "com.intellij.util.lang.PathClassLoader",
         "vendorName": "JetBrains",
-        "pathsSelector": "IdeaIC2026.3",
+        "pathsSelector": "IdeaIC2027.1",
         "jnaNativeDir": "plugins/jna-plugin/lib/jna",
         "pty4jNativeDir": "plugins/pty4j-plugin/lib/pty4j",
         "skikoNativeDir": "plugins/platform-compose-plugin/lib/skiko-awt-runtime-all",
@@ -65,7 +65,7 @@
         "-Dmaven.default.headless.import=true",
         "-Dide.do.not.check.ls.on.startup=true",
         "-Dqodana.product.name=Qodana Community for JVM",
-        "-Dqodana.build.number=QDJVMC-263.SNAPSHOT",
+        "-Dqodana.build.number=QDJVMC-271.SNAPSHOT",
         "-Dqodana.eap=true"
       ]
     },

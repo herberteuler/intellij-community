@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.intellij.plugins.markdown.editor.tables
 
+import com.intellij.application.options.CodeStyle
 import com.intellij.openapi.editor.Caret
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
@@ -26,16 +27,25 @@ import java.lang.Integer.max
 object TableFormattingUtils {
   private const val BULK_REFORMAT_CELL_COUNT_THRESHOLD = 100
 
-  private class CellContentState(val contentWithCarets: String, val caretsInside: Array<Caret> = emptyArray()) {
-    val trimmedContentWithCarets by lazy { contentWithCarets.trim(' ') }
+  private class CellContentState(
+    val contentWithCarets: String,
+    val startColumn: Int,
+    val tabSize: Int,
+    val caretsInside: Array<Caret> = emptyArray(),
+  ) {
+    val trimmedContentWithCarets by lazy { contentWithCarets.trim(' ', '\t') }
     val trimmedContentWithoutCarets: String by lazy { trimmedContentWithCarets.filterNot { it == TableProps.CARET_REPLACE_CHAR } }
+
+    fun displayWidth(content: String, padding: Int = 0): Int =
+      TableCharacterWidthUtils.calculateDisplayWidth(content, startColumn + padding, tabSize)
   }
 
-  private fun buildCellState(range: TextRange, document: Document, carets: Iterable<Caret>): CellContentState {
+  private fun buildCellState(range: TextRange, document: Document, carets: Iterable<Caret>, tabSize: Int): CellContentState {
+    val startColumn = TableCharacterWidthUtils.calculateStartColumn(document, range.startOffset, tabSize)
     val caretsInside = carets.filter { range.containsOffset(it.offset) }.sortedBy { it.offset }.toTypedArray()
     val content = document.charsSequence.substring(range.startOffset, range.endOffset)
     if (caretsInside.isEmpty()) {
-      return CellContentState(content)
+      return CellContentState(content, startColumn, tabSize)
     }
     val caretsOffsets = caretsInside.map { it.offset - range.startOffset }
     check(caretsOffsets.all { it <= content.length }) {
@@ -50,11 +60,11 @@ object TableFormattingUtils {
       }
       append(content.substring(previousOffset, content.length))
     }
-    return CellContentState(contentWithReplacements, caretsInside)
+    return CellContentState(contentWithReplacements, startColumn, tabSize, caretsInside)
   }
 
-  private fun MarkdownTableCell.buildCellState(document: Document, carets: Iterable<Caret>): CellContentState {
-    return buildCellState(textRange, document, carets)
+  private fun MarkdownTableCell.buildCellState(document: Document, carets: Iterable<Caret>, tabSize: Int): CellContentState {
+    return buildCellState(textRange, document, carets, tabSize)
   }
 
   private fun calculateContentsMaxWidth(
@@ -65,10 +75,12 @@ object TableFormattingUtils {
   ): Int {
     val trimToMaxContent = trimToMaxContent && !cells.all { it.text.isBlank() }
     val contentCellsWidth = when {
-      trimToMaxContent -> cellsContentsWithCarets.asSequence().map { it.trimmedContentWithoutCarets }.maxOfOrNull {
-        TableCharacterWidthUtils.calculateDisplayWidth(it) + 2
+      trimToMaxContent -> cellsContentsWithCarets.maxOfOrNull {
+        it.displayWidth(it.trimmedContentWithoutCarets, padding = 1) + 2
       }
-      else -> cells.maxOfOrNull { TableCharacterWidthUtils.calculateDisplayWidth(it.text) }
+      else -> cellsContentsWithCarets.maxOfOrNull {
+        it.displayWidth(it.contentWithCarets)
+      }
     }
     checkNotNull(contentCellsWidth)
     return max(contentCellsWidth, separatorCellRange?.length ?: 1)
@@ -99,11 +111,14 @@ object TableFormattingUtils {
       state.trimmedContentWithCarets,
       maxCellWidth,
       alignment,
-      tableStyle
+      tableStyle,
+      state.startColumn,
+      state.tabSize,
     )
     val range = cell.textRange
     val cellContent = document.charsSequence.substring(range.startOffset, range.endOffset)
-    if (tableStyle == TableStyle.ALIGNED && preventExpand && TableCharacterWidthUtils.calculateDisplayWidth(cellContent) < maxCellWidth) {
+    val currentWidth = state.displayWidth(cellContent)
+    if (tableStyle == TableStyle.ALIGNED && preventExpand && currentWidth < maxCellWidth) {
       return
     }
     val expectedContentWithoutCarets = expectedContent.replace(TableProps.CARET_REPLACE_CHAR.toString(), "")
@@ -150,7 +165,8 @@ object TableFormattingUtils {
     preventExpand: Boolean = false,
   ) {
     val cells = getColumnCells(columnIndex, withHeader = true).asReversed()
-    val cellsStates = cells.map { it.buildCellState(document, carets) }
+    val tabSize = CodeStyle.getIndentOptions(containingFile).TAB_SIZE
+    val cellsStates = cells.map { it.buildCellState(document, carets, tabSize) }
     val separatorRow = checkNotNull(separatorRow)
     val separatorCellRange = separatorRow.getCellRange(columnIndex)!!
     val maxCellWidth = if (tableStyle == TableStyle.ALIGNED) {

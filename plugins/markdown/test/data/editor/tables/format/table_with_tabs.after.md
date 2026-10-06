@@ -1,0 +1,5 @@
+| Elasticsearch OSS version | Rolling upgrade path                                                                                   | Cluster restart upgrade path                                        |
+|---------------------------|--------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| 5.x                       | Upgrade to 5.6, upgrade to 6.8, reindex all 5.x indexes, upgrade to 7.10.2, and migrate to OpenSearch. | Upgrade to 6.8, reindex all 5.x indexes, and migrate to OpenSearch. |
+| 6.x                       | Upgrade to 6.8, upgrade to 7.10.2, and migrate to OpenSearch.                                          | Migrate to OpenSearch.                                              |
+| 7.x                       | Migrate to OpenSearch.                                                                                 | Migrate to OpenSearch.                                              |

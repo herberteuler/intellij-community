@@ -8,6 +8,7 @@ import org.intellij.plugins.markdown.MarkdownTestingUtil
 import org.intellij.plugins.markdown.formatter.MarkdownFormatterTest.Companion.performReformatting
 import org.intellij.plugins.markdown.formatter.MarkdownFormatterTest.Companion.runWithTemporaryStyleSettings
 import org.intellij.plugins.markdown.lang.MarkdownLanguage
+import org.intellij.plugins.markdown.lang.MarkdownFileType
 import org.intellij.plugins.markdown.lang.formatter.settings.MarkdownCustomCodeStyleSettings
 import org.intellij.plugins.markdown.lang.formatter.settings.TableStyle
 import org.junit.Test
@@ -40,6 +41,36 @@ class MarkdownTablePostFormatProcessorTest: LightPlatformCodeInsightTestCase() {
 
   @Test
   fun `table inside list item`() = doTest()
+
+  @Test
+  fun `table with tabs`() = doTest()
+
+  @Test
+  fun `table with tab inside cell text`() = doTest(tabSize = 4)
+
+  @Test
+  fun `tabs in code spans preserve alignment`() {
+    for (tabSize in listOf(2, 4, 8)) {
+      runWithTemporaryStyleSettings(project) { settings ->
+        settings.getIndentOptions(MarkdownFileType.INSTANCE).TAB_SIZE = tabSize
+        val leftContent = " `a\tb`" + " ".repeat(if (tabSize == 2) 7 else 5)
+        val rightContent = if (tabSize == 8) "    `a\tb`     " else "        `a\tb` "
+        for ((separator, content) in listOf(
+          ":-------------" to leftContent,
+          "-------------:" to rightContent,
+          ":------------:" to "    `a\tb`     ",
+        )) {
+          doStyleTest(
+            TableStyle.ALIGNED,
+            "| abcdefghijkl | x |\n|$separator|---|\n| `a\tb` | y |",
+            "| abcdefghijkl | x |\n|$separator|---|\n|$content| y |",
+          )
+          val table = checkNotNull(TableUtils.findTable(file, 0))
+          assertTrue(TableModificationUtils.run { table.isCorrectlyFormatted(TableStyle.ALIGNED) })
+        }
+      }
+    }
+  }
 
   @Test
   fun `compact table`() = doStyleTest(
@@ -125,11 +156,14 @@ class MarkdownTablePostFormatProcessorTest: LightPlatformCodeInsightTestCase() {
     }
   }
 
-  private fun doTest() {
+  private fun doTest(tabSize: Int? = null) {
     val before = getTestName(true) + ".before.md"
     val after = getTestName(true) + ".after.md"
     runWithTemporaryStyleSettings(project) { settings ->
       settings.apply {
+        if (tabSize != null) {
+          getIndentOptions(MarkdownFileType.INSTANCE).TAB_SIZE = tabSize
+        }
         getCustomSettings(MarkdownCustomCodeStyleSettings::class.java).apply {
           FORMAT_TABLES = true
         }

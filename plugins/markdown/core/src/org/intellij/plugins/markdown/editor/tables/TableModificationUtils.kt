@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.intellij.plugins.markdown.editor.tables
 
+import com.intellij.application.options.CodeStyle
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.util.endOffset
@@ -21,6 +22,7 @@ import org.intellij.plugins.markdown.lang.psi.impl.MarkdownTableSeparatorRow
 import org.intellij.plugins.markdown.lang.psi.impl.MarkdownTableSeparatorRow.CellAlignment
 import org.intellij.plugins.markdown.lang.psi.util.hasType
 import org.jetbrains.annotations.ApiStatus
+import kotlin.math.abs
 
 @ApiStatus.Internal
 @ApiStatus.Experimental
@@ -67,15 +69,14 @@ object TableModificationUtils {
     }
   }
 
-  private fun getCellPotentialWidth(cellText: String): Int {
-    var width = TableCharacterWidthUtils.calculateDisplayWidth(cellText)
-    if (!cellText.startsWith(' ')) {
-      width += 1
-    }
-    if (!cellText.endsWith(' ')) {
-      width += 1
-    }
-    return width
+  private fun MarkdownTableCell.getStartColumn(): Int {
+    val document = checkNotNull(containingFile.viewProvider.document)
+    val tabSize = CodeStyle.getIndentOptions(containingFile).TAB_SIZE
+    return TableCharacterWidthUtils.calculateStartColumn(document, startOffset, tabSize)
+  }
+
+  private fun MarkdownTableCell.getDisplayWidth(): Int {
+    return TableCharacterWidthUtils.calculateDisplayWidth(text, getStartColumn(), CodeStyle.getIndentOptions(containingFile).TAB_SIZE)
   }
 
   private val separatorCellPattern = Regex(":?-+:?")
@@ -117,13 +118,10 @@ object TableModificationUtils {
       val alignment = separatorRow?.getCellAlignment(columnIndex) ?: return false
       return separatorCellText == buildSeparatorCellContent(alignment, 0, tableStyle) && cells.all { it.hasCorrectPadding(tableStyle) }
     }
-    val width = getCellPotentialWidth(cells.first().text)
+    val width = cells.first().getDisplayWidth()
     return separatorCellText.length == width &&
            isSeparatorCellCorrectlyFormatted(separatorCellText) &&
-           cells.all {
-             val selfWidth = getCellPotentialWidth(it.text)
-             it.hasCorrectPadding(tableStyle) && selfWidth == TableCharacterWidthUtils.calculateDisplayWidth(it.text) && selfWidth == width
-           }
+           cells.all { it.hasCorrectPadding(tableStyle) && it.getDisplayWidth() == width }
   }
 
   fun MarkdownTable.isCorrectlyFormatted(tableStyle: TableStyle, checkAlignment: Boolean = true): Boolean {
@@ -143,6 +141,16 @@ object TableModificationUtils {
     val content = text
     if (content.isBlank()) {
       return true
+    }
+    if ('\t' in content) {
+      val startColumn = getStartColumn()
+      val tabSize = CodeStyle.getIndentOptions(containingFile).TAB_SIZE
+      val width = getDisplayWidth()
+      val trimmed = content.trim(' ', '\t')
+      if (TableCharacterWidthUtils.calculateDisplayWidth(trimmed, startColumn + 1, tabSize) + 2 > width) {
+        return false
+      }
+      return content == buildRealignedCellContent(trimmed, width, expected, tableStyle, startColumn, tabSize)
     }
     when (expected) {
       CellAlignment.LEFT -> {
@@ -200,11 +208,39 @@ object TableModificationUtils {
     }
   }
 
-  fun buildRealignedCellContent(cellContent: String, wholeCellWidth: Int, alignment: CellAlignment, tableStyle: TableStyle): String {
+  fun buildRealignedCellContent(
+    cellContent: String,
+    wholeCellWidth: Int,
+    alignment: CellAlignment,
+    tableStyle: TableStyle,
+    startColumn: Int = 0,
+    tabSize: Int = 4,
+  ): String {
     when (tableStyle) {
       TableStyle.COMPACT -> return buildCompactCellContent(cellContent)
       TableStyle.TIGHT -> return cellContent
       TableStyle.ALIGNED -> Unit
+    }
+    if ('\t' in cellContent) {
+      val candidates = when (alignment) {
+        CellAlignment.LEFT, CellAlignment.NONE -> 1..1
+        CellAlignment.RIGHT, CellAlignment.CENTER -> 1 until wholeCellWidth
+      }
+      val padding = candidates.asSequence()
+        .map { left ->
+          val width = TableCharacterWidthUtils.calculateDisplayWidth(cellContent, startColumn + left, tabSize)
+          left to wholeCellWidth - left - width
+        }
+        .filter { (_, right) -> right >= 1 }
+        .minByOrNull { (left, right) ->
+          when (alignment) {
+            CellAlignment.RIGHT -> -left
+            CellAlignment.CENTER -> abs(left - right)
+            CellAlignment.LEFT, CellAlignment.NONE -> left
+          }
+        }
+      val (left, right) = checkNotNull(padding)
+      return "${" ".repeat(left)}$cellContent${" ".repeat(right)}"
     }
     val contentDisplayWidth = TableCharacterWidthUtils.calculateDisplayWidth(cellContent)
     check(wholeCellWidth >= contentDisplayWidth)
@@ -284,12 +320,14 @@ object TableModificationUtils {
     val documentText = document.charsSequence
     val cellRange = textRange
     val cellText = documentText.substring(cellRange.startOffset, cellRange.endOffset)
-    val actualContent = cellText.trim(' ')
+    val actualContent = cellText.trim(' ', '\t')
     val replacement = buildRealignedCellContent(
       actualContent,
-      TableCharacterWidthUtils.calculateDisplayWidth(cellText),
+      getDisplayWidth(),
       alignment,
-      tableStyle
+      tableStyle,
+      getStartColumn(),
+      CodeStyle.getIndentOptions(containingFile).TAB_SIZE,
     )
     document.replaceString(cellRange.startOffset, cellRange.endOffset, replacement)
   }

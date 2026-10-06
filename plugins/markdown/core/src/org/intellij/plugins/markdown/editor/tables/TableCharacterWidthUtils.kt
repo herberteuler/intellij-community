@@ -1,12 +1,19 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.intellij.plugins.markdown.editor.tables
 
+import com.intellij.openapi.editor.Document
 import java.text.BreakIterator
 import java.util.Locale
 
 internal object TableCharacterWidthUtils {
 
-  fun calculateDisplayWidth(text: String): Int {
+  fun calculateStartColumn(document: Document, offset: Int, tabSize: Int): Int {
+    val lineStart = document.getLineStartOffset(document.getLineNumber(offset))
+    val prefix = document.charsSequence.substring(lineStart, offset)
+    return calculateDisplayWidth(prefix, tabSize = tabSize)
+  }
+
+  fun calculateDisplayWidth(text: String, startColumn: Int = 0, tabSize: Int = 4): Int {
     if (text.isEmpty()) return 0
     // Iterate over grapheme clusters so that emoji sequences (ZWJ joins like 👨‍👩‍👧,
     // skin-tone modifiers like 👍🏿, regional indicator flag pairs like 🇺🇸) collapse
@@ -19,7 +26,14 @@ internal object TableCharacterWidthUtils {
     while (end != BreakIterator.DONE) {
       // A cluster's visual width comes from its base codepoint; the trailing combining marks,
       // ZWJ/ZWNJ, variation selectors, modifiers, and the second RI of a flag — all add 0.
-      width += getCharacterWidth(text.codePointAt(start))
+      val codePoint = text.codePointAt(start)
+      width += if (codePoint == '\t'.code) {
+        val size = tabSize.coerceAtLeast(1)
+        size - (startColumn + width) % size
+      }
+      else {
+        getCharacterWidth(codePoint)
+      }
       start = end
       end = it.next()
     }

@@ -5,8 +5,8 @@ import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.testFramework.common.runAll
 import com.intellij.testFramework.runInEdtAndWait
-import org.jetbrains.kotlin.idea.core.script.configurations.KotlinScriptService
 import org.jetbrains.kotlin.idea.core.script.alwaysVirtualFile
+import org.jetbrains.kotlin.idea.core.script.configurations.KotlinScriptService
 import org.jetbrains.kotlin.idea.fir.K2DirectiveBasedActionUtils
 import org.jetbrains.kotlin.idea.quickfix.AbstractQuickFixTest
 import org.jetbrains.kotlin.idea.test.DirectiveBasedActionUtils
@@ -42,8 +42,16 @@ abstract class AbstractK2QuickFixTest : AbstractQuickFixTest() {
         )
     }
 
+    override fun checkForWarningsBefore(mainFile: File, ktFile: KtFile, fileText: String) {
+        K2DirectiveBasedActionUtils.checkForWarningsBefore(mainFile, ktFile, fileText)
+    }
+
     override fun checkForErrorsBefore(mainFile: File, ktFile: KtFile, fileText: String) {
         K2DirectiveBasedActionUtils.checkForErrorsBefore(mainFile, ktFile, fileText)
+    }
+
+    override fun checkForWarningsAfter(mainFile: File, ktFile: KtFile, fileText: String) {
+        K2DirectiveBasedActionUtils.checkForWarningsAfter(mainFile, ktFile, fileText)
     }
 
     override fun checkForErrorsAfter(mainFile: File, ktFile: KtFile, fileText: String) {

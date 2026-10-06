@@ -33,7 +33,9 @@ object DirectiveBasedActionUtils {
     const val PRIORITY_DIRECTIVE = "PRIORITY"
 
     const val ERROR_DIRECTIVE: String = "// ERROR:"
+    const val WARNING_DIRECTIVE: String = "// WARNING:"
     const val AFTER_ERROR_DIRECTIVE: String = "// AFTER_ERROR:"
+    const val AFTER_WARNING_DIRECTIVE: String = "// AFTER_WARNING:"
 
     /**
      * If present in the test data file, checks that

@@ -1,5 +1,7 @@
 // "Replace 'is' check with null check" "true"
-open class A
+// ENABLE_WARNINGS
+// WARNING: IMPOSSIBLE_IS_CHECK_RELYING_ON_NULL_WARNING
+class A
 class B
 
 fun test(obj: Any?) {

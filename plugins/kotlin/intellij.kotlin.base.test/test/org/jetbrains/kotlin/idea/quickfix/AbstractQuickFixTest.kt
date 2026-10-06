@@ -131,6 +131,7 @@ abstract class AbstractQuickFixTest : KotlinLightCodeInsightFixtureTestCase(), Q
 
                         doKotlinQuickFixTest(beforeFileName)
                         runInEdtAndWait {
+                            checkForWarningsAfter(beforeFile, myFixture.file as KtFile, beforeFileText)
                             checkForErrorsAfter(beforeFile, myFixture.file as KtFile, beforeFileText)
                         }
                     } finally {
@@ -258,6 +259,7 @@ abstract class AbstractQuickFixTest : KotlinLightCodeInsightFixtureTestCase(), Q
                 checkForUnexpectedActions()
 
                 if (ktFile != null) {
+                    checkForWarningsBefore(testFile, ktFile, fileText)
                     checkForErrorsBefore(testFile, ktFile, fileText)
                 }
             }
@@ -464,8 +466,10 @@ abstract class AbstractQuickFixTest : KotlinLightCodeInsightFixtureTestCase(), Q
         )
     }
 
+    protected open fun checkForWarningsBefore(mainFile: File, ktFile: KtFile, fileText: String) {}
     protected open fun checkForErrorsBefore(mainFile: File, ktFile: KtFile, fileText: String) {}
 
+    protected open fun checkForWarningsAfter(mainFile: File, ktFile: KtFile, fileText: String) {}
     protected open fun checkForErrorsAfter(mainFile: File, ktFile: KtFile, fileText: String) {}
 
     override val additionalToolDirectives: Array<String>

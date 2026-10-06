@@ -9,20 +9,25 @@ import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 import org.jetbrains.kotlin.analysis.api.session.analyze
 import org.jetbrains.kotlin.idea.base.test.InTextDirectivesUtils
 import org.jetbrains.kotlin.idea.test.DirectiveBasedActionUtils.AFTER_ERROR_DIRECTIVE
+import org.jetbrains.kotlin.idea.test.DirectiveBasedActionUtils.AFTER_WARNING_DIRECTIVE
 import org.jetbrains.kotlin.idea.test.DirectiveBasedActionUtils.DISABLE_ERRORS_DIRECTIVE
+import org.jetbrains.kotlin.idea.test.DirectiveBasedActionUtils.ENABLE_WARNINGS_DIRECTIVE
 import org.jetbrains.kotlin.idea.test.DirectiveBasedActionUtils.ERROR_DIRECTIVE
+import org.jetbrains.kotlin.idea.test.DirectiveBasedActionUtils.WARNING_DIRECTIVE
 import org.jetbrains.kotlin.psi.KtFile
 import java.io.File
 
 object K2DirectiveBasedActionUtils {
     const val DISABLE_K2_ERRORS_DIRECTIVE: String = "// DISABLE_K2_ERRORS"
-    const val DISABLE_K2_WARNINGS_DIRECTIVE: String = "// DISABLE_K2_WARNINGS"
 
     const val K2_ERROR_DIRECTIVE: String = "// K2_ERROR:"
     const val K2_AFTER_ERROR_DIRECTIVE: String = "// K2_AFTER_ERROR:"
 
     private fun isErrorChecksSuppressed(fileText: String): Boolean =
         InTextDirectivesUtils.findLinesWithPrefixesRemoved(fileText, DISABLE_ERRORS_DIRECTIVE, DISABLE_K2_ERRORS_DIRECTIVE).isNotEmpty()
+
+    private fun isWarningChecksEnabled(fileText: String): Boolean =
+        InTextDirectivesUtils.findLinesWithPrefixesRemoved(fileText, ENABLE_WARNINGS_DIRECTIVE).isNotEmpty()
 
     fun checkForUnexpectedErrors(
         mainFile: File,
@@ -35,10 +40,25 @@ object K2DirectiveBasedActionUtils {
         checkForUnexpected(mainFile, ktFile, fileText, "errors", KaSeverity.ERROR, *directives)
     }
 
+    /**
+     * warnings check is disabled by default
+     */
+    fun checkForWarningsBefore(mainFile: File, ktFile: KtFile, fileText: String) {
+        if (!isWarningChecksEnabled(fileText)) return
+
+        checkForUnexpected(mainFile, ktFile, fileText, "warnings", KaSeverity.WARNING, WARNING_DIRECTIVE)
+    }
+
     fun checkForErrorsBefore(mainFile: File, ktFile: KtFile, fileText: String) {
         if (isErrorChecksSuppressed(fileText)) return
 
         checkForUnexpected(mainFile, ktFile, fileText, "errors", KaSeverity.ERROR, K2_ERROR_DIRECTIVE, ERROR_DIRECTIVE)
+    }
+
+    fun checkForWarningsAfter(mainFile: File, ktFile: KtFile, fileText: String) {
+        if (!isWarningChecksEnabled(fileText)) return
+
+        checkForUnexpected(mainFile, ktFile, fileText, "warnings", KaSeverity.WARNING, AFTER_WARNING_DIRECTIVE)
     }
 
     fun checkForErrorsAfter(mainFile: File, ktFile: KtFile, fileText: String) {

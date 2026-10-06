@@ -118,7 +118,6 @@
 
   <projectListeners>
     <listener class="com.intellij.dvcs.shelf.ShelfViewUpdater" topic="com.intellij.dvcs.repo.VcsRepositoryMappingListener" activeInHeadlessMode="false"/>
-    <listener class="com.intellij.dvcs.repo.rhizome.RepositoryCountUpdater" topic="com.intellij.dvcs.repo.VcsRepositoryMappingListener" activeInHeadlessMode="false"/>
   </projectListeners>
 
   <extensions defaultExtensionNs="com.intellij">
@@ -136,7 +135,6 @@
 
     <openapi.vcs.history.actions.GetVersionAction.ExtensionProvider
       implementation="com.intellij.dvcs.ui.CompareBranchesDiffPanel$GetVersionActionProvider"/>
-    <vcs.impl.backend.treeNodeConverter implementation="com.intellij.dvcs.repo.rhizome.RepositoryNodeToEntityConverter"/>
 
     <platform.rpc.backend.remoteApiProvider implementation="com.intellij.dvcs.DvcsRemoteApiProvider"
                                             apiInterfaces="com.intellij.dvcs.rpc.VcsRepositoryColorsApi"/>

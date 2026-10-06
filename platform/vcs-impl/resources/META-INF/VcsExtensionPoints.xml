@@ -248,10 +248,6 @@
                     interface="com.intellij.openapi.vcs.IssueDocumentationTargetProvider"
                     dynamic="true"/>
 
-    <extensionPoint qualifiedName="com.intellij.vcs.impl.backend.treeNodeConverter"
-                    interface="com.intellij.vcs.shelf.NodeToEntityConverter"
-                    dynamic="true"/>
-
     <extensionPoint qualifiedName="com.intellij.vcs.impl.changeListDiffViewerDecorator"
                     interface="com.intellij.openapi.vcs.changes.actions.diff.lst.ChangeListDiffViewerDecorator"
                     dynamic="true"/>

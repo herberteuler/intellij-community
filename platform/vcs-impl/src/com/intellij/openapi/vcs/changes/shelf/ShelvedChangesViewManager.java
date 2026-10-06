@@ -50,7 +50,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.util.text.HtmlChunk;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vcs.AbstractVcs;
@@ -484,13 +483,11 @@ public class ShelvedChangesViewManager {
 
     @Override
     public void initTabContent(@NotNull Content content) {
-      if (!Registry.is("vcs.shelves.rhizome.enabled")) {
-        ShelfToolWindowPanel panel = getInstance(myProject).initToolWindowPanel();
-        content.setHelpId(HELP_ID);
-        content.setComponent(panel);
-        content.setDisposer(panel);
-        content.setPreferredFocusableComponent(panel.myTree);
-      }
+      ShelfToolWindowPanel panel = getInstance(myProject).initToolWindowPanel();
+      content.setHelpId(HELP_ID);
+      content.setComponent(panel);
+      content.setDisposer(panel);
+      content.setPreferredFocusableComponent(panel.myTree);
     }
   }
 

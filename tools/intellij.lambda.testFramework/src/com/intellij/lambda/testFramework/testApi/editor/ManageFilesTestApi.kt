@@ -3,6 +3,7 @@ package com.intellij.lambda.testFramework.testApi.editor
 import com.intellij.lambda.testFramework.frameworkLogger
 import com.intellij.lambda.testFramework.testApi.executeAction
 import com.intellij.lambda.testFramework.testApi.getProject
+import com.intellij.lambda.testFramework.testApi.getProjectOrNull
 import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.application.readAction
@@ -31,6 +32,7 @@ import kotlin.io.path.name
 import kotlin.io.path.pathString
 import kotlin.io.path.writeText
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 context(lambdaIdeContext: LambdaIdeContext)
@@ -173,6 +175,22 @@ suspend fun awaitEditorSelected(
     },
   )!!
 }
+
+/**
+ * Waits until [projectRelativePath] is the selected editor, matching by the whole project-relative path.
+ *
+ * [awaitEditorSelected] compares file names only, which silently keeps the previous editor when test data reuses a
+ * name across sibling directories. The project is read through [getProjectOrNull], so a frontend that has not opened
+ * it yet is retried instead of failing.
+ */
+context(lambdaIdeContext: LambdaIdeContext)
+suspend fun waitForSelectedEditor(
+  projectRelativePath: String,
+  timeout: Duration = 30.seconds,
+): FileEditor =
+  waitSuspendingNotNull("Editor '$projectRelativePath' is selected", timeout, delay = 50.milliseconds) {
+    getProjectOrNull()?.selectedFileEditor?.takeIf { it.file?.path?.endsWith("/$projectRelativePath") == true }
+  }
 
 context(lambdaIdeContext: LambdaIdeContext)
 suspend fun closeFileAndWaitEditorClosed(

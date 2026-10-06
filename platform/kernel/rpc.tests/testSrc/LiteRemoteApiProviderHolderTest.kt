@@ -2,6 +2,7 @@
 package com.intellij.platform.rpc.tests
 
 import com.intellij.platform.rpc.lite.LiteRemoteApiProviderHolder
+import com.intellij.testFramework.assertErrorLogged
 import com.intellij.testFramework.common.timeoutRunBlocking
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -67,7 +68,11 @@ internal class LiteRemoteApiProviderHolderTest {
     val holder = LiteRemoteApiProviderHolder()
     val api = LiteTestApi()
     holder.install(LiteTestApiProvider(api))
-    holder.install(LiteTestApiProvider(LiteTestApi()))
+    val error = assertErrorLogged<Throwable> {
+      holder.install(LiteTestApiProvider(LiteTestApi()))
+    }
+
+    assertThat(error.message).contains("already installed")
 
     assertThat(holder.tryResolve(LiteTestApiDescriptor)).isSameAs(api)
     assertThat(holder.awaitConnectionAndResolve(LiteTestApiDescriptor)).isSameAs(api)

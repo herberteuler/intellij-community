@@ -11,6 +11,7 @@ import com.intellij.platform.testFramework.plugins.dependsIntellijModulesLang
 import com.intellij.platform.testFramework.plugins.extensions
 import com.intellij.platform.testFramework.plugins.plugin
 import com.intellij.testFramework.ExtensionTestUtil
+import com.intellij.testFramework.LoggedErrorProcessor
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.SystemProperty
 import com.intellij.testFramework.junit5.TestApplication
@@ -38,7 +39,7 @@ internal class LiteRemoteApiProviderServiceTest {
     val disposable = Disposer.newDisposable("extension present")
     try {
       val api = LiteTestApi()
-      ExtensionTestUtil.maskExtensions(RemoteApiProvider.EP_NAME, listOf(LiteTestApiProvider(api)), disposable)
+      ExtensionTestUtil.maskExtensions(RemoteApiProvider.EP_NAME, listOf(LiteTestApiProvider(api)), disposable, fireEvents = false)
 
       val service = LiteRemoteApiProviderService(this)
 
@@ -54,7 +55,7 @@ internal class LiteRemoteApiProviderServiceTest {
   /**
    * The upgrade of a light process: the module that contributes the provider loads without a restart, and the callers
    * that waited resume. A masked extension point is read-only, so the test hides the extension of
-   * `intellij.platform.rpc.backend` and lets the mask disposal bring it back, which fires the same listeners as a load.
+   * `intellij.platform.rpc` and lets the mask disposal bring it back, which fires the same listeners as a load.
    */
   @Test
   fun `an extension that appears later releases the waiting callers`(): Unit = timeoutRunBlocking(30.seconds) {
@@ -70,7 +71,7 @@ internal class LiteRemoteApiProviderServiceTest {
       assertThat(service.tryResolve(remoteApiDescriptor<LazyTestApi>())).isNull()
       assertThat(request.isCompleted).isFalse()
 
-      Disposer.dispose(mask)
+      disposeExpectingRepeatedInstalls(mask)
 
       assertThat(service.isConnected()).isTrue()
       assertThat(request.await()).isInstanceOf(LazyTestApi::class.java)
@@ -81,6 +82,24 @@ internal class LiteRemoteApiProviderServiceTest {
         Disposer.dispose(plugin)
       }
     }
+  }
+
+  /**
+   * The mask disposal notifies each change listener twice, once for the removal and once for the restore.
+   * The application service from other tests is also connected. Each repeated install logs an error, and the test expects it.
+   */
+  private fun disposeExpectingRepeatedInstalls(mask: Disposable) {
+    val errors = mutableListOf<String>()
+    LoggedErrorProcessor.executeWith<Throwable>(object : LoggedErrorProcessor() {
+      override fun processError(category: String, message: String, details: Array<String>, t: Throwable?): Set<Action> {
+        if (!message.startsWith("Remote API provider is already installed.")) return super.processError(category, message, details, t)
+        errors.add(message)
+        return Action.NONE
+      }
+    }) {
+      Disposer.dispose(mask)
+    }
+    assertThat(errors).isNotEmpty()
   }
 
   /** A dynamic plugin load is a modal operation, so it runs on the EDT. */

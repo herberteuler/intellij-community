@@ -18,9 +18,11 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.ui.SortedListModel
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBList
+import com.intellij.ui.dsl.builder.Align
+import com.intellij.ui.dsl.builder.LabelPosition
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.IconUtil
 import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.UI
 import java.util.function.Predicate
 import javax.swing.JPanel
 import javax.swing.ListSelectionModel
@@ -106,16 +108,18 @@ public object SpecialAnnotationsUtil {
                              JavaBundle.message("special.annotations.list.annotation.pattern"),
                              JavaBundle.message("special.annotations.list.remove.pattern"))
     }
-    val panel = toolbarDecorator.createPanel()
-    val minimumSize = if (acceptPatterns) InspectionOptionsPanel.getMinimumLongListSize() else InspectionOptionsPanel.getMinimumListSize()
-    panel.minimumSize = minimumSize
-    panel.preferredSize = minimumSize
 
-    return UI.PanelFactory
-      .panel(panel)
-      .withLabel(borderTitle)
-      .moveLabelOnTop()
-      .resizeY(true)
-      .createPanel()
+    return panel {
+      row {
+        cell(toolbarDecorator.createPanel())
+          .label(borderTitle, LabelPosition.TOP)
+          .align(Align.FILL)
+          .applyToComponent {
+            val size = if (acceptPatterns) InspectionOptionsPanel.getMinimumLongListSize() else InspectionOptionsPanel.getMinimumListSize()
+            minimumSize = size
+            preferredSize = size
+          }
+      }.resizableRow()
+    }
   }
 }

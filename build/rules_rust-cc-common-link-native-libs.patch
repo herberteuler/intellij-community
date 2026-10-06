@@ -21,6 +21,10 @@ A `link.exe` link takes some libraries by path: an import library that rustc wri
 temporary directory, or one that a build script finds, such as `windows.0.52.0.lib`. The recorder writes a copy of
 the first object as the link output, so rustc can strip it after the link. On Apple, rustc also runs `dsymutil` on
 a packed link output, so the action sets `split-debuginfo=unpacked` there. That does not change the object.
+
+The `#![windows_subsystem]` attribute reaches only the linker that rustc runs, as `/SUBSYSTEM:` and `/ENTRY:`
+options. Without them, a GUI executable links for the console subsystem, and Windows opens a console window for it.
+So the recorder writes these options to the response file too.
 diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
 --- a/rust/private/rustc.bzl
 +++ b/rust/private/rustc.bzl
@@ -236,7 +240,7 @@ diff --git a/rust/private/native_libs_recorder/main.rs b/rust/private/native_lib
 new file mode 100644
 --- /dev/null
 +++ b/rust/private/native_libs_recorder/main.rs
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,382 @@
 +//! A linker for `rustc` that links nothing: it writes the native inputs of the link to a response file.
 +//!
 +//! Under `cc_common.link`, `rustc` only emits an object, so the libraries of each `#[link]` attribute never reach the
@@ -252,6 +256,9 @@ new file mode 100644
 +//! script finds. The program copies each of these files to the directory that `RULES_RUST_NATIVE_LIBS_FILES` names,
 +//! which `cc_common.link` takes with the objects of the link. `rustc` may strip the link output after the link, so the program writes a copy of the first
 +//! object there.
++//!
++//! The `#![windows_subsystem]` attribute also reaches only the linker that `rustc` runs, as linker options. So the
++//! program writes these options to the response file too.
 +
 +use std::path::Path;
 +use std::process::ExitCode;
@@ -299,7 +306,9 @@ new file mode 100644
 +    let response_file: String = link
 +        .libraries
 +        .iter()
-+        .map(|library| format!("{library}\n"))
++        .map(String::as_str)
++        .chain(link.options.iter().copied())
++        .map(|arg| format!("{arg}\n"))
 +        .collect();
 +    fs::write(&output, response_file)
 +        .map_err(|e| format!("cannot write {}: {e}", Path::new(&output).display()))?;
@@ -392,6 +401,8 @@ new file mode 100644
 +    libraries: Vec<String>,
 +    /// The libraries that a `link.exe` link takes by path.
 +    library_files: Vec<&'a str>,
++    /// The linker options of the `#![windows_subsystem]` attribute, for the cc link tool.
++    options: Vec<&'a str>,
 +    allocator_shim: Option<&'a str>,
 +    /// The first object file of the link.
 +    object: Option<&'a str>,
@@ -408,6 +419,7 @@ new file mode 100644
 +        let mut link = Link {
 +            libraries: Vec::new(),
 +            library_files: Vec::new(),
++            options: Vec::new(),
 +            allocator_shim: objects().find(|arg| is_allocator_shim(arg)),
 +            object: objects().next(),
 +            output: None,
@@ -423,10 +435,18 @@ new file mode 100644
 +    /// A `link.exe` link names a library from a search path by its bare file name, such as `ole32.lib`, and other
 +    /// libraries by path. `rustc` also names the C runtime with a `/defaultlib:` option, such as `/defaultlib:libcmt`.
 +    /// The CRT mode of the cc toolchain names the C runtime of the link, so the program ignores that option.
++    ///
++    /// For the `#![windows_subsystem]` attribute, `rustc` names the subsystem with a `/SUBSYSTEM:` option. For the
++    /// `windows` subsystem, it also names the `main` entry point of the C runtime with `/ENTRY:mainCRTStartup`. The
++    /// cc link tool passes each user link flag to the linker, so the program keeps both options as they are.
 +    fn parse_msvc(&mut self, args: &'a [String]) {
 +        for arg in args {
 +            if starts_with_ignore_case(arg, "/OUT:") {
 +                self.output = Some(&arg["/OUT:".len()..]);
++            } else if starts_with_ignore_case(arg, "/SUBSYSTEM:")
++                || starts_with_ignore_case(arg, "/ENTRY:")
++            {
++                self.options.push(arg);
 +            } else if arg.to_ascii_lowercase().ends_with(".lib") && !is_msvc_option(arg) {
 +                if arg.contains(['/', '\\']) {
 +                    self.library_files.push(arg);
@@ -438,7 +458,8 @@ new file mode 100644
 +    }
 +
 +    /// A `cc` link names a shared library as `-l<name>`, and a macOS framework as `-framework <name>`. A library
-+    /// after `-Bstatic` is an archive, and `rustc` already bundles each archive into the `rlib` that needs it.
++    /// after `-Bstatic` is an archive, and `rustc` already bundles each archive into the `rlib` that needs it. For the
++    /// `#![windows_subsystem]` attribute, a MinGW link names the subsystem as `-Wl,--subsystem,<name>`.
 +    fn parse_cc(&mut self, args: &'a [String]) {
 +        let mut is_static = false;
 +        let mut args = args.iter();
@@ -447,6 +468,7 @@ new file mode 100644
 +                "-o" => self.output = args.next().map(String::as_str),
 +                "-Wl,-Bstatic" | "-Bstatic" => is_static = true,
 +                "-Wl,-Bdynamic" | "-Bdynamic" => is_static = false,
++                _ if arg.starts_with("-Wl,--subsystem,") => self.options.push(arg),
 +                "-framework" | "-weak_framework" => {
 +                    if let Some(framework) = args.next() {
 +                        self.add(&[arg, framework]);
@@ -515,6 +537,8 @@ new file mode 100644
 +            "/OUT:bazel-out/bin/printenv.exe",
 +            "/IMPLIB:bazel-out/bin/printenv.dll.lib",
 +            "/Users/me/out/m/lib/windows.0.52.0.lib",
++            "/SUBSYSTEM:WINDOWS",
++            "/ENTRY:mainCRTStartup",
 +        ]);
 +        assert_eq!(
 +            Link::parse(&args),
@@ -524,6 +548,7 @@ new file mode 100644
 +                    "C:\\tmp\\rustcXYZ\\propsys.dll_imports.lib",
 +                    "/Users/me/out/m/lib/windows.0.52.0.lib"
 +                ],
++                options: vec!["/SUBSYSTEM:WINDOWS", "/ENTRY:mainCRTStartup"],
 +                allocator_shim: Some("bazel-out/bin/printenv.atmb9y7hkwsnft6dfjydj9o2k.rcgu.o"),
 +                object: Some("C:\\tmp\\rustcXYZ\\symbols.o"),
 +                output: Some("bazel-out/bin/printenv.exe"),
@@ -551,6 +576,7 @@ new file mode 100644
 +            "Security",
 +            "-lutil",
 +            "-liconv",
++            "-Wl,--subsystem,windows",
 +        ]);
 +        assert_eq!(
 +            Link::parse(&args),
@@ -564,6 +590,7 @@ new file mode 100644
 +                    "-liconv"
 +                ]),
 +                library_files: Vec::new(),
++                options: vec!["-Wl,--subsystem,windows"],
 +                allocator_shim: None,
 +                object: Some("bazel-out/bin/printenv.printenv.0123456789abcdef-cgu.0.rcgu.o"),
 +                output: Some("bazel-out/bin/printenv"),

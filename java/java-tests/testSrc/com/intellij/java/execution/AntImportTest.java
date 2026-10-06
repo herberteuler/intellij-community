@@ -22,39 +22,34 @@ import com.intellij.execution.testframework.sm.runner.history.ImportedToGeneralT
 import com.intellij.openapi.util.Disposer;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 public class AntImportTest extends BaseSMTRunnerTestCase {
   private GeneralToSMTRunnerEventsConvertor myEventsProcessor;
   private SMTestProxy.SMRootTestProxy myRootNode;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @BeforeEach
+  void setUp() {
     myRootNode = new SMTestProxy.SMRootTestProxy();
     myEventsProcessor = new GeneralToSMTRunnerEventsConvertor(getProject(), myRootNode, "SMTestFramework");
 
     myEventsProcessor.onStartTesting();
   }
 
-  @Override
-  protected void tearDown() throws Exception {
-    try {
-      myEventsProcessor.onFinishTesting();
-      Disposer.dispose(myEventsProcessor);
-      Disposer.dispose(myRootNode);
-    }
-    catch (Throwable e) {
-      addSuppressedException(e);
-    }
-    finally {
-      myRootNode = null;
-      myEventsProcessor = null;
-      super.tearDown();
-    }
+  @AfterEach
+  void tearDown() {
+    myEventsProcessor.onFinishTesting();
+    Disposer.dispose(myEventsProcessor);
+    Disposer.dispose(myRootNode);
   }
 
   private SMTestProxy.SMRootTestProxy parseTestResult(@Language("XML") @NotNull String text) throws IOException {
@@ -62,6 +57,7 @@ public class AntImportTest extends BaseSMTRunnerTestCase {
     return myRootNode;
   }
 
+  @Test
   public void testAntFormatTest() throws Exception {
     SMTestProxy.SMRootTestProxy rootNode = parseTestResult("""
     <?xml version="1.0" encoding="UTF-8" ?>
@@ -84,6 +80,7 @@ public class AntImportTest extends BaseSMTRunnerTestCase {
     assertEquals("testA1", tests.get(0).getName());
   }
 
+  @Test
   public void testIgnored() throws Exception {
     SMTestProxy.SMRootTestProxy rootNode = parseTestResult("""
     <?xml version="1.0" encoding="UTF-8" ?>
@@ -100,6 +97,7 @@ public class AntImportTest extends BaseSMTRunnerTestCase {
     assertTrue(ignoredTest.isIgnored());
   }
 
+  @Test
   public void testSkipped() throws Exception {
     SMTestProxy.SMRootTestProxy rootNode = parseTestResult("""
     <?xml version="1.0" encoding="UTF-8" ?>

@@ -6,39 +6,49 @@ import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.testframework.AbstractTestProxy;
 import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.sm.runner.ui.MockPrinter;
+import com.intellij.ide.impl.OpenProjectTask;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.testFramework.LightPlatformTestCase;
+import com.intellij.testFramework.junit5.TestApplication;
+import com.intellij.testFramework.junit5.fixture.TestFixture;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+
+import static com.intellij.testFramework.junit5.fixture.FixturesKt.projectFixture;
+import static com.intellij.testFramework.junit5.fixture.FixturesKt.tempPathFixture;
 
 /**
  * @author Roman Chernyatchik
  */
-public abstract class BaseSMTRunnerTestCase extends LightPlatformTestCase {
+@TestApplication
+public abstract class BaseSMTRunnerTestCase {
+  @SuppressWarnings("deprecation")
+  private static final TestFixture<Project> projectFixture = projectFixture(tempPathFixture(), OpenProjectTask.build(), true);
+
   protected SMTestProxy mySuite;
   protected SMTestProxy mySimpleTest;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-
+  @BeforeEach
+  void setUpProxies() {
     mySuite = createSuiteProxy();
     mySimpleTest = createTestProxy();
   }
 
-  @Override
-  protected void tearDown() throws Exception {
+  @AfterEach
+  void disposeProxies() {
     try {
       if (mySuite != null) Disposer.dispose(mySuite);
-      if (mySimpleTest != null) Disposer.dispose(mySimpleTest);
-    }
-    catch (Throwable e) {
-      addSuppressedException(e);
     }
     finally {
-      super.tearDown();
+      if (mySimpleTest != null) Disposer.dispose(mySimpleTest);
     }
+  }
+
+  protected Project getProject() {
+    return projectFixture.get();
   }
 
   protected SMTestProxy createTestProxy() {

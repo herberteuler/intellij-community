@@ -18,11 +18,21 @@ import com.intellij.openapi.ListSelection;
 import com.intellij.openapi.progress.util.ProgressBarUtil;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.testFramework.PlatformTestUtil;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 import java.util.List;
+
+import static com.intellij.testFramework.EdtTestUtil.runInEdtAndWait;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Roman Chernyatchik
@@ -35,568 +45,655 @@ public class SMTestRunnerResultsFormTest extends BaseSMTRunnerTestCase {
   private TestConsoleProperties myConsoleProperties;
   private SMTestProxy.SMRootTestProxy myTestsRootNode;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @BeforeEach
+  void setUp() {
+    runInEdtAndWait(() -> {
+      myConsoleProperties = createConsoleProperties();
+      TestConsoleProperties.HIDE_PASSED_TESTS.set(myConsoleProperties, false);
+      TestConsoleProperties.OPEN_FAILURE_LINE.set(myConsoleProperties, false);
+      TestConsoleProperties.SCROLL_TO_SOURCE.set(myConsoleProperties, false);
+      TestConsoleProperties.SELECT_FIRST_DEFECT.set(myConsoleProperties, false);
+      TestConsoleProperties.TRACK_RUNNING_TEST.set(myConsoleProperties, false);
 
-    myConsoleProperties = createConsoleProperties();
-    TestConsoleProperties.HIDE_PASSED_TESTS.set(myConsoleProperties, false);
-    TestConsoleProperties.OPEN_FAILURE_LINE.set(myConsoleProperties, false);
-    TestConsoleProperties.SCROLL_TO_SOURCE.set(myConsoleProperties, false);
-    TestConsoleProperties.SELECT_FIRST_DEFECT.set(myConsoleProperties, false);
-    TestConsoleProperties.TRACK_RUNNING_TEST.set(myConsoleProperties, false);
+      final ExecutionEnvironment environment = new ExecutionEnvironment();
 
-    final ExecutionEnvironment environment = new ExecutionEnvironment();
-
-    myConsole = new SMTRunnerConsoleView(myConsoleProperties);
-    myConsole.initUI();
-    myResultsViewer = myConsole.getResultsViewer();
-    myTestsRootNode = myResultsViewer.getTestsRootNode();
-    myEventsProcessor = new GeneralToSMTRunnerEventsConvertor(myConsoleProperties.getProject(), myResultsViewer.getTestsRootNode(), "SMTestFramework");
-    myEventsProcessor.addEventsListener(myResultsViewer);
-    myTreeModel = myResultsViewer.getTreeView().getModel();
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      myConsole = new SMTRunnerConsoleView(myConsoleProperties);
+      myConsole.initUI();
+      myResultsViewer = myConsole.getResultsViewer();
+      myTestsRootNode = myResultsViewer.getTestsRootNode();
+      myEventsProcessor = new GeneralToSMTRunnerEventsConvertor(myConsoleProperties.getProject(), myResultsViewer.getTestsRootNode(), "SMTestFramework");
+      myEventsProcessor.addEventsListener(myResultsViewer);
+      myTreeModel = myResultsViewer.getTreeView().getModel();
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+    });
   }
 
-  @Override
-  protected void tearDown() throws Exception {
-    try {
+  @AfterEach
+  void tearDown() {
+    runInEdtAndWait(() -> {
       Disposer.dispose(myEventsProcessor);
       Disposer.dispose(myConsole);
-    }
-    catch (Throwable e) {
-      addSuppressedException(e);
-    }
-    finally {
-      super.tearDown();
-    }
+    });
   }
 
+  @Test
   public void testGetTestsRootNode() {
-    assertNotNull(myTestsRootNode);
+    runInEdtAndWait(() -> {
+      assertNotNull(myTestsRootNode);
 
-    myResultsViewer.onTestingFinished(myTestsRootNode);
-    assertNotNull(myResultsViewer.getTestsRootNode());
+      myResultsViewer.onTestingFinished(myTestsRootNode);
+      assertNotNull(myResultsViewer.getTestsRootNode());
+    });
   }
 
+  @Test
   public void testTestingStarted() {
-    myResultsViewer.onTestingStarted(myTestsRootNode);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestingStarted(myTestsRootNode);
 
-    assertTrue(myResultsViewer.getStartTime() > 0);
-    assertEquals(0, myResultsViewer.getFinishedTestCount());
-    assertEquals(0, myResultsViewer.getTotalTestCount());
+      assertTrue(myResultsViewer.getStartTime() > 0);
+      assertEquals(0, myResultsViewer.getFinishedTestCount());
+      assertEquals(0, myResultsViewer.getTotalTestCount());
+    });
   }
 
+  @Test
   public void testOnTestStarted() {
-    myResultsViewer.onTestStarted(createTestProxy("some_test", myTestsRootNode));
-    assertEquals(1, myResultsViewer.getStartedTestCount());
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestStarted(createTestProxy("some_test", myTestsRootNode));
+      assertEquals(1, myResultsViewer.getStartedTestCount());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertEquals(2, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertEquals(2, myResultsViewer.getStartedTestCount());
+    });
   }
 
+  @Test
   public void testCount() {
-    myResultsViewer.onTestsCountInSuite(1);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestsCountInSuite(1);
 
-    assertEquals(1, myResultsViewer.getTotalTestCount());
+      assertEquals(1, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test", myTestsRootNode));
-    assertEquals(1, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test", myTestsRootNode));
+      assertEquals(1, myResultsViewer.getTotalTestCount());
 
-    // if exceeds - will be incremented
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertEquals(2, myResultsViewer.getTotalTestCount());
+      // if exceeds - will be incremented
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertEquals(2, myResultsViewer.getTotalTestCount());
+    });
   }
 
+  @Test
   public void testCount_UnSet() {
-    myResultsViewer.onTestStarted(createTestProxy("some_test", myTestsRootNode));
-    assertEquals(0, myResultsViewer.getTotalTestCount());
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestStarted(createTestProxy("some_test", myTestsRootNode));
+      assertEquals(0, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertEquals(0, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertEquals(0, myResultsViewer.getTotalTestCount());
 
-    // count will be updated only on tests finished if wasn't set
-    myResultsViewer.onTestingFinished(myTestsRootNode);
-    assertEquals(2, myResultsViewer.getTotalTestCount());
+      // count will be updated only on tests finished if wasn't set
+      myResultsViewer.onTestingFinished(myTestsRootNode);
+      assertEquals(2, myResultsViewer.getTotalTestCount());
+    });
   }
 
+  @Test
   public void testOnTestFailure() {
-    final SMTestProxy test = createTestProxy(myTestsRootNode);
+    runInEdtAndWait(() -> {
+      final SMTestProxy test = createTestProxy(myTestsRootNode);
 
-    myResultsViewer.onTestStarted(test);
-    myResultsViewer.onTestFailed(test);
+      myResultsViewer.onTestStarted(test);
+      myResultsViewer.onTestFailed(test);
 
-    assertEquals(1, myResultsViewer.getFailedTestCount());
-    assertEquals(1, myResultsViewer.getFailedTestCount());
+      assertEquals(1, myResultsViewer.getFailedTestCount());
+      assertEquals(1, myResultsViewer.getFailedTestCount());
+    });
   }
 
+  @Test
   public void testOnTestFinished() {
-    final SMTestProxy test = createTestProxy("some_test", myTestsRootNode);
+    runInEdtAndWait(() -> {
+      final SMTestProxy test = createTestProxy("some_test", myTestsRootNode);
 
-    myResultsViewer.onTestStarted(test);
-    assertEquals(1, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(test);
+      assertEquals(1, myResultsViewer.getStartedTestCount());
 
-    myResultsViewer.onTestFinished(test);
-    assertEquals(1, myResultsViewer.getFinishedTestCount());
+      myResultsViewer.onTestFinished(test);
+      assertEquals(1, myResultsViewer.getFinishedTestCount());
+    });
   }
 
+  @Test
   public void testOnTestsCountInSuite() {
-    myResultsViewer.onTestsCountInSuite(200);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestsCountInSuite(200);
 
-    assertEquals(0, myResultsViewer.getFinishedTestCount());
-    assertEquals(200, myResultsViewer.getTotalTestCount());
+      assertEquals(0, myResultsViewer.getFinishedTestCount());
+      assertEquals(200, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onTestsCountInSuite(50);
-    assertEquals(250, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestsCountInSuite(50);
+      assertEquals(250, myResultsViewer.getTotalTestCount());
+    });
   }
 
+  @Test
   public void testOnTestStart_ChangeTotal() {
-    myResultsViewer.onTestsCountInSuite(2);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestsCountInSuite(2);
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(2, myResultsViewer.getTotalTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertEquals(2, myResultsViewer.getTotalTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("some_test3", myTestsRootNode));
-    assertEquals(3, myResultsViewer.getTotalTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("some_test4", myTestsRootNode));
-    assertEquals(4, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(2, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertEquals(2, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test3", myTestsRootNode));
+      assertEquals(3, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test4", myTestsRootNode));
+      assertEquals(4, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onTestsCountInSuite(2);
-    myResultsViewer.onTestStarted(createTestProxy("another_test1", myTestsRootNode));
-    assertEquals(6, myResultsViewer.getTotalTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("another_test2", myTestsRootNode));
-    assertEquals(6, myResultsViewer.getTotalTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("another_test3", myTestsRootNode));
-    assertEquals(7, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestsCountInSuite(2);
+      myResultsViewer.onTestStarted(createTestProxy("another_test1", myTestsRootNode));
+      assertEquals(6, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("another_test2", myTestsRootNode));
+      assertEquals(6, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("another_test3", myTestsRootNode));
+      assertEquals(7, myResultsViewer.getTotalTestCount());
+    });
   }
 
+  @Test
   public void testOnFinishTesting_EndTime() {
-    myResultsViewer.onTestingFinished(myTestsRootNode);
-    assertTrue(myResultsViewer.getEndTime() > 0);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestingFinished(myTestsRootNode);
+      assertTrue(myResultsViewer.getEndTime() > 0);
+    });
   }
 
+  @Test
   public void testOnSuiteStarted() {
-    assertEquals(0, myResultsViewer.getFinishedTestCount());
-    myResultsViewer.onSuiteStarted(createSuiteProxy(myTestsRootNode));
-    assertEquals(0, myResultsViewer.getFinishedTestCount());
+    runInEdtAndWait(() -> {
+      assertEquals(0, myResultsViewer.getFinishedTestCount());
+      myResultsViewer.onSuiteStarted(createSuiteProxy(myTestsRootNode));
+      assertEquals(0, myResultsViewer.getFinishedTestCount());
+    });
   }
 
+  @Test
   public void testRuby_1767() {
-    TestConsoleProperties.HIDE_PASSED_TESTS.set(myConsoleProperties, true);
+    runInEdtAndWait(() -> {
+      TestConsoleProperties.HIDE_PASSED_TESTS.set(myConsoleProperties, true);
 
-    myEventsProcessor.onStartTesting();
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
-    myResultsViewer.performUpdate();
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      myEventsProcessor.onStartTesting();
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
+      myResultsViewer.performUpdate();
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
 
-    myEventsProcessor.onTestStarted(new TestStartedEvent("test_failed", null));
-    myResultsViewer.performUpdate();
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      myEventsProcessor.onTestStarted(new TestStartedEvent("test_failed", null));
+      myResultsViewer.performUpdate();
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
 
-    myEventsProcessor.onTestFailure(new TestFailedEvent("test_failed", "", "", false, null, null));
-    myResultsViewer.performUpdate();
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      myEventsProcessor.onTestFailure(new TestFailedEvent("test_failed", "", "", false, null, null));
+      myResultsViewer.performUpdate();
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
 
-    myEventsProcessor.onTestFinished(new TestFinishedEvent("test_failed", 10L));
-    myResultsViewer.performUpdate();
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      myEventsProcessor.onTestFinished(new TestFinishedEvent("test_failed", 10L));
+      myResultsViewer.performUpdate();
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
 
-    myEventsProcessor.onTestStarted(new TestStartedEvent("test", null));
-    myResultsViewer.performUpdate();
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      myEventsProcessor.onTestStarted(new TestStartedEvent("test", null));
+      myResultsViewer.performUpdate();
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
 
-    assertEquals(2, myTreeModel.getChildCount(myTreeModel.getChild(myTreeModel.getRoot(), 0)));
+      assertEquals(2, myTreeModel.getChildCount(myTreeModel.getChild(myTreeModel.getRoot(), 0)));
 
-    myEventsProcessor.onTestFinished(new TestFinishedEvent("test", 10L));
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
-    assertEquals(2, myTreeModel.getChildCount(myTreeModel.getChild(myTreeModel.getRoot(), 0)));
+      myEventsProcessor.onTestFinished(new TestFinishedEvent("test", 10L));
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      assertEquals(2, myTreeModel.getChildCount(myTreeModel.getChild(myTreeModel.getRoot(), 0)));
 
-    myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite"));
-    myEventsProcessor.onFinishTesting();
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite"));
+      myEventsProcessor.onFinishTesting();
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
 
-    assertEquals(1, myTreeModel.getChildCount(myTreeModel.getChild(myTreeModel.getRoot(), 0)));
+      assertEquals(1, myTreeModel.getChildCount(myTreeModel.getChild(myTreeModel.getRoot(), 0)));
+    });
   }
 
+  @Test
   public void testExpandIfOnlyOneRootChild() {
-    myEventsProcessor.onStartTesting();
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite1", null));
-    myResultsViewer.performUpdate();
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite2", null));
-    myResultsViewer.performUpdate();
+    runInEdtAndWait(() -> {
+      myEventsProcessor.onStartTesting();
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite1", null));
+      myResultsViewer.performUpdate();
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite2", null));
+      myResultsViewer.performUpdate();
 
-    myEventsProcessor.onTestStarted(new TestStartedEvent("test_failed", null));
-    myResultsViewer.performUpdate();
-    myEventsProcessor.onTestFailure(new TestFailedEvent("test_failed", "", "", false, null, null));
-    myResultsViewer.performUpdate();
-    myEventsProcessor.onTestFinished(new TestFinishedEvent("test_failed", 10L));
-    myResultsViewer.performUpdate();
+      myEventsProcessor.onTestStarted(new TestStartedEvent("test_failed", null));
+      myResultsViewer.performUpdate();
+      myEventsProcessor.onTestFailure(new TestFailedEvent("test_failed", "", "", false, null, null));
+      myResultsViewer.performUpdate();
+      myEventsProcessor.onTestFinished(new TestFinishedEvent("test_failed", 10L));
+      myResultsViewer.performUpdate();
 
-    myEventsProcessor.onTestStarted(new TestStartedEvent("test", null));
-    myResultsViewer.performUpdate();
+      myEventsProcessor.onTestStarted(new TestStartedEvent("test", null));
+      myResultsViewer.performUpdate();
 
-    myEventsProcessor.onTestFinished(new TestFinishedEvent("test", 10L));
-    myResultsViewer.performUpdate();
+      myEventsProcessor.onTestFinished(new TestFinishedEvent("test", 10L));
+      myResultsViewer.performUpdate();
 
-    myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite2"));
-    myResultsViewer.performUpdate();
-    myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite1"));
-    myResultsViewer.performUpdate();
-    myEventsProcessor.onFinishTesting();
-    myResultsViewer.performUpdate();
-    PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
+      myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite2"));
+      myResultsViewer.performUpdate();
+      myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite1"));
+      myResultsViewer.performUpdate();
+      myEventsProcessor.onFinishTesting();
+      myResultsViewer.performUpdate();
+      PlatformTestUtil.waitWhileBusy(myResultsViewer.getTreeView());
 
-    final DefaultMutableTreeNode suite1Node =
-      (DefaultMutableTreeNode)myTreeModel.getChild(myTreeModel.getRoot(), 0);
-    final DefaultMutableTreeNode suite2Node =
-      (DefaultMutableTreeNode)myTreeModel.getChild(suite1Node, 0);
+      final DefaultMutableTreeNode suite1Node =
+        (DefaultMutableTreeNode)myTreeModel.getChild(myTreeModel.getRoot(), 0);
+      final DefaultMutableTreeNode suite2Node =
+        (DefaultMutableTreeNode)myTreeModel.getChild(suite1Node, 0);
 
-    //todo auto expand is disabled
-    assertFalse(myResultsViewer.getTreeView().isExpanded(new TreePath(suite1Node.getPath())));
-    assertFalse(myResultsViewer.getTreeView().isExpanded(new TreePath(suite2Node.getPath())));
+      //todo auto expand is disabled
+      assertFalse(myResultsViewer.getTreeView().isExpanded(new TreePath(suite1Node.getPath())));
+      assertFalse(myResultsViewer.getTreeView().isExpanded(new TreePath(suite2Node.getPath())));
+    });
   }
 
   //with test tree build before start actual tests
+  @Test
   public void testPrependTreeAndSameTestsStartFinish() {
-    //send tree
-    myEventsProcessor.onSuiteTreeStarted("suite1", null, null, "suite1", "0");
-    myEventsProcessor.onSuiteTreeNodeAdded("test1", null, null,"test1", "suite1");
-    myEventsProcessor.onSuiteTreeEnded("suite1");
-    myEventsProcessor.onBuildTreeEnded();
+    runInEdtAndWait(() -> {
+      //send tree
+      myEventsProcessor.onSuiteTreeStarted("suite1", null, null, "suite1", "0");
+      myEventsProcessor.onSuiteTreeNodeAdded("test1", null, null,"test1", "suite1");
+      myEventsProcessor.onSuiteTreeEnded("suite1");
+      myEventsProcessor.onBuildTreeEnded();
 
-    //start testing
-    myEventsProcessor.onStartTesting();
+      //start testing
+      myEventsProcessor.onStartTesting();
     
-    //invocation count for method set to 2
-    for(int i = 0; i < 2; i++) {
-      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite1", null));
+      //invocation count for method set to 2
+      for(int i = 0; i < 2; i++) {
+        myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite1", null));
 
-      myEventsProcessor.onTestStarted(new TestStartedEvent("test1", null));
+        myEventsProcessor.onTestStarted(new TestStartedEvent("test1", null));
+        myResultsViewer.performUpdate();
+        myEventsProcessor.onTestFailure(new TestFailedEvent("test1", "", "", false, "a", "b"));
+        myResultsViewer.performUpdate();
+        myEventsProcessor.onTestFinished(new TestFinishedEvent("test1", 10L));
+        myResultsViewer.performUpdate();
+        myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite1"));
+        myResultsViewer.performUpdate();
+      }
+
+      myEventsProcessor.onFinishTesting();
       myResultsViewer.performUpdate();
+
+      //ensure 2 nodes found
+      assertEquals(2, myResultsViewer.getFailedTestCount());
+    });
+  }
+
+  @Test
+  public void testBuildAsSuiteFailAsTest() {
+    runInEdtAndWait(() -> {
+      //send tree
+      myEventsProcessor.onSuiteTreeStarted("suite1", null, null, "suite1", "0");
+      myEventsProcessor.onSuiteTreeStarted("test1", null, null,"test1", "suite1");
+      myEventsProcessor.onSuiteTreeEnded("test1");
+      myEventsProcessor.onSuiteTreeEnded("suite1");
+      myEventsProcessor.onBuildTreeEnded();
+
+      //start testing
+      myEventsProcessor.onStartTesting();
+    
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite1", null));
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("test1", null));
+
       myEventsProcessor.onTestFailure(new TestFailedEvent("test1", "", "", false, "a", "b"));
       myResultsViewer.performUpdate();
       myEventsProcessor.onTestFinished(new TestFinishedEvent("test1", 10L));
       myResultsViewer.performUpdate();
       myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite1"));
       myResultsViewer.performUpdate();
-    }
 
-    myEventsProcessor.onFinishTesting();
-    myResultsViewer.performUpdate();
+      myEventsProcessor.onFinishTesting();
+      myResultsViewer.performUpdate();
 
-    //ensure 2 nodes found
-    assertEquals(2, myResultsViewer.getFailedTestCount());
+      List<? extends SMTestProxy> children = myResultsViewer.getTestsRootNode().getChildren();
+      assertThat(children).hasSize(1);
+      assertEquals(TestStateInfo.Magnitude.FAILED_INDEX.getValue(), children.get(0).getMagnitude());
+    });
   }
 
-  public void testBuildAsSuiteFailAsTest() {
-    //send tree
-    myEventsProcessor.onSuiteTreeStarted("suite1", null, null, "suite1", "0");
-    myEventsProcessor.onSuiteTreeStarted("test1", null, null,"test1", "suite1");
-    myEventsProcessor.onSuiteTreeEnded("test1");
-    myEventsProcessor.onSuiteTreeEnded("suite1");
-    myEventsProcessor.onBuildTreeEnded();
-
-    //start testing
-    myEventsProcessor.onStartTesting();
-    
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite1", null));
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("test1", null));
-
-    myEventsProcessor.onTestFailure(new TestFailedEvent("test1", "", "", false, "a", "b"));
-    myResultsViewer.performUpdate();
-    myEventsProcessor.onTestFinished(new TestFinishedEvent("test1", 10L));
-    myResultsViewer.performUpdate();
-    myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite1"));
-    myResultsViewer.performUpdate();
-
-    myEventsProcessor.onFinishTesting();
-    myResultsViewer.performUpdate();
-
-    List<? extends SMTestProxy> children = myResultsViewer.getTestsRootNode().getChildren();
-    assertSize(1, children);
-    assertEquals(TestStateInfo.Magnitude.FAILED_INDEX.getValue(), children.get(0).getMagnitude());
-  }
-
+  @Test
   public void testCustomProgress_General() {
-    myResultsViewer.onCustomProgressTestsCategory("foo", 4);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onCustomProgressTestsCategory("foo", 4);
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(0, myResultsViewer.getFinishedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(1, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(0, myResultsViewer.getFinishedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(1, myResultsViewer.getStartedTestCount());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertEquals(1, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(2, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertEquals(1, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(2, myResultsViewer.getStartedTestCount());
+    });
   }
 
+  @Test
   public void testCustomProgress_MixedMde() {
-    // enable custom mode
-    myResultsViewer.onCustomProgressTestsCategory("foo", 4);
+    runInEdtAndWait(() -> {
+      // enable custom mode
+      myResultsViewer.onCustomProgressTestsCategory("foo", 4);
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(0, myResultsViewer.getFinishedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(1, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(0, myResultsViewer.getFinishedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(1, myResultsViewer.getStartedTestCount());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertEquals(1, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(2, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertEquals(1, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(2, myResultsViewer.getStartedTestCount());
 
-    // disable custom mode
-    myResultsViewer.onCustomProgressTestsCategory(null, 0);
+      // disable custom mode
+      myResultsViewer.onCustomProgressTestsCategory(null, 0);
 
-    assertEquals(2, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(2, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(3, myResultsViewer.getStartedTestCount());
+      assertEquals(2, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(2, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(3, myResultsViewer.getStartedTestCount());
 
-    assertEquals(3, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(3, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(4, myResultsViewer.getStartedTestCount());
+      assertEquals(3, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(3, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(4, myResultsViewer.getStartedTestCount());
+    });
   }
 
+  @Test
   public void testCustomProgress_EmptySuite() {
-    myResultsViewer.onCustomProgressTestsCategory("foo", 0);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onCustomProgressTestsCategory("foo", 0);
 
-    final SMTestProxy suite = createSuiteProxy("some_suite", myTestsRootNode);
-    myTestsRootNode.setStarted();
+      final SMTestProxy suite = createSuiteProxy("some_suite", myTestsRootNode);
+      myTestsRootNode.setStarted();
 
-    myResultsViewer.onSuiteStarted(suite);
-    suite.setStarted();
-    suite.setFinished();
-    myResultsViewer.onSuiteFinished(suite);
+      myResultsViewer.onSuiteStarted(suite);
+      suite.setStarted();
+      suite.setFinished();
+      myResultsViewer.onSuiteFinished(suite);
 
-    myTestsRootNode.setFinished();
-    myResultsViewer.onSuiteFinished(myTestsRootNode);
+      myTestsRootNode.setFinished();
+      myResultsViewer.onSuiteFinished(myTestsRootNode);
     
-    myResultsViewer.onTestingFinished(myTestsRootNode);
-    assertEquals(0, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestingFinished(myTestsRootNode);
+      assertEquals(0, myResultsViewer.getTotalTestCount());
+    });
   }
 
+  @Test
   public void testCustomProgress_Failure() {
-    myResultsViewer.onCustomProgressTestsCategory("foo", 4);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onCustomProgressTestsCategory("foo", 4);
 
-    final SMTestProxy test1 = createTestProxy("some_test1", myTestsRootNode);
-    myResultsViewer.onTestStarted(test1);
-    myResultsViewer.onCustomProgressTestStarted();
+      final SMTestProxy test1 = createTestProxy("some_test1", myTestsRootNode);
+      myResultsViewer.onTestStarted(test1);
+      myResultsViewer.onCustomProgressTestStarted();
 
-    myResultsViewer.onTestFailed(test1);
-    assertEquals(0, myResultsViewer.getFailedTestCount());
+      myResultsViewer.onTestFailed(test1);
+      assertEquals(0, myResultsViewer.getFailedTestCount());
 
-    myResultsViewer.onCustomProgressTestFailed();
-    assertEquals(1, myResultsViewer.getFailedTestCount());
+      myResultsViewer.onCustomProgressTestFailed();
+      assertEquals(1, myResultsViewer.getFailedTestCount());
 
-    assertEquals(ProgressBarUtil.FAILED_VALUE, myResultsViewer.getTestsStatus());
+      assertEquals(ProgressBarUtil.FAILED_VALUE, myResultsViewer.getTestsStatus());
+    });
   }
 
+  @Test
   public void testProgressBar_Ignored() {
-    final SMTestProxy test1 = createTestProxy("some_test1", myTestsRootNode);
-    myResultsViewer.onTestStarted(test1);
-    myResultsViewer.performUpdate();
-    myResultsViewer.onTestIgnored(test1);
-    myResultsViewer.performUpdate();
-    assertEquals(0, myResultsViewer.getFailedTestCount());
-    assertEquals(1, myResultsViewer.getIgnoredTestCount());
+    runInEdtAndWait(() -> {
+      final SMTestProxy test1 = createTestProxy("some_test1", myTestsRootNode);
+      myResultsViewer.onTestStarted(test1);
+      myResultsViewer.performUpdate();
+      myResultsViewer.onTestIgnored(test1);
+      myResultsViewer.performUpdate();
+      assertEquals(0, myResultsViewer.getFailedTestCount());
+      assertEquals(1, myResultsViewer.getIgnoredTestCount());
 
-    assertEquals(ProgressBarUtil.PASSED_VALUE, myResultsViewer.getTestsStatus());
+      assertEquals(ProgressBarUtil.PASSED_VALUE, myResultsViewer.getTestsStatus());
+    });
   }
 
+  @Test
   public void testCustomProgress_Terminated() {
-    myResultsViewer.onTestingStarted(myTestsRootNode);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestingStarted(myTestsRootNode);
 
-    final SMTestProxy test1 = createTestProxy("some_test1", myTestsRootNode);
-    myResultsViewer.onTestStarted(test1);
+      final SMTestProxy test1 = createTestProxy("some_test1", myTestsRootNode);
+      myResultsViewer.onTestStarted(test1);
 
-    myResultsViewer.onTestingFinished(myTestsRootNode);
+      myResultsViewer.onTestingFinished(myTestsRootNode);
 
-    assertEquals(ProgressBarUtil.PASSED_VALUE, myResultsViewer.getTestsStatus());
+      assertEquals(ProgressBarUtil.PASSED_VALUE, myResultsViewer.getTestsStatus());
+    });
   }
 
+  @Test
   public void testCustomProgress_Terminated_SmthFailed() {
-    myResultsViewer.onTestingStarted(myTestsRootNode);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onTestingStarted(myTestsRootNode);
 
-    final SMTestProxy test1 = createTestProxy("some_test1", myTestsRootNode);
-    myResultsViewer.onTestStarted(test1);
-    myResultsViewer.onTestFailed(test1);
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    myResultsViewer.onTestingFinished(myTestsRootNode);
+      final SMTestProxy test1 = createTestProxy("some_test1", myTestsRootNode);
+      myResultsViewer.onTestStarted(test1);
+      myResultsViewer.onTestFailed(test1);
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      myResultsViewer.onTestingFinished(myTestsRootNode);
 
-    assertEquals(ProgressBarUtil.FAILED_VALUE, myResultsViewer.getTestsStatus());
+      assertEquals(ProgressBarUtil.FAILED_VALUE, myResultsViewer.getTestsStatus());
+    });
   }
 
+  @Test
   public void testCustomProgress_UnSetCount() {
-    myResultsViewer.onCustomProgressTestsCategory("foo", 0);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onCustomProgressTestsCategory("foo", 0);
 
-    assertEquals(0, myResultsViewer.getTotalTestCount());
+      assertEquals(0, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(0, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(0, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(0, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(0, myResultsViewer.getTotalTestCount());
 
-    // count will be updated only on tests finished if wasn't set
-    myResultsViewer.onTestingFinished(myTestsRootNode);
-    assertEquals(2, myResultsViewer.getTotalTestCount());
+      // count will be updated only on tests finished if wasn't set
+      myResultsViewer.onTestingFinished(myTestsRootNode);
+      assertEquals(2, myResultsViewer.getTotalTestCount());
+    });
   }
 
+  @Test
   public void testCustomProgress_IncreaseCount() {
-    myResultsViewer.onCustomProgressTestsCategory("foo", 1);
+    runInEdtAndWait(() -> {
+      myResultsViewer.onCustomProgressTestsCategory("foo", 1);
 
-    assertEquals(1, myResultsViewer.getTotalTestCount());
+      assertEquals(1, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(1, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(1, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(2, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(2, myResultsViewer.getTotalTestCount());
+    });
   }
 
+  @Test
   public void testCustomProgress_IncreaseCount_MixedMode() {
-    // custom mode
-    myResultsViewer.onCustomProgressTestsCategory("foo", 1);
+    runInEdtAndWait(() -> {
+      // custom mode
+      myResultsViewer.onCustomProgressTestsCategory("foo", 1);
 
-    assertEquals(1, myResultsViewer.getTotalTestCount());
+      assertEquals(1, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(1, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(1, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(2, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(2, myResultsViewer.getTotalTestCount());
 
-    // disable custom mode
-    myResultsViewer.onCustomProgressTestsCategory(null, 0);
-    assertEquals(2, myResultsViewer.getTotalTestCount());
+      // disable custom mode
+      myResultsViewer.onCustomProgressTestsCategory(null, 0);
+      assertEquals(2, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onTestsCountInSuite(1);
-    assertEquals(3, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestsCountInSuite(1);
+      assertEquals(3, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(3, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(3, myResultsViewer.getTotalTestCount());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertEquals(4, myResultsViewer.getTotalTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertEquals(4, myResultsViewer.getTotalTestCount());
+    });
   }
 
   //TODO categories - mized
 
+  @Test
   public void testCustomProgress_MentionedCategories_CategoryWithoutName() {
-    // enable custom mode
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+    runInEdtAndWait(() -> {
+      // enable custom mode
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
 
-    myResultsViewer.onCustomProgressTestsCategory("foo", 4);
+      myResultsViewer.onCustomProgressTestsCategory("foo", 4);
 
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+    });
   }
 
+  @Test
   public void testCustomProgress_MentionedCategories_DefaultCategory() {
-    // enable custom mode
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+    runInEdtAndWait(() -> {
+      // enable custom mode
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
 
-    myResultsViewer.onCustomProgressTestStarted();
+      myResultsViewer.onCustomProgressTestStarted();
 
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+    });
   }
 
+  @Test
   public void testCustomProgress_MentionedCategories_OneCustomCategory() {
-    // enable custom mode
-    myResultsViewer.onCustomProgressTestsCategory("Foo", 4);
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+    runInEdtAndWait(() -> {
+      // enable custom mode
+      myResultsViewer.onCustomProgressTestsCategory("Foo", 4);
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertSameElements(myResultsViewer.getMentionedCategories(), "Foo");
+      myResultsViewer.onCustomProgressTestStarted();
+      assertThat(myResultsViewer.getMentionedCategories()).containsExactlyInAnyOrder("Foo");
 
-    // disable custom mode
-    myResultsViewer.onCustomProgressTestsCategory(null, 0);
-    assertSameElements(myResultsViewer.getMentionedCategories(), "Foo");
+      // disable custom mode
+      myResultsViewer.onCustomProgressTestsCategory(null, 0);
+      assertThat(myResultsViewer.getMentionedCategories()).containsExactlyInAnyOrder("Foo");
+    });
   }
 
+  @Test
   public void testCustomProgress_MentionedCategories_SeveralCategories() {
-    // enable custom mode
-    myResultsViewer.onCustomProgressTestsCategory("Foo", 4);
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+    runInEdtAndWait(() -> {
+      // enable custom mode
+      myResultsViewer.onCustomProgressTestsCategory("Foo", 4);
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertSameElements(myResultsViewer.getMentionedCategories(), "Foo");
+      myResultsViewer.onCustomProgressTestStarted();
+      assertThat(myResultsViewer.getMentionedCategories()).containsExactlyInAnyOrder("Foo");
 
-    // disable custom mode
-    myResultsViewer.onCustomProgressTestsCategory(null, 0);
+      // disable custom mode
+      myResultsViewer.onCustomProgressTestsCategory(null, 0);
 
-    myResultsViewer.onCustomProgressTestStarted();
-    assertSameElements(myResultsViewer.getMentionedCategories(), "Foo");
+      myResultsViewer.onCustomProgressTestStarted();
+      assertThat(myResultsViewer.getMentionedCategories()).containsExactlyInAnyOrder("Foo");
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertSameElements(myResultsViewer.getMentionedCategories(), "Foo", TestsPresentationUtil.DEFAULT_TESTS_CATEGORY);
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertThat(myResultsViewer.getMentionedCategories()).containsExactlyInAnyOrder("Foo", TestsPresentationUtil.DEFAULT_TESTS_CATEGORY);
+    });
   }
 
+  @Test
   public void testCustomProgress_MentionedCategories() {
-    // enable custom mode
-    assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
+    runInEdtAndWait(() -> {
+      // enable custom mode
+      assertTrue(myResultsViewer.getMentionedCategories().isEmpty());
 
-    myResultsViewer.onCustomProgressTestsCategory("foo", 4);
+      myResultsViewer.onCustomProgressTestsCategory("foo", 4);
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(0, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(1, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(0, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(1, myResultsViewer.getStartedTestCount());
 
-    myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
-    assertEquals(1, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(2, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test2", myTestsRootNode));
+      assertEquals(1, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(2, myResultsViewer.getStartedTestCount());
 
-    // disable custom mode
-    myResultsViewer.onCustomProgressTestsCategory(null, 0);
+      // disable custom mode
+      myResultsViewer.onCustomProgressTestsCategory(null, 0);
 
-    assertEquals(2, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(2, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(3, myResultsViewer.getStartedTestCount());
+      assertEquals(2, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(2, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(3, myResultsViewer.getStartedTestCount());
 
-    assertEquals(3, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onCustomProgressTestStarted();
-    assertEquals(3, myResultsViewer.getStartedTestCount());
-    myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
-    assertEquals(4, myResultsViewer.getStartedTestCount());
+      assertEquals(3, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onCustomProgressTestStarted();
+      assertEquals(3, myResultsViewer.getStartedTestCount());
+      myResultsViewer.onTestStarted(createTestProxy("some_test1", myTestsRootNode));
+      assertEquals(4, myResultsViewer.getStartedTestCount());
+    });
   }
 
+  @Test
   public void testDiffOnNonLeafNode() {
-    SMTestProxy suite1 = createSuiteProxy(myTestsRootNode);
-    suite1.setStarted();
-    SMTestProxy test1 = createTestProxy("test1", suite1);
-    test1.setStarted();
-    test1.setTestComparisonFailed("m1", "m1", "m2", "m1");
-    test1.setFinished();
-    suite1.setFinished();
+    runInEdtAndWait(() -> {
+      SMTestProxy suite1 = createSuiteProxy(myTestsRootNode);
+      suite1.setStarted();
+      SMTestProxy test1 = createTestProxy("test1", suite1);
+      test1.setStarted();
+      test1.setTestComparisonFailed("m1", "m1", "m2", "m1");
+      test1.setFinished();
+      suite1.setFinished();
 
-    SMTestProxy suite2 = createSuiteProxy(myTestsRootNode);
-    suite2.setStarted();
-    SMTestProxy test2 = createTestProxy("test2", suite2);
-    test2.setStarted();
-    test2.setTestComparisonFailed("m2", "m2", "m1", "m2");
-    test2.setFinished();
-    suite2.setFinished();
+      SMTestProxy suite2 = createSuiteProxy(myTestsRootNode);
+      suite2.setStarted();
+      SMTestProxy test2 = createTestProxy("test2", suite2);
+      test2.setStarted();
+      test2.setTestComparisonFailed("m2", "m2", "m1", "m2");
+      test2.setFinished();
+      suite2.setFinished();
 
-    ListSelection<DiffHyperlink> hyperlinks = ViewAssertEqualsDiffAction.showDiff(suite2, myResultsViewer);
-    List<? extends DiffHyperlink> providers = hyperlinks.getList();
-    assertEquals(2, providers.size());
-    assertEquals(1, hyperlinks.getSelectedIndex());
-    DiffHyperlink selectedProvider = providers.get(0);
-    assertEquals("m1", selectedProvider.getLeft());
-    assertEquals("m2", selectedProvider.getRight());
+      ListSelection<DiffHyperlink> hyperlinks = ViewAssertEqualsDiffAction.showDiff(suite2, myResultsViewer);
+      List<? extends DiffHyperlink> providers = hyperlinks.getList();
+      assertEquals(2, providers.size());
+      assertEquals(1, hyperlinks.getSelectedIndex());
+      DiffHyperlink selectedProvider = providers.get(0);
+      assertEquals("m1", selectedProvider.getLeft());
+      assertEquals("m2", selectedProvider.getRight());
+    });
   }
 }

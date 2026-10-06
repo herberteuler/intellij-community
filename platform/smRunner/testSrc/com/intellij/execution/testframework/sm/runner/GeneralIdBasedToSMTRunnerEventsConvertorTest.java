@@ -28,6 +28,15 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.testFramework.PlatformTestUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static com.intellij.testFramework.EdtTestUtil.runInEdtAndWait;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GeneralIdBasedToSMTRunnerEventsConvertorTest extends BaseSMTRunnerTestCase {
   private SMTRunnerConsoleView myConsole;
@@ -35,104 +44,115 @@ public class GeneralIdBasedToSMTRunnerEventsConvertorTest extends BaseSMTRunnerT
   private SMTestProxy.SMRootTestProxy myRootProxy;
   private SMTestRunnerResultsForm myResultsViewer;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @BeforeEach
+  void setUp() {
+    runInEdtAndWait(() -> {
+      TestConsoleProperties consoleProperties = createConsoleProperties();
+      myConsole = new SMTRunnerConsoleView(consoleProperties);
+      myConsole.initUI();
+      myResultsViewer = myConsole.getResultsViewer();
 
-    TestConsoleProperties consoleProperties = createConsoleProperties();
-    myConsole = new SMTRunnerConsoleView(consoleProperties);
-    myConsole.initUI();
-    myResultsViewer = myConsole.getResultsViewer();
-
-    myRootProxy = new SMTestProxy.SMRootTestProxy();
-    myEventsProcessor = new GeneralIdBasedToSMTRunnerEventsConvertor(getProject(), myRootProxy, "test");
-    myEventsProcessor.addEventsListener(myResultsViewer);
-    myEventsProcessor.onStartTesting();
+      myRootProxy = new SMTestProxy.SMRootTestProxy();
+      myEventsProcessor = new GeneralIdBasedToSMTRunnerEventsConvertor(getProject(), myRootProxy, "test");
+      myEventsProcessor.addEventsListener(myResultsViewer);
+      myEventsProcessor.onStartTesting();
+    });
   }
 
-  @Override
-  protected void tearDown() throws Exception {
-    try {
+  @AfterEach
+  void tearDown() {
+    runInEdtAndWait(() -> {
       Disposer.dispose(myEventsProcessor);
       Disposer.dispose(myConsole);
-    }
-    catch (Throwable e) {
-      addSuppressedException(e);
-    }
-    finally {
-      super.tearDown();
-    }
+    });
   }
 
+  @Test
   public void testOnStartedTesting() {
-    assertTrue(myRootProxy.wasLaunched());
-    assertTrue(myRootProxy.isInProgress());
-    assertTrue(myRootProxy.isLeaf());
+    runInEdtAndWait(() -> {
+      assertTrue(myRootProxy.wasLaunched());
+      assertTrue(myRootProxy.isInProgress());
+      assertTrue(myRootProxy.isLeaf());
+    });
   }
 
+  @Test
   public void testOnTestStarted() {
-    onTestStarted("my test", null, "1", TreeNodeEvent.ROOT_NODE_ID, true);
-    assertStatusLine("");
-    SMTestProxy proxy = validateTest("1", "my test", null, true, myRootProxy);
-    onTestFailed("1", "", 1);
-    assertStatusLine("1 test failed");
-    validateTestFailure("1", proxy, 1);
+    runInEdtAndWait(() -> {
+      onTestStarted("my test", null, "1", TreeNodeEvent.ROOT_NODE_ID, true);
+      assertStatusLine("");
+      SMTestProxy proxy = validateTest("1", "my test", null, true, myRootProxy);
+      onTestFailed("1", "", 1);
+      assertStatusLine("1 test failed");
+      validateTestFailure("1", proxy, 1);
+    });
   }
 
+  @Test
   public void testRunningSuite() {
-    onSuiteStarted("Code", null, "1", TreeNodeEvent.ROOT_NODE_ID);
-    SMTestProxy suiteProxy = validateSuite("1", "Code", null, myRootProxy);
-    onTestStarted("should work", null, "2", "1", true);
-    SMTestProxy testProxy = validateTest("2", "should work", null, true, suiteProxy);
-    onTestFailed("2", "NPE", 5);
-    validateTestFailure("2", testProxy, 5);
-    assertTrue(suiteProxy.isInProgress());
+    runInEdtAndWait(() -> {
+      onSuiteStarted("Code", null, "1", TreeNodeEvent.ROOT_NODE_ID);
+      SMTestProxy suiteProxy = validateSuite("1", "Code", null, myRootProxy);
+      onTestStarted("should work", null, "2", "1", true);
+      SMTestProxy testProxy = validateTest("2", "should work", null, true, suiteProxy);
+      onTestFailed("2", "NPE", 5);
+      validateTestFailure("2", testProxy, 5);
+      assertTrue(suiteProxy.isInProgress());
 
-    onSuiteStarted("Bugs", null, "3", TreeNodeEvent.ROOT_NODE_ID);
-    SMTestProxy bugsSuiteProxy = validateSuite("3", "Bugs", null, myRootProxy);
-    onTestStarted("should be fixed", null, "4", "3", false);
-    validateTest("4", "should be fixed", null, false, bugsSuiteProxy);
-    assertFalse(bugsSuiteProxy.isInProgress());
+      onSuiteStarted("Bugs", null, "3", TreeNodeEvent.ROOT_NODE_ID);
+      SMTestProxy bugsSuiteProxy = validateSuite("3", "Bugs", null, myRootProxy);
+      onTestStarted("should be fixed", null, "4", "3", false);
+      validateTest("4", "should be fixed", null, false, bugsSuiteProxy);
+      assertFalse(bugsSuiteProxy.isInProgress());
+    });
   }
 
+  @Test
   public void testRunningSuiteWithMetainfo() {
-    onSuiteStarted("Code", "any:info:string:that:can:help?navigation", "1", TreeNodeEvent.ROOT_NODE_ID);
-    SMTestProxy suiteProxy = validateSuite("1", "Code", "any:info:string:that:can:help?navigation", myRootProxy);
-    onTestStarted("should work", "but is not a part of primary key", "2", "1", true);
-    SMTestProxy testProxy = validateTest("2", "should work", "but is not a part of primary key", true, suiteProxy);
-    onTestFailed("2", "NPE", 5);
-    validateTestFailure("2", testProxy, 5);
-    assertTrue(suiteProxy.isInProgress());
+    runInEdtAndWait(() -> {
+      onSuiteStarted("Code", "any:info:string:that:can:help?navigation", "1", TreeNodeEvent.ROOT_NODE_ID);
+      SMTestProxy suiteProxy = validateSuite("1", "Code", "any:info:string:that:can:help?navigation", myRootProxy);
+      onTestStarted("should work", "but is not a part of primary key", "2", "1", true);
+      SMTestProxy testProxy = validateTest("2", "should work", "but is not a part of primary key", true, suiteProxy);
+      onTestFailed("2", "NPE", 5);
+      validateTestFailure("2", testProxy, 5);
+      assertTrue(suiteProxy.isInProgress());
+    });
   }
 
+  @Test
   public void testIgnoredEvent() {
-    onSuiteStarted("Suite", null, "1", TreeNodeEvent.ROOT_NODE_ID);
-    SMTestProxy suite = validateSuite("1", "Suite", null, myRootProxy);
-    onTestStarted("testA", null, "A", "1", true);
-    SMTestProxy testA = validateTest("A", "testA", null, true, suite);
-    onTestIgnored("A");
-    validateTestIgnored("A", testA);
-    assertFalse(testA.isInProgress());
-    assertTrue(suite.isInProgress());
-    assertEquals(1, myResultsViewer.getFinishedTestCount());
-    onTestFinished("A", null);
-    assertEquals(1, myResultsViewer.getFinishedTestCount());
+    runInEdtAndWait(() -> {
+      onSuiteStarted("Suite", null, "1", TreeNodeEvent.ROOT_NODE_ID);
+      SMTestProxy suite = validateSuite("1", "Suite", null, myRootProxy);
+      onTestStarted("testA", null, "A", "1", true);
+      SMTestProxy testA = validateTest("A", "testA", null, true, suite);
+      onTestIgnored("A");
+      validateTestIgnored("A", testA);
+      assertFalse(testA.isInProgress());
+      assertTrue(suite.isInProgress());
+      assertEquals(1, myResultsViewer.getFinishedTestCount());
+      onTestFinished("A", null);
+      assertEquals(1, myResultsViewer.getFinishedTestCount());
 
-    onTestStarted("testB", null, "B", "1", true);
-    SMTestProxy testB = validateTest("B", "testB", null, true, suite);
-    assertEquals(1, myResultsViewer.getFinishedTestCount());
-    onTestIgnored("B");
-    assertStatusLine("2 tests ignored");
-    assertEquals(2, myResultsViewer.getFinishedTestCount());
-    validateTestIgnored("B", testB);
+      onTestStarted("testB", null, "B", "1", true);
+      SMTestProxy testB = validateTest("B", "testB", null, true, suite);
+      assertEquals(1, myResultsViewer.getFinishedTestCount());
+      onTestIgnored("B");
+      assertStatusLine("2 tests ignored");
+      assertEquals(2, myResultsViewer.getFinishedTestCount());
+      validateTestIgnored("B", testB);
+    });
   }
 
+  @Test
   public void testCheckMetaUpdateWithValue() {
-    checkMetainfo("suiteMetaUpdate", "testMetaUpdate");
+    runInEdtAndWait(() -> checkMetainfo("suiteMetaUpdate", "testMetaUpdate"));
   }
 
+  @Test
   public void testCheckMetaUpdateWithNull() {
-    checkMetainfo(null, null);
+    runInEdtAndWait(() -> checkMetainfo(null, null));
   }
 
   private void checkMetainfo(@Nullable String updatedSuiteMetainfo, @Nullable String updatedTestMetainfo) {

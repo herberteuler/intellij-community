@@ -1,8 +1,21 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.execution.testframework.sm.runner;
 
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.diagnostic.DefaultLogger;
 import com.intellij.testFramework.TestLoggerKt;
+import com.intellij.testFramework.junit5.TestDisposable;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Roman Chernyatchik
@@ -10,26 +23,17 @@ import com.intellij.testFramework.TestLoggerKt;
 public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
   private TestSuiteStack myTestSuiteStack;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-
+  @BeforeEach
+  void setUp() {
     myTestSuiteStack = new TestSuiteStack("from tests");
   }
 
-  @Override
-  protected void tearDown() throws Exception {
-    try {
-      disableDebugMode();
-    }
-    catch (Throwable e) {
-      addSuppressedException(e);
-    }
-    finally {
-      super.tearDown();
-    }
+  @AfterEach
+  void tearDown() {
+    disableDebugMode();
   }
 
+  @Test
   public void testPushSuite() {
     myTestSuiteStack.pushSuite(mySuite);
     assertEquals(1, myTestSuiteStack.getStackSize());
@@ -45,6 +49,7 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     assertEquals(newSuite, myTestSuiteStack.getCurrentSuite());
   }
 
+  @Test
   public void testGetStackSize() {
     assertEquals(0, myTestSuiteStack.getStackSize());
 
@@ -55,6 +60,7 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     assertEquals(0, myTestSuiteStack.getStackSize());
   }
 
+  @Test
   public void testGetCurrentSuite() {
     assertNull(myTestSuiteStack.getCurrentSuite());
 
@@ -62,8 +68,9 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     assertEquals(mySuite, myTestSuiteStack.getCurrentSuite());
   }
 
-  public void testPopEmptySuite_DebugMode() throws Throwable {
-    DefaultLogger.disableStderrDumping(getTestRootDisposable());
+  @Test
+  public void testPopEmptySuite_DebugMode(@TestDisposable Disposable disposable) throws Throwable {
+    DefaultLogger.disableStderrDumping(disposable);
 
     enableDebugMode();
 
@@ -72,12 +79,14 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     });
   }
 
+  @Test
   public void testPopEmptySuite_NormalMode() {
     assertNull(myTestSuiteStack.popSuite("some suite"));
   }
 
-  public void testPopInconsistentSuite_DebugMode() throws Throwable {
-    DefaultLogger.disableStderrDumping(getTestRootDisposable());
+  @Test
+  public void testPopInconsistentSuite_DebugMode(@TestDisposable Disposable disposable) throws Throwable {
+    DefaultLogger.disableStderrDumping(disposable);
     TestLoggerKt.rethrowLoggedErrorsIn(() -> {
       enableDebugMode();
 
@@ -96,6 +105,7 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     });
   }
 
+  @Test
   public void testPopInconsistentSuite_NormalMode() {
     final String suiteName = mySuite.getName();
 
@@ -112,6 +122,7 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     assertEquals(1, myTestSuiteStack.getStackSize());
   }
 
+  @Test
   public void testPopSuite() {
     final String suiteName = mySuite.getName();
 
@@ -120,16 +131,18 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     assertEquals(0, myTestSuiteStack.getStackSize());
   }
 
+  @Test
   public void testGetSuitePath() {
-    assertEmpty(myTestSuiteStack.getSuitePath());
+    assertThat(myTestSuiteStack.getSuitePath()).isEmpty();
 
     myTestSuiteStack.pushSuite(createSuiteProxy("1"));
     myTestSuiteStack.pushSuite(createSuiteProxy("2"));
     myTestSuiteStack.pushSuite(createSuiteProxy("3"));
 
-    assertSameElements(myTestSuiteStack.getSuitePath(), "1", "2", "3");
+    assertThat(myTestSuiteStack.getSuitePath()).containsExactlyInAnyOrder("1", "2", "3");
   }
 
+  @Test
   public void testGetSuitePathPresentation() {
     assertEquals("empty", myTestSuiteStack.getSuitePathPresentation());
 
@@ -140,6 +153,7 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     assertEquals("[1]->[2]->[3]", myTestSuiteStack.getSuitePathPresentation());    
   }
 
+  @Test
   public void testClear() {
     myTestSuiteStack.pushSuite(createSuiteProxy("1"));
     myTestSuiteStack.pushSuite(createSuiteProxy("2"));
@@ -149,6 +163,7 @@ public class TestSuiteStackTest extends BaseSMTRunnerTestCase {
     assertEquals(0, myTestSuiteStack.getStackSize());
   }
 
+  @Test
   public void testIsEmpty() {
     assertTrue(myTestSuiteStack.isEmpty());
 

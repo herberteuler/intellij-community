@@ -4,9 +4,13 @@ package com.intellij.execution.testframework.sm.runner;
 import com.intellij.execution.executors.DefaultRunExecutor;
 import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.openapi.util.text.StringUtil;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author Roman.Chernyatchik
@@ -15,10 +19,8 @@ public class OutputToGeneralTestsEventsConverterTest extends BaseSMTRunnerTestCa
   private ProcessOutputConsumer myOutputConsumer;
   public MockGeneralTestEventsProcessorAdapter myEnventsProcessor;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-
+  @BeforeEach
+  void setUp() {
     final String testFrameworkName = "SMRunnerTests";
     final SMTRunnerConsoleProperties properties = new SMTRunnerConsoleProperties(createRunConfiguration(),
                                                                                  testFrameworkName,
@@ -33,10 +35,12 @@ public class OutputToGeneralTestsEventsConverterTest extends BaseSMTRunnerTestCa
     myOutputConsumer.setProcessor(myEnventsProcessor);
   }
 
+  @Test
   public void testLineBreaks_ServiceMessage() {
     doCheckOutptut("##teamcity[enteredTheMatrix timestamp = '2011-06-03T13:00:08.259+0400']\n", "", true);
   }
 
+  @Test
   public void testLineBreaks_NormalOutput() {
     doCheckOutptut("\na\nb\n\nc\n", """
                      [stdout]
@@ -48,6 +52,7 @@ public class OutputToGeneralTestsEventsConverterTest extends BaseSMTRunnerTestCa
                    true);
   }
 
+  @Test
   public void testLineBreaks_OutptutAndCommands() {
     doCheckOutptut("\na\n##teamcity[enteredTheMatrix timestamp = '2011-06-03T13:00:08.259+0400']\nb\n##teamcity[enteredTheMatrix timestamp = '2011-06-03T13:00:08.259+0400']\n\nc\n",
                    """
@@ -60,6 +65,7 @@ public class OutputToGeneralTestsEventsConverterTest extends BaseSMTRunnerTestCa
                    true);
   }
 
+  @Test
   public void testLineBreaks_AutoSplitIfProcessHandlerDoestSupportIt() {
     doCheckOutptut("\na\n##teamcity[enteredTheMatrix timestamp = '2011-06-03T13:00:08.259+0400']\nb\n##teamcity[testCount count = '1' timestamp = '2011-06-03T13:00:08.259+0400']\n\nc\n",
                    """
@@ -72,6 +78,7 @@ public class OutputToGeneralTestsEventsConverterTest extends BaseSMTRunnerTestCa
                    false);
   }
 
+  @Test
   public void testMergingLineBreaks() {
     doCheckOutptut("""
                      Testing started at 11:14 ...

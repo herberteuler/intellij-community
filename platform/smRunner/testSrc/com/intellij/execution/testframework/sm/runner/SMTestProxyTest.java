@@ -14,17 +14,21 @@ import com.intellij.execution.testframework.ui.AbstractTestTreeBuilderBase;
 import com.intellij.execution.testframework.ui.BaseTestProxyNodeDescriptor;
 import com.intellij.ide.util.treeView.NodeDescriptor;
 import com.intellij.openapi.application.WriteAction;
+import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiFileFactory;
 import com.intellij.psi.impl.FakePsiElement;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.IdempotenceChecker;
+import com.intellij.util.LocalTimeCounter;
 import com.intellij.util.containers.ContainerUtil;
 import org.easymock.EasyMock;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,19 +36,27 @@ import java.util.Comparator;
 import java.util.List;
 
 import static com.intellij.execution.testframework.sm.runner.states.TestStateInfo.Magnitude;
+import static com.intellij.testFramework.EdtTestUtil.runInEdtAndWait;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Roman Chernyatchik
  */
 public class SMTestProxyTest extends BaseSMTRunnerTestCase {
 
+  @Test
   public void testTestInstance() {
     mySimpleTest = createTestProxy("newTest");
 
     assertEquals("newTest", mySimpleTest.getName());
     assertEquals("newTest", mySimpleTest.toString());
 
-    assertEmpty(mySimpleTest.getChildren());
+    assertThat(mySimpleTest.getChildren()).isEmpty();
     assertTrue(mySimpleTest.isLeaf());
     assertNull(mySimpleTest.getParent());
 
@@ -53,6 +65,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(mySimpleTest.isDefect());
   }
 
+  @Test
   public void testGetName() {
     mySimpleTest = createTestProxy("newTest");
     assertEquals("newTest", mySimpleTest.getName());
@@ -64,18 +77,20 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals("newTest", mySimpleTest.getName());
   }
 
+  @Test
   public void testGetName_trim() {
     mySimpleTest = createTestProxy(" newTest ");
     assertEquals(" newTest ", mySimpleTest.getName());
   }
 
+  @Test
   public void testSuiteInstance() {
     mySuite = createSuiteProxy("newSuite");
 
     assertEquals("newSuite", mySuite.getName());
     assertEquals("newSuite", mySuite.toString());
 
-    assertEmpty(mySuite.getChildren());
+    assertThat(mySuite.getChildren()).isEmpty();
     assertTrue(mySuite.isLeaf());
     assertNull(mySuite.getParent());
 
@@ -86,10 +101,11 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     mySuite.addChild(mySimpleTest);
     assertEquals("newSuite", mySuite.getName());
     assertEquals("newSuite", mySuite.toString());
-    assertSameElements(mySuite.getChildren(), mySimpleTest);
+    assertEquals(List.of(mySimpleTest), mySuite.getChildren());
     assertFalse(mySuite.isLeaf());
   }
 
+  @Test
   public void testAppendedChildToTestShouldMakeItSuite() {
     mySuite = createTestProxy("unroll spock test");
     assertFalse(mySuite.isSuite());
@@ -103,6 +119,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.isDefect());
   }
 
+  @Test
   public void testIsRoot() {
     final SMTestProxy rootTest = createTestProxy("root");
     assertTrue(rootTest.getParent() == null);
@@ -112,6 +129,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(mySimpleTest.getParent() == null);
   }
 
+  @Test
   public void testTestStarted() {
     mySimpleTest.setStarted();
 
@@ -121,6 +139,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(mySimpleTest.isDefect());
   }
 
+  @Test
   public void testTestStarted_InSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -142,6 +161,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(mySimpleTest.isDefect());
   }
 
+  @Test
   public void testTestFinished() {
     mySimpleTest.setStarted();
     mySimpleTest.setFinished();
@@ -153,6 +173,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(mySuite.wasTerminated());
   }
 
+  @Test
   public void testTestFinished_InSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -171,6 +192,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(mySuite.isDefect());
   }
 
+  @Test
   public void testTestFinished_InSuite_WrongOrder() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -185,6 +207,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(mySimpleTest.isDefect());
   }
 
+  @Test
   public void testTestFailed() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", false);
@@ -203,6 +226,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySimpleTest.getMagnitudeInfo() == Magnitude.FAILED_INDEX);
   }
 
+  @Test
   public void testTestFailedTwice() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("msg 1", "stack trace 1", false);
@@ -237,6 +261,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySimpleTest.getMagnitudeInfo() == Magnitude.FAILED_INDEX);
   }
 
+  @Test
   public void testMultipleAssertions() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestComparisonFailed("a", "stacktrace", "actual1", "expected1");
@@ -269,6 +294,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
                    """, printer.getAllOut());
   }
 
+  @Test
   public void testTestFailed_ComparisonAssertion() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestComparisonFailed("", "", "", "");
@@ -286,6 +312,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySimpleTest.getMagnitudeInfo() == Magnitude.FAILED_INDEX);
   }
 
+  @Test
   public void testTestFailed_InSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -312,6 +339,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.getMagnitudeInfo() == Magnitude.FAILED_INDEX);
   }
 
+  @Test
   public void testTestIgnored() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestIgnored("", null);
@@ -330,6 +358,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySimpleTest.getMagnitudeInfo() == Magnitude.IGNORED_INDEX);
   }
 
+  @Test
   public void testTestIgnored_InSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -356,6 +385,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.getMagnitudeInfo() == Magnitude.IGNORED_INDEX);
   }
 
+  @Test
   public void testTestError() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", true);
@@ -374,6 +404,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySimpleTest.getMagnitudeInfo() == Magnitude.ERROR_INDEX);
   }
 
+  @Test
   public void testTestError_InSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -400,6 +431,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.getMagnitudeInfo() == Magnitude.ERROR_INDEX);
   }
 
+  @Test
   public void testSuiteFailed_WithPendingAndFailed() {
     final SMTestProxy testPending = createTestProxy("pending");
 
@@ -437,6 +469,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.getMagnitudeInfo() == Magnitude.FAILED_INDEX);
   }
 
+  @Test
   public void testSuitePending_WithPendingAndPassed() {
     final SMTestProxy testPending = createTestProxy("pending");
 
@@ -471,6 +504,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.getMagnitudeInfo() == Magnitude.IGNORED_INDEX);
   }
 
+  @Test
   public void testSuiteTerminated() {
     mySuite.setStarted();
     mySuite.setTerminated();
@@ -485,6 +519,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.wasTerminated());
   }
 
+  @Test
   public void testSuiteTerminated_WithNotRunChild() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -495,6 +530,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySimpleTest.wasTerminated());
   }
 
+  @Test
   public void testSuiteTerminated_WithChildInProgress() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -506,6 +542,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySimpleTest.wasTerminated());
   }
 
+  @Test
   public void testSuiteTerminated_WithChildInFinalState() {
     final SMTestProxy testPassed = createTestProxy("passed");
     final SMTestProxy testFailed = createTestProxy("failed");
@@ -534,6 +571,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(testInProgress.wasTerminated());
   }
 
+  @Test
   public void testTestTerminated() {
     mySimpleTest.setTerminated();
 
@@ -547,6 +585,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySimpleTest.wasTerminated());
   }
 
+  @Test
   public void testMagnitude() {
     assertEquals(Magnitude.NOT_RUN_INDEX.getValue(), mySuite.getMagnitude());
 
@@ -590,6 +629,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(Magnitude.FAILED_INDEX.getValue(), failedTest.getMagnitude());
   }
 
+  @Test
   public void testMagnitude_Error() {
     assertEquals(Magnitude.NOT_RUN_INDEX.getValue(), mySuite.getMagnitude());
 
@@ -616,6 +656,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(Magnitude.ERROR_INDEX.getValue(), errorTest.getMagnitude());
   }
 
+  @Test
   public void testMagnitude_Terminated() {
     assertEquals(Magnitude.NOT_RUN_INDEX.getValue(), mySuite.getMagnitude());
 
@@ -631,6 +672,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(Magnitude.TERMINATED_INDEX.getValue(), testProxy.getMagnitude());
   }
 
+  @Test
   public void testMagnitude_suiteWithoutTests() {
     final SMTestProxy noTests = createSuiteProxy("emptySuite");
     noTests.setStarted();
@@ -638,6 +680,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(Magnitude.COMPLETE_INDEX.getValue(), noTests.getMagnitude());
   }
 
+  @Test
   public void testMagnitude_PassedSuite() {
     final SMTestProxy passedSuite = createSuiteProxy("passedSuite");
     final SMTestProxy passedSuiteTest = createTestProxy("test");
@@ -649,44 +692,50 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(Magnitude.PASSED_INDEX.getValue(), passedSuite.getMagnitude());
   }
 
+  @Test
   public void testLocation() {
-    Project project = getProject();
-    GlobalSearchScope allScope = GlobalSearchScope.allScope(project);
-    assertNull(mySuite.getLocation(project, allScope));
+    runInEdtAndWait(() -> {
+      Project project = getProject();
+      GlobalSearchScope allScope = GlobalSearchScope.allScope(project);
+      assertNull(mySuite.getLocation(project, allScope));
 
-    mySuite.addChild(mySimpleTest);
+      mySuite.addChild(mySimpleTest);
 
-    assertNull(mySuite.getLocation(project, allScope));
-    assertNull(mySimpleTest.getLocation(project, allScope));
-    PsiFile testFile = createFile("test.txt", MockTestLocator.TEST_LOCATION_TEXT);
-    Location<PsiFile> testFileLocation = PsiLocation.fromPsiElement(testFile);
-    MockTestLocator locator = new MockTestLocator(testFileLocation);
-    mySimpleTest.setLocator(locator);
-    assertEquals(testFileLocation, mySimpleTest.getLocation(project, allScope));
-    assertEquals(List.of(allScope), locator.myCalledSearchScopes);
+      assertNull(mySuite.getLocation(project, allScope));
+      assertNull(mySimpleTest.getLocation(project, allScope));
+      PsiFile testFile = PsiFileFactory.getInstance(project).createFileFromText(
+        "test.txt", FileTypeManager.getInstance().getFileTypeByFileName("test.txt"), MockTestLocator.TEST_LOCATION_TEXT,
+        LocalTimeCounter.currentTime(), true);
+      Location<PsiFile> testFileLocation = PsiLocation.fromPsiElement(testFile);
+      MockTestLocator locator = new MockTestLocator(testFileLocation);
+      mySimpleTest.setLocator(locator);
+      assertEquals(testFileLocation, mySimpleTest.getLocation(project, allScope));
+      assertEquals(List.of(allScope), locator.myCalledSearchScopes);
 
-    assertEquals(testFileLocation, mySimpleTest.getLocation(project, allScope));
-    assertEquals(List.of(allScope), locator.myCalledSearchScopes);
+      assertEquals(testFileLocation, mySimpleTest.getLocation(project, allScope));
+      assertEquals(List.of(allScope), locator.myCalledSearchScopes);
 
-    GlobalSearchScope notAllScope = GlobalSearchScope.notScope(allScope);
-    assertEquals(testFileLocation, mySimpleTest.getLocation(project, notAllScope));
-    assertEquals(List.of(allScope, notAllScope), locator.myCalledSearchScopes);
+      GlobalSearchScope notAllScope = GlobalSearchScope.notScope(allScope);
+      assertEquals(testFileLocation, mySimpleTest.getLocation(project, notAllScope));
+      assertEquals(List.of(allScope, notAllScope), locator.myCalledSearchScopes);
 
-    WriteAction.run(() -> {
-      PsiDocumentManager.getInstance(project).getDocument(testFile).setText("");
-      PsiDocumentManager.getInstance(project).commitAllDocuments(); // to rebuild PSI and invalidate cache
+      WriteAction.run(() -> {
+        PsiDocumentManager.getInstance(project).getDocument(testFile).setText("");
+        PsiDocumentManager.getInstance(project).commitAllDocuments(); // to rebuild PSI and invalidate cache
+      });
+
+      assertNull(mySimpleTest.getLocation(project, allScope));
+      assertEquals(List.of(allScope, notAllScope, allScope), locator.myCalledSearchScopes);
+
+      assertNull(mySimpleTest.getLocation(project, allScope));
+      assertEquals(List.of(allScope, notAllScope, allScope), locator.myCalledSearchScopes);
+
+      assertNull(mySimpleTest.getLocation(project, allScope));
+      assertEquals(List.of(allScope, notAllScope, allScope), locator.myCalledSearchScopes);
     });
-
-    assertNull(null, mySimpleTest.getLocation(project, allScope));
-    assertEquals(List.of(allScope, notAllScope, allScope), locator.myCalledSearchScopes);
-
-    assertNull(null, mySimpleTest.getLocation(project, allScope));
-    assertEquals(List.of(allScope, notAllScope, allScope), locator.myCalledSearchScopes);
-
-    assertNull(null, mySimpleTest.getLocation(project, allScope));
-    assertEquals(List.of(allScope, notAllScope, allScope), locator.myCalledSearchScopes);
   }
 
+  @Test
   public void testNavigatable() {
     TestConsoleProperties properties = EasyMock.createMock(TestConsoleProperties.class);
 
@@ -697,10 +746,12 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertNull(mySimpleTest.getDescriptor(null, properties));
   }
 
+  @Test
   public void testShouldRun_Test() {
     assertTrue(mySimpleTest.shouldRun());
   }
 
+  @Test
   public void testShouldRun_Suite() {
     assertTrue(mySuite.shouldRun());
 
@@ -711,11 +762,13 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.shouldRun());
   }
 
+  @Test
   public void testShouldRun_StartedTest() {
     mySimpleTest.setStarted();
     assertTrue(mySimpleTest.shouldRun());
   }
 
+  @Test
   public void testShouldRun_StartedSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -725,12 +778,14 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.shouldRun());
   }
 
+  @Test
   public void testShouldRun_FailedTest() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", false);
     assertTrue(mySimpleTest.shouldRun());
   }
 
+  @Test
   public void testShouldRun_FailedSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -740,6 +795,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.shouldRun());
   }
 
+  @Test
   public void testShouldRun_ErrorSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -749,12 +805,14 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.shouldRun());
   }
 
+  @Test
   public void testShouldRun_PassedTest() {
     mySimpleTest.setStarted();
     mySimpleTest.setFinished();
     assertTrue(mySimpleTest.shouldRun());
   }
 
+  @Test
   public void testShouldRun_PassedSuite() {
     mySuite.setStarted();
     mySuite.addChild(mySimpleTest);
@@ -764,10 +822,11 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(mySuite.shouldRun());
   }
 
+  @Test
   public void testFilter() {
     //noinspection unchecked
-    assertEmpty(mySuite.getChildren(Filter.NO_FILTER));
-    assertEmpty(mySuite.getChildren(null));
+    assertThat(mySuite.getChildren(Filter.NO_FILTER)).isEmpty();
+    assertThat(mySuite.getChildren(null)).isEmpty();
 
     mySuite.addChild(mySimpleTest);
 
@@ -776,8 +835,9 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(1, mySuite.getChildren(null).size());
   }
 
+  @Test
   public void testGetAllTests() {
-    assertOneElement(mySuite.getAllTests());
+    assertThat(mySuite.getAllTests()).hasSize(1);
 
     final SMTestProxy suite1 = createTestProxy("newTest");
     mySuite.addChild(suite1);
@@ -794,10 +854,11 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(6, mySuite.getAllTests().size());
     assertEquals(5, suite1.getAllTests().size());
     assertEquals(3, suite2.getAllTests().size());
-    assertOneElement(test11.getAllTests());
-    assertOneElement(test21.getAllTests());
+    assertThat(test11.getAllTests()).hasSize(1);
+    assertThat(test21.getAllTests()).hasSize(1);
   }
 
+  @Test
   public void testIsSuite() {
     assertFalse(mySimpleTest.isSuite());
 
@@ -811,6 +872,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(suite.isSuite());
   }
 
+  @Test
   public void testDuration_ForTest() {
     assertNull(mySimpleTest.getDuration());
 
@@ -833,11 +895,13 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertNull(mySimpleTest.getDuration());
   }
 
+  @Test
   public void testDuration_ForSuiteEmpty() {
     final SMTestProxy suite = createSuiteProxy("root");
     assertNull(suite.getDuration());
   }
 
+  @Test
   public void testSetDuration_Suite() {
     mySuite.setDuration(5);
     assertNull(mySuite.getDuration());
@@ -850,6 +914,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(2L, duration.longValue());
   }
 
+  @Test
   public void testSetDuration_Suite_ManualStrategy() {
     SMTestProxy.SMRootTestProxy root = new SMTestProxy.SMRootTestProxy();
     root.setDurationStrategy(TestDurationStrategy.MANUAL);
@@ -862,6 +927,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(500L, duration.longValue());
   }
 
+  @Test
   public void testSetDuration_Suite_AutomaticStrategy() {
     SMTestProxy.SMRootTestProxy root = new SMTestProxy.SMRootTestProxy();
     root.setDurationStrategy(TestDurationStrategy.AUTOMATIC);
@@ -873,6 +939,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertNull(duration);
   }
 
+  @Test
   public void testDuration_ForSuiteWithTests() {
     final SMTestProxy suite = createSuiteProxy("root");
     final SMTestProxy test1 = createTestProxy("test1", suite);
@@ -891,6 +958,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(11L, duration.longValue());
   }
 
+  @Test
   public void testDuration_OnFinished() {
     final SMTestProxy suite = createSuiteProxy("root");
     final SMTestProxy test = createTestProxy("test1", suite);
@@ -918,6 +986,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(8L, duration.longValue());
   }
 
+  @Test
   public void testDuration_OnTerminated() {
     final SMTestProxy suite = createSuiteProxy("root");
     final SMTestProxy test = createTestProxy("test1", suite);
@@ -946,6 +1015,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(8L, duration.longValue());
   }
 
+  @Test
   public void testDuration_ForSuiteWithSuites() {
     final SMTestProxy root = createSuiteProxy("root");
     final SMTestProxy suite1 = createSuiteProxy("suite1", root);
@@ -971,6 +1041,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertEquals(20, duration.longValue());
   }
 
+  @Test
   public void testMagnitudeWeight() {
     assertWeightsOrder(Magnitude.NOT_RUN_INDEX, Magnitude.SKIPPED_INDEX);
     assertWeightsOrder(Magnitude.SKIPPED_INDEX, Magnitude.IGNORED_INDEX);
@@ -982,15 +1053,17 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertWeightsOrder(Magnitude.TERMINATED_INDEX, Magnitude.RUNNING_INDEX);
   }
 
+  @Test
   public void testEmptySuite_isntDefect() {
     mySuite.setStarted();
     mySuite.setFinished();
 
-    assertEmpty(mySuite.getChildren());
+    assertThat(mySuite.getChildren()).isEmpty();
     assertFalse(mySuite.isDefect());
     assertEquals(Magnitude.COMPLETE_INDEX, mySuite.getMagnitudeInfo());
   }
 
+  @Test
   public void testIsEmpty_EmptySuiteNotRun() {
     final SMTestProxy root = createSuiteProxy("root");
 
@@ -998,6 +1071,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(root.isEmptySuite());
   }
 
+  @Test
   public void testIsEmpty_SuiteNotRun() {
     final SMTestProxy root = createSuiteProxy("root");
 
@@ -1008,6 +1082,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(root.isEmptySuite());
   }
 
+  @Test
   public void testIsEmpty_EmptySuiteInProgress() {
     final SMTestProxy root = createSuiteProxy("root");
     root.setStarted();
@@ -1016,6 +1091,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(root.isEmptySuite());
   }
 
+  @Test
   public void testIsEmpty_EmptySuiteFinished() {
     final SMTestProxy root = createSuiteProxy("root");
     root.setFinished();
@@ -1024,6 +1100,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(root.isEmptySuite());
   }
 
+  @Test
   public void testIsEmpty_EmptySuiteWithSubSuite_NotRun() {
     final SMTestProxy root = createSuiteProxy("root");
 
@@ -1033,6 +1110,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(root.isEmptySuite());
   }
 
+  @Test
   public void testIsEmpty_EmptySuiteWithSubSuite_InProgress() {
     final SMTestProxy root = createSuiteProxy("root");
     root.setStarted();
@@ -1044,6 +1122,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(root.isEmptySuite());
   }
 
+  @Test
   public void testIsEmpty_EmptySuiteWithSubSuite_Finished() {
     final SMTestProxy root = createSuiteProxy("root");
     root.setStarted();
@@ -1058,6 +1137,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
   }
 
 
+  @Test
   public void testIsEmpty_SuiteWithSubSuite_InProgress() {
     final SMTestProxy root = createSuiteProxy("root");
     root.setStarted();
@@ -1072,6 +1152,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(root.isEmptySuite());
   }
 
+  @Test
   public void testIsEmpty_Caching() {
     final SMTestProxy root = createSuiteProxy("root");
     root.setStarted();
@@ -1096,6 +1177,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertFalse(root.isEmptySuite());
   }
 
+  @Test
   public void testDisplayTimeAfterTermination() {
     SMTestProxy root = createSuiteProxy("root");
     SMTestProxy firstSubSuite = createSuiteProxy("firstSubSuite", root);
@@ -1117,6 +1199,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertDisplayTimeEqualsToSumOfChildren(root);
   }
 
+  @Test
   public void testDisplayTimeShowsZeroForNonStartedTestsAfterTermination() {
     SMTestProxy root = createSuiteProxy("root");
     SMTestProxy firstChild = createTestProxy("firstChild", root);
@@ -1132,6 +1215,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertDisplayTimeEqualsToSumOfChildren(root);
   }
 
+  @Test
   public void testDisplayTimeAfterTerminationHasNoEffectForPassedAndFailedTests() {
     SMTestProxy root = createSuiteProxy("root");
     SMTestProxy passedChild = createTestProxy("passedChild", root);
@@ -1165,6 +1249,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertDisplayTimeEqualsToSumOfChildren(root);
   }
 
+  @Test
   public void testDisplayOwnTime() {
     SMTestProxy root = createSuiteProxy("root");
     SMTestProxy child1 = createTestProxy("child1", root);
@@ -1188,6 +1273,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertTrue(root.getEndTimeMillis() - root.getStartTimeMillis() != root.getDuration());
   }
 
+  @Test
   public void testDisplayOwnTimeTerminated() {
     SMTestProxy root = createSuiteProxy("root");
     SMTestProxy child1 = createTestProxy("child1", root);
@@ -1204,6 +1290,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     assertNotNull(child2.getEndTimeMillis());
   }
 
+  @Test
   public void testTerminatedWithNonFinished() {
     SMTestProxy root = createSuiteProxy("root");
     SMTestProxy suite1 = createSuiteProxy("suite1", root);
@@ -1237,6 +1324,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
   }
 
 
+  @Test
   public void testSortByDuration_usesCustomizedDuration() {
     // dynamicTests1: getCustomizedDuration()=2200, getDuration() sum=200
     SMTestProxy suite1 = new SMTestProxy("dynamicTests1", true, null) {
@@ -1286,8 +1374,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
 
     Comparator<NodeDescriptor<?>> comparator = model.createComparator();
 
-    assertTrue("suite1 (wall=2200 ms) must sort before suite2 (wall=1000 ms)",
-               comparator.compare(desc1, desc2) < 0);
+    assertTrue(comparator.compare(desc1, desc2) < 0, "suite1 (wall=2200 ms) must sort before suite2 (wall=1000 ms)");
   }
 
   private static void assertDisplayTimeEqualsToSumOfChildren(@NotNull SMTestProxy node) {
@@ -1313,6 +1400,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
   /**
    * Normal case: both tests have resolvable PSI locations → sorted by text offset.
    */
+  @Test
   public void testSortByDeclarationOrder_sortedByTextOffset() {
     TestConsoleProperties properties = createConsoleProperties();
     TestConsoleProperties.SORT_BY_DURATION.set(properties, false);
@@ -1331,14 +1419,15 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     BaseTestProxyNodeDescriptor<SMTestProxy> desc2 = new BaseTestProxyNodeDescriptor<>(getProject(), test2, parentDesc);
 
     Comparator<NodeDescriptor<?>> comparator = model.createComparator();
-    assertTrue("test1 (offset=10) must sort before test2 (offset=20)", comparator.compare(desc1, desc2) < 0);
-    assertTrue("test2 (offset=20) must sort after test1 (offset=10)",  comparator.compare(desc2, desc1) > 0);
+    assertTrue(comparator.compare(desc1, desc2) < 0, "test1 (offset=10) must sort before test2 (offset=20)");
+    assertTrue(comparator.compare(desc2, desc1) > 0, "test2 (offset=20) must sort after test1 (offset=10)");
   }
 
   /**
    * Regression test for KTIJ-34747: non-JVM KMP targets whose {@code getLocation()} returns null
    * must not crash the comparator — they should be placed at the end instead.
    */
+  @Test
   public void testSortByDeclarationOrder_nullLocationGoesToEnd() {
     TestConsoleProperties properties = createConsoleProperties();
     TestConsoleProperties.SORT_BY_DURATION.set(properties, false);
@@ -1357,13 +1446,14 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     BaseTestProxyNodeDescriptor<SMTestProxy> jsDesc  = new BaseTestProxyNodeDescriptor<>(getProject(), jsTest,  parentDesc);
 
     Comparator<NodeDescriptor<?>> comparator = model.createComparator();
-    assertTrue("null-location node must go after valid-location node",  comparator.compare(jsDesc,  jvmDesc) > 0);
-    assertTrue("valid-location node must go before null-location node", comparator.compare(jvmDesc, jsDesc)  < 0);
+    assertTrue(comparator.compare(jsDesc,  jvmDesc) > 0, "null-location node must go after valid-location node");
+    assertTrue(comparator.compare(jvmDesc, jsDesc)  < 0, "valid-location node must go before null-location node");
   }
 
   /**
    * Two nodes both with null locations must be considered equal (no crash, both visible).
    */
+  @Test
   public void testSortByDeclarationOrder_bothNullLocationAreEqual() {
     TestConsoleProperties properties = createConsoleProperties();
     TestConsoleProperties.SORT_BY_DURATION.set(properties, false);
@@ -1383,12 +1473,13 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     BaseTestProxyNodeDescriptor<SMTestProxy> wasmDesc = new BaseTestProxyNodeDescriptor<>(getProject(), wasm, parentDesc);
 
     Comparator<NodeDescriptor<?>> comparator = model.createComparator();
-    assertEquals("two null-location nodes must be equal", 0, comparator.compare(jsDesc, wasmDesc));
+    assertEquals(0, comparator.compare(jsDesc, wasmDesc), "two null-location nodes must be equal");
   }
 
   /**
    * Nodes under different parents must not be reordered (comparator returns 0).
    */
+  @Test
   public void testSortByDeclarationOrder_differentParentsNotReordered() {
     TestConsoleProperties properties = createConsoleProperties();
     TestConsoleProperties.SORT_BY_DURATION.set(properties, false);
@@ -1410,7 +1501,7 @@ public class SMTestProxyTest extends BaseSMTRunnerTestCase {
     BaseTestProxyNodeDescriptor<SMTestProxy> descB = new BaseTestProxyNodeDescriptor<>(getProject(), testB, parentDesc2);
 
     Comparator<NodeDescriptor<?>> comparator = model.createComparator();
-    assertEquals("nodes under different parents must not be reordered", 0, comparator.compare(descA, descB));
+    assertEquals(0, comparator.compare(descA, descB), "nodes under different parents must not be reordered");
   }
 
   private TestFrameworkRunningModel createModelFor(TestConsoleProperties properties) {

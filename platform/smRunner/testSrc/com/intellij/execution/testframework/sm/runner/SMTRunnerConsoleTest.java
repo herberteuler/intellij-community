@@ -21,6 +21,16 @@ import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.concurrency.Semaphore;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static com.intellij.testFramework.EdtTestUtil.runInEdtAndWait;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Roman Chernyatchik
@@ -52,449 +62,512 @@ public class SMTRunnerConsoleTest extends BaseSMTRunnerTestCase {
     }
   }
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @BeforeEach
+  void setUp() {
+    runInEdtAndWait(() -> {
+      final TestConsoleProperties consoleProperties = createConsoleProperties();
 
-    final TestConsoleProperties consoleProperties = createConsoleProperties();
+      myMockResettablePrinter = new MockPrinter();
+      myConsole = new MyConsoleView(consoleProperties);
+      myConsole.initUI();
+      myResultsViewer = myConsole.getResultsViewer();
+      myRootSuite = myResultsViewer.getTestsRootNode();
+      myEventsProcessor = new GeneralToSMTRunnerEventsConvertor(consoleProperties.getProject(), myResultsViewer.getTestsRootNode(), "SMTestFramework");
 
-    myMockResettablePrinter = new MockPrinter();
-    myConsole = new MyConsoleView(consoleProperties);
-    myConsole.initUI();
-    myResultsViewer = myConsole.getResultsViewer();
-    myRootSuite = myResultsViewer.getTestsRootNode();
-    myEventsProcessor = new GeneralToSMTRunnerEventsConvertor(consoleProperties.getProject(), myResultsViewer.getTestsRootNode(), "SMTestFramework");
-
-    myEventsProcessor.onStartTesting();
+      myEventsProcessor.onStartTesting();
+    });
   }
 
-  @Override
-  protected void tearDown() throws Exception {
-    try {
+  @AfterEach
+  void tearDown() {
+    runInEdtAndWait(() -> {
       Disposer.dispose(myEventsProcessor);
       Disposer.dispose(myConsole);
-    }
-    catch (Throwable e) {
-      addSuppressedException(e);
-    }
-    finally {
-      super.tearDown();
-    }
-  }
-
-  public void testPrintTestProxy() {
-    mySimpleTest.setPrinter(myMockResettablePrinter);
-    mySimpleTest.addLast(new Printable() {
-      @Override
-      public void printOn(final Printer printer) {
-        printer.print("std out", ConsoleViewContentType.NORMAL_OUTPUT);
-        printer.print("std err", ConsoleViewContentType.ERROR_OUTPUT);
-        printer.print("std sys", ConsoleViewContentType.SYSTEM_OUTPUT);
-      }
     });
-    assertAllOutputs(myMockResettablePrinter, "std out", "std err", "std sys");
   }
 
+  @Test
+  public void testPrintTestProxy() {
+    runInEdtAndWait(() -> {
+      mySimpleTest.setPrinter(myMockResettablePrinter);
+      mySimpleTest.addLast(new Printable() {
+        @Override
+        public void printOn(final Printer printer) {
+          printer.print("std out", ConsoleViewContentType.NORMAL_OUTPUT);
+          printer.print("std err", ConsoleViewContentType.ERROR_OUTPUT);
+          printer.print("std sys", ConsoleViewContentType.SYSTEM_OUTPUT);
+        }
+      });
+      assertAllOutputs(myMockResettablePrinter, "std out", "std err", "std sys");
+    });
+  }
+
+  @Test
   public void testAddStdOut() {
-    mySimpleTest.setPrinter(myMockResettablePrinter);
+    runInEdtAndWait(() -> {
+      mySimpleTest.setPrinter(myMockResettablePrinter);
 
-    mySimpleTest.addStdOutput("one");
-    assertStdOutput(myMockResettablePrinter, "one");
+      mySimpleTest.addStdOutput("one");
+      assertStdOutput(myMockResettablePrinter, "one");
 
-    mySimpleTest.addStdErr("two");
-    assertStdErr(myMockResettablePrinter, "two");
+      mySimpleTest.addStdErr("two");
+      assertStdErr(myMockResettablePrinter, "two");
 
-    mySimpleTest.addStdOutput("one");
-    mySimpleTest.addStdOutput("one");
-    mySimpleTest.addStdErr("two");
-    mySimpleTest.addStdErr("two");
-    assertAllOutputs(myMockResettablePrinter, "oneone", "twotwo", "");
+      mySimpleTest.addStdOutput("one");
+      mySimpleTest.addStdOutput("one");
+      mySimpleTest.addStdErr("two");
+      mySimpleTest.addStdErr("two");
+      assertAllOutputs(myMockResettablePrinter, "oneone", "twotwo", "");
+    });
   }
 
+  @Test
   public void testAddStdSys() {
-    mySimpleTest.setPrinter(myMockResettablePrinter);
+    runInEdtAndWait(() -> {
+      mySimpleTest.setPrinter(myMockResettablePrinter);
 
-    mySimpleTest.addSystemOutput("sys");
-    assertAllOutputs(myMockResettablePrinter, "", "", "sys");
+      mySimpleTest.addSystemOutput("sys");
+      assertAllOutputs(myMockResettablePrinter, "", "", "sys");
+    });
   }
 
+  @Test
   public void testPrintTestProxy_Order() {
-    mySimpleTest.setPrinter(myMockResettablePrinter);
+    runInEdtAndWait(() -> {
+      mySimpleTest.setPrinter(myMockResettablePrinter);
 
-    sendToTestProxyStdOut(mySimpleTest, "first ");
-    sendToTestProxyStdOut(mySimpleTest, "second");
+      sendToTestProxyStdOut(mySimpleTest, "first ");
+      sendToTestProxyStdOut(mySimpleTest, "second");
 
-    assertStdOutput(myMockResettablePrinter, "first second");
+      assertStdOutput(myMockResettablePrinter, "first second");
+    });
   }
 
+  @Test
   public void testSetPrintListener_ForExistingChildren() {
-    mySuite.addChild(mySimpleTest);
+    runInEdtAndWait(() -> {
+      mySuite.addChild(mySimpleTest);
 
-    mySuite.setPrinter(myMockResettablePrinter);
+      mySuite.setPrinter(myMockResettablePrinter);
 
-    sendToTestProxyStdOut(mySimpleTest, "child ");
-    sendToTestProxyStdOut(mySuite, "root");
+      sendToTestProxyStdOut(mySimpleTest, "child ");
+      sendToTestProxyStdOut(mySuite, "root");
 
-    assertStdOutput(myMockResettablePrinter, "child root");
+      assertStdOutput(myMockResettablePrinter, "child root");
+    });
   }
 
+  @Test
   public void testSetPrintListener_OnNewChild() {
-    mySuite.setPrinter(myMockResettablePrinter);
+    runInEdtAndWait(() -> {
+      mySuite.setPrinter(myMockResettablePrinter);
 
-    sendToTestProxyStdOut(mySuite, "root ");
+      sendToTestProxyStdOut(mySuite, "root ");
 
-    sendToTestProxyStdOut(mySimpleTest, "[child old msg] ");
-    mySuite.addChild(mySimpleTest);
+      sendToTestProxyStdOut(mySimpleTest, "[child old msg] ");
+      mySuite.addChild(mySimpleTest);
 
-    sendToTestProxyStdOut(mySuite, "{child added} ");
-    sendToTestProxyStdOut(mySimpleTest, "[child new msg]");
-    // printer for parent have been already set, thus new
-    // child should immediately print himself on this printer
-    assertStdOutput(myMockResettablePrinter, "root [child old msg] {child added} [child new msg]");
+      sendToTestProxyStdOut(mySuite, "{child added} ");
+      sendToTestProxyStdOut(mySimpleTest, "[child new msg]");
+      // printer for parent have been already set, thus new
+      // child should immediately print himself on this printer
+      assertStdOutput(myMockResettablePrinter, "root [child old msg] {child added} [child new msg]");
+    });
   }
 
+  @Test
   public void testDeferredPrint() {
-    sendToTestProxyStdOut(mySimpleTest, "one ");
-    sendToTestProxyStdOut(mySimpleTest, "two ");
-    sendToTestProxyStdOut(mySimpleTest, "three");
+    runInEdtAndWait(() -> {
+      sendToTestProxyStdOut(mySimpleTest, "one ");
+      sendToTestProxyStdOut(mySimpleTest, "two ");
+      sendToTestProxyStdOut(mySimpleTest, "three");
 
-    myMockResettablePrinter.onNewAvailable(mySimpleTest);
-    assertStdOutput(myMockResettablePrinter, "one two three");
+      myMockResettablePrinter.onNewAvailable(mySimpleTest);
+      assertStdOutput(myMockResettablePrinter, "one two three");
 
-    myMockResettablePrinter.resetIfNecessary();
-    assertFalse(myMockResettablePrinter.hasPrinted());
+      myMockResettablePrinter.resetIfNecessary();
+      assertFalse(myMockResettablePrinter.hasPrinted());
 
-    myMockResettablePrinter.onNewAvailable(mySimpleTest);
-    assertStdOutput(myMockResettablePrinter, "one two three");
+      myMockResettablePrinter.onNewAvailable(mySimpleTest);
+      assertStdOutput(myMockResettablePrinter, "one two three");
+    });
   }
 
+  @Test
   public void testProcessor_OnTestStdOutput() {
-    startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout2", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout2", true));
 
-    assertStdOutput(myMockResettablePrinter, "stdout1 stdout2");
+      assertStdOutput(myMockResettablePrinter, "stdout1 stdout2");
+    });
   }
 
+  @Test
   public void testProcessor_OnTestStdErr() {
-    startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr2", false));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr2", false));
 
-    assertStdErr(myMockResettablePrinter, "stderr1 stderr2");
+      assertStdErr(myMockResettablePrinter, "stderr1 stderr2");
+    });
   }
 
+  @Test
   public void testProcessor_OnTestMixedStd() {
-    startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout2", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr2", false));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout2", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr2", false));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 stdout2", "stderr1 stderr2", "");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 stdout2", "stderr1 stderr2", "");
+    });
   }
 
+  @Test
   public void testProcessor_OnFailure() {
-    final SMTestProxy myTest1 = startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      final SMTestProxy myTest1 = startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "method1:1\nmethod2:2", false, null, null));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "method1:1\nmethod2:2", false, null, null));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "\nerror msg\nmethod1:1\nmethod2:2\nstderr1 ", "");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "\nerror msg\nmethod1:1\nmethod2:2\nstderr1 ", "");
 
-    final MockPrinter mockPrinter1 = new MockPrinter();
-    mockPrinter1.onNewAvailable(myTest1);
-    assertAllOutputs(mockPrinter1, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+      final MockPrinter mockPrinter1 = new MockPrinter();
+      mockPrinter1.onNewAvailable(myTest1);
+      assertAllOutputs(mockPrinter1, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
 
-    //other output order
-    final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
-    myEventsProcessor.onTestFailure(new TestFailedEvent("my_test2", "error msg", "method1:1\nmethod2:2", false, null, null));
+      //other output order
+      final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
+      myEventsProcessor.onTestFailure(new TestFailedEvent("my_test2", "error msg", "method1:1\nmethod2:2", false, null, null));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
-    final MockPrinter mockPrinter2 = new MockPrinter();
-    mockPrinter2.onNewAvailable(myTest2);
-    assertAllOutputs(mockPrinter2, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+      final MockPrinter mockPrinter2 = new MockPrinter();
+      mockPrinter2.onNewAvailable(myTest2);
+      assertAllOutputs(mockPrinter2, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+    });
   }
 
+  @Test
   public void testProcessor_OnFailure_EmptyStacktrace() {
-    final SMTestProxy myTest1 = startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      final SMTestProxy myTest1 = startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "\n\n", false, null, null));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "\n\n", false, null, null));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "\nerror msg\nstderr1 ", "");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "\nerror msg\nstderr1 ", "");
 
-    final MockPrinter mockPrinter1 = new MockPrinter();
-    mockPrinter1.onNewAvailable(myTest1);
-    assertAllOutputs(mockPrinter1, "stdout1 ", "stderr1 \nerror msg\n", "");
+      final MockPrinter mockPrinter1 = new MockPrinter();
+      mockPrinter1.onNewAvailable(myTest1);
+      assertAllOutputs(mockPrinter1, "stdout1 ", "stderr1 \nerror msg\n", "");
+    });
   }
 
+  @Test
   public void testProcessor_OnFailure_Comparision_Strings() {
-    final SMTestProxy myTest1 = startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      final SMTestProxy myTest1 = startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "method1:1\nmethod2:2", false, "actual", "expected"));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "method1:1\nmethod2:2", false, "actual", "expected"));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
 
-    assertAllOutputs(myMockResettablePrinter,
-                     // std out
-                     "stdout1 ",
-                     // std err
-                     """
+      assertAllOutputs(myMockResettablePrinter,
+                       // std out
+                       "stdout1 ",
+                       // std err
+                       """
 
-                       error msg
-                       expected
-                       actual
-
-
-                       method1:1
-                       method2:2
-                       stderr1\s""",
-                     // std sys
-                     "Expected :Actual   :");
-
-    final MockPrinter mockPrinter1 = new MockPrinter();
-    mockPrinter1.onNewAvailable(myTest1);
-    assertAllOutputs(mockPrinter1,
-                     // std out
-                     "stdout1 ",
-                     // std err
-                     """
-                       stderr1\s
-                       error msg
-                       expected
-                       actual
+                         error msg
+                         expected
+                         actual
 
 
-                       method1:1
-                       method2:2
-                       """,
-                     // std sys
-                     "Expected :Actual   :");
+                         method1:1
+                         method2:2
+                         stderr1\s""",
+                       // std sys
+                       "Expected :Actual   :");
+
+      final MockPrinter mockPrinter1 = new MockPrinter();
+      mockPrinter1.onNewAvailable(myTest1);
+      assertAllOutputs(mockPrinter1,
+                       // std out
+                       "stdout1 ",
+                       // std err
+                       """
+                         stderr1\s
+                         error msg
+                         expected
+                         actual
+
+
+                         method1:1
+                         method2:2
+                         """,
+                       // std sys
+                       "Expected :Actual   :");
+    });
   }
 
+  @Test
   public void testProcessor_OnFailure_Comparision_MultilineTexts() {
-    final SMTestProxy myTest1 = startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      final SMTestProxy myTest1 = startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "method1:1\nmethod2:2", false,
-                                    "this is:\nactual", "this is:\nexpected"));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "method1:1\nmethod2:2", false,
+                                      "this is:\nactual", "this is:\nexpected"));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", """
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", """
 
-      error msg
-
-
-      method1:1
-      method2:2
-      stderr1\s""", "");
-
-    final MockPrinter mockPrinter1 = new MockPrinter();
-    mockPrinter1.onNewAvailable(myTest1);
-    assertAllOutputs(mockPrinter1, "stdout1 ", """
-      stderr1\s
-      error msg
+        error msg
 
 
-      method1:1
-      method2:2
-      """, "");
+        method1:1
+        method2:2
+        stderr1\s""", "");
+
+      final MockPrinter mockPrinter1 = new MockPrinter();
+      mockPrinter1.onNewAvailable(myTest1);
+      assertAllOutputs(mockPrinter1, "stdout1 ", """
+        stderr1\s
+        error msg
+
+
+        method1:1
+        method2:2
+        """, "");
+    });
   }
 
- public void testProcessor_OnError() {
-    final SMTestProxy myTest1 = startTestWithPrinter("my_test");
+  @Test
+  public void testProcessor_OnError() {
+    runInEdtAndWait(() -> {
+      final SMTestProxy myTest1 = startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "method1:1\nmethod2:2", true, null, null));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestFailure(new TestFailedEvent("my_test", "error msg", "method1:1\nmethod2:2", true, null, null));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "\nerror msg\nmethod1:1\nmethod2:2\nstderr1 ", "");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "\nerror msg\nmethod1:1\nmethod2:2\nstderr1 ", "");
 
-    final MockPrinter mockPrinter1 = new MockPrinter();
-    mockPrinter1.onNewAvailable(myTest1);
-    assertAllOutputs(mockPrinter1, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+      final MockPrinter mockPrinter1 = new MockPrinter();
+      mockPrinter1.onNewAvailable(myTest1);
+      assertAllOutputs(mockPrinter1, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
 
-    //other output order
-    final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
-    myEventsProcessor.onTestFailure(new TestFailedEvent("my_test2", "error msg", "method1:1\nmethod2:2", true, null, null));
+      //other output order
+      final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
+      myEventsProcessor.onTestFailure(new TestFailedEvent("my_test2", "error msg", "method1:1\nmethod2:2", true, null, null));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
-    final MockPrinter mockPrinter2 = new MockPrinter();
-    mockPrinter2.onNewAvailable(myTest2);
-    assertAllOutputs(mockPrinter2, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+      final MockPrinter mockPrinter2 = new MockPrinter();
+      mockPrinter2.onNewAvailable(myTest2);
+      assertAllOutputs(mockPrinter2, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+    });
   }
 
- public void testProcessor_OnErrorMsg() {
-    final SMTestProxy myTest1 = startTestWithPrinter("my_test");
+  @Test
+  public void testProcessor_OnErrorMsg() {
+    runInEdtAndWait(() -> {
+      final SMTestProxy myTest1 = startTestWithPrinter("my_test");
 
-    myEventsProcessor.onError("error msg", "method1:1\nmethod2:2", true);
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onError("error msg", "method1:1\nmethod2:2", true);
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "\nerror msg\nmethod1:1\nmethod2:2\nstderr1 ", "");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "\nerror msg\nmethod1:1\nmethod2:2\nstderr1 ", "");
 
-    final MockPrinter mockPrinter1 = new MockPrinter();
-    mockPrinter1.onNewAvailable(myTest1);
-    assertAllOutputs(mockPrinter1, "stdout1 ", """
+      final MockPrinter mockPrinter1 = new MockPrinter();
+      mockPrinter1.onNewAvailable(myTest1);
+      assertAllOutputs(mockPrinter1, "stdout1 ", """
 
-      error msg
-      method1:1
-      method2:2
-      stderr1\s""", "");
-    myEventsProcessor.onTestFinished(new TestFinishedEvent("my_test", 1L));
-    myTest1.setFinished();
+        error msg
+        method1:1
+        method2:2
+        stderr1\s""", "");
+      myEventsProcessor.onTestFinished(new TestFinishedEvent("my_test", 1L));
+      myTest1.setFinished();
 
-    //other output order
-    final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
-    myEventsProcessor.onError("error msg", "method1:1\nmethod2:2", true);
+      //other output order
+      final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
+      myEventsProcessor.onError("error msg", "method1:1\nmethod2:2", true);
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
-    final MockPrinter mockPrinter2 = new MockPrinter();
-    mockPrinter2.onNewAvailable(myTest2);
-    assertAllOutputs(mockPrinter2, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+      final MockPrinter mockPrinter2 = new MockPrinter();
+      mockPrinter2.onNewAvailable(myTest2);
+      assertAllOutputs(mockPrinter2, "stdout1 ", "stderr1 \nerror msg\nmethod1:1\nmethod2:2\n", "");
+    });
   }
 
+  @Test
   public void testProcessor_Suite_OnErrorMsg() {
-    myEventsProcessor.onError("error msg:root", "method1:1\nmethod2:2", true);
+    runInEdtAndWait(() -> {
+      myEventsProcessor.onError("error msg:root", "method1:1\nmethod2:2", true);
 
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
-    final SMTestProxy suite = myEventsProcessor.getCurrentSuite();
-    suite.setPrinter(myMockResettablePrinter);
-    myEventsProcessor.onError("error msg:suite", "method1:1\nmethod2:2", true);
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
+      final SMTestProxy suite = myEventsProcessor.getCurrentSuite();
+      suite.setPrinter(myMockResettablePrinter);
+      myEventsProcessor.onError("error msg:suite", "method1:1\nmethod2:2", true);
 
-    assertAllOutputs(myMockResettablePrinter, "", """
+      assertAllOutputs(myMockResettablePrinter, "", """
 
-      error msg:suite
-      method1:1
-      method2:2
-      """, "");
+        error msg:suite
+        method1:1
+        method2:2
+        """, "");
 
-    final MockPrinter mockSuitePrinter = new MockPrinter();
-    mockSuitePrinter.onNewAvailable(suite);
-    assertAllOutputs(mockSuitePrinter, "", """
+      final MockPrinter mockSuitePrinter = new MockPrinter();
+      mockSuitePrinter.onNewAvailable(suite);
+      assertAllOutputs(mockSuitePrinter, "", """
 
-      error msg:suite
-      method1:1
-      method2:2
-      """, "");
-    final MockPrinter mockRootSuitePrinter = new MockPrinter();
-    mockRootSuitePrinter.onNewAvailable(myRootSuite);
-    assertAllOutputs(mockRootSuitePrinter, "", """
+        error msg:suite
+        method1:1
+        method2:2
+        """, "");
+      final MockPrinter mockRootSuitePrinter = new MockPrinter();
+      mockRootSuitePrinter.onNewAvailable(myRootSuite);
+      assertAllOutputs(mockRootSuitePrinter, "", """
 
-      error msg:root
-      method1:1
-      method2:2
+        error msg:root
+        method1:1
+        method2:2
 
-      error msg:suite
-      method1:1
-      method2:2
-      """, "");
+        error msg:suite
+        method1:1
+        method2:2
+        """, "");
+    });
   }
 
+  @Test
   public void testProcessor_OnIgnored() {
-    final SMTestProxy myTest1 = startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      final SMTestProxy myTest1 = startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestIgnored(new TestIgnoredEvent("my_test", "ignored msg", null));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestIgnored(new TestIgnoredEvent("my_test", "ignored msg", null));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 ", "\nignored msg\n");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 ", "\nignored msg\n");
 
-    final MockPrinter mockPrinter1 = new MockPrinter();
-    mockPrinter1.onNewAvailable(myTest1);
-    assertAllOutputs(mockPrinter1, "stdout1 ", "stderr1 ", "\nignored msg\n");
+      final MockPrinter mockPrinter1 = new MockPrinter();
+      mockPrinter1.onNewAvailable(myTest1);
+      assertAllOutputs(mockPrinter1, "stdout1 ", "stderr1 ", "\nignored msg\n");
 
-    //other output order
-    final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
-    myEventsProcessor.onTestIgnored(new TestIgnoredEvent("my_test2", "ignored msg", null));
+      //other output order
+      final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
+      myEventsProcessor.onTestIgnored(new TestIgnoredEvent("my_test2", "ignored msg", null));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 ", "\nignored msg\n");
-    final MockPrinter mockPrinter2 = new MockPrinter();
-    mockPrinter2.onNewAvailable(myTest2);
-    assertAllOutputs(mockPrinter2, "stdout1 ", "stderr1 ", "\nignored msg\n");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ", "stderr1 ", "\nignored msg\n");
+      final MockPrinter mockPrinter2 = new MockPrinter();
+      mockPrinter2.onNewAvailable(myTest2);
+      assertAllOutputs(mockPrinter2, "stdout1 ", "stderr1 ", "\nignored msg\n");
+    });
   }
 
+  @Test
   public void testProcessor_OnIgnored_WithStacktrace() {
-    final SMTestProxy myTest1 = startTestWithPrinter("my_test");
+    runInEdtAndWait(() -> {
+      final SMTestProxy myTest1 = startTestWithPrinter("my_test");
 
-    myEventsProcessor.onTestIgnored(new TestIgnoredEvent("my_test", "ignored2 msg", "method1:1\nmethod2:2"));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
+      myEventsProcessor.onTestIgnored(new TestIgnoredEvent("my_test", "ignored2 msg", "method1:1\nmethod2:2"));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test", "stderr1 ", false));
 
-    assertAllOutputs(myMockResettablePrinter, "stdout1 ",
-                     "stderr1 ",
-                     "\nignored2 msg\n\nmethod1:1\nmethod2:2\n");
+      assertAllOutputs(myMockResettablePrinter, "stdout1 ",
+                       "stderr1 ",
+                       "\nignored2 msg\n\nmethod1:1\nmethod2:2\n");
 
-    final MockPrinter mockPrinter1 = new MockPrinter();
-    mockPrinter1.onNewAvailable(myTest1);
-    assertAllOutputs(mockPrinter1,
-                     "stdout1 ",
-                     "stderr1 ",
-                     "\nignored2 msg\n\nmethod1:1\nmethod2:2\n");
+      final MockPrinter mockPrinter1 = new MockPrinter();
+      mockPrinter1.onNewAvailable(myTest1);
+      assertAllOutputs(mockPrinter1,
+                       "stdout1 ",
+                       "stderr1 ",
+                       "\nignored2 msg\n\nmethod1:1\nmethod2:2\n");
 
-    //other output order
-    final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
-    myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
-    myEventsProcessor.onTestIgnored(new TestIgnoredEvent("my_test2", "ignored msg", "method1:1\nmethod2:2"));
+      //other output order
+      final SMTestProxy myTest2 = startTestWithPrinter("my_test2");
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stdout1 ", true));
+      myEventsProcessor.onTestOutput(new TestOutputEvent("my_test2", "stderr1 ", false));
+      myEventsProcessor.onTestIgnored(new TestIgnoredEvent("my_test2", "ignored msg", "method1:1\nmethod2:2"));
 
-    assertAllOutputs(myMockResettablePrinter,
-                     "stdout1 ",
-                     "stderr1 ",
-                     "\nignored msg\n\nmethod1:1\nmethod2:2\n");
-    final MockPrinter mockPrinter2 = new MockPrinter();
-    mockPrinter2.onNewAvailable(myTest2);
-    assertAllOutputs(mockPrinter2,
-                     "stdout1 ",
-                     "stderr1 ",
-                     "\nignored msg\n\nmethod1:1\nmethod2:2\n");
+      assertAllOutputs(myMockResettablePrinter,
+                       "stdout1 ",
+                       "stderr1 ",
+                       "\nignored msg\n\nmethod1:1\nmethod2:2\n");
+      final MockPrinter mockPrinter2 = new MockPrinter();
+      mockPrinter2.onNewAvailable(myTest2);
+      assertAllOutputs(mockPrinter2,
+                       "stdout1 ",
+                       "stderr1 ",
+                       "\nignored msg\n\nmethod1:1\nmethod2:2\n");
+    });
   }
 
+  @Test
   public void testOnUncapturedOutput_BeforeProcessStarted() {
-    myRootSuite.setPrinter(myMockResettablePrinter);
+    runInEdtAndWait(() -> {
+      myRootSuite.setPrinter(myMockResettablePrinter);
 
-    assertOnUncapturedOutput();
+      assertOnUncapturedOutput();
+    });
   }
 
+  @Test
   public void testOnUncapturedOutput_BeforeFirstSuiteStarted() {
-    myRootSuite.setPrinter(myMockResettablePrinter);
+    runInEdtAndWait(() -> {
+      myRootSuite.setPrinter(myMockResettablePrinter);
 
-    myEventsProcessor.onStartTesting();
-    assertOnUncapturedOutput();
+      myEventsProcessor.onStartTesting();
+      assertOnUncapturedOutput();
+    });
   }
 
+  @Test
   public void testOnUncapturedOutput_SomeSuite() {
-    myEventsProcessor.onStartTesting();
+    runInEdtAndWait(() -> {
+      myEventsProcessor.onStartTesting();
 
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("my suite", null));
-    final SMTestProxy mySuite = myEventsProcessor.getCurrentSuite();
-    assertNotSame(mySuite, myRootSuite);
-    mySuite.setPrinter(myMockResettablePrinter);
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("my suite", null));
+      final SMTestProxy mySuite = myEventsProcessor.getCurrentSuite();
+      assertNotSame(mySuite, myRootSuite);
+      mySuite.setPrinter(myMockResettablePrinter);
 
-    assertOnUncapturedOutput();
+      assertOnUncapturedOutput();
+    });
   }
 
+  @Test
   public void testOnUncapturedOutput_SomeTest() {
-    myEventsProcessor.onStartTesting();
+    runInEdtAndWait(() -> {
+      myEventsProcessor.onStartTesting();
 
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("my suite", null));
-    startTestWithPrinter("my test");
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("my suite", null));
+      startTestWithPrinter("my test");
 
-    assertOnUncapturedOutput();
+      assertOnUncapturedOutput();
+    });
   }
 
 
@@ -525,128 +598,140 @@ public class SMTRunnerConsoleTest extends BaseSMTRunnerTestCase {
     printer.resetIfNecessary();
   }
 
+  @Test
   public void testStopCollectingOutput() {
-    myResultsViewer.selectAndNotify(myResultsViewer.getTestsRootNode());
+    runInEdtAndWait(() -> {
+      myResultsViewer.selectAndNotify(myResultsViewer.getTestsRootNode());
 
-    myEventsProcessor.onStartTesting();
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
-    final SMTestProxy suite = myEventsProcessor.getCurrentSuite();
-    myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite"));
-    myEventsProcessor.onUncapturedOutput("preved", ProcessOutputTypes.STDOUT);
-    myEventsProcessor.onFinishTesting();
+      myEventsProcessor.onStartTesting();
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
+      final SMTestProxy suite = myEventsProcessor.getCurrentSuite();
+      myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite"));
+      myEventsProcessor.onUncapturedOutput("preved", ProcessOutputTypes.STDOUT);
+      myEventsProcessor.onFinishTesting();
 
-    //myResultsViewer.selectAndNotify(suite);
-    //the string above doesn't update tree immediately so we should simulate update
-    myConsole.getPrinter().updateOnTestSelected(suite);
+      //myResultsViewer.selectAndNotify(suite);
+      //the string above doesn't update tree immediately so we should simulate update
+      myConsole.getPrinter().updateOnTestSelected(suite);
 
-    //Lets reset printer /clear console/ before selection changed to
-    //get after selection event only actual ouptut
-    myMockResettablePrinter.resetIfNecessary();
+      //Lets reset printer /clear console/ before selection changed to
+      //get after selection event only actual ouptut
+      myMockResettablePrinter.resetIfNecessary();
 
-    //myResultsViewer.selectAndNotify(myResultsViewer.getTestsRootNode());
-    //the string above doesn't update tree immediately so we should simulate update
-    myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
+      //myResultsViewer.selectAndNotify(myResultsViewer.getTestsRootNode());
+      //the string above doesn't update tree immediately so we should simulate update
+      myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
 
-    assertAllOutputs(myMockResettablePrinter, "preved", "","");
+      assertAllOutputs(myMockResettablePrinter, "preved", "","");
+    });
   }
 
+  @Test
   public void testPrintingOnlyOwnContentForRoot() {
-    myRootSuite.setShouldPrintOwnContentOnly(true);
+    runInEdtAndWait(() -> {
+      myRootSuite.setShouldPrintOwnContentOnly(true);
 
-    myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
+      myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
 
-    myEventsProcessor.onStartTesting();
-    myEventsProcessor.onUncapturedOutput("root output 1\n", ProcessOutputTypes.STDOUT);
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
-    SMTestProxy suite = myEventsProcessor.getCurrentSuite();
-    myEventsProcessor.onUncapturedOutput("suite output\n", ProcessOutputTypes.STDOUT);
-    myEventsProcessor.onTestStarted(new TestStartedEvent("my test", null));
-    myEventsProcessor.onUncapturedOutput("test output\n", ProcessOutputTypes.STDOUT);
-    myEventsProcessor.onTestFinished(new TestFinishedEvent("my test", null));
-    myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite"));
-    myEventsProcessor.onUncapturedOutput("root output 2\n", ProcessOutputTypes.STDOUT);
-    myEventsProcessor.onFinishTesting();
+      myEventsProcessor.onStartTesting();
+      myEventsProcessor.onUncapturedOutput("root output 1\n", ProcessOutputTypes.STDOUT);
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
+      SMTestProxy suite = myEventsProcessor.getCurrentSuite();
+      myEventsProcessor.onUncapturedOutput("suite output\n", ProcessOutputTypes.STDOUT);
+      myEventsProcessor.onTestStarted(new TestStartedEvent("my test", null));
+      myEventsProcessor.onUncapturedOutput("test output\n", ProcessOutputTypes.STDOUT);
+      myEventsProcessor.onTestFinished(new TestFinishedEvent("my test", null));
+      myEventsProcessor.onSuiteFinished(new TestSuiteFinishedEvent("suite"));
+      myEventsProcessor.onUncapturedOutput("root output 2\n", ProcessOutputTypes.STDOUT);
+      myEventsProcessor.onFinishTesting();
 
-    assertAllOutputs(myMockResettablePrinter, """
-      root output 1
-      root output 2
-      """, "", "");
+      assertAllOutputs(myMockResettablePrinter, """
+        root output 1
+        root output 2
+        """, "", "");
 
-    myMockResettablePrinter.resetIfNecessary();
-    myConsole.getPrinter().updateOnTestSelected(suite);
-    assertAllOutputs(myMockResettablePrinter, """
-      suite output
-      test output
-      """, "", "");
+      myMockResettablePrinter.resetIfNecessary();
+      myConsole.getPrinter().updateOnTestSelected(suite);
+      assertAllOutputs(myMockResettablePrinter, """
+        suite output
+        test output
+        """, "", "");
 
-    myMockResettablePrinter.resetIfNecessary();
-    myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
-    assertAllOutputs(myMockResettablePrinter, """
-      root output 1
-      root output 2
-      """, "", "");
+      myMockResettablePrinter.resetIfNecessary();
+      myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
+      assertAllOutputs(myMockResettablePrinter, """
+        root output 1
+        root output 2
+        """, "", "");
 
-    myRootSuite.setShouldPrintOwnContentOnly(false);
+      myRootSuite.setShouldPrintOwnContentOnly(false);
 
-    myMockResettablePrinter.resetIfNecessary();
-    myConsole.getPrinter().updateOnTestSelected(suite);
-    assertAllOutputs(myMockResettablePrinter, """
-      suite output
-      test output
-      """, "", "");
+      myMockResettablePrinter.resetIfNecessary();
+      myConsole.getPrinter().updateOnTestSelected(suite);
+      assertAllOutputs(myMockResettablePrinter, """
+        suite output
+        test output
+        """, "", "");
 
-    myMockResettablePrinter.resetIfNecessary();
-    myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
-    assertAllOutputs(myMockResettablePrinter, """
-      root output 1
-      suite output
-      test output
-      root output 2
-      """, "", "");
+      myMockResettablePrinter.resetIfNecessary();
+      myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
+      assertAllOutputs(myMockResettablePrinter, """
+        root output 1
+        suite output
+        test output
+        root output 2
+        """, "", "");
+    });
   }
 
+  @Test
   public void testPrintingManyOutputForRootWithoutChildren() {
-    myRootSuite.setShouldPrintOwnContentOnly(true);
+    runInEdtAndWait(() -> {
+      myRootSuite.setShouldPrintOwnContentOnly(true);
 
-    myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
+      myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
 
-    myEventsProcessor.onStartTesting();
-    StringBuilder expectedOutput = new StringBuilder();
-    for (int i = 0; i < 10000; i++) {
-      String text = "root output " + i + "\n";
-      myEventsProcessor.onUncapturedOutput(text, ProcessOutputTypes.STDOUT);
-      expectedOutput.append(text);
-    }
-    myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
-    SMTestProxy suite = myEventsProcessor.getCurrentSuite();
-    myEventsProcessor.onUncapturedOutput("suite output\n", ProcessOutputTypes.STDOUT);
-    myEventsProcessor.onFinishTesting();
+      myEventsProcessor.onStartTesting();
+      StringBuilder expectedOutput = new StringBuilder();
+      for (int i = 0; i < 10000; i++) {
+        String text = "root output " + i + "\n";
+        myEventsProcessor.onUncapturedOutput(text, ProcessOutputTypes.STDOUT);
+        expectedOutput.append(text);
+      }
+      myEventsProcessor.onSuiteStarted(new TestSuiteStartedEvent("suite", null));
+      SMTestProxy suite = myEventsProcessor.getCurrentSuite();
+      myEventsProcessor.onUncapturedOutput("suite output\n", ProcessOutputTypes.STDOUT);
+      myEventsProcessor.onFinishTesting();
 
-    assertAllOutputs(myMockResettablePrinter, expectedOutput.toString(), "", "");
+      assertAllOutputs(myMockResettablePrinter, expectedOutput.toString(), "", "");
 
-    myMockResettablePrinter.resetIfNecessary();
-    myConsole.getPrinter().updateOnTestSelected(suite);
-    assertAllOutputs(myMockResettablePrinter, "suite output\n", "", "");
+      myMockResettablePrinter.resetIfNecessary();
+      myConsole.getPrinter().updateOnTestSelected(suite);
+      assertAllOutputs(myMockResettablePrinter, "suite output\n", "", "");
 
-    myMockResettablePrinter.resetIfNecessary();
-    myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
-    assertAllOutputs(myMockResettablePrinter, expectedOutput.toString(), "", "");
+      myMockResettablePrinter.resetIfNecessary();
+      myConsole.getPrinter().updateOnTestSelected(myResultsViewer.getTestsRootNode());
+      assertAllOutputs(myMockResettablePrinter, expectedOutput.toString(), "", "");
+    });
   }
 
+  @Test
   public void testEnsureOrderedClearFlush() {
-    StringBuffer buf = new StringBuffer();
-    StringBuilder expected = new StringBuilder();
-    for(int i = 0; i < 100; i++) {
-      expected.append("1");
-      expected.append("2");
-      CompositePrintable.invokeInAlarm(() -> buf.append("1"), false);
-      CompositePrintable.invokeInAlarm(() -> buf.append("2"), false);
-    }
-    Semaphore s = new Semaphore();
-    s.down();
-    CompositePrintable.invokeInAlarm(s::up, false);
-    assertTrue(s.waitFor(1000));
-    assertEquals(expected.toString(), buf.toString());
+    runInEdtAndWait(() -> {
+      StringBuffer buf = new StringBuffer();
+      StringBuilder expected = new StringBuilder();
+      for(int i = 0; i < 100; i++) {
+        expected.append("1");
+        expected.append("2");
+        CompositePrintable.invokeInAlarm(() -> buf.append("1"), false);
+        CompositePrintable.invokeInAlarm(() -> buf.append("2"), false);
+      }
+      Semaphore s = new Semaphore();
+      s.down();
+      CompositePrintable.invokeInAlarm(s::up, false);
+      assertTrue(s.waitFor(1000));
+      assertEquals(expected.toString(), buf.toString());
+    });
   }
 
   @NotNull

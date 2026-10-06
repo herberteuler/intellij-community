@@ -3,7 +3,8 @@ package com.intellij.execution.testframework.sm.runner
 
 import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.execution.testframework.sm.ServiceMessageBuilder
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 
 class StdoutToSMTreeTest : BaseSMTRunnerTestCase() {
@@ -16,27 +17,33 @@ class StdoutToSMTreeTest : BaseSMTRunnerTestCase() {
   private val testFailName = "test_dummy"
   private val testSuccessName = "test_dummy_2"
 
+  @Test
   fun testIdBased() {
     buildTestTree(idBased = true, flushBufferSize = 0)
   }
 
+  @Test
   fun testIdBasedFlushEachChar() {
     buildTestTree(idBased = true, flushBufferSize = 1)
   }
 
+  @Test
   fun testIdBasedFlushEachFourChars() {
     buildTestTree(idBased = true, flushBufferSize = 4)
   }
 
 
+  @Test
   fun testGeneric() {
     buildTestTree(idBased = false, flushBufferSize = 0)
   }
 
+  @Test
   fun testGenericFlushEachChar() {
     buildTestTree(idBased = false, flushBufferSize = 1)
   }
 
+  @Test
   fun testGenericFlushEachFourChars() {
     buildTestTree(idBased = false, flushBufferSize = 4)
   }
@@ -63,14 +70,14 @@ class StdoutToSMTreeTest : BaseSMTRunnerTestCase() {
     finish()
 
     val failMessage = getTestOutput(findTestByName(testFailName, testProxy)!!)
-    Assert.assertEquals("Wrong fail message", "failMessage", failMessage.trim())
+    assertEquals("failMessage", failMessage.trim(), "Wrong fail message")
     val tree = getFormattedTestTree(testProxy)
     val success = if (idBased) "+" else "-" // for id-based one must set state explicitly while in general state is based on children
-    Assert.assertEquals("Wrong test tree", "Test tree:\n" +
-                                           "[root]($success)\n" +
-                                           ".${suiteName}($success)\n" +
-                                           "..${testFailName}(-)\n" +
-                                           "..${testSuccessName}(+)\n", tree)
+    assertEquals("Test tree:\n" +
+                 "[root]($success)\n" +
+                 ".${suiteName}($success)\n" +
+                 "..${testFailName}(-)\n" +
+                 "..${testSuccessName}(+)\n", tree, "Wrong test tree")
   }
 
   private fun idBasedTree() {

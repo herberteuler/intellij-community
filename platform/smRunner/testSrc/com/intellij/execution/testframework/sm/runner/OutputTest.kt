@@ -3,8 +3,11 @@ package com.intellij.execution.testframework.sm.runner
 
 import com.intellij.execution.testframework.sm.runner.ui.MockPrinter
 import com.intellij.openapi.util.Disposer
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class OutputTest : BaseSMTRunnerTestCase() {
+  @Test
   fun testBeforeAfterOrder() {
     val suite = createTestProxy("parent")
     suite.setTreeBuildBeforeStart()
@@ -27,6 +30,7 @@ class OutputTest : BaseSMTRunnerTestCase() {
     assertEquals("inside test\n", printer.stdOut)
   }
 
+  @Test
   fun testBeforeAfterFailedOrder() {
     val suite = createTestProxy("parent")
     suite.setTreeBuildBeforeStart()
@@ -49,6 +53,7 @@ class OutputTest : BaseSMTRunnerTestCase() {
     assertEquals("inside test\n", printer.stdOut)
   }
 
+  @Test
   fun testBeforeAfterOrderWhenFlushed() {
     val suite = createTestProxy("parent")
     suite.setTreeBuildBeforeStart()

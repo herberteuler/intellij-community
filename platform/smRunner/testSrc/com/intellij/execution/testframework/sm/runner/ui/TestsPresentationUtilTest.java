@@ -27,11 +27,17 @@ import com.intellij.ui.SimpleTextAttributes;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.swing.Icon;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * @author Roman Chernyatchik
@@ -42,15 +48,14 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
   private UITestUtil.FragmentsContainer myFragContainer;
   private SMTestProxy.SMRootTestProxy mySMRootTestProxy;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-
+  @BeforeEach
+  void setUp() {
     myRenderer = new MyRenderer(false, new UITestUtil.FragmentsContainer());
     myFragContainer = myRenderer.getFragmentsContainer();
     mySMRootTestProxy = new SMTestProxy.SMRootTestProxy();
   }
 
+  @Test
   public void testProgressText() {
     assertEquals("Running: 10 of 1  Failed: 1  ",
                  TestsPresentationUtil.getProgressStatus_Text(0, 0, 1, 10, 1, null, false));
@@ -63,6 +68,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
                  TestsPresentationUtil.getProgressStatus_Text(5, 5, 1, 10, 0, null, false));
   }
 
+  @Test
   public void testProgressText_UnsetTotal() {
     assertEquals("Running: 0 of <...>  ",
                  TestsPresentationUtil.getProgressStatus_Text(0, 0, 0, 0, 0, null, false));
@@ -77,6 +83,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
                  TestsPresentationUtil.getProgressStatus_Text(0, 5, 0, 10, 1, null, false));
   }
 
+  @Test
   public void testProgressText_Category() {
     assertEquals("Running: 0 of <...>  ",
                  TestsPresentationUtil.getProgressStatus_Text(0, 0, 0, 0, 0, new HashSet<>(), false));
@@ -109,15 +116,17 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
 
   }
 
+  @Test
   public void testFormatTestProxyTest_NewTest() {
     TestsPresentationUtil.formatTestProxy(mySimpleTest, myRenderer);
 
     assertEquals(PoolOfTestIcons.NOT_RAN, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals(FAKE_TEST_NAME, myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatTestProxyTest_NewTestPaused() {
     //paused
     final MyRenderer pausedRenderer = new MyRenderer(true, myFragContainer = new UITestUtil.FragmentsContainer());
@@ -129,6 +138,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatTestProxyTest_Started() {
     //paused
     mySimpleTest.setStarted();
@@ -140,6 +150,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatTestProxyTest_StartedAndPaused() {
     //paused
     final MyRenderer pausedRenderer = new MyRenderer(true, myFragContainer = new UITestUtil.FragmentsContainer());
@@ -153,6 +164,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatTestProxyTest_StartedAndPaused_WithErrors() {
     //paused
     final MyRenderer pausedRenderer = new MyRenderer(true, myFragContainer = new UITestUtil.FragmentsContainer());
@@ -165,24 +177,26 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.PAUSED_E_ICON, pausedRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_Passed() {
     mySimpleTest.setStarted();
     mySimpleTest.setFinished();
     TestsPresentationUtil.formatTestProxy(mySimpleTest, myRenderer);
 
     assertEquals(PoolOfTestIcons.PASSED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals(FAKE_TEST_NAME, myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatTestProxyTest_Failed() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", false);
     TestsPresentationUtil.formatTestProxy(mySimpleTest, myRenderer);
 
     assertEquals(PoolOfTestIcons.FAILED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals(FAKE_TEST_NAME, myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
 
@@ -191,6 +205,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(PoolOfTestIcons.FAILED_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_Failed_WithErrors() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", false);
@@ -200,13 +215,14 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.FAILED_E_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_Error() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", true);
     TestsPresentationUtil.formatTestProxy(mySimpleTest, myRenderer);
 
     assertEquals(PoolOfTestIcons.ERROR_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals(FAKE_TEST_NAME, myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
 
@@ -215,6 +231,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(PoolOfTestIcons.ERROR_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_Error_WithErrors() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", true);
@@ -224,13 +241,14 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(PoolOfTestIcons.ERROR_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_Ignored() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestIgnored("", null);
     TestsPresentationUtil.formatTestProxy(mySimpleTest, myRenderer);
 
     assertEquals(PoolOfTestIcons.IGNORED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals(FAKE_TEST_NAME, myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
 
@@ -239,6 +257,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(PoolOfTestIcons.IGNORED_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_Ignored_WithErrors() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestIgnored("", null);
@@ -248,13 +267,14 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.IGNORED_E_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_Terminated() {
     mySimpleTest.setStarted();
     mySimpleTest.setTerminated();
     TestsPresentationUtil.formatTestProxy(mySimpleTest, myRenderer);
 
     assertEquals(PoolOfTestIcons.TERMINATED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals(FAKE_TEST_NAME, myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
 
@@ -263,6 +283,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(PoolOfTestIcons.TERMINATED_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_TerminatedWithErrors() {
     mySimpleTest.setStarted();
     mySimpleTest.setTerminated();
@@ -272,6 +293,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.TERMINATED_E_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_WithCriticalErrors() {
     mySimpleTest.setStarted();
     mySimpleTest.addError("msg", "stacktrace", true);
@@ -281,6 +303,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.PASSED_E_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_WithErrors_LegacyApi() {
     mySimpleTest.setStarted();
     mySimpleTest.addError("msg", "stacktrace", true);
@@ -290,6 +313,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.PASSED_E_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatTestProxyTest_WithNoncriticalErrors() {
     mySimpleTest.setStarted();
     mySimpleTest.addError("msg", "stacktrace", false);
@@ -299,6 +323,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(PoolOfTestIcons.PASSED_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Started() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.setStarted();
@@ -306,11 +331,12 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, myRenderer);
 
     assertIsAnimatorProgressIcon(myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("Running tests…", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Failed() {
     final MyRenderer renderer1 = new MyRenderer(false, myFragContainer = new UITestUtil.FragmentsContainer());
 
@@ -325,7 +351,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, renderer1);
 
     assertEquals(PoolOfTestIcons.FAILED_ICON, renderer1.getIcon());
-    assertOneElement(renderer1.getFragmentsContainer().getFragments());
+    assertThat(renderer1.getFragmentsContainer().getFragments()).hasSize(1);
     assertEquals("Test Results", renderer1.getFragmentsContainer().getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, renderer1.getFragmentsContainer().getAttribsAt(0));
 
@@ -333,10 +359,11 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, renderer2);
     mySMRootTestProxy.setFinished();
     assertEquals(PoolOfTestIcons.FAILED_ICON, renderer1.getIcon());
-    assertOneElement(renderer1.getFragmentsContainer().getFragments());
+    assertThat(renderer1.getFragmentsContainer().getFragments()).hasSize(1);
     assertEquals("Test Results", renderer1.getFragmentsContainer().getTextAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Failed_WithErrors() {
     final MyRenderer renderer1 = new MyRenderer(false, myFragContainer = new UITestUtil.FragmentsContainer());
 
@@ -359,6 +386,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.FAILED_E_ICON, renderer1.getIcon());
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Error() {
     final MyRenderer renderer1 = new MyRenderer(false, myFragContainer = new UITestUtil.FragmentsContainer());
 
@@ -374,7 +402,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, renderer1);
 
     assertEquals(PoolOfTestIcons.ERROR_ICON, renderer1.getIcon());
-    assertOneElement(renderer1.getFragmentsContainer().getFragments());
+    assertThat(renderer1.getFragmentsContainer().getFragments()).hasSize(1);
     assertEquals("Test Results", renderer1.getFragmentsContainer().getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, renderer1.getFragmentsContainer().getAttribsAt(0));
 
@@ -382,10 +410,11 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, renderer2);
     mySMRootTestProxy.setFinished();
     assertEquals(PoolOfTestIcons.ERROR_ICON, renderer1.getIcon());
-    assertOneElement(renderer1.getFragmentsContainer().getFragments());
+    assertThat(renderer1.getFragmentsContainer().getFragments()).hasSize(1);
     assertEquals("Test Results", renderer1.getFragmentsContainer().getTextAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Ignored() {
     final MyRenderer renderer1 = new MyRenderer(false, myFragContainer = new UITestUtil.FragmentsContainer());
 
@@ -400,7 +429,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, renderer1);
 
     assertEquals(PoolOfTestIcons.IGNORED_ICON, renderer1.getIcon());
-    assertOneElement(renderer1.getFragmentsContainer().getFragments());
+    assertThat(renderer1.getFragmentsContainer().getFragments()).hasSize(1);
     assertEquals("Test Results", renderer1.getFragmentsContainer().getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, renderer1.getFragmentsContainer().getAttribsAt(0));
 
@@ -408,10 +437,11 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, renderer2);
     mySMRootTestProxy.setFinished();
     assertEquals(PoolOfTestIcons.IGNORED_ICON, renderer1.getIcon());
-    assertOneElement(renderer1.getFragmentsContainer().getFragments());
+    assertThat(renderer1.getFragmentsContainer().getFragments()).hasSize(1);
     assertEquals("Test Results", renderer1.getFragmentsContainer().getTextAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Ignored_WithErrors() {
     final MyRenderer renderer1 = new MyRenderer(false, myFragContainer = new UITestUtil.FragmentsContainer());
 
@@ -434,6 +464,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.IGNORED_E_ICON, renderer1.getIcon());
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Passed() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.addChild(mySimpleTest);
@@ -445,11 +476,12 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, myRenderer);
 
     assertEquals(PoolOfTestIcons.PASSED_ICON, myRenderer.getIcon());
-    assertOneElement(myRenderer.getFragmentsContainer().getFragments());
+    assertThat(myRenderer.getFragmentsContainer().getFragments()).hasSize(1);
     assertEquals("Test Results", myRenderer.getFragmentsContainer().getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myRenderer.getFragmentsContainer().getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Passed_WithErrors() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.addChild(mySimpleTest);
@@ -464,6 +496,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.PASSED_E_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Terminated() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.addChild(mySimpleTest);
@@ -475,11 +508,12 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, myRenderer);
 
     assertEquals(PoolOfTestIcons.TERMINATED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("Terminated", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Terminated_WithErrors() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.addChild(mySimpleTest);
@@ -494,6 +528,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(SMPoolOfTestIcons.TERMINATED_E_ICON, myRenderer.getIcon());
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_TerminatedAndFinished() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.addChild(mySimpleTest);
@@ -507,11 +542,12 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithChildren(mySMRootTestProxy, myRenderer);
     mySMRootTestProxy.setFinished();
     assertEquals(PoolOfTestIcons.TERMINATED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("Terminated", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithChildren_Passed_StartShutdownErrors() {
     final MyRenderer renderer1 = new MyRenderer(false, myFragContainer = new UITestUtil.FragmentsContainer());
 
@@ -532,6 +568,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals(PoolOfTestIcons.PASSED_ICON, renderer2.getIcon());
   }
 
+  @Test
   public void testPresentationWithDependentNamesTestProxy() {
     SMTestProxy suiteProxy = createSuiteProxy("A");
     SMTestProxy testProxy = createTestProxy("A.b");
@@ -540,6 +577,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals("b", myFragContainer.getTextAt(0));
   }
 
+  @Test
   public void testPresentationWithDependentNamesSuite() {
     SMTestProxy suiteProxy = createSuiteProxy("A");
     SMTestProxy suiteProxyChild = createSuiteProxy("AB");
@@ -549,26 +587,29 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     myRenderer.clear();
   }
 
+  @Test
   public void testFormatRootNodeWithoutChildren() {
     TestsPresentationUtil.formatRootNodeWithoutChildren(mySMRootTestProxy, myRenderer);
 
     assertEquals(PoolOfTestIcons.NOT_RAN, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("No Test Results", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.ERROR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithoutChildren_Started() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.setStarted();
     TestsPresentationUtil.formatRootNodeWithoutChildren(mySMRootTestProxy, myRenderer);
 
     assertIsAnimatorProgressIcon(myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("Instantiating tests…", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithoutChildren_ReporterRegistered() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.setStarted();
@@ -576,22 +617,24 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithoutChildren(mySMRootTestProxy, myRenderer);
 
     assertEquals(PoolOfTestIcons.NOT_RAN, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("No tests were found", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.ERROR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithoutChildren_ReporterNotRegistered() {
     mySMRootTestProxy.setStarted();
     mySMRootTestProxy.setFinished();
     TestsPresentationUtil.formatRootNodeWithoutChildren(mySMRootTestProxy, myRenderer);
 
     assertEquals(PoolOfTestIcons.NOT_RAN, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.test.reporter.not.attached"), myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.ERROR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithoutChildren_Terminated() {
     mySMRootTestProxy.setTestsReporterAttached();
     mySMRootTestProxy.setStarted();
@@ -599,11 +642,12 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithoutChildren(mySMRootTestProxy, myRenderer);
 
     assertEquals(PoolOfTestIcons.TERMINATED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("Terminated", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeWithoutChildren_PY_2434() {
     mySMRootTestProxy.setTestsReporterAttached();
     // See [PY-2434] Unittest: Do not show "No test were found" notification before completing test suite
@@ -616,11 +660,12 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithoutChildren(mySMRootTestProxy, myRenderer);
 
     assertEquals(PoolOfTestIcons.FAILED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("Test Results", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
+  @Test
   public void testFormatRootNodeIgnored() {
     mySMRootTestProxy.setTestsReporterAttached();
     // See [PY-2434] Unittest: Do not show "No test were found" notification before completing test suite
@@ -633,12 +678,13 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     TestsPresentationUtil.formatRootNodeWithoutChildren(mySMRootTestProxy, myRenderer);
 
     assertEquals(PoolOfTestIcons.IGNORED_ICON, myRenderer.getIcon());
-    assertOneElement(myFragContainer.getFragments());
+    assertThat(myFragContainer.getFragments()).hasSize(1);
     assertEquals("All Tests Passed (except ignored)", myFragContainer.getTextAt(0));
     assertEquals(SimpleTextAttributes.REGULAR_ATTRIBUTES, myFragContainer.getAttribsAt(0));
   }
 
 
+  @Test
   public void testGetPresentableName() {
     //Test unit examples
     assertProxyPresentation("testFirst", "MyRubyTest1", "MyRubyTest1.testFirst");
@@ -667,21 +713,25 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
 
   }
 
+  @Test
   public void testGetTestStatusPresentation_NotRun() {
     assertEquals("Not run", TestsPresentationUtil.getTestStatusPresentation(mySimpleTest));
   }
 
+  @Test
   public void testGetTestStatusPresentation_Progress() {
     mySimpleTest.setStarted();
     assertEquals("Running…", TestsPresentationUtil.getTestStatusPresentation(mySimpleTest));
   }
 
+  @Test
   public void testGetTestStatusPresentation_Passed() {
     mySimpleTest.setStarted();
     mySimpleTest.setFinished();
     assertEquals("Passed", TestsPresentationUtil.getTestStatusPresentation(mySimpleTest));
   }
 
+  @Test
   public void testGetTestStatusPresentation_Failed() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", false);
@@ -690,6 +740,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals("Assertion failed", TestsPresentationUtil.getTestStatusPresentation(mySimpleTest));
   }
 
+  @Test
   public void testGetTestStatusPresentation_TestError() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestFailed("", "", true);
@@ -698,6 +749,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals("Error", TestsPresentationUtil.getTestStatusPresentation(mySimpleTest));
   }
 
+  @Test
   public void testGetTestStatusPresentation_TestIgnored() {
     mySimpleTest.setStarted();
     mySimpleTest.setTestIgnored("", null);
@@ -706,6 +758,7 @@ public class TestsPresentationUtilTest extends BaseSMTRunnerTestCase {
     assertEquals("Ignored", TestsPresentationUtil.getTestStatusPresentation(mySimpleTest));
   }
 
+  @Test
   public void testGetTestStatusPresentation_Terminated() {
     mySimpleTest.setStarted();
     mySimpleTest.setTerminated();

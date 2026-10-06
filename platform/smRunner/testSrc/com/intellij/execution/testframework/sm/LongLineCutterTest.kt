@@ -4,8 +4,9 @@ package com.intellij.execution.testframework.sm
 import com.intellij.execution.testframework.sm.runner.cutLineIfTooLong
 import jetbrains.buildServer.messages.serviceMessages.ServiceMessage
 import jetbrains.buildServer.messages.serviceMessages.ServiceMessageTypes
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 class LongLineCutterTest {
   private fun createMessage(attrs: Map<String, String>) = createMessage("myMessage", attrs)
@@ -20,14 +21,14 @@ class LongLineCutterTest {
       "A" to "B",
       "Z" to "Q"
     ))
-    Assert.assertEquals(message, cutLineIfTooLong(message, Int.MAX_VALUE, 100))
+    assertEquals(message, cutLineIfTooLong(message, Int.MAX_VALUE, 100))
   }
 
   @Test
   fun longLineShortened() {
     val maxLength = 10000
     val text = cutLineIfTooLong("abcde".repeat(maxLength), maxLength, 100)
-    Assert.assertEquals(text.length, maxLength)
+    assertEquals(text.length, maxLength)
   }
 
   @Test
@@ -42,10 +43,10 @@ class LongLineCutterTest {
     val actual = result.attributes["actual"]!!
     val expected = result.attributes["expected"]!!
 
-    Assert.assertEquals(actual, "B")
-    Assert.assertTrue(expected.startsWith("A"))
-    Assert.assertTrue(expected.endsWith("A"))
-    Assert.assertTrue("..." in expected)
+    assertEquals(actual, "B")
+    assertTrue(expected.startsWith("A"))
+    assertTrue(expected.endsWith("A"))
+    assertTrue("..." in expected)
   }
 
   @Test
@@ -60,13 +61,13 @@ class LongLineCutterTest {
     val actual = result.attributes["actual"]!!
     val expected = result.attributes["expected"]!!
 
-    Assert.assertTrue(actual.startsWith("B"))
-    Assert.assertTrue(actual.endsWith("B"))
-    Assert.assertTrue(expected.startsWith("A"))
-    Assert.assertTrue(expected.endsWith("A"))
-    Assert.assertTrue(expected.length == actual.length)
-    Assert.assertTrue("..." in actual)
-    Assert.assertTrue("..." in expected)
+    assertTrue(actual.startsWith("B"))
+    assertTrue(actual.endsWith("B"))
+    assertTrue(expected.startsWith("A"))
+    assertTrue(expected.endsWith("A"))
+    assertTrue(expected.length == actual.length)
+    assertTrue("..." in actual)
+    assertTrue("..." in expected)
   }
 
   @Test
@@ -80,12 +81,12 @@ class LongLineCutterTest {
       "Z" to longString
     ))
     val result = cutLineIfTooLong(message, maxLength, 100)
-    Assert.assertTrue("Failed to cut message", result.length <= maxLength)
+    assertTrue(result.length <= maxLength, "Failed to cut message")
     val shortenedMessage = parseMessage(result)!!
-    Assert.assertEquals("B", shortenedMessage.attributes["A"])
-    Assert.assertEquals("D", shortenedMessage.attributes["C"])
+    assertEquals("B", shortenedMessage.attributes["A"])
+    assertEquals("D", shortenedMessage.attributes["C"])
     val longestValue = shortenedMessage.attributes["Z"]!!
-    Assert.assertTrue("D", longestValue.startsWith(s) && longestValue.endsWith(s))
+    assertTrue(longestValue.startsWith(s) && longestValue.endsWith(s), "D")
   }
 
   @Test
@@ -96,9 +97,9 @@ class LongLineCutterTest {
     ))
     val margin = 49
     val result = cutLineIfTooLong(message, maxLength, margin)
-    Assert.assertTrue(result.length <= maxLength)
+    assertTrue(result.length <= maxLength)
     val shortenedMessage = parseMessage(result)!!
     val details = shortenedMessage.attributes["details"]!!
-    Assert.assertEquals("Q".repeat(margin) + "<...>" + "Q".repeat(margin), details)
+    assertEquals("Q".repeat(margin) + "<...>" + "Q".repeat(margin), details)
   }
 }

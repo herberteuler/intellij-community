@@ -17,63 +17,90 @@ package com.intellij.execution.testframework.sm;
 
 import com.intellij.execution.Location;
 import com.intellij.execution.testframework.sm.runner.SMTestProxy;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.roots.ModuleRootModificationUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
+import com.intellij.testFramework.fixtures.CodeInsightTestFixture;
+import com.intellij.testFramework.junit5.TestApplication;
+import com.intellij.testFramework.junit5.fixture.TestFixture;
+import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
 import java.util.Collections;
+
+import static com.intellij.platform.testFramework.junit5.codeInsight.fixture.CodeInsightFixtureKt.codeInsightFixture;
+import static com.intellij.testFramework.EdtTestUtil.runInEdtAndWait;
+import static com.intellij.testFramework.junit5.fixture.FixturesKt.moduleFixture;
+import static com.intellij.testFramework.junit5.fixture.FixturesKt.projectFixture;
+import static com.intellij.testFramework.junit5.fixture.FixturesKt.tempPathFixture;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * @author Roman Chernyatchik
  */
-public class FileUrlLocationTest extends BasePlatformTestCase {
+@TestApplication
+public class FileUrlLocationTest {
+  private static final TestFixture<Project> projectFixture = projectFixture();
+
+  private final TestFixture<Path> pathFixture = tempPathFixture();
+  private final TestFixture<Module> moduleFixture = moduleFixture(projectFixture, pathFixture, true);
+  private final TestFixture<CodeInsightTestFixture> codeInsightFixture = codeInsightFixture(projectFixture, pathFixture);
+
+  @Test
   public void testExcluded() {
-    myFixture.addFileToProject("secondary/my_example_spec.xml", "");
-    ModuleRootModificationUtil.updateExcludedFolders(
-      getModule(), ModuleRootManager.getInstance(getModule()).getContentRoots()[0],
-      Collections.emptyList(),
-      Collections.singletonList(ModuleRootManager.getInstance(getModule()).getContentRoots()[0].getUrl()));
-     VirtualFile file = myFixture.configureByText(
-      "my_example_spec.xml",
-      """
+    runInEdtAndWait(() -> {
+      codeInsightFixture.get().addFileToProject("secondary/my_example_spec.xml", "");
+      ModuleRootModificationUtil.updateExcludedFolders(
+        moduleFixture.get(), ModuleRootManager.getInstance(moduleFixture.get()).getContentRoots()[0],
+        Collections.emptyList(),
+        Collections.singletonList(ModuleRootManager.getInstance(moduleFixture.get()).getContentRoots()[0].getUrl()));
+      VirtualFile file = codeInsightFixture.get().configureByText(
+        "my_example_spec.xml",
+        """
 
-        <describe>
-            <a id='1'></a>
-        </describe>
+          <describe>
+              <a id='1'></a>
+          </describe>
 
-        """).getVirtualFile();
+          """).getVirtualFile();
 
-    doTest(1, file.getPath(), 2, -1);
+      doTest(1, file.getPath(), 2, -1);
+    });
   }
 
+  @Test
   public void testSpecNavigation() {
-    VirtualFile file = myFixture.configureByText(
-      "my_example_spec.xml",
-      """
+    runInEdtAndWait(() -> {
+      VirtualFile file = codeInsightFixture.get().configureByText(
+        "my_example_spec.xml",
+        """
 
-        <describe>
-            <a id='1'></a>
-        </describe>
+          <describe>
+              <a id='1'></a>
+          </describe>
 
-        """).getVirtualFile();
+          """).getVirtualFile();
 
-    doTest(1, file.getPath(), 2, -1);
-    doTest(16, file.getPath(), 3, -1);
-    doTest(2, file.getPath(), 2, 5);
-    doTest(19, file.getPath(), 3, 8);
-    doTest(0, file.getPath(), 100, -1);
-    doTest(11, file.getPath(), 2, 100);
+      doTest(1, file.getPath(), 2, -1);
+      doTest(16, file.getPath(), 3, -1);
+      doTest(2, file.getPath(), 2, 5);
+      doTest(19, file.getPath(), 3, 8);
+      doTest(0, file.getPath(), 100, -1);
+      doTest(11, file.getPath(), 2, 100);
+    });
   }
 
-  private void doTest(int expectedOffset, String filePath, int lineNum, int columnNumber) {
+  private static void doTest(int expectedOffset, String filePath, int lineNum, int columnNumber) {
     SMTestProxy testProxy = new SMTestProxy("myTest", false, "file://" + filePath + ":" + lineNum
                                                              + (columnNumber > 0 ? (":" + columnNumber) : ""));
     testProxy.setLocator(FileUrlProvider.INSTANCE);
 
-    Location location = testProxy.getLocation(getProject(), GlobalSearchScope.allScope(getProject()));
+    Location location = testProxy.getLocation(projectFixture.get(), GlobalSearchScope.allScope(projectFixture.get()));
     assertNotNull(location);
     PsiElement element = location.getPsiElement();
     assertNotNull(element);

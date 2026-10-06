@@ -8,13 +8,14 @@ import com.intellij.execution.testframework.sm.runner.OutputEventSplitter;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.testFramework.LightPlatformTestCase;
 import com.intellij.testFramework.PerformanceUnitTest;
+import com.intellij.testFramework.junit5.TestApplication;
 import com.intellij.tools.ide.metrics.benchmark.Benchmark;
 import jetbrains.buildServer.messages.serviceMessages.ServiceMessage;
 import org.hamcrest.core.IsCollectionContaining;
 import org.jetbrains.annotations.NotNull;
-import org.junit.Assert;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -37,8 +38,13 @@ import static org.hamcrest.CoreMatchers.everyItem;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class OutputEventSplitterTest extends LightPlatformTestCase {
+@TestApplication
+public class OutputEventSplitterTest {
   private static final List<ProcessOutputType> ALL_TYPES = Arrays.asList(ProcessOutputType.STDERR, ProcessOutputType.STDOUT, ProcessOutputType.SYSTEM);
   private static final List<Key> ALL_STDOUT_KEYS = Arrays.asList(
     new ProcessOutputType(OutputEventSplitterTest.class + ".RED", (ProcessOutputType)ProcessOutputTypes.STDOUT),
@@ -54,9 +60,8 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
   private OutputEventSplitter mySplitter;
   private final Map<ProcessOutputType, Console> myOutput = new HashMap<>();
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @BeforeEach
+  void setUp() {
     mySplitter = createEventSplitter(false, false);
   }
 
@@ -74,16 +79,18 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
     };
   }
 
+  @Test
   public void testLongText() {
     final int maxSize = ConsoleBuffer.getCycleBufferSize();
     final String string = "abc";
     final String longString = StringUtil.repeat(string, maxSize);
     mySplitter.process(longString, ProcessOutputType.STDOUT);
     final String shortenedLine = myOutput.get(ProcessOutputTypes.STDOUT).toList().get(0);
-    Assert.assertEquals(shortenedLine.length(), maxSize);
-    Assert.assertTrue(shortenedLine.startsWith(string));
+    assertEquals(shortenedLine.length(), maxSize);
+    assertTrue(shortenedLine.startsWith(string));
   }
 
+  @Test
   public void testTcMessageRedundantNewLine() {
     mySplitter = createEventSplitter(false, true);
     final ProcessOutputType stdout = ProcessOutputType.STDOUT;
@@ -94,9 +101,10 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
     mySplitter.process("hi", stdout);
     mySplitter.flush();
     final String[] strings = myOutput.get(stdout).toArray();
-    Assert.assertArrayEquals(new String[]{"hello\n", "world\n", message+ "\n", "hi"}, strings);
+    assertArrayEquals(new String[]{"hello\n", "world\n", message+ "\n", "hi"}, strings);
   }
 
+  @Test
   public void testTcMessageCrLf() {
     mySplitter = createEventSplitter(false, true);
     final ProcessOutputType stdout = ProcessOutputType.STDOUT;
@@ -107,9 +115,10 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
     mySplitter.process("hi", stdout);
     mySplitter.flush();
     final String[] strings = myOutput.get(stdout).toArray();
-    Assert.assertArrayEquals(new String[]{"hello\r\n", "world\r\n", message + "\r\n", "hi"}, strings);
+    assertArrayEquals(new String[]{"hello\r\n", "world\r\n", message + "\r\n", "hi"}, strings);
   }
 
+  @Test
   public void testLongMessage() throws ParseException {
     final int maxSize = ConsoleBuffer.getCycleBufferSize();
     final String string = "abc|n";
@@ -121,22 +130,24 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
     mySplitter.process(message, ProcessOutputType.STDOUT);
     final String shortenedLine = myOutput.get(ProcessOutputTypes.STDOUT).toList().get(0);
     final ServiceMessage shortenedMessage = ServiceMessageUtil.parse(shortenedLine, true);
-    Assert.assertTrue("Failed to shorten message", shortenedMessage.toString().length() <= maxSize);
+    assertTrue(shortenedMessage.toString().length() <= maxSize, "Failed to shorten message");
     final Map<String, String> attrs = shortenedMessage.getAttributes();
-    Assert.assertEquals(attrs.get("expected").replaceFirst("abc", junk), attrs.get("actual"));
+    assertEquals(attrs.get("expected").replaceFirst("abc", junk), attrs.get("actual"));
   }
 
 
+  @Test
   public void testMessageEndFlush() {
     final String text = "hello##";
     mySplitter.process(text, ProcessOutputTypes.STDOUT);
-    Assert.assertArrayEquals("Text prior to service message start prefix are flushed",
-                             new String[]{"hello"}, myOutput.get(ProcessOutputTypes.STDOUT).toArray());
+    assertArrayEquals(new String[]{"hello"}, myOutput.get(ProcessOutputTypes.STDOUT).toArray(),
+                      "Text prior to service message start prefix are flushed");
     mySplitter.flush();
-    Assert.assertArrayEquals("Rest of the string not flushed after explicit #flush call",
-                             new String[]{"hello", "##"}, myOutput.get(ProcessOutputTypes.STDOUT).toArray());
+    assertArrayEquals(new String[]{"hello", "##"}, myOutput.get(ProcessOutputTypes.STDOUT).toArray(),
+                      "Rest of the string not flushed after explicit #flush call");
   }
 
+  @Test
   public void testCharStream() {
     final String messages = "##teamcity[start bar='1']\nmessage\nanothermessage##teamcity[end]\nfuu\n";
     for (int step = 1; step < 20 + 1; step++) {
@@ -149,12 +160,13 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
       }
       mySplitter.flush();
       final List<String> actual = myOutput.get(ProcessOutputTypes.STDOUT).toList();
-      Assert.assertThat(actual, IsCollectionContaining.hasItem("##teamcity[end]\n"));
-      Assert.assertThat(actual, IsCollectionContaining.hasItem("##teamcity[start bar='1']\n"));
+      assertThat(actual, IsCollectionContaining.hasItem("##teamcity[end]\n"));
+      assertThat(actual, IsCollectionContaining.hasItem("##teamcity[start bar='1']\n"));
       myOutput.clear();
     }
   }
 
+  @Test
   public void testFlushOnNewLineOnlyModeTcMessage() {
     mySplitter = createEventSplitter(true, false);
     mySplitter.process("a", ProcessOutputTypes.STDOUT);
@@ -162,12 +174,11 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
     mySplitter.process("d##teamcity[start]\n", ProcessOutputTypes.STDOUT);
     mySplitter.process("bc", ProcessOutputTypes.STDOUT);
     mySplitter.flush();
-    Assert.assertEquals(
-      "Must be flushed on new line and TC message start",
-      Arrays.asList("abcd", "##teamcity[start]\n", "bc"),
-      myOutput.get(ProcessOutputTypes.STDOUT).toList());
+    assertEquals(Arrays.asList("abcd", "##teamcity[start]\n", "bc"),
+      myOutput.get(ProcessOutputTypes.STDOUT).toList(), "Must be flushed on new line and TC message start");
   }
 
+  @Test
   public void testFlushOnNewLineOnlyMode() {
     mySplitter = createEventSplitter(true, false);
     for (ProcessOutputType key : new ProcessOutputType[]{ProcessOutputType.STDOUT, ProcessOutputType.STDERR}) {
@@ -177,10 +188,8 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
       mySplitter.process("d\na", key);
       mySplitter.process("bc", key);
       mySplitter.flush();
-      Assert.assertEquals(
-        "Must be flushed on new line only in " + key,
-        Arrays.asList("a\n", "bc\n", "abcd\n", "abc"),
-        myOutput.get(key).toList());
+      assertEquals(Arrays.asList("a\n", "bc\n", "abcd\n", "abc"),
+        myOutput.get(key).toList(), "Must be flushed on new line only in " + key);
       myOutput.clear();
     }
 
@@ -190,27 +199,24 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
     mySplitter.process("\n", ProcessOutputTypes.STDOUT);
     mySplitter.process("line\n", ProcessOutputTypes.STDERR);
 
-    Assert.assertEquals(
-      "Stderr and stdout must be processed separately",
-      Collections.singletonList("very long line\n"),
-      myOutput.get(ProcessOutputTypes.STDERR).toList());
+    assertEquals(Collections.singletonList("very long line\n"),
+      myOutput.get(ProcessOutputTypes.STDERR).toList(), "Stderr and stdout must be processed separately");
 
-    Assert.assertEquals(
-      "Stderr and stdout must be processed separately",
-      Collections.singletonList("stdout_message\n"),
-      myOutput.get(ProcessOutputTypes.STDOUT).toList());
+    assertEquals(Collections.singletonList("stdout_message\n"),
+      myOutput.get(ProcessOutputTypes.STDOUT).toList(), "Stderr and stdout must be processed separately");
   }
 
   /**
    * When tc message is in the middle of line it should reported as separate line like if it has \n before it
    */
+  @Test
   public void testMessageInTheMiddleOfLine() {
     mySplitter.process("\nStarting...\n##teamcity[name1]\nDone 1\n\n##teamcity[name2]\nDone 2", ProcessOutputTypes.STDOUT);
     mySplitter.process("##teamcity[name3]\nTest print##teamcity[message key='spam']\n", ProcessOutputTypes.STDOUT);
     mySplitter.process("##teamcity[name5]\n", ProcessOutputTypes.STDOUT);
     mySplitter.process("##teamcity[name6]\nInfo##teamcity[name7]\n", ProcessOutputTypes.STDOUT);
     final String[] stdout = myOutput.get(ProcessOutputTypes.STDOUT).toArray();
-    Assert.assertArrayEquals(new String[]{
+    assertArrayEquals(new String[]{
       "\n", "Starting...\n", "##teamcity[name1]\n", "Done 1\n", "\n", "##teamcity[name2]\n", "Done 2",
       "##teamcity[name3]\n", "Test print", "##teamcity[message key='spam']\n",
       "##teamcity[name5]\n",
@@ -228,40 +234,44 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
 
       final List<String> output = myOutput.get(ProcessOutputTypes.STDOUT).toList();
       final String messagePrefix = ServiceMessage.SERVICE_MESSAGE_START;
-      Assert.assertThat(output, everyItem(either(startsWith(messagePrefix)).or(not(containsString(messagePrefix)))));
-      Assert.assertThat(output, hasItems(testStarted, testEnded));
+      assertThat(output, everyItem(either(startsWith(messagePrefix)).or(not(containsString(messagePrefix)))));
+      assertThat(output, hasItems(testStarted, testEnded));
       myOutput.clear();
     }
   }
 
+  @Test
   public void testSeveralServiceMessagesInOneLine() {
     mySplitter.process("##teamcity[name1]##teamcity[name2]##teamcity[name3]##teamcit", ProcessOutputTypes.STDOUT);
-    Assert.assertEquals(List.of("##teamcity[name1]", "##teamcity[name2]"),
+    assertEquals(List.of("##teamcity[name1]", "##teamcity[name2]"),
                         myOutput.get(ProcessOutputTypes.STDOUT).toList());
     mySplitter.process("y[name4]\n", ProcessOutputTypes.STDOUT);
-    Assert.assertEquals(List.of("##teamcity[name1]", "##teamcity[name2]", "##teamcity[name3]", "##teamcity[name4]\n"),
+    assertEquals(List.of("##teamcity[name1]", "##teamcity[name2]", "##teamcity[name3]", "##teamcity[name4]\n"),
                         myOutput.get(ProcessOutputTypes.STDOUT).toList());
   }
 
+  @Test
   public void testEmittingServiceMessagesPromptly() {
     mySplitter.process("Foo ##teamcity[name1]\n##team", ProcessOutputTypes.STDOUT);
-    Assert.assertEquals(List.of("Foo ", "##teamcity[name1]\n"),
+    assertEquals(List.of("Foo ", "##teamcity[name1]\n"),
                         myOutput.get(ProcessOutputTypes.STDOUT).toList());
     mySplitter.process("city[name2]\n", ProcessOutputTypes.STDOUT);
-    Assert.assertEquals(List.of("Foo ", "##teamcity[name1]\n", "##teamcity[name2]\n"),
+    assertEquals(List.of("Foo ", "##teamcity[name1]\n", "##teamcity[name2]\n"),
                         myOutput.get(ProcessOutputTypes.STDOUT).toList());
   }
 
+  @Test
   public void testStderrNotBufferingServiceMessage() {
     mySplitter = createEventSplitter(false, false);
     mySplitter.process("Some stderr", ProcessOutputTypes.STDERR);
-    Assert.assertEquals(List.of("Some stderr"),
+    assertEquals(List.of("Some stderr"),
                         myOutput.get(ProcessOutputTypes.STDERR).toList());
     mySplitter.process("output\nFoo ##team", ProcessOutputTypes.STDERR);
-    Assert.assertEquals(List.of("Some stderr", "output\n", "Foo ##team"),
+    assertEquals(List.of("Some stderr", "output\n", "Foo ##team"),
                         myOutput.get(ProcessOutputTypes.STDERR).toList());
   }
 
+  @Test
   public void testReadingSeveralStreams() {
     Map<ProcessOutputType, List<String>> written = new ConcurrentHashMap<>();
     for (ProcessOutputType each : ALL_TYPES) {
@@ -279,10 +289,11 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
     mySplitter.flush();
 
     for (ProcessOutputType eachType : ALL_TYPES) {
-      assertOrderedEquals(myOutput.get(eachType).toList(), written.get(eachType));
+      assertEquals(written.get(eachType), myOutput.get(eachType).toList());
     }
   }
 
+  @Test
   public void testReadingColoredStreams() throws Exception {
     final Map<Key, List<String>> written = new ConcurrentHashMap<>();
     for (final Key type : ALL_TYPES) {
@@ -314,10 +325,11 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
     mySplitter.flush();
 
     for (Key eachType : ALL_TYPES) {
-      assertOrderedEquals(myOutput.get(eachType).toList(), written.get(eachType));
+      assertEquals(written.get(eachType), myOutput.get(eachType).toList());
     }
   }
 
+  @Test
   public void testFlushing() throws Exception {
     final Semaphore written = new Semaphore(0);
     final Semaphore read = new Semaphore(0);
@@ -359,7 +371,7 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
             if (!out.isEmpty()) {
               Integer size = numOfProcessCalls.get(each);
               assert size != null : "No side for " + each;
-              assertSize(size, out);
+              assertEquals(size.intValue(), out.size());
               out.clear();
               hadOutput = true;
             }
@@ -385,6 +397,7 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
   }
 
   @PerformanceUnitTest
+  @Test
   public void testPerformanceWithLotsOfFragments() {
     Benchmark.newBenchmark("Flushing lot's of fragments", mySplitter::flush)
       .setup(() -> {
@@ -396,6 +409,7 @@ public class OutputEventSplitterTest extends LightPlatformTestCase {
   }
 
   @PerformanceUnitTest
+  @Test
   public void testPerformanceSimple() {
     String testStarted = ServiceMessageBuilder.testStarted("myTest").toString() + "\n";
     mySplitter = new OutputEventSplitter() {

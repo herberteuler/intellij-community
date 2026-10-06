@@ -288,6 +288,11 @@ com.intellij.openapi.wm.ToolWindowFactory
 - createQuickAccessComponent(com.intellij.openapi.Disposable):java.awt.Component
 com.intellij.platform.ide.productMode.IdeProductMode
 - *a:getCurrentMode():com.intellij.platform.productMode.ProductMode
+- *s:isLight():Z
+- *s:isMonolithLight():Z
+f:com.intellij.platform.ide.productMode.IdeProductMode$Companion
+- *f:isLight():Z
+- *f:isMonolithLight():Z
 *:com.intellij.ui.AutoScrollToSourceTaskManager
 - *sf:Companion:com.intellij.ui.AutoScrollToSourceTaskManager$Companion
 - *s:getInstance():com.intellij.ui.AutoScrollToSourceTaskManager

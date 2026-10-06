@@ -41,6 +41,7 @@ interface IdeProductMode {
      * It becomes `false` once the process fully advances to the smart mode.
      */
     @JvmStatic
+    @get:ApiStatus.Experimental
     val isLight: Boolean
       get() = getInstance().currentMode.isLight
 
@@ -49,7 +50,8 @@ interface IdeProductMode {
      * It becomes `false` once the process advances to [ProductMode.MONOLITH].
      */
     @JvmStatic
-    val isUnifiedIde: Boolean
+    @get:ApiStatus.Experimental
+    val isMonolithLight: Boolean
       get() = getInstance().currentMode == ProductMode.LIGHT_MONOLITH
   }
 

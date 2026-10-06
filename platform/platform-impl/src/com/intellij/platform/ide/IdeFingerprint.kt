@@ -90,7 +90,7 @@ private fun computeIdeFingerprint(debugHelperToken: Int): IdeFingerprint {
   //    could change without code change, by sys-properties or other env conditions change.
   //    E.g., sharding: # shards could be changed with system properties and could change automatically if #CPU changed.
   //MAYBE RC: use com.intellij.util.indexing.FbiSnapshot -- it is an 'index version hash' thing developed for other (but similar) purposes?
-  if (!IdeProductMode.isUnifiedIde) { // skip for light standalone as it should have no indexes on startup, see IJPL-256215
+  if (!IdeProductMode.isMonolithLight) { // skip for light standalone as it should have no indexes on startup, see IJPL-256215
     FileBasedIndexExtension.EXTENSION_POINT_NAME.extensionList.forEach {
       hasher.putInt(it.version)
     }

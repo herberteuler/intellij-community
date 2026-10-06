@@ -31,6 +31,8 @@ import java.util.Set;
 class GitBrancherImpl implements GitBrancher {
 
   private final @NotNull Project myProject;
+  // deletion requests can pile up (e.g. "Delete" pressed twice); serialize them so that each sees the result of the previous one
+  private final @NotNull Object myBranchDeletionLock = new Object();
 
   GitBrancherImpl(@NotNull Project project) {
     myProject = project;
@@ -164,8 +166,10 @@ class GitBrancherImpl implements GitBrancher {
       @Override
       public void execute(@NotNull ProgressIndicator indicator) {
         GitBranchWorker worker = newWorker(indicator);
-        for (String branchName : branchNames) {
-          worker.deleteBranch(branchName, branchesToContainingRepositories.getOrDefault(branchName, Collections.emptyList()));
+        synchronized (myBranchDeletionLock) {
+          for (String branchName : branchNames) {
+            worker.deleteBranch(branchName, branchesToContainingRepositories.getOrDefault(branchName, Collections.emptyList()));
+          }
         }
       }
     }.runInBackground();

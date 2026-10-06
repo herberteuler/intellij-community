@@ -17,6 +17,10 @@ import com.intellij.project.stateStore
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.util.LineSeparator
+import com.intellij.vcs.test.assertErrorNotification
+import com.intellij.vcs.test.assertNoNotification
+import com.intellij.vcs.test.assertSuccessfulNotification
+import com.intellij.vcs.test.updateChangeListManager
 import git4idea.GitCommit
 import git4idea.GitLocalBranch
 import git4idea.GitNotificationIdsHolder
@@ -43,25 +47,21 @@ import git4idea.test.GitScenarios.localChangesOverwrittenByWithoutConflict
 import git4idea.test.GitScenarios.unmergedFiles
 import git4idea.test.GitScenarios.untrackedFileOverwrittenBy
 import git4idea.test.UNKNOWN_ERROR_TEXT
-import git4idea.test.createRepository
-import git4idea.test.createBroRepo
-import git4idea.test.gitPlatformContextFixture
-import git4idea.test.prepareRemoteRepo
 import git4idea.test.add
 import git4idea.test.assertCurrentBranch
 import git4idea.test.assertCurrentRevision
 import git4idea.test.branch
 import git4idea.test.cd
 import git4idea.test.commit
+import git4idea.test.createBroRepo
+import git4idea.test.createRepository
 import git4idea.test.file
 import git4idea.test.git
+import git4idea.test.gitPlatformContextFixture
+import git4idea.test.prepareRemoteRepo
 import git4idea.test.tac
 import git4idea.ui.branch.updateBranches
 import git4idea.workingTrees.ensureWorkingTreesUpToDateForTests
-import com.intellij.vcs.test.assertErrorNotification
-import com.intellij.vcs.test.assertNoNotification
-import com.intellij.vcs.test.assertSuccessfulNotification
-import com.intellij.vcs.test.updateChangeListManager
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -905,6 +905,18 @@ class GitBranchWorkerTest {
 
     first.deleteBranch(todelete)
 
+    `assert successful deleted branch notification`(todelete, false, RESTORE)
+  }
+
+  @Test
+  fun `test repeated delete of the same branch is ignored`(): Unit = with(context) {
+    val todelete = "todelete"
+    first.git("branch $todelete")
+
+    first.deleteBranch(todelete)
+    first.deleteBranch(todelete)
+
+    assertThat(vcsNotifier.notifications).hasSize(1)
     `assert successful deleted branch notification`(todelete, false, RESTORE)
   }
 

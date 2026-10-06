@@ -104,8 +104,14 @@ public final class GitBranchWorker {
   }
 
 
-  public void deleteBranch(final @NotNull String branchName, final @NotNull List<? extends GitRepository> repositories) {
+  public void deleteBranch(final @NotNull String branchName, @NotNull List<? extends GitRepository> repositories) {
     updateInfo(repositories);
+    // the request may be stale, e.g. "Delete" pressed again before the UI caught up with the previous deletion
+    repositories = ContainerUtil.filter(repositories, repository -> repository.getBranches().findLocalBranch(branchName) != null);
+    if (repositories.isEmpty()) {
+      LOG.info("Branch " + branchName + " is already deleted");
+      return;
+    }
     new GitDeleteBranchOperation(myProject, myGit, myUiHandler, repositories, branchName).execute();
   }
 

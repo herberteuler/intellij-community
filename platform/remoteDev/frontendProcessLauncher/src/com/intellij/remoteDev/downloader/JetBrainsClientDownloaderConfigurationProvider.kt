@@ -94,9 +94,9 @@ class RealJetBrainsClientDownloaderConfigurationProvider : JetBrainsClientDownlo
         return Path(envVar)
       }
       else {
-        val downloadDestination = IntellijClientDownloaderSystemSettings.getDownloadDestination()
-        if (downloadDestination.value != null) {
-          return Path(downloadDestination.value)
+        val downloadDestination = IntellijClientDownloaderSystemSettings.getDownloadDestination().value
+        if (downloadDestination != null) {
+          return Path(downloadDestination)
         }
 
         return Path.of(PathManager.getDefaultSystemPathFor("JetBrainsClientDist"))

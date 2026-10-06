@@ -1,0 +1,98 @@
+load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
+
+### auto-generated section `dev intellij.remoteDev.frontendProcessLauncher` start
+content_module_jar(module = ":frontendProcessLauncher")
+### auto-generated section `dev intellij.remoteDev.frontendProcessLauncher` end
+
+### auto-generated section `build intellij.remoteDev.frontendProcessLauncher` start
+jvm_library(
+    name = "frontendProcessLauncher",
+    srcs = glob(
+        [
+            "src/**/*.kt",
+            "src/**/*.java",
+            "src/**/*.form",
+        ],
+        allow_empty = True,
+    ),
+    module_name = "intellij.remoteDev.frontendProcessLauncher",
+    resource_strip_prefix = "resources",
+    resources = glob(
+        ["resources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        # do not sort,
+        "//platform/core-api:core",
+        "//platform/execution",
+        "//platform/remoteDev-util",
+        "//platform/runtime/repository",
+        "//platform/core-impl",
+        "//platform/progress/shared:ide-progress",
+        "//platform/ide-core",
+        "//platform/platform-util-io:ide-util-io",
+        "//libraries/download-pgp-verifier",
+        "//libraries/jackson3/jackson:libraries-jackson3",
+        "//libraries/jackson3/databind",
+        "//platform/projectModel-api:projectModel",
+        "//platform/rd-platform-community:rd-community",
+        "//libraries/rd/core",
+        "//platform/statistics",
+        "//platform/util/progress",
+        "//platform/editor-ui-api:editor-ui",
+        "//platform/bootstrap",
+        "//platform/platform-impl:ide-impl",
+        "//platform/util/concurrency",
+        "//platform/productMode",
+        "//platform/analysis-api:analysis",
+    ],
+)
+
+jvm_library(
+    name = "frontendProcessLauncher_test_lib",
+    testonly = True,
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.remoteDev.frontendProcessLauncher",
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        # do not sort,
+        ":frontendProcessLauncher",
+        "//platform/core-api:core_test_lib",
+        "//platform/execution:execution_test_lib",
+        "//platform/remoteDev-util:remoteDev-util_test_lib",
+        "//platform/runtime/repository:repository_test_lib",
+        "//platform/core-impl:core-impl_test_lib",
+        "//platform/progress/shared:ide-progress_test_lib",
+        "//platform/ide-core:ide-core_test_lib",
+        "//platform/platform-util-io:ide-util-io_test_lib",
+        "//libraries/download-pgp-verifier:download-pgp-verifier_test_lib",
+        "//libraries/jackson3/jackson:libraries-jackson3_test_lib",
+        "//libraries/jackson3/databind:databind_test_lib",
+        "//platform/projectModel-api:projectModel_test_lib",
+        "//platform/rd-platform-community:rd-community_test_lib",
+        "//libraries/rd/core:core_test_lib",
+        "//platform/statistics:statistics_test_lib",
+        "//platform/util/progress:progress_test_lib",
+        "//platform/editor-ui-api:editor-ui_test_lib",
+        "//platform/bootstrap:bootstrap_test_lib",
+        "//platform/platform-impl:ide-impl_test_lib",
+        "//platform/util/concurrency:concurrency_test_lib",
+        "//platform/productMode:productMode_test_lib",
+        "//platform/analysis-api:analysis_test_lib",
+    ],
+)
+### auto-generated section `build intellij.remoteDev.frontendProcessLauncher` end
+
+### auto-generated section `iml intellij.remoteDev.frontendProcessLauncher` start
+exports_files(
+    [
+        "intellij.remoteDev.frontendProcessLauncher.iml",
+        "resources/intellij.remoteDev.frontendProcessLauncher.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.remoteDev.frontendProcessLauncher` end

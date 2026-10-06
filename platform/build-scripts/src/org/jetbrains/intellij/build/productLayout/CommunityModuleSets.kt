@@ -69,6 +69,7 @@ object CommunityModuleSets {
     module("intellij.libraries.download.pgp.verifier")
     module("intellij.remoteDev.util")
     embeddedModule("intellij.platform.markdown.utils")
+    module("intellij.remoteDev.frontendProcessLauncher")
 
     module("intellij.platform.buildScripts.downloader")
     module("intellij.platform.indexing.impl.backend")

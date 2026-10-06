@@ -417,6 +417,7 @@
     <module name="intellij.libraries.download.pgp.verifier"/>
     <module name="intellij.remoteDev.util"/>
     <module name="intellij.platform.markdown.utils" loading="embedded"/>
+    <module name="intellij.remoteDev.frontendProcessLauncher"/>
     <module name="intellij.platform.buildScripts.downloader"/>
     <module name="intellij.platform.indexing.impl.backend"/>
     <module name="intellij.platform.inline.completion"/>

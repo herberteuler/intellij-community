@@ -623,6 +623,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.libraries.download.pgp.verifier",
             "intellij.remoteDev.util",
             "intellij.platform.markdown.utils",
+            "intellij.remoteDev.frontendProcessLauncher",
             "intellij.platform.buildScripts.downloader",
             "intellij.platform.indexing.impl.backend",
             "intellij.platform.inline.completion",
@@ -682,6 +683,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.pluginManager.frontend": "//platform/pluginManager/frontend:frontend_content_module_jar",
             "intellij.platform.pluginManager.shared": "//platform/pluginManager/shared:shared_content_module_jar",
             "intellij.platform.pluginManager.shared.base": "//platform/pluginManager/shared.base:shared.base_content_module_jar",
+            "intellij.remoteDev.frontendProcessLauncher": "//platform/remoteDev/frontendProcessLauncher:frontendProcessLauncher_content_module_jar",
             "intellij.remoteDev.util": "//platform/remoteDev-util:remoteDev-util_content_module_jar",
         },
         module_system_loaded = [
@@ -706,6 +708,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.pluginManager.frontend",
             "intellij.platform.pluginManager.shared",
             "intellij.platform.pluginManager.shared.base",
+            "intellij.remoteDev.frontendProcessLauncher",
             "intellij.remoteDev.util",
         ],
         mode_refused = {

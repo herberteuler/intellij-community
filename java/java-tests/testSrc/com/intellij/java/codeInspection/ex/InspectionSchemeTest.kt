@@ -1,11 +1,14 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.codeInspection.ex
+package com.intellij.java.codeInspection.ex
 
 import com.intellij.codeHighlighting.HighlightDisplayLevel
 import com.intellij.codeInsight.daemon.HighlightDisplayKey
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType
 import com.intellij.codeInsight.daemon.impl.SeveritiesProvider
 import com.intellij.codeInsight.daemon.impl.SeverityRegistrar
+import com.intellij.codeInspection.ex.ApplicationInspectionProfileManager
+import com.intellij.codeInspection.ex.ApplicationInspectionProfileManagerBase
+import com.intellij.codeInspection.ex.InspectionProfileImpl
 import com.intellij.configurationStore.schemeManager.SchemeManagerFactoryBase
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.Disposable

@@ -5,6 +5,7 @@ import com.intellij.codeInsight.intention.impl.CachedIntentions;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,6 +36,7 @@ public abstract class IntentionsUI {
     hide();
   }
 
+  @ApiStatus.Internal
   public void invalidateForEditor(@NotNull Editor editor) {
     myCachedIntentions.updateAndGet(cachedIntentions -> {
       return cachedIntentions != null && editor == cachedIntentions.getEditor() ? null : cachedIntentions;

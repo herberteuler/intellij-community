@@ -22,7 +22,7 @@ final class ConfigurableEditorBanner extends SimpleBanner {
   ConfigurableEditorBanner(Action action, JComponent jLabel) {
     myHeaderText = jLabel;
     myProjectIcon.setMinimumSize(new Dimension(0, 0));
-    myProjectIcon.setBorder(JBUI.Borders.empty(8, 4, 8, 8));
+    myProjectIcon.setBorder(JBUI.Borders.empty(0, 4, 0, 8));
     myProjectIcon.setIcon(AllIcons.General.ProjectConfigurable);
     myProjectIcon.setForeground(UIUtil.getContextHelpForeground());
     showProject(false);

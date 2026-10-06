@@ -22,11 +22,11 @@ import com.intellij.platform.testFramework.plugins.installAt
 import com.intellij.platform.testFramework.plugins.module
 import com.intellij.platform.testFramework.plugins.plugin
 import com.intellij.testFramework.TestLoggerFactory
-import com.intellij.testFramework.rules.InMemoryFsRule
+import com.intellij.testFramework.rules.InMemoryFsExtension
 import javax.swing.tree.DefaultMutableTreeNode
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Rule
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 internal class PluginLoadingStateModelTest {
   init {
@@ -35,9 +35,9 @@ internal class PluginLoadingStateModelTest {
     PluginManagerCore.isUnitTestMode = true
   }
 
-  @Rule
+  @RegisterExtension
   @JvmField
-  val inMemoryFs = InMemoryFsRule()
+  val inMemoryFs = InMemoryFsExtension()
 
   private val pluginsDirPath get() = inMemoryFs.fs.getPath("/").resolve("wd/plugins")
 

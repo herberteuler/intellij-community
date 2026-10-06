@@ -2,7 +2,9 @@
 package com.intellij.platform.ijent.spi
 
 /**
- * A soft limit for a single gRPC message payload size, applied to file reads, writes, tunnels, and process stdin.
+ * A soft limit for a single gRPC message payload size.
+ *
+ * It applies to file reads, writes, tunnels, process stdin, and the directory listing batches of the IJent agent.
  *
  * ## What this controls
  *
@@ -10,6 +12,10 @@ package com.intellij.platform.ijent.spi
  *   This bounds the response size because the Rust side allocates `Vec::resize(max_size, 0u8)` for each read.
  * - **Write data**: `ByteString.copyFrom(buf, min(remaining, coercionLimit))` limits data per gRPC write message.
  * - **Tunnel and stdin packets**: regrouped into chunks of at most this size (see `regroupIntoByteString`).
+ * - **Directory listing batches**: the IJent agent fills a batch up to this value, then sends the batch.
+ *   This covers `listDirectory`, `listDirectoryWithAttrs`, `walkDirectory`, and `prefetchDirectories`.
+ *   The Rust constant `RECOMMENDED_MAX_PACKET_SIZE` in `fleet/native/ijent/src/grpc_stdio_server.rs` holds the same value.
+ *   Change both constants together.
  *
  * The API implementation applies this limit internally; API users need not fragment data themselves.
  *

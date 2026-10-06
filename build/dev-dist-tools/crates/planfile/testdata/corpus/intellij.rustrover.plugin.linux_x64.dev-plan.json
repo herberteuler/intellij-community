@@ -189,6 +189,14 @@
             ],
             "kind": "tree",
             "classPath": false
+        },
+        {
+            "destination": "caches",
+            "inputs": [
+                "layout-source:resource-generator:0:0"
+            ],
+            "kind": "tree",
+            "classPath": false
         }
     ],
     "operations": [

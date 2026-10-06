@@ -9,6 +9,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.diagnostic.trace
 import com.intellij.openapi.extensions.ExtensionPointName
@@ -392,21 +393,27 @@ open class ProjectRootManagerComponent(
   }
 
   private fun collectCustomWorkspaceWatchRoots(recursivePaths: MutableSet<String>, flatPaths: MutableSet<String>) {
-    if (project.isInitialized) {
-      WorkspaceFileIndexEx.getInstance(project).visitFileSets { set, _ ->
-        set as WorkspaceFileSetWithCustomData<*>
+    val fileIndex = WorkspaceFileIndexEx.getInstance(project)
+    if (!fileIndex.isInitialized) {
+      WATCH_ROOTS_LOG.debug {
+        "Workspace File Index is not initialized, skip its roots for ${project.javaClass.name} " +
+        "(initialized=${project.isInitialized}, open=${project.isOpen})"
+      }
+      return
+    }
+    fileIndex.visitFileSets { set, _ ->
+      set as WorkspaceFileSetWithCustomData<*>
 
-        if (set.kind == WorkspaceFileKind.CUSTOM) return@visitFileSets
-        if (set.data is SkipAddingToWatchedRootsData) return@visitFileSets
+      if (set.kind == WorkspaceFileKind.CUSTOM) return@visitFileSets
+      if (set.data is SkipAddingToWatchedRootsData) return@visitFileSets
 
-        val paths = if (set.recursive) recursivePaths else flatPaths
-        val rootUrl = set.root.url
+      val paths = if (set.recursive) recursivePaths else flatPaths
+      val rootUrl = set.root.url
 
-        when (VirtualFileManager.extractProtocol(rootUrl)) {
-          null, StandardFileSystems.FILE_PROTOCOL, StandardFileSystems.JRT_PROTOCOL, StandardFileSystems.JAR_PROTOCOL -> {
-            WATCH_ROOTS_LOG.trace { "${set.root.path} from workspace file index (recursive=${set.recursive})" }
-            paths.add(extractLocalPath(rootUrl))
-          }
+      when (VirtualFileManager.extractProtocol(rootUrl)) {
+        null, StandardFileSystems.FILE_PROTOCOL, StandardFileSystems.JRT_PROTOCOL, StandardFileSystems.JAR_PROTOCOL -> {
+          WATCH_ROOTS_LOG.trace { "${set.root.path} from workspace file index (recursive=${set.recursive})" }
+          paths.add(extractLocalPath(rootUrl))
         }
       }
     }

@@ -141,6 +141,13 @@ interface WorkspaceFileIndexEx : WorkspaceFileIndex {
   fun initializeBlocking()
 
   /**
+   * Is `true` after [initialize] or [initializeBlocking] completes.
+   * Check it before a query that can run before the index is initialized, because [Project.isInitialized] does not track the index state.
+   */
+  @get:ApiStatus.Internal
+  val isInitialized: Boolean
+
+  /**
    * There may be thousands of file sets in index, so visiting them all is generally discouraged.
    */
   @ApiStatus.Internal

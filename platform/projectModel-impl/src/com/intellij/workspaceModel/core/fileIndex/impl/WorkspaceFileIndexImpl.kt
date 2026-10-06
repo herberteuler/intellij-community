@@ -417,6 +417,9 @@ class WorkspaceFileIndexImpl : WorkspaceFileIndexEx, Disposable.Default {
     }
   }
 
+  override val isInitialized: Boolean
+    get() = indexData !== EmptyWorkspaceFileIndexData.NOT_INITIALIZED
+
   private fun doInitializeBlocking(): WorkspaceFileIndexDataImpl =
     blockingInitWorkspaceFileIndexData(project, contributorList = EP_NAME.extensionList)
 
@@ -552,8 +555,9 @@ class WorkspaceFileIndexImpl : WorkspaceFileIndexEx, Disposable.Default {
         else {
           thisLogger().error(
             "WorkspaceFileIndex is not initialized yet, empty data is returned. " +
-            "Activities which use the project configuration must be postponed until the project is fully loaded." +
-            "It is possible to check Project.isInitialized to verify that the project is fully loaded."
+            "Activities which use the project configuration must be postponed until the project is fully loaded. " +
+            "It is possible to check Project.isInitialized to verify that the project is fully loaded. " +
+            "Project: ${project.javaClass.name}, initialized=${project.isInitialized}, open=${project.isOpen}, disposed=${project.isDisposed}"
           )
         }
       }

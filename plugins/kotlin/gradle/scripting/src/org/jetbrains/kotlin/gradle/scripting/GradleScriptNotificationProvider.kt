@@ -10,6 +10,7 @@ import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.wm.ex.WelcomeScreenProjectProvider
 import com.intellij.projectImport.ProjectImportProvider
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.EditorNotificationPanel.Status
@@ -34,6 +35,7 @@ internal class GradleScriptNotificationProvider : EditorNotificationProvider {
         if (!isGradleKotlinScript(file) || !file.isKotlinFileType()) {
             return null
         }
+        if (WelcomeScreenProjectProvider.isWelcomeScreenProject(project)) return null
 
         val scriptUnderRoot = GradleScriptRootResolver.findScriptBuildRoot(project, file) ?: return null
         if (KotlinScriptEntityProvider.findKotlinScriptEntity(project, file) != null) return null

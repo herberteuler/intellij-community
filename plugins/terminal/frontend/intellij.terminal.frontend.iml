@@ -78,5 +78,8 @@
     <orderEntry type="module" module-name="intellij.platform.consoleView" />
     <orderEntry type="module" module-name="intellij.platform.eel.impl" />
     <orderEntry type="module" module-name="intellij.platform.util.annotations" />
+    <orderEntry type="module" module-name="intellij.platform.diagnostic.telemetry" />
+    <orderEntry type="module" module-name="intellij.libraries.opentelemetry" />
+    <orderEntry type="module" module-name="intellij.libraries.fastutil" />
   </component>
 </module>

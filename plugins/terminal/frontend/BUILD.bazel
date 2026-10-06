@@ -71,6 +71,9 @@ jvm_library(
         "//platform/consoleView",
         "//platform/eel-impl",
         "//platform/util/annotations",
+        "//platform/diagnostic/telemetry",
+        "//libraries/opentelemetry",
+        "//libraries/fastutil",
     ],
 )
 
@@ -133,6 +136,9 @@ jvm_library(
         "//platform/consoleView:consoleView_test_lib",
         "//platform/eel-impl:eel-impl_test_lib",
         "//platform/util/annotations:annotations_test_lib",
+        "//platform/diagnostic/telemetry:telemetry_test_lib",
+        "//libraries/opentelemetry:opentelemetry_test_lib",
+        "//libraries/fastutil:fastutil_test_lib",
     ],
 )
 ### auto-generated section `build intellij.terminal.frontend` end

@@ -2,7 +2,6 @@
 package com.intellij.debugger.settings;
 
 import com.intellij.configurationStore.XmlSerializer;
-import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.SettingsCategory;
@@ -13,22 +12,16 @@ import com.intellij.openapi.util.DifferenceFilter;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.classFilter.ClassFilter;
-import com.intellij.util.EventDispatcher;
 import com.intellij.util.ReflectionUtil;
 import com.intellij.util.xmlb.annotations.OptionTag;
 import com.intellij.util.xmlb.annotations.Transient;
-import com.intellij.util.xmlb.annotations.XCollection;
 import org.jdom.Element;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.EventListener;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -116,9 +109,6 @@ public final class DebuggerSettings implements Cloneable, PersistentStateCompone
 
   public boolean INSTRUMENTING_AGENT = true;
   public boolean AGENT_THROTTLING = true;
-  private List<CapturePoint> myCapturePoints = new ArrayList<>();
-  public boolean CAPTURE_VARIABLES;
-  private final EventDispatcher<CapturePointsSettingsListener> myDispatcher = EventDispatcher.create(CapturePointsSettingsListener.class);
 
   private Map<String, ContentState> myContentStates = new LinkedHashMap<>();
 
@@ -229,8 +219,7 @@ public final class DebuggerSettings implements Cloneable, PersistentStateCompone
       HOTSWAP_HANG_WARNING_ENABLED == secondSettings.HOTSWAP_HANG_WARNING_ENABLED &&
       HOTSWAP_SHOW_FLOATING_BUTTON == secondSettings.HOTSWAP_SHOW_FLOATING_BUTTON &&
       Objects.equals(RUN_HOTSWAP_AFTER_COMPILE, secondSettings.RUN_HOTSWAP_AFTER_COMPILE) &&
-      DebuggerSettingsUtils.filterEquals(mySteppingFilters, secondSettings.mySteppingFilters) &&
-      myCapturePoints.equals(secondSettings.myCapturePoints);
+      DebuggerSettingsUtils.filterEquals(mySteppingFilters, secondSettings.mySteppingFilters);
   }
 
   @Override
@@ -242,44 +231,12 @@ public final class DebuggerSettings implements Cloneable, PersistentStateCompone
         cloned.myContentStates.put(entry.getKey(), entry.getValue().clone());
       }
       cloned.mySteppingFilters = ClassFilter.deepCopyOf(mySteppingFilters);
-      cloned.myCapturePoints = cloneCapturePoints();
       return cloned;
     }
     catch (CloneNotSupportedException e) {
       LOG.error(e);
     }
     return null;
-  }
-
-  @ApiStatus.Internal
-  public List<CapturePoint> cloneCapturePoints() {
-    try {
-      ArrayList<CapturePoint> res = new ArrayList<>(myCapturePoints.size());
-      for (CapturePoint point : myCapturePoints) {
-        res.add(point.clone());
-      }
-      return res;
-    }
-    catch (CloneNotSupportedException e) {
-      LOG.error(e);
-    }
-    return Collections.emptyList();
-  }
-
-  @XCollection(propertyElementName = "capture-points")
-  public List<CapturePoint> getCapturePoints() {
-    return myCapturePoints;
-  }
-
-  // for serialization, do not remove
-  @SuppressWarnings("unused")
-  public void setCapturePoints(List<CapturePoint> capturePoints) {
-    myCapturePoints = capturePoints;
-    myDispatcher.getMulticaster().capturePointsChanged();
-  }
-
-  public void addCapturePointsSettingsListener(CapturePointsSettingsListener listener, Disposable disposable) {
-    myDispatcher.addListener(listener, disposable);
   }
 
   public static class ContentState implements Cloneable {
@@ -377,10 +334,6 @@ public final class DebuggerSettings implements Cloneable, PersistentStateCompone
     public ContentState clone() throws CloneNotSupportedException {
       return (ContentState)super.clone();
     }
-  }
-
-  public interface CapturePointsSettingsListener extends EventListener {
-    void capturePointsChanged();
   }
 
   @Transient

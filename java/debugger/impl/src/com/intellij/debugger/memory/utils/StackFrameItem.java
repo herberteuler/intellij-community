@@ -21,7 +21,6 @@ import com.intellij.debugger.settings.CaptureConfigurable;
 import com.intellij.debugger.settings.DebuggerSettings;
 import com.intellij.debugger.settings.NodeRendererSettings;
 import com.intellij.debugger.settings.ThreadsViewSettings;
-import com.intellij.debugger.ui.breakpoints.StackCapturingLineBreakpoint;
 import com.intellij.debugger.ui.tree.render.ClassRenderer;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.DataManager;
@@ -34,7 +33,6 @@ import com.intellij.psi.CommonClassNames;
 import com.intellij.ui.ColoredTextContainer;
 import com.intellij.ui.IconManager;
 import com.intellij.ui.SimpleTextAttributes;
-import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.EmptyIcon;
 import com.intellij.xdebugger.XSourcePosition;
 import com.intellij.xdebugger.frame.XCompositeNode;
@@ -67,10 +65,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import static com.intellij.diagnostic.ControlFlowExceptionsKt.rethrowControlFlowException;
+
 public class StackFrameItem {
   private static final Logger LOG = Logger.getInstance(StackFrameItem.class);
-  private static final List<XNamedValue> VARS_CAPTURE_DISABLED = Collections.singletonList(
-    JavaStackFrame.createMessageNode(JavaDebuggerBundle.message("message.node.local.variables.capture.disabled"), null));
   private static final List<XNamedValue> VARS_NOT_CAPTURED = Collections.singletonList(
     JavaStackFrame.createMessageNode(JavaDebuggerBundle.message("message.node.local.variables.not.captured"),
                                      XDebuggerUIConstants.INFORMATION_MESSAGE_ICON));
@@ -120,56 +118,52 @@ public class StackFrameItem {
           final List<XNamedValue> vars;
           Location location = frame.location();
           if (withVars) {
-            if (!DebuggerSettings.getInstance().CAPTURE_VARIABLES) {
-              vars = VARS_CAPTURE_DISABLED;
+            Method method = location.method();
+            if (method.isNative() || method.isBridge() || DebuggerUtils.isSynthetic(method)) {
+              vars = VARS_NOT_CAPTURED;
             }
             else {
-              Method method = location.method();
-              if (method.isNative() || method.isBridge() || DebuggerUtils.isSynthetic(method)) {
-                vars = VARS_NOT_CAPTURED;
+              vars = new ArrayList<>();
+
+              try {
+                ObjectReference thisObject = frame.thisObject();
+                if (thisObject != null) {
+                  vars.add(createVariable(thisObject, "this", VariableItem.VarType.OBJECT));
+                }
               }
-              else {
-                vars = new ArrayList<>();
+              catch (EvaluateException e) {
+                LOG.debug(e);
+              }
 
-                try {
-                  ObjectReference thisObject = frame.thisObject();
-                  if (thisObject != null) {
-                    vars.add(createVariable(thisObject, "this", VariableItem.VarType.OBJECT));
+              try {
+                for (LocalVariableProxyImpl v : frame.visibleVariables()) {
+                  try {
+                    VariableItem.VarType varType =
+                      v.getVariable().isArgument() ? VariableItem.VarType.PARAM : VariableItem.VarType.OBJECT;
+                    vars.add(createVariable(frame.getValue(v), v.name(), varType));
                   }
-                }
-                catch (EvaluateException e) {
-                  LOG.debug(e);
-                }
-
-                try {
-                  for (LocalVariableProxyImpl v : frame.visibleVariables()) {
-                    try {
-                      VariableItem.VarType varType =
-                        v.getVariable().isArgument() ? VariableItem.VarType.PARAM : VariableItem.VarType.OBJECT;
-                      vars.add(createVariable(frame.getValue(v), v.name(), varType));
-                    }
-                    catch (EvaluateException e) {
-                      LOG.debug(e);
-                    }
-                  }
-                }
-                catch (EvaluateException e) {
-                  if (e.getCause() instanceof AbsentInformationException) {
-                    vars.add(JavaStackFrame.LOCAL_VARIABLES_INFO_UNAVAILABLE_MESSAGE_NODE);
-                    // only args for frames w/o debug info for now
-                    try {
-                      for (Map.Entry<DecompiledLocalVariable, Value> entry : LocalVariablesUtil
-                        .fetchValues(frame, suspendContext.getDebugProcess(), false).entrySet()) {
-                        vars.add(createVariable(entry.getValue(), entry.getKey().getDisplayName(), VariableItem.VarType.PARAM));
-                      }
-                    }
-                    catch (Exception ex) {
-                      LOG.info(ex);
-                    }
-                  }
-                  else {
+                  catch (EvaluateException e) {
                     LOG.debug(e);
                   }
+                }
+              }
+              catch (EvaluateException e) {
+                if (e.getCause() instanceof AbsentInformationException) {
+                  vars.add(JavaStackFrame.LOCAL_VARIABLES_INFO_UNAVAILABLE_MESSAGE_NODE);
+                  // only args for frames w/o debug info for now
+                  try {
+                    for (Map.Entry<DecompiledLocalVariable, Value> entry : LocalVariablesUtil
+                      .fetchValues(frame, suspendContext.getDebugProcess(), false).entrySet()) {
+                      vars.add(createVariable(entry.getValue(), entry.getKey().getDisplayName(), VariableItem.VarType.PARAM));
+                    }
+                  }
+                  catch (Exception ex) {
+                    rethrowControlFlowException(ex);
+                    LOG.info(ex);
+                  }
+                }
+                else {
+                  LOG.debug(e);
                 }
               }
             }
@@ -180,13 +174,6 @@ public class StackFrameItem {
 
           StackFrameItem frameItem = new StackFrameItem(location, vars);
           res.add(frameItem);
-
-          List<StackFrameItem> relatedStack = StackCapturingLineBreakpoint.getRelatedStack(frame, suspendContext);
-          if (!ContainerUtil.isEmpty(relatedStack)) {
-            res.add(null); // separator
-            res.addAll(relatedStack);
-            break;
-          }
         }
         catch (EvaluateException e) {
           LOG.debug(e);
@@ -366,11 +353,7 @@ public class StackFrameItem {
     @Override
     public void computeChildren(@NotNull XCompositeNode node) {
       XValueChildrenList children = XValueChildrenList.EMPTY;
-      if (myVariables == VARS_CAPTURE_DISABLED) {
-        node.setMessage(JavaDebuggerBundle.message("message.node.local.variables.capture.disabled"), null,
-                        SimpleTextAttributes.REGULAR_ATTRIBUTES, CAPTURE_SETTINGS_OPENER);
-      }
-      else if (myVariables != null) {
+      if (myVariables != null) {
         children = new XValueChildrenList(myVariables.size());
         myVariables.forEach(children::add);
       }

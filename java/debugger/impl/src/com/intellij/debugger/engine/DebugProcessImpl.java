@@ -45,7 +45,6 @@ import com.intellij.debugger.statistics.StatisticsStorage;
 import com.intellij.debugger.ui.breakpoints.BreakpointManager;
 import com.intellij.debugger.ui.breakpoints.FilteredRequestorImpl;
 import com.intellij.debugger.ui.breakpoints.RunToCursorBreakpoint;
-import com.intellij.debugger.ui.breakpoints.StackCapturingLineBreakpoint;
 import com.intellij.debugger.ui.breakpoints.StepIntoBreakpoint;
 import com.intellij.debugger.ui.breakpoints.SteppingBreakpoint;
 import com.intellij.debugger.ui.tree.render.ArrayRenderer;
@@ -2020,7 +2019,6 @@ public abstract class DebugProcessImpl extends UserDataHolderBase implements Deb
 
   public void onHotSwapFinished() {
     getPositionManager().clearCache();
-    StackCapturingLineBreakpoint.clearCaches(this);
   }
 
   public @NotNull SuspendManager getSuspendManager() {

@@ -30,7 +30,6 @@ import com.intellij.debugger.statistics.StatisticsStorage;
 import com.intellij.debugger.ui.breakpoints.Breakpoint;
 import com.intellij.debugger.ui.breakpoints.InstrumentationTracker;
 import com.intellij.debugger.ui.breakpoints.RunToCursorBreakpoint;
-import com.intellij.debugger.ui.breakpoints.StackCapturingLineBreakpoint;
 import com.intellij.debugger.ui.breakpoints.SyntheticBreakpoint;
 import com.intellij.debugger.ui.overhead.OverheadProducer;
 import com.intellij.debugger.ui.overhead.OverheadTimings;
@@ -119,7 +118,6 @@ public class DebugProcessEvents extends DebugProcessImpl {
 
   public DebugProcessEvents(Project project) {
     super(project);
-    DebuggerSettings.getInstance().addCapturePointsSettingsListener(this::createStackCapturingBreakpoints, disposable);
   }
 
   @Override
@@ -492,7 +490,6 @@ public class DebugProcessEvents extends DebugProcessImpl {
       forEachSafe(myDebugProcessListeners, it -> it.processAttached(this));
 
       if (canBeModified) {
-        createStackCapturingBreakpoints();
         AsyncStacksUtils.setupAgent(this);
         CollectionBreakpointUtils.setupCollectionBreakpointAgent(this);
       }
@@ -531,13 +528,6 @@ public class DebugProcessEvents extends DebugProcessImpl {
   private void trackClassRedefinitions() {
     DebuggerManagerThreadImpl.assertIsManagerThread();
     InstrumentationTracker.track(this);
-  }
-
-  private void createStackCapturingBreakpoints() {
-    getManagerThread().schedule(PrioritizedTask.Priority.HIGH, () -> {
-      StackCapturingLineBreakpoint.deleteAll(this);
-      StackCapturingLineBreakpoint.createAll(this);
-    });
   }
 
   private void processVMDeathEvent(@NotNull SuspendContextImpl suspendContext, @Nullable Event event) {
@@ -840,7 +830,7 @@ public class DebugProcessEvents extends DebugProcessImpl {
           }
           if (requestor instanceof OverheadProducer overheadProducer && overheadProducer.track()) {
             OverheadTimings.add(DebugProcessEvents.this, overheadProducer,
-                                requestHit || requestor instanceof StackCapturingLineBreakpoint ? 1 : 0,
+                                requestHit ? 1 : 0,
                                 timeMs);
           }
         }

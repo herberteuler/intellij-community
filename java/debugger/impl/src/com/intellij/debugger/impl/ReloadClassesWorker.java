@@ -11,7 +11,6 @@ import com.intellij.debugger.impl.hotswap.JvmHotSwapListener;
 import com.intellij.debugger.jdi.ThreadReferenceProxyImpl;
 import com.intellij.debugger.jdi.VirtualMachineProxyImpl;
 import com.intellij.debugger.ui.breakpoints.BreakpointManager;
-import com.intellij.debugger.ui.breakpoints.StackCapturingLineBreakpoint;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
@@ -135,7 +134,6 @@ class ReloadClassesWorker {
     final Project project = debugProcess.getProject();
     final BreakpointManager breakpointManager = (DebuggerManagerEx.getInstanceEx(project)).getBreakpointManager();
     breakpointManager.disableBreakpoints(debugProcess);
-    StackCapturingLineBreakpoint.deleteAll(debugProcess);
 
     //virtualMachineProxy.suspend();
     if (LOG.isDebugEnabled()) {
@@ -246,7 +244,6 @@ class ReloadClassesWorker {
     if (!project.isDisposed()) {
       try {
         breakpointManager.enableBreakpoints(debugProcess);
-        StackCapturingLineBreakpoint.createAll(debugProcess);
       }
       catch (Exception e) {
         processException(e);

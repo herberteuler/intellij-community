@@ -14,7 +14,6 @@ import com.intellij.debugger.memory.utils.StackFrameItem;
 import com.intellij.debugger.settings.CaptureSettingsProvider;
 import com.intellij.debugger.settings.DebuggerSettings;
 import com.intellij.debugger.ui.breakpoints.JavaCollectionBreakpointType;
-import com.intellij.debugger.ui.breakpoints.StackCapturingLineBreakpoint;
 import com.intellij.execution.configurations.JavaParameters;
 import com.intellij.execution.configurations.ParametersList;
 import com.intellij.icons.AllIcons;
@@ -243,15 +242,12 @@ public final class AsyncStacksUtils {
           public void paused(SuspendContextImpl suspendContext) {
             if (process.isEvaluationPossible()) { // evaluation is possible
               try {
-                StackCapturingLineBreakpoint.deleteAll(process);
-
                 try {
                   addAgentCapturePoints(new EvaluationContextImpl(suspendContext, suspendContext.getFrameProxy()), properties);
                   process.removeDebugProcessListener(this);
                 }
                 finally {
                   process.onHotSwapFinished();
-                  StackCapturingLineBreakpoint.createAll(process);
                 }
               }
               catch (Exception e) {
@@ -306,16 +302,6 @@ public final class AsyncStacksUtils {
     catch (EvaluateException e) {
       LOG.debug("Error loading debug agent", e);
     }
-  }
-
-  public static <T> void putProcessUserData(@NotNull Key<T> key, @Nullable T value, DebugProcessImpl debugProcess) {
-    debugProcess.putUserData(key, value);
-    debugProcess.addDebugProcessListener(new DebugProcessListener() {
-      @Override
-      public void processDetached(@NotNull DebugProcess process, boolean closedByUser) {
-        process.putUserData(key, null);
-      }
-    });
   }
 
   public static int getMaxStackLength() {

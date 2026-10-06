@@ -146,8 +146,6 @@
     <debugger.sourcePositionHighlighter implementation="com.intellij.debugger.engine.JavaSourcePositionHighlighter"/>
     <java.elementFinder implementation="com.intellij.debugger.impl.AlternativeJreClassFinder" order="last"/>
 
-    <debugger.asyncStackTraceProvider
-      implementation="com.intellij.debugger.ui.breakpoints.StackCapturingLineBreakpoint$CaptureAsyncStackTraceProvider"/>
     <debugger.dumpItemsProvider implementation="com.intellij.debugger.actions.JavaVirtualThreadsProvider"/>
     <xdebugger.controlExceptionBreakpointSupport implementation="com.intellij.debugger.codeinsight.ControlExceptionBreakpointJVMSupport"/>
     <iconProvider implementation="com.intellij.debugger.engine.evaluation.AdditionalContextIconProvider"/>
@@ -344,8 +342,6 @@
                  description="Enable reading capture points from annotations"/>
     <registryKey key="debugger.collection.watchpoints.enabled" defaultValue="false"
                  description="Enable collection watchpoints support"/>
-    <registryKey key="debugger.async.stacks.via.breakpoints" defaultValue="false"
-                 description="Enable async stack traces implementation via breakpoints"/>
     <registryKey key="debugger.breakpoint.instrumentation" defaultValue="true"
                  description="Use instrumentation conditional and logging breakpoints if possible"/>
     <registryKey key="debugger.breakpoint.instrumentation.hotswap.mode" defaultValue="[NONE|SUPPORT_ONLY_EXTERNAL_HOTSWAP|INSTALL_WHEN_TARGET_METHODS_NOT_ON_STACK|WITH_INSTRUMENTATION_PENDING*]"
@@ -428,9 +424,6 @@
       </action>
       <action id="Debugger.AdjustArrayRange" class="com.intellij.debugger.actions.ArrayAction$AdjustArrayRangeAction">
         <add-to-group group-id="XDebugger.ValueGroup" anchor="last"/>
-      </action>
-      <action id="Debugger.ShowRelatedStack" class="com.intellij.debugger.actions.ShowRelatedStackAction">
-        <add-to-group group-id="XDebugger.ValueGroup" anchor="first"/>
       </action>
       <action id="Debugger.ForceEarlyReturn" class="com.intellij.debugger.actions.ForceEarlyReturnAction">
         <add-to-group group-id="XDebugger.Frames.Tree.Popup" anchor="after" relative-to-action="Debugger.PopFrame"/>

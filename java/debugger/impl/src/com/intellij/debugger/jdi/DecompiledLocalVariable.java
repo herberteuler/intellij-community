@@ -63,11 +63,4 @@ public class DecompiledLocalVariable implements SlotLocalVariable {
   public String toString() {
     return getDisplayName() + " (slot " + mySlot + ", " + mySignature + ")";
   }
-
-  public static int getParamId(@Nullable String name) {
-    if (!StringUtil.isEmpty(name)) {
-      return StringUtil.parseInt(StringUtil.substringAfter(name, PARAM_PREFIX), -1);
-    }
-    return -1;
-  }
 }

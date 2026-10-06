@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * @deprecated To get an instance of PythonPackageManager consider using
- * {@link com.jetbrains.python.packaging.management.PythonPackageManager.Companion#forSdk(Project, Sdk)}
+ * {@code com.jetbrains.python.packaging.management.PythonPackageManager.forPythonInterpreter}
  */
 @Deprecated(forRemoval = true)
 public abstract class PyPackageManagers implements Disposable {

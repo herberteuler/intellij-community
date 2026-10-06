@@ -23,7 +23,6 @@ import com.intellij.python.junit5Tests.framework.LeakedProcessReporterExtension
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
 import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.python.junit5Tests.framework.pyProjectFixture
-import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.junit5Tests.framework.subdirectoryFixture
 import com.intellij.python.lsp.core.pyServedModules
 import com.intellij.python.pytools.backend.PyToolsState

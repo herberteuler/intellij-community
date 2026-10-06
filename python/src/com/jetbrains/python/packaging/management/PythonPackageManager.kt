@@ -23,7 +23,6 @@ import com.intellij.python.pyproject.PyDependencyGroup
 import com.intellij.python.pyproject.model.spi.ProjectName
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.getSdkAPI
-import com.intellij.python.sdk.backend.pythonInterpreter
 import com.intellij.serviceContainer.AlreadyDisposedException
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.concurrency.annotations.RequiresEdt
@@ -104,7 +103,7 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
   open val installedPackagesIncludeTransitive: Boolean = false
 
   /**
-   * Whether this manager is still the one for its [sdk]. [PythonPackageManager.forSdk] replaces a manager that says no.
+   * Whether this manager is still the one for its [sdk]. [PythonPackageManager.forPythonInterpreter] replaces a manager that says no.
    * The default is yes. A manager whose class the stored data of the SDK selects answers from that data.
    */
   @ApiStatus.Internal
@@ -640,16 +639,6 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
   }
 
   companion object {
-    /**
-     * [forPythonInterpreter] for a caller that holds only an [Sdk]. It detects the environment of [sdk] on the calling
-     * thread. It stays for the plugins outside this repository.
-     */
-    @Deprecated("Pass a PythonInterpreter to forPythonInterpreter. Get it from the project structure or with pythonInterpreterAsync.")
-    @RequiresBackgroundThread
-    @Throws(AlreadyDisposedException::class)
-    fun forSdk(project: Project, sdk: Sdk): PythonPackageManager =
-      forPythonInterpreter(project, sdk.pythonInterpreter())
-
     /** The manager of the environment [interpreter] runs in. */
     @ApiStatus.Internal
     @Throws(AlreadyDisposedException::class)

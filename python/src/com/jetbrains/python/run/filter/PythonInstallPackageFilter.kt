@@ -1,8 +1,6 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.run.filter
 
-import com.intellij.python.pyproject.model.evolution.findMainEvoPyProject
-import com.intellij.python.pyproject.model.evolution.findEvoPyProject
 import com.intellij.execution.filters.Filter
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.editor.Editor
@@ -58,10 +56,8 @@ class PythonInstallPackageFilter(val project: Project, var editor: EditorImpl? =
      * Installs [packageName] into the interpreter of the file in [editor], and shows the result in a balloon at [point].
      * Does nothing when there is no interpreter.
      */
-    suspend fun launchInstall(project: Project, editor: Editor?, packageName: String, point: RelativePoint) {
-      val file = editor?.virtualFile
-      val interpreter = (if (file != null) project.findEvoPyProject(file, mainForOrphans = false) else null)?.interpreter
-                        ?: project.findMainEvoPyProject()?.interpreter ?: return
+    fun launchInstall(project: Project, editor: Editor?, packageName: String, point: RelativePoint) {
+      val interpreter = getInterpreter(project, editor) ?: return
       PythonPackageManagerUI.forPythonInterpreter(project, interpreter).launchInstallPackageWithBalloonBackground(packageName, point)
     }
 

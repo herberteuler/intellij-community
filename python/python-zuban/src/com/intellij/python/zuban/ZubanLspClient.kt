@@ -10,7 +10,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ModuleRootEvent
 import com.intellij.openapi.roots.ModuleRootListener
 import com.intellij.openapi.util.SystemInfo
@@ -27,6 +26,8 @@ import com.intellij.python.lsp.core.pyLspAttachedDescriptor
 import com.intellij.python.lsp.core.pyLspModulesToServeWith
 import com.intellij.python.lsp.core.pyServedModules
 import com.intellij.python.lsp.core.typeEngine.PyTypeEngineUtils
+import com.intellij.python.sdk.backend.PythonInterpreter
+import com.intellij.python.sdk.backend.isFor
 import com.intellij.python.zuban.common.ZubanTypeCheckingMode
 import com.intellij.util.EnvironmentUtil
 import com.jetbrains.python.packaging.common.PythonPackageManagementListener
@@ -108,12 +109,12 @@ private class ZubanSourceRootListener(private val project: Project) : ModuleRoot
  * changes, so without this the old errors stay on screen.
  */
 private class ZubanPackageListener(private val project: Project) : PythonPackageManagementListener {
-  override fun packagesChanged(sdk: Sdk) {
+  override fun packagesChanged(interpreter: PythonInterpreter) {
     val clients = LspClientManager.getInstance(project).getClients(ZubanLspIntegrationProvider::class.java)
     if (clients.isEmpty()) return
     project.service<PyLspService>().cs.launch {
       for (client in clients) {
-        if (client.isUsable && client.pyServedModules.any { !it.isDisposed && it.findPythonSdk() == sdk }) {
+        if (client.isUsable && client.pyServedModules.any { !it.isDisposed && it.findPythonSdk()?.let(interpreter::isFor) == true }) {
           client.invalidateServerResults()
         }
       }

@@ -110,7 +110,7 @@ fun pyLspModulesToServeWith(module: Module, pyTool: PyTool): List<Module> {
  * The answer never blocks and never reads an interpreter, because the type evaluation path asks for
  * it under a read lock. `TypeEvalContextImpl` builds a type engine in its constructor, and the
  * factory builds a context before it looks in its cache, so this runs for every `TypeEvalContext`.
- * Reading the installed packages here would call [PythonPackageManager.forSdk], which creates a
+ * Reading the installed packages here would call [PythonPackageManager.forPythonInterpreter], which creates a
  * manager and does first-touch I/O while the caller holds the read lock.
  *
  * A module the snapshot does not name yet states no version, see [pyLspServeKeyWithoutVersion], so
@@ -270,10 +270,10 @@ private class PyLspServeKeyCache(private val project: Project, private val cs: C
 
   /**
    * The project model comes from a read action, and the installed version of each interpreter from
-   * outside it. [PythonPackageManager.forSdk] creates a manager on the first call for an
+   * outside it. [PythonPackageManager.forPythonInterpreter] creates a manager on the first call for an
    * interpreter, so it must not run under the read lock.
    *
-   * `forSdk` throws `AlreadyDisposedException` for an interpreter or a project that went away while
+   * `forPythonInterpreter` throws `AlreadyDisposedException` for an interpreter or a project that went away while
    * this ran. That exception is a cancellation, so it ends this refresh and the snapshot keeps its
    * last answer. The stamp does not move, so the next read schedules another refresh.
    */

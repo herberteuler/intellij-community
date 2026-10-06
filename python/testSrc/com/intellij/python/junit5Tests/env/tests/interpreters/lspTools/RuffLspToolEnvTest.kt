@@ -7,7 +7,6 @@ import com.intellij.platform.testFramework.junit5.codeInsight.fixture.codeInsigh
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
 import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.python.junit5Tests.framework.pyProjectFixture
-import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.ruff.RuffConfiguration
 import com.intellij.python.ruff.RuffPyTool
 import com.intellij.python.ruff.server.RuffLspIntegrationProvider

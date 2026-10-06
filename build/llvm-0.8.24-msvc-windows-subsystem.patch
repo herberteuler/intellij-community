@@ -1,0 +1,67 @@
+Add the `windows_subsystem_flag` feature, for a GUI executable on MSVC.
+
+The MSVC toolchain passes `/SUBSYSTEM:CONSOLE` to each executable link, and no feature turns it off. So a GUI
+executable with a `WinMain` entry point links for the console subsystem, and Windows opens a console window for it.
+
+The `windows_subsystem_flag` feature passes `/SUBSYSTEM:WINDOWS` instead. The console flag applies only when the
+feature is off, so a target needs only `features = ["windows_subsystem_flag"]`.
+diff --git a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msvc/BUILD.bazel
+--- a/toolchain/args/windows/msvc/BUILD.bazel
++++ b/toolchain/args/windows/msvc/BUILD.bazel
+@@ -95,6 +95,7 @@
+         "/clang:-Xlinker",
+         "/clang:/SUBSYSTEM:CONSOLE",
+     ],
++    requires_any_of = ["//toolchain/features/msvc:console_subsystem"],
+ )
+ 
+ cc_args(
+diff --git a/toolchain/features/msvc/BUILD.bazel b/toolchain/features/msvc/BUILD.bazel
+--- a/toolchain/features/msvc/BUILD.bazel
++++ b/toolchain/features/msvc/BUILD.bazel
+@@ -1,6 +1,7 @@
+ load("@bazel_lib//:bzl_library.bzl", "bzl_library")
+ load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+ load("@rules_cc//cc/toolchains:feature.bzl", "cc_feature")
++load("@rules_cc//cc/toolchains:feature_constraint.bzl", "cc_feature_constraint")
+ load("@rules_cc//cc/toolchains:feature_set.bzl", "cc_feature_set")
+ load("@rules_cc//cc/toolchains:mutually_exclusive_category.bzl", "cc_mutually_exclusive_category")
+ load("@rules_cc//cc/toolchains:nested_args.bzl", "cc_nested_args")
+@@ -250,6 +251,29 @@
+ )
+ 
+ cc_args(
++    name = "windows_subsystem_link_args",
++    actions = ["@rules_cc//cc/toolchains/actions:link_executable_actions"],
++    args = [
++        "/clang:-Xlinker",
++        "/clang:/SUBSYSTEM:WINDOWS",
++    ],
++)
++
++# An executable links for the console subsystem by default. This feature links it for the GUI subsystem instead, so
++# Windows opens no console window for it.
++cc_feature(
++    name = "windows_subsystem_flag",
++    args = [":windows_subsystem_link_args"],
++    feature_name = "windows_subsystem_flag",
++)
++
++# The console subsystem applies when no target asks for another one.
++cc_feature_constraint(
++    name = "console_subsystem",
++    none_of = [":windows_subsystem_flag"],
++)
++
++cc_args(
+     name = "pdb_args",
+     actions = _LINK_ACTIONS,
+     args = [
+@@ -267,6 +291,7 @@
+         ":static_link_msvcrt",
+         ":static_linking_mode",
+         ":supported_configuration",
++        ":windows_subsystem_flag",
+     ] + [
+         ":unsupported_" + feature
+         for feature in _UNSUPPORTED_FEATURES

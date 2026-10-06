@@ -37,15 +37,23 @@ object AllureHelper {
 
   private val LOG get() = logger<AllureHelper>()
 
+  @Deprecated("Use the step function of the Driver SDK. It also writes the step to the test output and to idea.log. " +
+              "In a test without the Driver SDK, call Allure.step directly.",
+              ReplaceWith("step(name, action)", "com.intellij.driver.sdk.step"))
   fun <T> step(name: String, action: () -> T): T {
     LOG.info("Step: $name")
     return Allure.step(name, Allure.ThrowableContextRunnable { action.invoke() })
   }
 
+  @Deprecated("Use the step function of the Driver SDK. It also writes the step to the test output and to idea.log. " +
+              "In a test without the Driver SDK, call Allure.step directly.",
+              ReplaceWith("step(name)", "com.intellij.driver.sdk.step"))
   fun step(name: String) {
     Allure.step(name)
   }
 
+  @Deprecated("The step function of the Driver SDK is the official step, and it has no skipped status. Call Allure directly.",
+              ReplaceWith("Allure.step(name, Status.SKIPPED)", "io.qameta.allure.Allure", "io.qameta.allure.model.Status"))
   fun skippedStep(name: String) {
     Allure.step(name, Status.SKIPPED)
   }

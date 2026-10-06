@@ -6,11 +6,11 @@ import com.intellij.driver.sdk.DriverTestLogger
 import com.intellij.driver.sdk.Project
 import com.intellij.driver.sdk.setupOrDetectSdk
 import com.intellij.driver.sdk.singleProject
+import com.intellij.driver.sdk.step
 import com.intellij.driver.sdk.waitForProjectOpen
 import com.intellij.ide.starter.driver.engine.LogColor
 import com.intellij.ide.starter.driver.engine.color
 import com.intellij.ide.starter.report.AllureHelper
-import com.intellij.ide.starter.report.AllureHelper.step
 import com.intellij.ide.starter.telemetry.computeWithSpan
 import com.intellij.tools.ide.performanceTesting.commands.CommandChain
 import com.intellij.tools.ide.performanceTesting.commands.SdkObject
@@ -49,6 +49,8 @@ fun Driver.setupOrDetectSdk(project: Project, sdk: SdkObject) {
   setupOrDetectSdk(project, sdk.sdkName, sdk.sdkType, sdk.sdkPath.absolutePathString())
 }
 
+@Deprecated("Use the step function of the Driver SDK. Only Driver.step and Finder.step write to idea.log.",
+            ReplaceWith("step(text, action)", "com.intellij.driver.sdk.step"))
 fun <T> DriverTestLogger.run(text: String, action: () -> T): T = try {
   val startedText = "$text started"
   logOutput(startedText.color(LogColor.GREEN))

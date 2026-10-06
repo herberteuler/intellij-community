@@ -35,6 +35,7 @@ intellij.gradle.java.maven.tests
 intellij.gradle.toolingExtension.tests
 intellij.groovy.structuralSearch.tests
 intellij.groovy.tests
+intellij.groovy.uast.tests
 intellij.html.tools.tests
 intellij.ide.startup.importSettings.tests
 intellij.idea.community.build.tasks.tests

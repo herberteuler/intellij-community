@@ -1,6 +1,14 @@
 load("@community//build:tests-options.bzl", "jps_test")
 load("@rules_jvm//:jvm.bzl", "jvm_library")
 
+jps_test(
+    name = "uast-tests_test",
+    timeout = "short",
+    tags = ["groovy-tests"],
+    runtime_deps = [":uast-tests_test_lib"],
+)
+### skip generation section `test intellij.groovy.uast.tests`
+
 ### auto-generated section `build intellij.groovy.uast.tests` start
 jvm_library(
     name = "uast-tests",
@@ -50,6 +58,18 @@ jvm_library(
         "//plugins/groovy:groovy_test_lib",
         "//libraries/junit4",
         "//libraries/junit4:junit4_test_lib",
+        "//xml/plugin",
+        "//xml/plugin:plugin_test_lib",
+        "//platform/structure-view-impl/plugin",
+        "//platform/structure-view-impl/plugin:plugin_test_lib",
+        "//aether-dependency-resolver/plugin",
+        "//aether-dependency-resolver/plugin:plugin_test_lib",
+        "//plugins/groovy-scripting",
+        "//plugins/groovy-scripting:groovy-scripting_test_lib",
+        "//platform/testRunner/plugin",
+        "//platform/testRunner/plugin:plugin_test_lib",
+        "//platform/vcs/plugin",
+        "//platform/vcs/plugin:plugin_test_lib",
     ],
 )
 ### auto-generated section `build intellij.groovy.uast.tests` end
@@ -62,10 +82,3 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 ### auto-generated section `iml intellij.groovy.uast.tests` end
-
-### auto-generated section `test intellij.groovy.uast.tests` start
-jps_test(
-    name = "uast-tests_test",
-    runtime_deps = [":uast-tests_test_lib"],
-)
-### auto-generated section `test intellij.groovy.uast.tests` end

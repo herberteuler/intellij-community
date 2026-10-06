@@ -137,5 +137,5 @@ data class InitializeError(
     val retry: Boolean,
 )
 
-val ExitNotificationType: NotificationType<Unit> =
-    NotificationType("exit", Unit.serializer())
+val ExitNotificationType: NotificationType<Nothing?> =
+    NotificationType("exit", NoValueSerializer)

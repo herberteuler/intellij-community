@@ -11,6 +11,7 @@ import com.jetbrains.lsp.implementation.NotificationDispatch
 import com.jetbrains.lsp.implementation.lspHandlers
 import com.jetbrains.lsp.implementation.withLsp
 import com.jetbrains.lsp.protocol.ErrorCodes
+import com.jetbrains.lsp.protocol.NoValueSerializer
 import com.jetbrains.lsp.protocol.NotificationType
 import com.jetbrains.lsp.protocol.RequestType
 import kotlinx.coroutines.CancellationException
@@ -207,7 +208,7 @@ class OffLoopDispatchTest {
     fun `Sequential - cancelRequest cancels at once while the notification worker is busy`() = runTest {
         val gate = CompletableDeferred<Unit>()
         val handlerCancelled = CompletableDeferred<Unit>()
-        val hang = RequestType("test/hang", Unit.serializer(), Unit.serializer(), Unit.serializer())
+        val hang = RequestType("test/hang", NoValueSerializer, Unit.serializer(), Unit.serializer())
         val handlers = lspHandlers {
             notification(note) { gate.await() }
             request(hang) {
@@ -220,8 +221,7 @@ class OffLoopDispatchTest {
             }
         }
         withPeer(handlers, NotificationDispatch.Sequential) { peer, _ ->
-            // `{}`, not `null`: on wasm a null params value fails the handler's cast to Unit
-            peer.send("""{"jsonrpc":"2.0","id":77,"method":"test/hang","params":{}}""")
+            peer.send("""{"jsonrpc":"2.0","id":77,"method":"test/hang","params":null}""")
             peer.notify(1)
             peer.send("""{"jsonrpc":"2.0","method":"${'$'}/cancelRequest","params":{"id":77}}""")
             val answer = peer.fromClient.receive().json().jsonObject

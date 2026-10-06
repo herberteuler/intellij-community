@@ -226,17 +226,9 @@ class WireCodecCompatTest {
     assertEquals(JsonNull, parse(body(result).decodeToString()).jsonObject["result"])
     val nullableHover = LspWireCodec.encodeResultFrame(id, HoverRequestType.resultSerializer, null)
     assertEquals(JsonNull, parse(body(nullableHover).decodeToString()).jsonObject["result"])
-    // exit: Unit params encode as `{}`
-    val exit = LspWireCodec.encodeNotificationFrame(ExitNotificationType.method, ExitNotificationType.paramsSerializer, Unit)
-    assertFrame(
-      referenceWriteFrame(
-        LSP.json.encodeToJsonElement(
-          NotificationMessage.serializer(),
-          NotificationMessage(jsonrpc = "2.0", method = ExitNotificationType.method, params = LSP.json.encodeToJsonElement(ExitNotificationType.paramsSerializer, Unit)),
-        )
-      ),
-      exit,
-    )
+    // exit: no-value params encode as `null`
+    val exit = LspWireCodec.encodeNotificationFrame(ExitNotificationType.method, ExitNotificationType.paramsSerializer, null)
+    assertEquals(JsonNull, parse(body(exit).decodeToString()).jsonObject["params"])
   }
 
   @Test

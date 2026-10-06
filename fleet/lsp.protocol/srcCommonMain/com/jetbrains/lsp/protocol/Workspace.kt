@@ -482,8 +482,8 @@ data class TextDocumentContentOptions(
 )
 
 object Workspace {
-    val WorkspaceFolders: RequestType<Unit, List<WorkspaceFolder>, Unit> =
-        RequestType("workspace/workspaceFolders", Unit.serializer(), ListSerializer(WorkspaceFolder.serializer()), Unit.serializer())
+    val WorkspaceFolders: RequestType<Nothing?, List<WorkspaceFolder>, Unit> =
+        RequestType("workspace/workspaceFolders", NoValueSerializer, ListSerializer(WorkspaceFolder.serializer()), Unit.serializer())
     val DidChangeWorkspaceFolders: NotificationType<DidChangeWorkspaceFoldersParams> =
         NotificationType("workspace/didChangeWorkspaceFolders", DidChangeWorkspaceFoldersParams.serializer())
     val DidChangeConfiguration: NotificationType<DidChangeConfigurationParams> =

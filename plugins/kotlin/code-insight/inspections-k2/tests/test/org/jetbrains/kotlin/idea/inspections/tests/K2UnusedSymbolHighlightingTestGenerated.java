@@ -581,6 +581,11 @@ public abstract class K2UnusedSymbolHighlightingTestGenerated extends AbstractK2
                 runTest("../../../idea/tests/testData/inspectionsLocal/unusedSymbol/privateFunction.kt");
             }
 
+            @TestMetadata("privateObjectWithInvokeOperator.kt")
+            public void testPrivateObjectWithInvokeOperator() throws Exception {
+                runTest("../../../idea/tests/testData/inspectionsLocal/unusedSymbol/privateObjectWithInvokeOperator.kt");
+            }
+
             @TestMetadata("privateOperator.kt")
             public void testPrivateOperator() throws Exception {
                 runTest("../../../idea/tests/testData/inspectionsLocal/unusedSymbol/privateOperator.kt");

@@ -34,6 +34,7 @@ import org.jetbrains.kotlin.analysis.api.resolution.resolveSuccessfulSymbol
 import org.jetbrains.kotlin.analysis.api.resolution.simple
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.session.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
@@ -139,9 +140,11 @@ internal class KotlinUnusedHighlightingProcessor(private val ktFile: KtFile) {
                 }
 
                 val symbol = singleCall?.symbol ?: expression.resolveSuccessfulSymbol()
-                if (symbol is KaLocalVariableSymbol || symbol is KaValueParameterSymbol || symbol is KaKotlinPropertySymbol || symbol is KaContextParameterSymbol) {
-                    refHolder.registerLocalRef(symbol.psi)
-                }
+//                if ((symbol as? KaClassSymbol)?.classKind?.isObject == true ||
+//                    symbol is KaLocalVariableSymbol || symbol is KaValueParameterSymbol || symbol is KaKotlinPropertySymbol || symbol is KaContextParameterSymbol) {
+//                    refHolder.registerLocalRef(symbol.psi)
+//                }
+                refHolder.registerLocalRef(symbol?.psi)
                 if (!expression.isCalleeExpression()) {
                     val parent = expression.parent
 

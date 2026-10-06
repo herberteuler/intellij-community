@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
 @ApiStatus.Internal
 class AnalysisIgnoreIndexableFileScanner : IndexableFileScanner {
   override fun startSession(project: Project): IndexableFileScanner.ScanSession {
-    if (!Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, false)) {
+    if (!Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, true)) {
       return IndexableFileScanner.ScanSession { null }
     }
 

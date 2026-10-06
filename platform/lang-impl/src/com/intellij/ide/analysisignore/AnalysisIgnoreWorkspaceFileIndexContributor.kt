@@ -15,7 +15,7 @@ internal class AnalysisIgnoreWorkspaceFileIndexContributor : WorkspaceFileIndexC
     get() = AnalysisIgnoreEntity::class.java
 
   override fun registerFileSets(entity: AnalysisIgnoreEntity, registrar: WorkspaceFileSetRegistrar, storage: EntityStorage) {
-    if (!Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, false)) return
+    if (!Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, true)) return
 
     val baseDir = entity.baseDir
     val baseDirFile = baseDir.virtualFile

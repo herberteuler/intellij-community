@@ -6,4 +6,7 @@
     <module name="intellij.platform.klogger"/>
   </dependencies>
   <!-- endregion -->
+  <extensions defaultExtensionNs="com.intellij">
+    <platform.rpc.lite.remoteApiProvider implementation="com.intellij.platform.rpc.impl.RemoteApiProviderServiceLiteProvider"/>
+  </extensions>
 </idea-plugin>

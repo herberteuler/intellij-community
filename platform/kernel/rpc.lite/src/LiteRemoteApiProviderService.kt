@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.platform.rpc.lite
 
+import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.components.serviceAsync
 import fleet.rpc.RemoteApi
@@ -17,6 +18,7 @@ import org.jetbrains.annotations.VisibleForTesting
  * the monolith mode and to the frontend mode. A process with no extension is not connected: [tryResolve] returns
  * `null` and [awaitConnectionAndResolve] waits for the extension. `awaitWithLocalFallback` is the way around that.
  */
+@Service
 @ApiStatus.Experimental
 class LiteRemoteApiProviderService @ApiStatus.Internal @VisibleForTesting constructor(coroutineScope: CoroutineScope) {
   private val holder = LiteRemoteApiProviderHolder()

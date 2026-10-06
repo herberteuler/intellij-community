@@ -11,7 +11,9 @@ import org.jetbrains.annotations.ApiStatus
 
 /**
  * The lite provider that delegates to [RemoteApiProviderService], contributed to [RemoteApiProvider.EP_NAME].
- * A module that registers [RemoteApiProviderService] also registers this provider.
+ * `intellij.platform.rpc` registers this provider. The module is not available in a light mode,
+ * so the provider appears together with a [RemoteApiProviderService] implementation.
+ * The DAP language server does not load `intellij.platform.rpc.xml`, so `dap.xml` registers the provider separately.
  * The service is constructed on the first call.
  */
 @ApiStatus.Internal

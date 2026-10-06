@@ -1,3 +1,3 @@
 class C {
-    context(A)<caret> private val x = 1
+    context(a: A)<caret> private val x = 1
 }

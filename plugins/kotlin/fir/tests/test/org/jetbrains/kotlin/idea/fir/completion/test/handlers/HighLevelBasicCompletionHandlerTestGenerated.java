@@ -229,26 +229,6 @@ public abstract class HighLevelBasicCompletionHandlerTestGenerated extends Abstr
             public void testIncompleteFunctionalType() throws Exception {
                 runTest("../../completion/testData/handlers/basic/contextReceivers/IncompleteFunctionalType.kt");
             }
-
-            @TestMetadata("WithoutDeclaration.kt")
-            public void testWithoutDeclaration() throws Exception {
-                runTest("../../completion/testData/handlers/basic/contextReceivers/WithoutDeclaration.kt");
-            }
-
-            @TestMetadata("WithoutDeclarationNestedClass.kt")
-            public void testWithoutDeclarationNestedClass() throws Exception {
-                runTest("../../completion/testData/handlers/basic/contextReceivers/WithoutDeclarationNestedClass.kt");
-            }
-
-            @TestMetadata("WithoutDeclarationNestedClass2.kt")
-            public void testWithoutDeclarationNestedClass2() throws Exception {
-                runTest("../../completion/testData/handlers/basic/contextReceivers/WithoutDeclarationNestedClass2.kt");
-            }
-
-            @TestMetadata("WithoutDeclarationTypeArgument.kt")
-            public void testWithoutDeclarationTypeArgument() throws Exception {
-                runTest("../../completion/testData/handlers/basic/contextReceivers/WithoutDeclarationTypeArgument.kt");
-            }
         }
 
         @RunWith(JUnit3RunnerWithInners.class)
@@ -841,11 +821,6 @@ public abstract class HighLevelBasicCompletionHandlerTestGenerated extends Abstr
             @TestMetadata("ContextParameters.kt")
             public void testContextParameters() throws Exception {
                 runTest("../../completion/testData/handlers/basic/override/ContextParameters.kt");
-            }
-
-            @TestMetadata("ContextReceiver.kt")
-            public void testContextReceiver() throws Exception {
-                runTest("../../completion/testData/handlers/basic/override/ContextReceiver.kt");
             }
 
             @TestMetadata("ExpectClassValOverride.kt")

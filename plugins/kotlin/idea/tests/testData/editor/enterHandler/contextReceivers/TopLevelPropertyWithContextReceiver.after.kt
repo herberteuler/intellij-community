@@ -1,2 +1,2 @@
-context(A)
+context(a: A)
 <caret>private val x = 1

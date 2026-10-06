@@ -1423,16 +1423,6 @@ public abstract class K2JvmBasicCompletionTestGenerated extends AbstractK2JvmBas
                 runTest("../../completion/testData/basic/common/extensions/ComplexCapture2.kt");
             }
 
-            @TestMetadata("ContextReceiverType.kt")
-            public void testContextReceiverType() throws Exception {
-                runTest("../../completion/testData/basic/common/extensions/ContextReceiverType.kt");
-            }
-
-            @TestMetadata("ContextReceiverType2.kt")
-            public void testContextReceiverType2() throws Exception {
-                runTest("../../completion/testData/basic/common/extensions/ContextReceiverType2.kt");
-            }
-
             @TestMetadata("ExtensionInExtendedClass.kt")
             public void testExtensionInExtendedClass() throws Exception {
                 runTest("../../completion/testData/basic/common/extensions/ExtensionInExtendedClass.kt");
@@ -4515,11 +4505,6 @@ public abstract class K2JvmBasicCompletionTestGenerated extends AbstractK2JvmBas
             @TestMetadata("ContextParameterOnProperty.kt")
             public void testContextParameterOnProperty() throws Exception {
                 runTest("../../completion/testData/basic/common/variableNameAndType/ContextParameterOnProperty.kt");
-            }
-
-            @TestMetadata("ContextReceiver.kt")
-            public void testContextReceiver() throws Exception {
-                runTest("../../completion/testData/basic/common/variableNameAndType/ContextReceiver.kt");
             }
 
             @TestMetadata("Lateinit.kt")

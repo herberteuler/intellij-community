@@ -2,7 +2,7 @@
 interface Foo
 
 interface Bar {
-    context(Foo, String)
+    context(f: Foo, s: String)
     fun bar()
 }
 

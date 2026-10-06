@@ -1,4 +1,4 @@
 class C {
-    context(A)
+    context(a: A)
     <caret>private fun x() = Unit
 }

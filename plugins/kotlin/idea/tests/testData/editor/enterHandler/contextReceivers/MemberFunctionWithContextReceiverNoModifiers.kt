@@ -1,3 +1,3 @@
 class C {
-    context(A)<caret>fun x() = Unit
+    context(a: A)<caret>fun x() = Unit
 }

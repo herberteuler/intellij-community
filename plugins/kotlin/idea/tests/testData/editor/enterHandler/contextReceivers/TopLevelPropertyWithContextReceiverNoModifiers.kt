@@ -1,1 +1,1 @@
-context(A) <caret>val x = 1
+context(a: A) <caret>val x = 1

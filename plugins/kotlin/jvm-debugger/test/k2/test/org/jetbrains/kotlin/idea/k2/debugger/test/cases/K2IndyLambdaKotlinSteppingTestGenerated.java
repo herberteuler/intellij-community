@@ -1708,11 +1708,6 @@ public abstract class K2IndyLambdaKotlinSteppingTestGenerated extends AbstractK2
             runTest("../testData/stepping/custom/smartStepIntoEnumEqualityFun.kt");
         }
 
-        @TestMetadata("smartStepIntoFunWithContext.kt")
-        public void testSmartStepIntoFunWithContext() throws Exception {
-            runTest("../testData/stepping/custom/smartStepIntoFunWithContext.kt");
-        }
-
         @TestMetadata("smartStepIntoFunWithContextParameters.kt")
         public void testSmartStepIntoFunWithContextParameters() throws Exception {
             runTest("../testData/stepping/custom/smartStepIntoFunWithContextParameters.kt");

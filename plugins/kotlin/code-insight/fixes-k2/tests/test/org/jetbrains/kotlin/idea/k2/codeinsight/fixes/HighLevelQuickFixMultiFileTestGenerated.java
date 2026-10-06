@@ -1717,6 +1717,11 @@ public abstract class HighLevelQuickFixMultiFileTestGenerated extends AbstractHi
             KotlinTestUtils.runTest(this::doTestWithExtraFile, this, testDataFilePath);
         }
 
+        @TestMetadata("addImportForChainedCall.before.Main.kt")
+        public void testAddImportForChainedCall() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/deprecatedSymbolUsage/imports/addImportForChainedCall.before.Main.kt");
+        }
+
         @TestMetadata("addImportForCompanionObject.before.Main.kt")
         public void testAddImportForCompanionObject() throws Exception {
             runTest("../../../idea/tests/testData/quickfix/deprecatedSymbolUsage/imports/addImportForCompanionObject.before.Main.kt");
@@ -1730,6 +1735,11 @@ public abstract class HighLevelQuickFixMultiFileTestGenerated extends AbstractHi
         @TestMetadata("addImportForOperator.before.Main.kt")
         public void testAddImportForOperator() throws Exception {
             runTest("../../../idea/tests/testData/quickfix/deprecatedSymbolUsage/imports/addImportForOperator.before.Main.kt");
+        }
+
+        @TestMetadata("addImportForSupertypeReplacement.before.Main.kt")
+        public void testAddImportForSupertypeReplacement() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/deprecatedSymbolUsage/imports/addImportForSupertypeReplacement.before.Main.kt");
         }
 
         @TestMetadata("addImportFromSamePackage.before.Main.kt")
@@ -2391,6 +2401,11 @@ public abstract class HighLevelQuickFixMultiFileTestGenerated extends AbstractHi
                 KotlinTestUtils.runTest(this::doTestWithExtraFile, this, testDataFilePath);
             }
 
+            @TestMetadata("addImportForChainedCall.before.Main.kt")
+            public void testAddImportForChainedCall() throws Exception {
+                runTest("../../../idea/tests/testData/quickfix/deprecatedSymbolUsage/imports/addImportForChainedCall.before.Main.kt");
+            }
+
             @TestMetadata("addImportForCompanionObject.before.Main.kt")
             public void testAddImportForCompanionObject() throws Exception {
                 runTest("../../../idea/tests/testData/quickfix/deprecatedSymbolUsage/imports/addImportForCompanionObject.before.Main.kt");
@@ -2404,6 +2419,11 @@ public abstract class HighLevelQuickFixMultiFileTestGenerated extends AbstractHi
             @TestMetadata("addImportForOperator.before.Main.kt")
             public void testAddImportForOperator() throws Exception {
                 runTest("../../../idea/tests/testData/quickfix/deprecatedSymbolUsage/imports/addImportForOperator.before.Main.kt");
+            }
+
+            @TestMetadata("addImportForSupertypeReplacement.before.Main.kt")
+            public void testAddImportForSupertypeReplacement() throws Exception {
+                runTest("../../../idea/tests/testData/quickfix/deprecatedSymbolUsage/imports/addImportForSupertypeReplacement.before.Main.kt");
             }
 
             @TestMetadata("addImportFromSamePackage.before.Main.kt")

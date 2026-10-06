@@ -305,12 +305,12 @@ private fun isSimilarTypes(
     .none { (lowerTypeArg, upperTypeArg) -> lowerTypeArg.type != upperTypeArg.type }
 
 private fun truncatedName(qualifiers: List<KaResolvedClassTypeQualifier>): String {
-    val size = qualifiers.size
+    val lastQualifier = qualifiers.lastOrNull()
     val names = qualifiers
-        .mapIndexedNotNull { index, qualifier ->
+        .mapNotNull { qualifier ->
             val symbol = qualifier.symbol.takeUnless { classifierSymbol ->
                 (classifierSymbol as? KaNamedClassSymbol)?.classKind == KaClassKind.COMPANION_OBJECT &&
-                        classifierSymbol.name == SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT && index < size - 1
+                        classifierSymbol.name == SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT && qualifier != lastQualifier
             }
             symbol?.name
         }

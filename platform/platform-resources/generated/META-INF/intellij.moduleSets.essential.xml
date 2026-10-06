@@ -351,6 +351,7 @@
     <!-- region nested: split.core -->
     <!-- region nested: split.core > rpc.backend.extended -->
     <module name="intellij.platform.rpc.backend"/>
+    <module name="intellij.platform.kernel.backend.baseline"/>
     <module name="intellij.platform.kernel.backend"/>
     <module name="intellij.platform.kernel.impl"/>
     <module name="intellij.platform.rpc.topics"/>
@@ -361,6 +362,7 @@
     <!-- region direct modules -->
     <module name="intellij.platform.settings.local"/>
     <module name="intellij.platform.backend"/>
+    <module name="intellij.platform.backend.baseline"/>
     <module name="intellij.platform.project.backend"/>
     <module name="intellij.platform.progress.backend"/>
     <module name="intellij.platform.lang.impl.backend"/>

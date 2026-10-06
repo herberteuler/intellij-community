@@ -2,10 +2,14 @@
   <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
   <dependencies>
     <module name="fleet.rhizomedb"/>
+    <module name="fleet.rhizomedb.transactor"/>
+    <module name="fleet.rhizomedb.transactor.rebase"/>
     <module name="intellij.libraries.kotlinx.serialization.core"/>
     <module name="intellij.libraries.kotlinx.serialization.json"/>
     <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.impl"/>
     <module name="intellij.platform.kernel"/>
+    <module name="intellij.platform.productMode"/>
     <module name="intellij.platform.projectModel"/>
     <module name="intellij.platform.rpc.lite"/>
     <module name="intellij.platform.util.coroutines"/>

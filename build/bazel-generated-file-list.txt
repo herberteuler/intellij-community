@@ -708,6 +708,7 @@ notebooks/visualization/testFramework
 platform/analysis-api
 platform/analysis-impl
 platform/backend
+platform/backend/baseline
 platform/backend/observation
 platform/backend/workspace
 platform/backend/workspace.impl
@@ -881,6 +882,7 @@ platform/jewel/samples/standalone
 platform/jewel/ui
 platform/jewel/ui-tests
 platform/kernel/backend
+platform/kernel/backend/baseline
 platform/kernel/intellij.platform.kernel.impl
 platform/kernel/klogger
 platform/kernel/pasta

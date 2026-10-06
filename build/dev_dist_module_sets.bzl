@@ -1615,6 +1615,7 @@ DEV_DIST_MODULE_SETS = {
     "intellij.moduleSets.rpc.backend.extended": struct(
         modules = [
             "intellij.platform.rpc.backend",
+            "intellij.platform.kernel.backend.baseline",
             "intellij.platform.kernel.backend",
             "intellij.platform.kernel.impl",
             "intellij.platform.rpc.topics",
@@ -1625,6 +1626,7 @@ DEV_DIST_MODULE_SETS = {
         ],
         packed = {
             "intellij.platform.kernel.backend": "//platform/kernel/backend:backend_content_module_jar",
+            "intellij.platform.kernel.backend.baseline": "//platform/kernel/backend/baseline:baseline_content_module_jar",
             "intellij.platform.kernel.impl": "//platform/kernel/intellij.platform.kernel.impl:impl_content_module_jar",
             "intellij.platform.rpc.backend": "//platform/kernel/rpc.backend:rpc.backend_content_module_jar",
             "intellij.platform.rpc.topics": "//platform/remote-topics/shared:rpc-topics_content_module_jar",
@@ -1633,6 +1635,7 @@ DEV_DIST_MODULE_SETS = {
         },
         module_system_loaded = [
             "intellij.platform.kernel.backend",
+            "intellij.platform.kernel.backend.baseline",
             "intellij.platform.kernel.impl",
             "intellij.platform.rpc.backend",
             "intellij.platform.rpc.topics",
@@ -1642,6 +1645,7 @@ DEV_DIST_MODULE_SETS = {
         mode_refused = {
             "frontend": [
                 "intellij.platform.kernel.backend",
+                "intellij.platform.kernel.backend.baseline",
                 "intellij.platform.rpc.backend",
                 "intellij.platform.rpc.topics.backend",
             ],
@@ -1763,6 +1767,7 @@ DEV_DIST_MODULE_SETS = {
         modules = [
             "intellij.platform.settings.local",
             "intellij.platform.backend",
+            "intellij.platform.backend.baseline",
             "intellij.platform.project.backend",
             "intellij.platform.progress.backend",
             "intellij.platform.lang.impl.backend",
@@ -1774,6 +1779,7 @@ DEV_DIST_MODULE_SETS = {
         ],
         packed = {
             "intellij.platform.backend": "//platform/backend:backend_content_module_jar",
+            "intellij.platform.backend.baseline": "//platform/backend/baseline:baseline_content_module_jar",
             "intellij.platform.frontend": "//platform/platform-frontend:frontend_content_module_jar",
             "intellij.platform.lang.impl.backend": "//platform/lang-impl/backend:backend_content_module_jar",
             "intellij.platform.monolith": "//platform/monolith:monolith_content_module_jar",
@@ -1783,6 +1789,7 @@ DEV_DIST_MODULE_SETS = {
         },
         module_system_loaded = [
             "intellij.platform.backend",
+            "intellij.platform.backend.baseline",
             "intellij.platform.frontend",
             "intellij.platform.lang.impl.backend",
             "intellij.platform.monolith",
@@ -1793,6 +1800,7 @@ DEV_DIST_MODULE_SETS = {
         mode_refused = {
             "frontend": [
                 "intellij.platform.backend",
+                "intellij.platform.backend.baseline",
                 "intellij.platform.lang.impl.backend",
                 "intellij.platform.monolith",
                 "intellij.platform.progress.backend",

@@ -4,6 +4,7 @@
     <module name="fleet.rpc"/>
     <module name="intellij.platform.core"/>
     <module name="intellij.platform.klogger"/>
+    <module name="intellij.platform.rpc.lite"/>
   </dependencies>
   <!-- endregion -->
   <extensions defaultExtensionNs="com.intellij">

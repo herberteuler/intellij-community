@@ -298,7 +298,7 @@
     <localInspection language="XML" applyToDialects="false"
                      projectType="INTELLIJ_PLUGIN"
                      groupPathKey="inspections.group.path" groupKey="inspections.group.descriptor"
-                     enabledByDefault="false" level="ERROR"
+                     enabledByDefault="true" level="ERROR"
                      implementationClass="org.jetbrains.idea.devkit.inspections.PluginXmlReferencesModuleReachabilityInspection"
                      key="inspection.plugin.xml.references.module.reachability.display.name"/>
     <localInspection language="XML" shortName="JetBrainsInternalExtensionsUsage" applyToDialects="false"

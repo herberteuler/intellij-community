@@ -23,11 +23,6 @@ jvm_provided_library(
 )
 
 jvm_provided_library(
-    name = "platform_execution-impl_provided",
-    lib = "//platform/execution-impl",
-)
-
-jvm_provided_library(
     name = "platform_core-ui_provided",
     lib = "//platform/core-ui",
 )
@@ -77,7 +72,6 @@ jvm_library(
         "//libraries/kotlinx/collections-immutable:libraries-kotlinx-collections-immutable",
         "//jps/model-api:model",
         ":platform_lang-impl_provided",
-        ":platform_execution-impl_provided",
         ":platform_core-ui_provided",
         ":spellchecker_provided",
     ],
@@ -101,8 +95,6 @@ jvm_library(
         "//platform/editor-ui-api:editor-ui_test_lib",
         "//platform/lang-impl",
         "//platform/lang-impl:lang-impl_test_lib",
-        "//platform/execution-impl",
-        "//platform/execution-impl:execution-impl_test_lib",
         "//libraries/guava:guava_test_lib",
         "//platform/projectModel-api:projectModel_test_lib",
         "//platform/structure-view-impl:structureView_test_lib",

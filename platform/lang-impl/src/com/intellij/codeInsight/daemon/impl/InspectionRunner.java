@@ -308,13 +308,15 @@ final class InspectionRunner {
    * @param elementDialectIds the language and dialect IDs in the inspected PSI
    * @return the local wrappers and potentially applicable global wrappers
    */
-  private static @NotNull @Unmodifiable List<InspectionToolWrapper<?, ?>> filterGlobalToolsPotentiallyApplicableByLanguage(
+  static @NotNull @Unmodifiable List<InspectionToolWrapper<?, ?>> filterGlobalToolsPotentiallyApplicableByLanguage(
     @NotNull Collection<? extends InspectionToolWrapper<?, ?>> tools,
-    @NotNull Set<String> elementDialectIds) {
+    @NotNull @Unmodifiable Set<String> elementDialectIds) {
     Map<String, Boolean> resultsWithDialects = new HashMap<>();
     Map<String, Boolean> resultsNoDialects = new HashMap<>();
     return ContainerUtil.filter(tools, tool -> {
-      if (tool instanceof LocalInspectionToolWrapper) return true;
+      if (tool instanceof LocalInspectionToolWrapper) {
+        return true;
+      }
 
       String toolLanguageId = tool.getLanguage();
       if (toolLanguageId == null || toolLanguageId.isBlank() || "any".equals(toolLanguageId)) {
@@ -357,7 +359,8 @@ final class InspectionRunner {
     InspectionUsageFUSStorage.getInstance(myPsiFile.getProject()).reportInspectionsWhichReportedProblems(inspectionIdsReportedProblems);
   }
 
-  private static @NotNull TextRange finalPriorityRange(@NotNull TextRange priorityRange, @NotNull List<? extends Divider.DividedElements> allDivided) {
+  private static @NotNull TextRange finalPriorityRange(@NotNull TextRange priorityRange,
+                                                       @NotNull List<? extends Divider.DividedElements> allDivided) {
     long finalPriorityRange = allDivided.isEmpty() ? TextRangeScalarUtil.toScalarRange(priorityRange) : allDivided.getFirst().priorityRange();
     for (int i = 1; i < allDivided.size(); i++) {
       Divider.DividedElements dividedElements = allDivided.get(i);
@@ -537,7 +540,9 @@ final class InspectionRunner {
     }
   }
 
-  private void injectedFound(@NotNull PsiFile injectedPsi, @NotNull PsiElement host, @NotNull LocalInspectionToolSession session,
+  private void injectedFound(@NotNull PsiFile injectedPsi,
+                             @NotNull PsiElement host,
+                             @NotNull LocalInspectionToolSession session,
                              @NotNull List<? extends InspectionToolWrapper<?, ?>> wrappers,
                              @NotNull List<? super InspectionContext> outInjectedContexts,
                              @NotNull ApplyIncrementallyCallback addDescriptorIncrementallyCallback,

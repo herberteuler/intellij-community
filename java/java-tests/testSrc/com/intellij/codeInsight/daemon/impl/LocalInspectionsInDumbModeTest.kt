@@ -1,7 +1,7 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInsight.daemon.impl
 
-import com.intellij.codeHighlighting.Pass
+import com.intellij.codeHighlighting.HighlightDisplayLevel
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase
 import com.intellij.codeInsight.daemon.DaemonAnalyzerTestCase.CanChangeDocumentDuringHighlighting
 import com.intellij.codeInspection.GlobalInspectionTool
@@ -27,7 +27,6 @@ import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.util.use
 import com.intellij.psi.JavaElementVisitor
 import com.intellij.psi.PsiComment
-import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiLiteralExpression
 import com.intellij.testFramework.DumbModeTestUtils
@@ -147,9 +146,42 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     """
       configureByText(JavaFileType.INSTANCE, text)
 
-      doHighlightingWithoutIntentions()
+      doHighlighting()
 
       assertFalse(unrelatedToolWrapper.isToolInstantiated())
+    }
+  }
+
+  fun testIntentionsDontInitializeUnrelatedDoNotShowGlobalTool() {
+    val unrelatedToolWrapper =
+      createGlobalToolWrapper("UnrelatedDoNotShowGlobal", "TEXT", HighlightDisplayLevel.DO_NOT_SHOW)
+    enableInspectionTool(project, unrelatedToolWrapper, testRootDisposable)
+    InspectionProfileWrapper.runWithNoDuplicateCheckInTests {
+      @Language("JAVA")
+      val text = """
+      // comment
+    """
+      configureByText(JavaFileType.INSTANCE, text)
+
+      doHighlighting()
+
+      assertFalse(unrelatedToolWrapper.isToolInstantiated())
+    }
+  }
+
+  fun testIntentionsInitializeApplicableDoNotShowGlobalTool() {
+    val globalToolWrapper = createGlobalToolWrapper("ApplicableDoNotShowGlobal", "JAVA", HighlightDisplayLevel.DO_NOT_SHOW)
+    enableInspectionTool(project, globalToolWrapper, testRootDisposable)
+    InspectionProfileWrapper.runWithNoDuplicateCheckInTests {
+      @Language("JAVA")
+      val text = """
+      // comment
+    """
+      configureByText(JavaFileType.INSTANCE, text)
+
+      doHighlighting()
+
+      assertTrue(globalToolWrapper.isToolInstantiated())
     }
   }
 
@@ -163,7 +195,7 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     """
       configureByText(JavaFileType.INSTANCE, text)
 
-      val infos = doHighlightingWithoutIntentions()
+      val infos = doHighlighting()
 
       assertTrue(globalToolWrapper.isToolInstantiated())
       assertExistsInfo(infos, "Global")
@@ -271,11 +303,6 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     return result!!
   }
 
-  private fun doHighlightingWithoutIntentions(): List<HighlightInfo> {
-    PsiDocumentManager.getInstance(project).commitAllDocuments()
-    return CodeInsightTestFixtureImpl.instantiateAndRun(file, editor, intArrayOf(Pass.POPUP_HINTS), true, true)
-  }
-
   private class DumbInspection : LocalInspectionTool(), DumbAware {
     val counter = AtomicInteger()
 
@@ -322,7 +349,11 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     return UnrelatedToolWrapper(ep)
   }
 
-  private fun createGlobalToolWrapper(shortName: String, language: String): TestGlobalToolWrapper {
+  private fun createGlobalToolWrapper(
+    shortName: String,
+    language: String,
+    level: HighlightDisplayLevel = HighlightDisplayLevel.WARNING,
+  ): TestGlobalToolWrapper {
     val pluginDescriptor = requireNotNull(PluginManagerCore.getPlugin(PluginManagerCore.CORE_ID))
     val ep = InspectionEP(MyGlobalInspection::class.java.name, pluginDescriptor)
     ep.shortName = shortName
@@ -330,6 +361,7 @@ class LocalInspectionsInDumbModeTest : DaemonAnalyzerTestCase() {
     ep.displayName = shortName
     ep.groupDisplayName = shortName
     ep.enabledByDefault = true
+    ep.level = level.name
     return TestGlobalToolWrapper(ep)
   }
 

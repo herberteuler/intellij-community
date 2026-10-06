@@ -102,24 +102,19 @@ final class DoNotShowInspectionIntentionMenuContributor implements IntentionMenu
     Set<String> projectTypes = ProjectTypeService.getProjectTypeIds(project);
     boolean isTests = ApplicationManager.getApplication().isUnitTestMode();
 
-    List<LocalInspectionToolWrapper> intentionTools = new ArrayList<>();
+    List<InspectionToolWrapper<?, ?>> intentionToolCandidates = new ArrayList<>();
     InspectionProfile profile = InspectionProjectProfileManager.getInstance(project).getInspectionProfile();
     for (InspectionToolWrapper<?, ?> toolWrapper : profile.getInspectionTools(hostFile)) {
       if (!isTests && !toolWrapper.isApplicable(projectTypes)) continue;
 
-      if (toolWrapper instanceof GlobalInspectionToolWrapper global) {
-        toolWrapper = global.getSharedLocalInspectionToolWrapper();
-      }
-      if (toolWrapper instanceof LocalInspectionToolWrapper local && !local.isUnfair()) {
-        HighlightDisplayKey key = HighlightDisplayKey.find(toolWrapper.getShortName());
-        if (profile.isToolEnabled(key, hostFile) &&
-            HighlightDisplayLevel.DO_NOT_SHOW.equals(profile.getErrorLevel(key, hostFile))) {
-          intentionTools.add(local);
-        }
+      HighlightDisplayKey key = HighlightDisplayKey.find(toolWrapper.getShortName());
+      if (profile.isToolEnabled(key, hostFile) &&
+          HighlightDisplayLevel.DO_NOT_SHOW.equals(profile.getErrorLevel(key, hostFile))) {
+        intentionToolCandidates.add(toolWrapper);
       }
     }
 
-    if (intentionTools.isEmpty()) {
+    if (intentionToolCandidates.isEmpty()) {
       return;
     }
 
@@ -133,6 +128,22 @@ final class DoNotShowInspectionIntentionMenuContributor implements IntentionMenu
     }
     else {
       toInspect = elements;
+    }
+
+    Set<String> elementDialectIds = InspectionEngine.calcElementDialectIds(toInspect);
+    List<LocalInspectionToolWrapper> intentionTools = new ArrayList<>();
+    for (InspectionToolWrapper<?, ?> toolWrapper :
+      InspectionRunner.filterGlobalToolsPotentiallyApplicableByLanguage(intentionToolCandidates, elementDialectIds)) {
+      if (toolWrapper instanceof GlobalInspectionToolWrapper global) {
+        toolWrapper = global.getSharedLocalInspectionToolWrapper();
+      }
+      if (toolWrapper instanceof LocalInspectionToolWrapper local && !local.isUnfair()) {
+        intentionTools.add(local);
+      }
+    }
+
+    if (intentionTools.isEmpty()) {
+      return;
     }
 
     Map<@NonNls String, @Nls(capitalization = Nls.Capitalization.Sentence) String> displayNames =

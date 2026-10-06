@@ -51,6 +51,7 @@ import com.intellij.util.ui.JBInsets
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.StartupUiUtil
 import com.intellij.util.ui.UIUtil
+import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.Nls
 import java.awt.Component
 import java.awt.Dimension
@@ -71,7 +72,8 @@ import javax.swing.SwingUtilities
 private fun Dimension.isNotEmpty(): Boolean = width > 0 && height > 0
 private const val THUMB_SIZE = 220
 
-internal class ToolWindowDragHelper(parent: Disposable, @JvmField val dragSourcePane: ToolWindowPane) : MouseDragHelper<ToolWindowPane>(parent, dragSourcePane) {
+@ApiStatus.Internal
+class ToolWindowDragHelper(parent: Disposable, @JvmField val dragSourcePane: ToolWindowPane) : MouseDragHelper<ToolWindowPane>(parent, dragSourcePane) {
   private val isNewUi = dragSourcePane.buttonManager.isNewUi
   private val dropTargetHighlightComponent = createDropTargetHighlightComponent()
 
@@ -127,7 +129,7 @@ internal class ToolWindowDragHelper(parent: Disposable, @JvmField val dragSource
     /**
      * Create a potentially scaled image of the component to use as a drag image
      */
-    internal fun createThumbnailDragImage(component: JComponent, thumbSize: Int = JBUI.scale(THUMB_SIZE)): BufferedImage {
+    fun createThumbnailDragImage(component: JComponent, thumbSize: Int = JBUI.scale(THUMB_SIZE)): BufferedImage {
       val image = ImageUtil.createImage(component.graphicsConfiguration, component.width, component.height, BufferedImage.TYPE_INT_ARGB)
       image.createGraphics().use { graphics ->
         if (InternalUICustomization.getInstance()?.isRoundedTabDuringDrag != true) {
@@ -153,7 +155,7 @@ internal class ToolWindowDragHelper(parent: Disposable, @JvmField val dragSource
      *
      * This does not include the highlight for the stripe button, that is handled by the stripe
      */
-    internal fun createDropTargetHighlightComponent(): NonOpaquePanel {
+    fun createDropTargetHighlightComponent(): NonOpaquePanel {
       return object: NonOpaquePanel() {
         override fun paint(g: Graphics) {
           if (ExperimentalUI.isNewUI()) {
@@ -170,7 +172,7 @@ internal class ToolWindowDragHelper(parent: Disposable, @JvmField val dragSource
     /**
      * Create a component to show the rectangle of the tool window possible drop target
      */
-    internal fun createDropHintHighlightComponent(): NonOpaquePanel {
+    fun createDropHintHighlightComponent(): NonOpaquePanel {
       return object : NonOpaquePanel() {
         override fun paint(g: Graphics) {
           if (ExperimentalUI.isNewUI()) {
@@ -499,7 +501,7 @@ internal class ToolWindowDragHelper(parent: Disposable, @JvmField val dragSource
     dropTargetHighlightComponent.isVisible = !dragOut
   }
 
-  override fun processDragOutFinish(event: MouseEvent) = processDragFinish(event, false)
+  override fun processDragOutFinish(event: MouseEvent): Unit = processDragFinish(event, false)
 
   override fun processDragFinish(event: MouseEvent, willDragOutStart: Boolean) {
     if (!checkModifiers(event)) {
@@ -559,8 +561,8 @@ internal class ToolWindowDragHelper(parent: Disposable, @JvmField val dragSource
     }
   }
 
-  override fun processDragOutCancel() = stopDrag()
-  override fun processDragCancel() = stopDrag()
+  override fun processDragOutCancel(): Unit = stopDrag()
+  override fun processDragCancel(): Unit = stopDrag()
 
   override fun mouseReleased(e: MouseEvent?) {
     super.mouseReleased(e)

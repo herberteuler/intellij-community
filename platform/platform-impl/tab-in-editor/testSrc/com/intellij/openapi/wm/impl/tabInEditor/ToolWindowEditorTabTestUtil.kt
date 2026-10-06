@@ -12,17 +12,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.KeyedExtensionCollector
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.wm.RegisterToolWindowTaskData
 import com.intellij.openapi.wm.ToolWindow
-import com.intellij.openapi.wm.WINDOW_INFO_DEFAULT_TOOL_WINDOW_PANE_ID
 import com.intellij.openapi.wm.impl.ToolWindowImpl
 import com.intellij.openapi.wm.impl.ToolWindowManagerImpl
 import com.intellij.platform.util.coroutines.childScope
 import com.intellij.toolWindow.InternalDecoratorImpl
-import com.intellij.toolWindow.ToolWindowButtonManager
-import com.intellij.toolWindow.ToolWindowDefaultLayoutManager
 import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
-import com.intellij.toolWindow.ToolWindowPaneOldButtonManager
 import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.content.ContentManager
@@ -246,31 +241,7 @@ internal fun registerLocalToolWindow(
   toolWindowId: String,
   disposable: Disposable,
   component: JComponent = JPanel(),
-): ToolWindowImpl {
-  val paneId = WINDOW_INFO_DEFAULT_TOOL_WINDOW_PANE_ID
-  val buttonManager = ToolWindowPaneOldButtonManager(paneId)
-  val manager = object : ToolWindowManagerImpl(
-    project = project,
-    isNewUi = false,
-    isEdtRequired = false,
-    coroutineScope = (project as ComponentManagerEx).getCoroutineScope(),
-  ) {
-    override fun getButtonManager(toolWindow: ToolWindow): ToolWindowButtonManager = buttonManager
-  }
-
-  val layoutManager = ToolWindowDefaultLayoutManager(isNewUi = false)
-  layoutManager.noStateLoaded()
-  manager.setLayoutOnInit(layoutManager.getLayoutCopy())
-  Disposer.register(disposable, manager)
-
-  return manager.registerToolWindow(
-    task = RegisterToolWindowTaskData(
-      id = toolWindowId,
-      component = component,
-    ),
-    buttonManager = buttonManager,
-  ).toolWindow
-}
+): ToolWindowImpl = ToolWindowManagerImpl.registerLocalToolWindowForTest(project, toolWindowId, disposable, component)
 
 internal fun findDecorator(content: Content): InternalDecoratorImpl {
   val contentManager = requireNotNull(content.manager) { "Content is not attached to a ContentManager" }

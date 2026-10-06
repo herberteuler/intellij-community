@@ -353,12 +353,6 @@
     <extensionPoint qualifiedName="com.intellij.actionOnSave" interface="com.intellij.ide.actionsOnSave.impl.ActionsOnSaveFileDocumentManagerListener$ActionOnSave" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.contentTabActionProvider" interface="com.intellij.openapi.wm.impl.content.tabActions.ContentTabActionProvider"
                     dynamic="true"/>
-    <extensionPoint qualifiedName="com.intellij.toolWindowEditorTabSupport" beanClass="com.intellij.util.KeyedLazyInstanceEP" dynamic="true">
-      <with attribute="implementationClass" implements="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabSupport"/>
-    </extensionPoint>
-    <extensionPoint qualifiedName="com.intellij.toolWindowEditorTabPersistenceProvider" beanClass="com.intellij.util.KeyedLazyInstanceEP" dynamic="true">
-      <with attribute="implementationClass" implements="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabPersistenceProvider"/>
-    </extensionPoint>
     <extensionPoint qualifiedName="com.intellij.inspectionPopupLevelChangePolicy" interface="com.intellij.openapi.editor.impl.InspectionPopupLevelChangePolicy" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.editorMouseActionsOverrider"
                     interface="com.intellij.openapi.editor.impl.EditorMouseActionsOverrider" dynamic="true"/>
@@ -1060,8 +1054,6 @@
               extensions="iws"/>
     <fileType name="IDEA_MODULE" implementationClass="com.intellij.ide.highlighter.ModuleFileType" fieldName="INSTANCE" extensions="iml"/>
     <fileType name="IDEA_PROJECT" implementationClass="com.intellij.ide.highlighter.ProjectFileType" fieldName="INSTANCE" extensions="ipr"/>
-    <fileType name="TOOL_WINDOW_TAB" implementationClass="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileType"
-              fieldName="INSTANCE"/>
     <backgroundPostStartupActivity implementation="com.intellij.openapi.fileTypes.impl.ApproveRemovedMappingsActivity"/>
     <applicationService serviceInterface="com.intellij.ide.plugins.PluginEnabler"
                         serviceImplementation="com.intellij.ide.plugins.DynamicPluginEnabler"
@@ -1289,14 +1281,9 @@
                              instance="com.intellij.openapi.editor.impl.stickyLines.configurable.StickyLinesConfigurable"/>
     <backgroundPostStartupActivity implementation="com.intellij.diagnostic.WindowsDefenderCheckerActivity" os="windows"/>
     <iconLayerProvider implementation="com.intellij.ide.LockedIconLayerProvider"/>
-    <fileEditorProvider implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileEditorProvider" id="ToolWindowEditorTabFileEditor"/>
-    <virtualFileSystem implementationClass="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileSystem" key="tool-window-editor-tab" physical="false"/>
     <fileEditorProvider implementation="com.intellij.openapi.fileEditor.impl.text.LargeFileEditorProvider" id="LargeFileEditor"
                         allowedInUntrustedFiles="true"/>
     <fileEditorProvider id="jcomponent-editor" implementation="com.intellij.openapi.fileEditor.impl.JComponentEditorProvider"/>
-    <editorTabTitleProvider implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabTitleProvider"/>
-    <editorAutoClosingHandler implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabAutoClosingHandler"/>
-    <virtualFilePreCloseCheck implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabPreCloseCheck"/>
     <editorNotificationProvider implementation="com.intellij.openapi.fileEditor.impl.text.LargeFileNotificationProvider"/>
     <fileDocumentSynchronizationVetoer implementation="com.intellij.openapi.fileEditor.impl.LargeFileSavingVetoer"/>
     <editorNotificationProvider implementation="com.intellij.openapi.editor.impl.BidiContentNotificationProvider"/>
@@ -1755,7 +1742,6 @@
     <applicationSettings service="com.intellij.openapi.util.registry.RegistryManagerImpl"/>
     <applicationSettings service="com.intellij.openapi.editor.colors.impl.EditorColorsManagerImpl"/>
     <applicationSettings service="com.intellij.application.options.PathMacrosImpl"/>
-    <fileIconProvider implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileIconProvider"/>
     <!-- works as a fallback, after all providers -->
     <fileIconProvider implementation="com.intellij.platform.ide.impl.common.file.icons.CommonFileIconsProvider" order="last"/>
     <applicationSettings service="com.intellij.codeInsight.folding.CodeFoldingSettingsImpl"/>
@@ -2018,8 +2004,6 @@
               activeInHeadlessMode="false"/>
     <listener class="com.intellij.ide.RecentProjectsManagerBase$MyProjectListener"
               topic="com.intellij.openapi.project.ProjectCloseListener" activeInHeadlessMode="false"/>
-    <listener class="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileRegistryCleaner"
-              topic="com.intellij.openapi.project.ProjectCloseListener"/>
     <listener class="com.intellij.ide.RecentProjectsManagerBase$MyFrameStateListener" topic="com.intellij.ide.FrameStateListener"/>
     <listener class="com.intellij.openapi.editor.impl.EditorLastActionTracker$MyAnActionListener"
               topic="com.intellij.openapi.actionSystem.ex.AnActionListener"/>

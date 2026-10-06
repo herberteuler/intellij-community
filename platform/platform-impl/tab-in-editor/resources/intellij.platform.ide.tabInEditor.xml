@@ -1,0 +1,58 @@
+<idea-plugin visibility="internal">
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.libraries.jetbrains.annotations"/>
+    <module name="intellij.libraries.kotlinx.coroutines.core"/>
+    <module name="intellij.platform.analysis"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.ui"/>
+    <module name="intellij.platform.editor.ui"/>
+    <module name="intellij.platform.ide"/>
+    <module name="intellij.platform.ide.core"/>
+    <module name="intellij.platform.ide.core.impl"/>
+    <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.projectModel"/>
+    <module name="intellij.platform.resources.en"/>
+    <module name="intellij.platform.statistics"/>
+    <module name="intellij.platform.util.coroutines"/>
+    <module name="intellij.platform.util.ui"/>
+  </dependencies>
+  <!-- endregion -->
+  <extensionPoints>
+    <extensionPoint qualifiedName="com.intellij.toolWindowEditorTabSupport" beanClass="com.intellij.util.KeyedLazyInstanceEP" dynamic="true">
+      <with attribute="implementationClass" implements="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabSupport"/>
+    </extensionPoint>
+    <extensionPoint qualifiedName="com.intellij.toolWindowEditorTabPersistenceProvider" beanClass="com.intellij.util.KeyedLazyInstanceEP" dynamic="true">
+      <with attribute="implementationClass" implements="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabPersistenceProvider"/>
+    </extensionPoint>
+  </extensionPoints>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceInterface="com.intellij.openapi.wm.impl.ToolWindowEditorTabService"
+                        serviceImplementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabServiceImpl"/>
+    <fileType name="TOOL_WINDOW_TAB" implementationClass="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileType"
+              fieldName="INSTANCE"/>
+    <fileEditorProvider implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileEditorProvider" id="ToolWindowEditorTabFileEditor"/>
+    <virtualFileSystem implementationClass="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileSystem" key="tool-window-editor-tab" physical="false"/>
+    <editorTabTitleProvider implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabTitleProvider"/>
+    <editorAutoClosingHandler implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabAutoClosingHandler"/>
+    <virtualFilePreCloseCheck implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabPreCloseCheck"/>
+    <fileIconProvider implementation="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileIconProvider"/>
+  </extensions>
+
+  <applicationListeners>
+    <listener class="com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabFileRegistryCleaner"
+              topic="com.intellij.openapi.project.ProjectCloseListener"/>
+  </applicationListeners>
+
+  <actions resource-bundle="messages.ActionsBundle">
+    <action id="MoveToolWindowTabToEditorAction" class="com.intellij.openapi.wm.impl.tabInEditor.MoveToolWindowTabToEditorAction"
+            icon="AllIcons.Actions.OpenNewTab">
+      <add-to-group group-id="ToolWindowTabContextMenu"/>
+    </action>
+    <action id="MoveToolWindowTabFromEditorToToolWindowAction" class="com.intellij.openapi.wm.impl.tabInEditor.MoveToolWindowTabFromEditorToToolWindowAction"
+            icon="AllIcons.General.OpenInToolWindow">
+      <add-to-group group-id="EditorTabPopupMenu" anchor="first"/>
+    </action>
+  </actions>
+</idea-plugin>

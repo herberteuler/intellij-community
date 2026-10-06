@@ -73,6 +73,7 @@ import com.intellij.toolWindow.ToolWindowEntry
 import com.intellij.toolWindow.ToolWindowEventSource
 import com.intellij.toolWindow.ToolWindowPane
 import com.intellij.toolWindow.ToolWindowPaneNewButtonManager
+import com.intellij.toolWindow.ToolWindowPaneOldButtonManager
 import com.intellij.toolWindow.ToolWindowProperty
 import com.intellij.toolWindow.ToolWindowSetInitializer
 import com.intellij.toolWindow.ToolWindowStripeManager
@@ -115,6 +116,7 @@ import java.util.function.Supplier
 import javax.swing.Icon
 import javax.swing.JComponent
 import javax.swing.JFrame
+import javax.swing.JPanel
 import javax.swing.JRootPane
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -219,6 +221,43 @@ open class ToolWindowManagerImpl @NonInjectable @TestOnly internal constructor(
      */
     @JvmField
     val PARENT_COMPONENT: Key<JComponent> = Key.create("tool.window.parent.component")
+
+    /**
+     * Registers the tool window [toolWindowId] with [component] in a new tool window manager of [project].
+     * The manager uses the old stripe buttons and the default layout, and [disposable] disposes it.
+     */
+    @TestOnly
+    @ApiStatus.Internal
+    fun registerLocalToolWindowForTest(
+      project: Project,
+      toolWindowId: String,
+      disposable: Disposable,
+      component: JComponent = JPanel(),
+    ): ToolWindowImpl {
+      val paneId = WINDOW_INFO_DEFAULT_TOOL_WINDOW_PANE_ID
+      val buttonManager = ToolWindowPaneOldButtonManager(paneId)
+      val manager = object : ToolWindowManagerImpl(
+        project = project,
+        isNewUi = false,
+        isEdtRequired = false,
+        coroutineScope = (project as ComponentManagerEx).getCoroutineScope(),
+      ) {
+        override fun getButtonManager(toolWindow: ToolWindow): ToolWindowButtonManager = buttonManager
+      }
+
+      val layoutManager = ToolWindowDefaultLayoutManager(isNewUi = false)
+      layoutManager.noStateLoaded()
+      manager.setLayoutOnInit(layoutManager.getLayoutCopy())
+      Disposer.register(disposable, manager)
+
+      return manager.registerToolWindow(
+        task = RegisterToolWindowTaskData(
+          id = toolWindowId,
+          component = component,
+        ),
+        buttonManager = buttonManager,
+      ).toolWindow
+    }
 
     @JvmStatic
     @ApiStatus.Internal

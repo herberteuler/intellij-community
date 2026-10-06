@@ -885,7 +885,6 @@
     </group>
 
     <group id="EditorTabPopupMenu">
-      <reference ref="MoveToolWindowTabFromEditorToToolWindowAction"/>
       <separator/>
       <reference ref="CloseEditorsGroup"/>
       <separator/>

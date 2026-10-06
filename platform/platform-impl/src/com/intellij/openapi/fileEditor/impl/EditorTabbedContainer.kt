@@ -132,7 +132,8 @@ class EditorTabbedContainer internal constructor(
   private val coroutineScope: CoroutineScope,
 ) {
   @JvmField
-  internal val editorTabs: JBEditorTabs
+  @Internal
+  val editorTabs: JBEditorTabs
   private val dragOutDelegate: DragOutDelegate
 
   init {

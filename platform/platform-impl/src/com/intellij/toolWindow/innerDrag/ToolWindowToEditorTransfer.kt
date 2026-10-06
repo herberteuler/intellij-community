@@ -11,10 +11,9 @@ import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.fileEditor.impl.EditorWindow
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.impl.ToolWindowEditorTabService
 import com.intellij.openapi.wm.impl.content.ToolWindowContentUi
 import com.intellij.openapi.wm.impl.content.ToolWindowInEditorSupport
-import com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabSupportUtil
-import com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabTransferController
 import com.intellij.toolWindow.InternalDecoratorImpl
 import com.intellij.ui.content.Content
 import java.awt.event.MouseEvent
@@ -24,7 +23,7 @@ import java.awt.event.MouseEvent
  *
  * There are two implementations:
  * 1. [ToolWindowInEditorSupport], represented by [LegacyTransfer]
- * 2. [com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabSupport], represented by [EditorTabTransfer]
+ * 2. `ToolWindowEditorTabSupport` of the module `intellij.platform.ide.tabInEditor`, represented by [EditorTabTransfer]
  *
  * Use [findApplicableTransfer] to obtain a [ToolWindowToEditorTransfer] for the given content.
  */
@@ -41,8 +40,8 @@ internal sealed interface ToolWindowToEditorTransfer {
     /**
      * Returns a transfer strategy for the given [content], or null if the content cannot be moved to the editor.
      *
-     * - When [ToolWindowEditorTabSupportUtil.isEnabled] is true,
-     * [com.intellij.openapi.wm.impl.tabInEditor.ToolWindowEditorTabSupport] is used.
+     * - When [ToolWindowEditorTabService.isEnabled] is true,
+     * `ToolWindowEditorTabSupport` of the module `intellij.platform.ide.tabInEditor` is used.
      * - Otherwise, [ToolWindowInEditorSupport] is used.
      */
     fun findApplicableTransfer(
@@ -52,8 +51,9 @@ internal sealed interface ToolWindowToEditorTransfer {
     ): ToolWindowToEditorTransfer? {
       sourceDecorator ?: return null
 
-      return if (ToolWindowEditorTabSupportUtil.isEnabled()) {
-        createEditorTabTransfer(content, sourceDecorator)
+      val editorTabService = ToolWindowEditorTabService.getInstanceOrNull()
+      return if (editorTabService != null && editorTabService.isEnabled()) {
+        createEditorTabTransfer(content, sourceDecorator, editorTabService)
       }
       else {
         createLegacyTransfer(content, sourceDecorator, targetProject)
@@ -68,18 +68,17 @@ internal sealed interface ToolWindowToEditorTransfer {
     private fun createEditorTabTransfer(
       content: Content,
       sourceDecorator: InternalDecoratorImpl,
+      service: ToolWindowEditorTabService,
     ): ToolWindowToEditorTransfer? {
       val toolWindow = sourceDecorator.toolWindow
-      val controller = ToolWindowEditorTabTransferController.getInstance(toolWindow.project)
-
-      if (!controller.canMoveContentToEditor(toolWindow, content)) {
+      if (!service.canMoveContentToEditor(toolWindow, content)) {
         return null
       }
 
       return EditorTabTransfer(
         content = content,
         sourceDecorator = sourceDecorator,
-        controller = controller,
+        service = service,
       )
     }
 
@@ -111,13 +110,13 @@ internal sealed interface ToolWindowToEditorTransfer {
 private class EditorTabTransfer(
   private val content: Content,
   private val sourceDecorator: InternalDecoratorImpl,
-  private val controller: ToolWindowEditorTabTransferController,
+  private val service: ToolWindowEditorTabService,
 ) : ToolWindowToEditorTransfer {
   private val toolWindow = sourceDecorator.toolWindow
 
   override fun move(editorWindow: EditorWindow): Boolean {
     recordMoveToEditorByDrag()
-    controller.moveContentToEditor(toolWindow, content, editorWindow, sourceDecorator)
+    service.moveContentToEditor(toolWindow, content, editorWindow, sourceDecorator)
     return false
   }
 

@@ -30,6 +30,7 @@
     <module name="intellij.platform.ide.impl"/>
     <module name="intellij.platform.ide.observable"/>
     <module name="intellij.platform.ide.progress"/>
+    <module name="intellij.platform.ide.tabInEditor"/>
     <module name="intellij.platform.ide.ui"/>
     <module name="intellij.platform.indexing"/>
     <module name="intellij.platform.inline.completion"/>

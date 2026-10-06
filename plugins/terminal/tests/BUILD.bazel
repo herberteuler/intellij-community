@@ -21,6 +21,7 @@ jvm_library(
     runtime_deps = [
         # do not sort,
         "//platform/platform-impl:ide-impl",
+        "//platform/platform-impl/tab-in-editor",
         "//platform/platform-api:ide",
         "//platform/ide-core",
         "//platform/testFramework",
@@ -83,6 +84,7 @@ jvm_library(
         # do not sort,
         ":tests",
         "//platform/platform-impl:ide-impl_test_lib",
+        "//platform/platform-impl/tab-in-editor:tab-in-editor_test_lib",
         "//platform/ide-core:ide-core_test_lib",
         "//platform/platform-impl/codeinsight-inline:ide-codeinsight-inline_test_lib",
         "//platform/platform-util-io:ide-util-io_test_lib",
@@ -92,6 +94,7 @@ jvm_library(
     deps = [
         # do not sort,
         "//platform/platform-impl:ide-impl",
+        "//platform/platform-impl/tab-in-editor",
         "//platform/platform-api:ide",
         "//platform/platform-api:ide_test_lib",
         "//platform/ide-core",

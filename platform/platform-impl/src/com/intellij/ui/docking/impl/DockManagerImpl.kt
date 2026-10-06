@@ -125,7 +125,7 @@ class DockManagerImpl(@JvmField internal val project: Project, private val corou
     containers.remove(container)
   }
 
-  internal fun addDragSessionListener(listener: DockDragSessionListener, parentDisposable: Disposable) {
+  fun addDragSessionListener(listener: DockDragSessionListener, parentDisposable: Disposable) {
     dragSessionListeners.add(listener)
     Disposer.register(parentDisposable) { dragSessionListeners.remove(listener) }
   }
@@ -608,7 +608,8 @@ class DockManagerImpl(@JvmField internal val project: Project, private val corou
 /**
  * Register it with [DockManagerImpl.addDragSessionListener].
  */
-internal interface DockDragSessionListener {
+@ApiStatus.Internal
+interface DockDragSessionListener {
   fun sessionStarted(content: DockableContent<*>)
 
   fun sessionFinished(content: DockableContent<*>)

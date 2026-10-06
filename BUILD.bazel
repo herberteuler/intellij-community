@@ -556,7 +556,11 @@ jvm_library(
     ),
     module_name = "intellij.idea.community.main.tests",
     visibility = ["//visibility:public"],
-    runtime_deps = ["//platform/platform-impl/presentation-assistant"],
+    runtime_deps = [
+        # do not sort,
+        "//platform/platform-impl/presentation-assistant",
+        "//platform/platform-impl/tab-in-editor",
+    ],
 )
 
 jvm_library(
@@ -584,8 +588,10 @@ jvm_library(
         "//platform/non-modal-welcome-screen:non-modal-welcome-screen_test_lib",
         "//platform/platform-impl/concurrency:ide-concurrency-tests_test_lib",
         "//platform/platform-impl/hprof:ide-hprof-tests_test_lib",
+        "//platform/platform-impl/tab-in-editor:ide-tabInEditor-tests_test_lib",
         "//platform/non-modal-welcome-screen:ide-nonModalWelcomeScreen-tests_test_lib",
         "//platform/platform-impl/presentation-assistant:presentation-assistant_test_lib",
+        "//platform/platform-impl/tab-in-editor:tab-in-editor_test_lib",
     ],
     deps = [
         # do not sort,
@@ -998,6 +1004,7 @@ jvm_library(
         "//platform/external-process-auth-helper:externalProcessAuthHelper-tests_test_lib",
         "//platform/platform-impl/concurrency:ide-concurrency-tests",
         "//platform/platform-impl/hprof:ide-hprof-tests",
+        "//platform/platform-impl/tab-in-editor:ide-tabInEditor-tests",
         "//platform/non-modal-welcome-screen:ide-nonModalWelcomeScreen-tests",
         "//platform/build-scripts/usages:buildScripts-usages-tests",
         "//platform/build-scripts/usages:buildScripts-usages-tests_test_lib",

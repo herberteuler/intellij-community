@@ -54,6 +54,8 @@ import java.util.stream.Collectors;
  */
 @ApiStatus.Internal
 public final class PythonSdkUtil {
+  private PythonSdkUtil() {
+  }
 
   public static final String REMOTE_SOURCES_DIR_NAME = "remote_sources";
 
@@ -88,8 +90,7 @@ public final class PythonSdkUtil {
    * @return PyCharm with Pro mode disabled
    */
   public static boolean isFreeTier() {
-    return PlatformUtils.isPyCharm() &&
-           PluginManagerCore.isDisabled(PluginManagerCore.ULTIMATE_PLUGIN_ID);
+    return PlatformUtils.isPyCharm() && PluginManagerCore.isDisabled(PluginManagerCore.ULTIMATE_PLUGIN_ID);
   }
 
   /**
@@ -247,6 +248,7 @@ public final class PythonSdkUtil {
 
   /**
    * Use {@link VirtualEnvReaderKt}
+   *
    * @param homeDirectory
    * @param name
    * @return

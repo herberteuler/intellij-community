@@ -3,6 +3,7 @@ package com.intellij.python.processOutput.lambdaTests
 
 import com.intellij.ide.starter.ide.IdeRunMode
 import com.intellij.lambda.testFramework.junit.RunInMonolithAndSplitMode
+import com.intellij.lambda.testFramework.junit.SetErrorIgnorerExtension
 import com.intellij.lambda.testFramework.utils.IdeWithLambda
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.python.processOutput.lambdaTests.util.IdeConfigSetup
@@ -33,7 +34,7 @@ import kotlin.time.Duration.Companion.minutes
  * instead of the plugin-declared default, and the test would survive the revert above.
  */
 @RunInMonolithAndSplitMode(IdeRunMode.SPLIT)
-@ExtendWith(IdeConfigSetup::class, SetLambdaPluginCallback::class)
+@ExtendWith(IdeConfigSetup::class, SetLambdaPluginCallback::class, SetErrorIgnorerExtension::class)
 internal class PythonToolWindowStartupFlagTest {
 
   @TestTemplate

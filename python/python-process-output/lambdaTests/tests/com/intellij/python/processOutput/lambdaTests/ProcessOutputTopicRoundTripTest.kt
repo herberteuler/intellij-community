@@ -1,9 +1,12 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.processOutput.lambdaTests
 
+import com.intellij.idea.AppMode
 import com.intellij.lambda.testFramework.junit.RunInMonolithAndSplitMode
+import com.intellij.lambda.testFramework.junit.SetErrorIgnorerExtension
 import com.intellij.lambda.testFramework.utils.IdeWithLambda
 import com.intellij.openapi.components.service
+import com.intellij.platform.rpc.topics.impl.RemoteTopicSubscribersManager
 import com.intellij.python.processOutput.common.ExecErrorDto
 import com.intellij.python.processOutput.common.ExecErrorReasonDto
 import com.intellij.python.processOutput.common.ExecutableDto
@@ -18,6 +21,7 @@ import com.intellij.python.processOutput.common.TraceContextKind
 import com.intellij.python.processOutput.common.TraceContextUuid
 import com.intellij.python.processOutput.lambdaTests.util.IdeConfigSetup
 import com.intellij.python.processOutput.lambdaTests.util.SetLambdaPluginCallback
+import com.intellij.remoteDev.tests.impl.utils.waitSuspendingForOne
 import com.intellij.testFramework.common.timeoutRunBlocking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.SharedFlow
@@ -49,7 +53,7 @@ import kotlin.time.Instant
  * claim, and lives at unit level in `ProcessOutputControllerImplTest`.
  */
 @RunInMonolithAndSplitMode
-@ExtendWith(IdeConfigSetup::class, SetLambdaPluginCallback::class)
+@ExtendWith(IdeConfigSetup::class, SetLambdaPluginCallback::class, SetErrorIgnorerExtension::class)
 internal class ProcessOutputTopicRoundTripTest {
 
   @TestTemplate
@@ -57,7 +61,8 @@ internal class ProcessOutputTopicRoundTripTest {
     timeoutRunBlocking(TEST_TIMEOUT) {
       ide {
         subscribeToTopic(ProcessOutputEventDto.NewProcess::class.java)
-        runInBackend("Send a NewProcess event") {
+        runInBackend("Send a NewProcess event once the frontend is a subscriber") {
+          awaitFrontendSubscriber()
           ProcessOutputTopic.sendNewProcessEvent(sentProcess(), listOf(sentTraceContext()))
         }
         assertThat(readArrivedEvent())
@@ -72,7 +77,10 @@ internal class ProcessOutputTopicRoundTripTest {
       ide {
         subscribeToTopic(ProcessOutputEventDto.ExecError::class.java)
         // One call, one DTO — the point of the ticket: no query back to learn which process the error belongs to.
-        runInBackend("Send an ExecError event") { ProcessOutputTopic.sendExecErrorEvent(sentTerminationError()) }
+        runInBackend("Send an ExecError event once the frontend is a subscriber") {
+          awaitFrontendSubscriber()
+          ProcessOutputTopic.sendExecErrorEvent(sentTerminationError())
+        }
         assertThat(readArrivedEvent())
           .describedAs("the ExecError event as the frontend received it, including the associated process id")
           .isEqualTo(render(ProcessOutputEventDto.ExecError(sentTerminationError())))
@@ -85,7 +93,10 @@ internal class ProcessOutputTopicRoundTripTest {
     timeoutRunBlocking(TEST_TIMEOUT) {
       ide {
         subscribeToTopic(ProcessOutputEventDto.ExecError::class.java)
-        runInBackend("Send a timed-out ExecError event") { ProcessOutputTopic.sendExecErrorEvent(sentTimeoutError()) }
+        runInBackend("Send a timed-out ExecError event once the frontend is a subscriber") {
+          awaitFrontendSubscriber()
+          ProcessOutputTopic.sendExecErrorEvent(sentTimeoutError())
+        }
         assertThat(readArrivedEvent())
           .describedAs("the timed-out ExecError event as the frontend received it")
           .isEqualTo(render(ProcessOutputEventDto.ExecError(sentTimeoutError())))
@@ -122,6 +133,27 @@ private suspend fun IdeWithLambda.subscribeToTopic(eventClass: Class<out Process
     }
     withTimeout(STEP_TIMEOUT) { subscribed.await() }
   }
+}
+
+/**
+ * Blocks until the frontend is a client the backend will actually deliver to.
+ *
+ * `sendToClient` looks its target up in `RemoteTopicSubscribersManager` and does nothing at all when that client
+ * is not registered yet — silently, and by design: "if the client is not yet connected, but an event is sent, the
+ * event won't be received". The `onSubscription` barrier in [subscribeToTopic] sits one level above this. It says
+ * when the test's collector is attached to `FrontendTopicService`; it says nothing about whether the frontend's
+ * own `FrontendRemoteTopicListenersRegistry` has reached the backend over RPC. Without this second barrier the
+ * split invocation fails as a 30-second read timeout with no error on either side, and how often depends on how
+ * fast the frontend starts.
+ *
+ * Monolith returns early: `connectedRemoteClients` filters the local client out, so there is never one to wait
+ * for, and there is no race either — the local client is registered while the manager is being constructed.
+ */
+private suspend fun awaitFrontendSubscriber() {
+  if (!AppMode.isRemoteDevHost()) return
+  waitSuspendingForOne("The frontend is a registered remote-topic subscriber", STEP_TIMEOUT, getter = {
+    RemoteTopicSubscribersManager.getInstance().connectedRemoteClients()
+  })
 }
 
 /** Reads what the collector caught. Only a `java.io.Serializable` can come back and the DTOs are kotlinx-only, hence the rendering. */

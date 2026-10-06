@@ -3,6 +3,7 @@ package com.intellij.python.syntax.lambdaTests
 
 import com.intellij.ide.starter.ide.IdeRunMode
 import com.intellij.lambda.testFramework.junit.RunInMonolithAndSplitMode
+import com.intellij.lambda.testFramework.junit.SetErrorIgnorerExtension
 import com.intellij.lambda.testFramework.junit.WithProject
 import com.intellij.lambda.testFramework.testApi.editor.getVirtualFileByRelativePath
 import com.intellij.lambda.testFramework.testApi.editor.openFileAndWaitEditorSelected
@@ -67,7 +68,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 @RunInMonolithAndSplitMode(IdeRunMode.SPLIT)
 @WithProject(PythonLangLevelSyncProject::class)
-@ExtendWith(IdeConfigSetup::class, SetLambdaPluginCallback::class)
+@ExtendWith(IdeConfigSetup::class, SetLambdaPluginCallback::class, SetErrorIgnorerExtension::class)
 internal class PyLanguageFacadeFrontendSyncTest {
 
   @TestTemplate

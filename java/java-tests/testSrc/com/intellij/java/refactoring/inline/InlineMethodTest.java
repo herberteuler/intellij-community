@@ -679,7 +679,7 @@ public class InlineMethodTest extends LightJavaCodeInsightTestCase {
     TestDialogManager.setTestDialog(TestDialog.YES, getTestRootDisposable());
     doTestConflict("Field <b><code>F.x</code></b> is not accessible from method <b><code>G.main()</code></b>. " +
                    "The refactoring will use <b><code>F.getX()</code></b> instead. " +
-                   "Note that the may change the behavior overriding an accessor.");
+                   "Note that the subclasses may change the behavior overriding an accessor.");
   }
 
   public void testAutomaticGetterUseExactNoConflict() {

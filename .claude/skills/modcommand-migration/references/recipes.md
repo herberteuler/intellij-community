@@ -175,8 +175,12 @@ Reference:
 `RenameUnderscoreFix` (`community/java/java-impl/src/com/intellij/codeInsight/daemon/impl/quickfix/RenameUnderscoreFix.java`)
 — also shows `updater.getWritable` for a second element inside a step, and `updater.rename`.
 
-Two rules: **put the safest option first** (batch and preview auto-select it), and do not special-case a
-single option (it is executed without showing UI).
+Two rules:
+
+- **Put the safest option first.** Batch and preview select it automatically.
+- **Do not special-case zero or one option.** Return `chooseAction` for every list size, and let the
+  platform handle the small lists. An empty chooser is empty, like `nop()`. The executor runs a single
+  available option without UI. A `switch` on `actions.size()` only adds code.
 
 ## 8. `MemberChooser`
 

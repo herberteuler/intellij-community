@@ -56,6 +56,9 @@ result is usually shorter than the original, with a working preview:
 | yes/no or "this will break X, continue?" confirmation | `ModCommand.showConflicts` with a single conflict |
 | a form editing options | `ModEditOptions` |
 
+Return `chooseAction` also when the list has zero or one option. The platform handles these cases, see
+recipe 7 in [references/recipes.md](references/recipes.md).
+
 ### Do not convert
 
 Leave these as `LocalQuickFix`. Trying to force them through the ModCommand API wastes a session:

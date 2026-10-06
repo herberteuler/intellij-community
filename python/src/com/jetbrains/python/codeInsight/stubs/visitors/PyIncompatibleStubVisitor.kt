@@ -18,7 +18,7 @@ internal class PyIncompatibleStubVisitor(
 
   override fun checkImports(file: PyFile, importedPackages: Set<String>, packageManager: PythonPackageManager) {
     val checker = PyStubsIncompatibilityChecker.getInstance(project = packageManager.project)
-    val cached = checker.getCached(packageManager.sdk)
+    val cached = checker.getCached(packageManager.interpreter)
     val stubs = cached.filter { it.stubRequirement.presentableText !in ignoredStubPackages && it.packageName.name in importedPackages }
     for (stub in stubs) {
       val message = PyPsiBundle.message("INSP.stub.packages.compatibility.incompatible.packages.message", stub.stubRequirement.name)

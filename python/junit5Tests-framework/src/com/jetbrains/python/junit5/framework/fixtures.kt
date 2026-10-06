@@ -1,15 +1,15 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.junit5.framework
 
-import com.intellij.openapi.application.edtWriteAction
+import com.jetbrains.python.project.PyProject
+import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
 import com.intellij.python.pyproject.model.internal.platformBridge.rebuildPyProjectModelForTest
+import com.intellij.python.sdk.backend.PythonInterpreter
+import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
 import com.intellij.testFramework.TestApplicationManager
 import com.intellij.testFramework.TestDataProvider
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
@@ -26,23 +26,17 @@ import org.jetbrains.annotations.TestOnly
 import java.nio.file.Path
 
 @TestOnly
-fun TestFixture<Project>.pyMockSdkFixture(module: TestFixture<Module>, sdkProvider: () -> Sdk):
-  TestFixture<Sdk> = testFixture {
-  this@pyMockSdkFixture.init()
-  module.init()
-  val sdk = sdkProvider()
-  edtWriteAction {
-    ProjectJdkTable.getInstance().addJdk(sdk)
-    ModuleRootModificationUtil.setModuleSdk(module.get(), sdk)
-  }
-  // The Python project structure follows the new SDK in the background. A test that highlights before it lands has its
-  // pass cancelled by the restart that follows.
-  EvoPyProjectModel.getInstance(this@pyMockSdkFixture.get()).awaitCurrentInterpreters()
-  initialized(sdk) {
-    edtWriteAction {
-      ModuleRootModificationUtil.setModuleSdk(module.get(), null)
-      ProjectJdkTable.getInstance().removeJdk(sdk)
-    }
+fun TestFixture<Project>.pyMockInterpreterFixture(pyProject: TestFixture<PyProject>, sdkProvider: () -> Sdk):
+  TestFixture<PythonInterpreter> = testFixture {
+  val project = this@pyMockInterpreterFixture.init()
+  val pyProject = pyProject.init()
+  val registry = PythonInterpreterProjectRegistry.getInstance(project)
+  val interpreter = registry.addMockPythonInterpreter(pyProject, sdkProvider())
+  // setPythonInterpreter waits for the snapshot, so a test that highlights next is not cancelled by its restart.
+  pyProject.setPythonInterpreter(interpreter)
+  initialized(interpreter) {
+    pyProject.setPythonInterpreter(null)
+    registry.removePythonInterpreter(pyProject, interpreter)
   }
 }
 

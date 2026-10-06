@@ -5,7 +5,6 @@ import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.serviceContainer.AlreadyDisposedException
 import com.jetbrains.python.packaging.bridge.PythonPackageManagementServiceBridge
 import org.jetbrains.annotations.ApiStatus
@@ -18,14 +17,7 @@ interface PythonPackageManagerProvider {
    * Creates the [PythonPackageManager] for [interpreter], or `null` when this provider does not handle it.
    * The SDK of [interpreter] is a Python SDK with `PythonSdkAdditionalData`.
    */
-  fun createPackageManager(project: Project, interpreter: PythonInterpreter): PythonPackageManager? {
-    @Suppress("DEPRECATION")
-    return createPackageManagerForSdk(project, interpreter.getSdkAPI())
-  }
-
-  /** [createPackageManager] for a provider that still takes an [Sdk]. */
-  @Deprecated("Override createPackageManager")
-  fun createPackageManagerForSdk(project: Project, sdk: Sdk): PythonPackageManager? = null
+  fun createPackageManager(project: Project, interpreter: PythonInterpreter): PythonPackageManager?
 
   companion object {
     val EP_NAME: ExtensionPointName<PythonPackageManagerProvider> =

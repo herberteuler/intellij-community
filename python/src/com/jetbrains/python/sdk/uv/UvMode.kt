@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.uv
 
+import com.intellij.python.sdk.backend.PythonInterpreter
+import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.vfs.VirtualFileManager
@@ -51,6 +53,10 @@ internal val Sdk.uvMode: UvMode
     PY_PROJECT_TOML -> UvMode.Project
     else -> UvMode.Pip(Path.of(fileName))
   }
+
+/** The mode of the SDK of this interpreter. See [Sdk.uvMode]. */
+internal val PythonInterpreter.uvMode: UvMode
+  @Suppress("DEPRECATION") get() = getSdkAPI().uvMode
 
 /** Whether [workingDir] holds a `pyproject.toml`. One file stat, on the IO dispatcher. */
 internal suspend fun hasPyProjectToml(workingDir: Path): Boolean = withContext(Dispatchers.IO) {

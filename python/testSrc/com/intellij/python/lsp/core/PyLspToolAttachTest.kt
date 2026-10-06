@@ -6,7 +6,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.ty.TyLspClientDescriptor
 import com.intellij.python.ty.TyPyTool
 import com.intellij.testFramework.junit5.TestApplication
@@ -25,12 +25,12 @@ import org.junit.jupiter.api.assertThrows
 internal class PyLspToolAttachTest {
   private val projectPath = tempPathFixture(prefix = "project")
   private val projectFixture = projectFixture(projectPath, openAfterCreation = true)
-  private val moduleFixture = projectFixture.pyModuleFixture(projectPath, addPathToSourceRoot = true)
+  private val pyProjectFixture = projectFixture.pyProjectFixture(projectPath)
 
   @Test
   fun `a cancelled subscription subscribes again on the next attach`() {
     val provider = CancelOnceProvider()
-    val descriptor = TyLspClientDescriptor(moduleFixture.get())
+    val descriptor = TyLspClientDescriptor(pyProjectFixture.get().residesOnModule)
 
     assertThrows<ProcessCanceledException> { provider.attach(descriptor) }
     provider.attach(descriptor)

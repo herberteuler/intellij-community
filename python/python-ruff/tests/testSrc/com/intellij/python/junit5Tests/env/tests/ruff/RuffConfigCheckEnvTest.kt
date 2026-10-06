@@ -6,8 +6,8 @@ import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.ruff.codeinsight.RuffConfigError
 import com.intellij.python.ruff.codeinsight.checkRuffConfig
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.ruff.RuffPyTool
 import com.intellij.python.test.env.junit5.LspToolVersions
 import com.intellij.python.test.env.junit5.installToolPackage
@@ -118,16 +118,14 @@ internal class RuffConfigCheckEnvTest {
 
     private val tempPathFixture = tempPathFixture()
     private val projectFixture = projectFixture(openAfterCreation = true)
-    private val moduleFixture = projectFixture.pyModuleFixture(tempPathFixture, addPathToSourceRoot = true)
-    private val pyProjectFixture = moduleFixture.pyProjectFixture()
-    private val venvFixture = pySdkFixture().pyVenvFixture(
+    private val pyProjectFixture = projectFixture.pyProjectFixture(tempPathFixture)
+    private val venvFixture = projectFixture.pyInterpreterFixture().pyVenvFixture(
       where = tempPathFixture,
-      addToSdkTable = true,
-      moduleFixture = moduleFixture,
+      pyProjectFixture = pyProjectFixture,
     )
 
     // `@TestApplication` implies `@TestFixtures`, which initializes every field of type `TestFixture`.
-    private val module: Module get() = moduleFixture.get()
+    private val module: Module get() = pyProjectFixture.get().residesOnModule
     private val pyProject: PyProject get() = pyProjectFixture.get()
     private val workingDir: Path get() = tempPathFixture.get()
   }

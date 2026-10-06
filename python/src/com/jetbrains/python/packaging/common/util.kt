@@ -10,23 +10,23 @@ import org.jetbrains.annotations.ApiStatus
 @ApiStatus.Experimental
 interface PythonPackageManagementListener {
   /** The installed packages of [interpreter] changed. */
-  @ApiStatus.Internal
   fun packagesChanged(interpreter: PythonInterpreter) {
     @Suppress("DEPRECATION") // The forward to the older form, see there.
     packagesChanged(interpreter.getSdkAPI())
   }
 
   /** The outdated packages of [interpreter] changed. */
-  @ApiStatus.Internal
   fun outdatedPackagesChanged(interpreter: PythonInterpreter) {
     @Suppress("DEPRECATION") // The forward to the older form, see there.
     outdatedPackagesChanged(interpreter.getSdkAPI())
   }
 
-  /** The old form. Override the [PythonInterpreter] form instead. */
+  /** The old form, kept for plugins outside this repository. */
+  @Deprecated("Override packagesChanged(PythonInterpreter) instead.")
   fun packagesChanged(sdk: Sdk) {}
 
-  /** The old form. Override the [PythonInterpreter] form instead. */
+  /** The old form, kept for plugins outside this repository. */
+  @Deprecated("Override outdatedPackagesChanged(PythonInterpreter) instead.")
   @ApiStatus.Internal
   fun outdatedPackagesChanged(sdk: Sdk) {
   }

@@ -1,13 +1,15 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.lsp.core
 
+import kotlin.io.path.Path
+import com.intellij.testFramework.junit5.fixture.pathInProjectFixture
 import com.intellij.idea.TestFor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.LspClient
 import com.intellij.platform.lsp.api.LspClientDescriptor
 import com.intellij.platform.lsp.api.LspServerState
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import org.junit.jupiter.api.Assertions.assertNull
@@ -24,13 +26,13 @@ import org.junit.jupiter.api.Test
 @TestFor(issues = ["PY-92008"])
 internal class PyLspModuleClientsTest {
   private val projectFixture = projectFixture(openAfterCreation = true)
-  private val mainModule = projectFixture.pyModuleFixture("main")
-  private val secondModule = projectFixture.pyModuleFixture("second")
+  private val mainPyProject = projectFixture.pyProjectFixture()
+  private val secondPyProject = projectFixture.pyProjectFixture(projectFixture.pathInProjectFixture(Path("second")))
 
   @Test
   fun `each module gets the client that answers for it`() {
-    val main = mainModule.get()
-    val second = secondModule.get()
+    val main = mainPyProject.get().residesOnModule
+    val second = secondPyProject.get().residesOnModule
     val mainClient = fakePyToolClient(main)
     val secondClient = fakePyToolClient(second)
     val clients = listOf(mainClient, secondClient)
@@ -41,8 +43,8 @@ internal class PyLspModuleClientsTest {
 
   @Test
   fun `one client answers for every module it serves`() {
-    val main = mainModule.get()
-    val second = secondModule.get()
+    val main = mainPyProject.get().residesOnModule
+    val second = secondPyProject.get().residesOnModule
     val client = fakePyToolClient(main, second)
 
     assertTrue(main in client.pyServedModules)
@@ -53,20 +55,20 @@ internal class PyLspModuleClientsTest {
 
   @Test
   fun `the client of another module is not taken as a fallback`() {
-    val main = mainModule.get()
-    val second = secondModule.get()
+    val main = mainPyProject.get().residesOnModule
+    val second = secondPyProject.get().residesOnModule
 
     assertNull(listOf(fakePyToolClient(main)).clientForModule(second))
   }
 
   @Test
   fun `no client at all answers for no module`() {
-    assertNull(emptyList<LspClient>().clientForModule(mainModule.get()))
+    assertNull(emptyList<LspClient>().clientForModule(mainPyProject.get().residesOnModule))
   }
 
   @Test
   fun `a client of another integration serves no python module`() {
-    val main = mainModule.get()
+    val main = mainPyProject.get().residesOnModule
     val foreign = fakePyLspClient(ForeignDescriptor(main.project))
 
     assertTrue(foreign.pyServedModules.isEmpty())
@@ -79,7 +81,7 @@ internal class PyLspModuleClientsTest {
    */
   @Test
   fun `a shut-down client answers for no module`() {
-    val main = mainModule.get()
+    val main = mainPyProject.get().residesOnModule
 
     assertNull(listOf(fakePyToolClient(main, serverState = LspServerState.ShutdownNormally)).clientForModule(main))
   }
@@ -87,7 +89,7 @@ internal class PyLspModuleClientsTest {
   /** The platform answers `null` to every request sent before the server runs, so the client answers nothing yet. */
   @Test
   fun `an initializing client answers for no module`() {
-    val main = mainModule.get()
+    val main = mainPyProject.get().residesOnModule
 
     assertNull(listOf(fakePyToolClient(main, serverState = LspServerState.Initializing)).clientForModule(main))
   }

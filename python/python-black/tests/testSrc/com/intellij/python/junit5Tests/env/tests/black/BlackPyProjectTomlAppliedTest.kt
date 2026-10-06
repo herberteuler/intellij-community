@@ -7,11 +7,11 @@ import com.intellij.python.black.BlackFormattingResponse
 import com.intellij.python.black.BlackPyTool
 import com.intellij.python.black.execute
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.intellij.python.pytools.backend.PyToolsState
 import com.intellij.testFramework.common.timeoutRunBlocking
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -31,8 +31,8 @@ internal class BlackPyProjectTomlAppliedTest {
   companion object {
     val tempPathFixture = tempPathFixture()
     val projectFixture = projectFixture(tempPathFixture, openAfterCreation = true)
-    val moduleFixture = projectFixture.pyModuleFixture(tempPathFixture, addPathToSourceRoot = true)
-    val sdkFixture = pySdkFixture().pyEnvSdkFixture(moduleFixture)
+    val pyProjectFixture = projectFixture.pyProjectFixture(tempPathFixture)
+    val sdkFixture = projectFixture.pyInterpreterFixture().pyEnvInterpreterFixture(pyProjectFixture)
 
     @JvmStatic
     @BeforeAll

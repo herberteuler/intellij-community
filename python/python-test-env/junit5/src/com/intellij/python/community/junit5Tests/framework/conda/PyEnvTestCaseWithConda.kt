@@ -7,8 +7,8 @@ import com.intellij.python.test.env.junit5.conda.CondaPythonEnvExtension
 import org.junit.jupiter.api.extension.ExtendWith
 
 /**
- * Python and conda env test case that supports [com.intellij.python.junit5Tests.framework.env.PythonBinaryPath],
- * [com.intellij.python.junit5Tests.framework.env.PythonSdk], and [CondaEnv] parameter injection.
+ * Python and conda env test case that supports [com.intellij.python.junit5Tests.framework.env.PythonBinaryPath] and
+ * [CondaEnv] parameter injection.
  * Uses Conda environment from predefined environments.
  * 
  * Example:
@@ -17,9 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 class PyEnvTestExample {
   @Test
   fun test(@CondaEnv conda: PyCondaEnv) { ... }
-  
-  @Test
-  fun testSdk(@PythonSdk sdk: Sdk) { ... }
 
   @Test // This is a base conda path!
   fun testSdk(@PythonBinaryPath pythonExe: PythonBinary) { ... }

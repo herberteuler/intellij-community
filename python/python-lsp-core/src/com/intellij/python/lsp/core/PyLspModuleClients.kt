@@ -12,7 +12,6 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.ModuleListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.modules
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.util.io.FileUtil
@@ -421,11 +420,6 @@ fun pyLspWorkspaceRootOf(module: Module): String? {
 /** Whether one of the two paths contains the other, or they are the same path. */
 private fun sharesTreeWith(one: String, other: String): Boolean =
   FileUtil.isAncestor(one, other, false) || FileUtil.isAncestor(other, one, false)
-
-/** [pyLspToolVersionOf] for an interpreter that the package listener reports by its SDK. */
-@ApiStatus.Internal
-fun pyLspToolVersionOf(sdk: Sdk, project: Project, pyTool: PyTool): String? =
-  PythonPackageManager.forSdk(project, sdk).getInstalledToolPackage(pyTool)?.version
 
 /**
  * The version of [pyTool] installed in the environment of [interpreter], or `null` when it holds none.

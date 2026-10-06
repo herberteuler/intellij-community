@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.psi.versioning
 
+import com.intellij.python.junit5Tests.framework.rootSourceRootFixture
 import com.intellij.idea.TestFor
 import com.intellij.platform.testFramework.junit5.codeInsight.psi.LightweightCommitScenario
 import com.intellij.platform.testFramework.junit5.codeInsight.psi.assertLightweightCommitScenario
@@ -8,17 +9,16 @@ import com.intellij.platform.testFramework.junit5.codeInsight.psi.replaceBetween
 import com.intellij.platform.testFramework.junit5.codeInsight.psi.runVersionedTest
 import com.intellij.psi.impl.PsiDocumentManagerBase
 import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.editorFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.psiFileFixture
-import com.intellij.testFramework.junit5.fixture.sourceRootFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
-import com.jetbrains.python.junit5.framework.pyMockSdkFixture
+import com.jetbrains.python.junit5.framework.pyMockInterpreterFixture
 import com.jetbrains.python.psi.LanguageLevel
 import com.jetbrains.python.psi.PyClass
 import com.jetbrains.python.psi.PyDocStringOwner
@@ -363,11 +363,11 @@ class PyLightweightDocumentCommitTest {
 
   private val tempDir = tempPathFixture()
   private val _project = projectFixture(tempDir, openAfterCreation = true)
-  private val _module = _project.pyModuleFixture(tempDir, addPathToSourceRoot = true)
+  private val _pyProject = _project.pyProjectFixture(tempDir)
 
   @Suppress("unused")
-  private val _mockSdk = _project.pyMockSdkFixture(_module) { PythonMockSdk.create(LanguageLevel.getLatest()) }
-  private val _sourceRoot = _module.sourceRootFixture()
+  private val _mockSdk = _project.pyMockInterpreterFixture(_pyProject) { PythonMockSdk.create(LanguageLevel.getLatest()) }
+  private val _sourceRoot = _pyProject.rootSourceRootFixture()
   private val _psiFile = _sourceRoot.psiFileFixture("feature_stress.py", "\n")
   private val _editor = _psiFile.editorFixture()
 

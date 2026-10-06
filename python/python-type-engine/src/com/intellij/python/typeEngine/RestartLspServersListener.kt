@@ -1,5 +1,8 @@
 package com.intellij.python.typeEngine
 
+import com.intellij.python.pyproject.model.evolution.getInterpreter
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
+import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
@@ -20,6 +23,7 @@ import com.intellij.python.lsp.core.typeEngine.PyTypeEngineUtils
 import com.intellij.python.pyrefly.PyreflyPyTool
 import com.intellij.python.pyrefly.PyreflyUsageCollector
 import com.intellij.python.lsp.core.getInstalledToolPackage
+import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.jetbrains.python.packaging.PythonVersionValue
 import com.jetbrains.python.packaging.common.PythonPackageManagementListener
 import com.jetbrains.python.packaging.management.PythonPackageManager
@@ -28,7 +32,6 @@ import com.jetbrains.python.packaging.management.ui.installPyRequirementsBackgro
 import com.intellij.python.requirements.pyRequirement
 import com.jetbrains.python.packaging.requirement.PyRequirementRelation
 import com.jetbrains.python.sdk.PySdkListener
-import com.jetbrains.python.sdk.pythonSdk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,7 +51,7 @@ internal class RestartLspServersListener(val project: Project) : PyLspListener, 
     updateModules()
   }
 
-  override fun packagesChanged(sdk: Sdk) {
+  override fun packagesChanged(interpreter: PythonInterpreter) {
     if (ApplicationManager.getApplication().isUnitTestMode) {
       return
     }
@@ -61,8 +64,9 @@ internal class RestartLspServersListener(val project: Project) : PyLspListener, 
       // Ask every served interpreter, not only the one that changed. One module of a multi-module
       // project that loses pyrefly must not turn the engine off for the modules that still hold it.
       val isInstalledSomewhere = pyLspServedModules(project).any { served ->
-        val servedSdk = served.pythonSdk ?: return@any false
-        PythonPackageManager.forSdk(project, servedSdk).getInstalledToolPackage(PyreflyPyTool.getInstance()) != null
+        val interpreter = served.asPyProject()?.getInterpreter() ?: return@any false
+        PythonPackageManager.forPythonInterpreter(project, interpreter)
+          .getInstalledToolPackage(PyreflyPyTool.getInstance()) != null
       }
       if (isInstalledSomewhere) {
         return@launch
@@ -92,7 +96,7 @@ internal class RestartLspServersListener(val project: Project) : PyLspListener, 
           // Pyrefly cannot drive must not stop the install for the other modules. The test is the
           // same one the tool itself uses, so a remote interpreter gets no install it cannot use.
           val pythonSdk = PyTypeEngineUtils.localNonReadOnlySdk(module) ?: return@forEach
-          val managerUI = PythonPackageManagerUI.forSdk(project, pythonSdk)
+          val managerUI = PythonPackageManagerUI.forPythonInterpreter(project, pythonSdk.pythonInterpreterAsync())
 
           val pythonPackage = managerUI.manager.getInstalledToolPackage(PyreflyPyTool.getInstance())
           val version = pythonPackage?.version?.let { PythonVersionValue.parse(it) }?.successOrNull

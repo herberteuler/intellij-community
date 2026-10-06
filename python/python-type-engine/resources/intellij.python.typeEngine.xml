@@ -33,6 +33,7 @@
     <module name="intellij.python.community.core.impl"/>
     <module name="intellij.python.community.impl"/>
     <module name="intellij.python.lsp.core"/>
+    <module name="intellij.python.pyproject"/>
     <module name="intellij.python.pyrefly"/>
     <module name="intellij.python.pytools.backend"/>
     <module name="intellij.python.sdk.backend"/>

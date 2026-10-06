@@ -2,7 +2,6 @@
 package com.intellij.python.sdk.backend
 
 import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.python.sdk.backend.impl.cachedPythonEnvironmentResult
 import com.intellij.python.sdk.backend.impl.enrichLocalPythonSdkWithHomeInfo
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.concurrency.annotations.RequiresBlockingContext
@@ -16,7 +15,7 @@ import kotlinx.coroutines.withContext
  * An [Sdk] paired with the outcome of [PythonEnvironment] detection.
  *
  * [PythonInterpreter] has a snaphost of cached environment info - [environmentResult]:
- *  - `null` — nothing has been detected (non-Python / remote SDK, or [Sdk.pythonInterpreterWithoutDetection] before detection);
+ *  - `null` — nothing has been detected (non-Python / remote SDK);
  *  - [PyResult] failure — detection ran but failed (bad home path, unreadable layout, …);
  *  - [PyResult] success — the detected [PythonEnvironment].
  *
@@ -80,18 +79,6 @@ class PythonInterpreter internal constructor(
 fun Sdk.pythonInterpreter(forceRefresh: Boolean = false): PythonInterpreter {
   return PythonInterpreter(this, enrichLocalPythonSdkWithHomeInfo(forceRefresh))
 }
-
-/**
- * This SDK as an interpreter, without environment detection. Safe on the EDT and under a lock.
- *
- * `PythonPackageManager.forSdk` is the only caller, and it is deprecated. Remove this function together with it, when
- * the callers of other teams have moved. Get the interpreter from the project structure, or with
- * [pythonInterpreterAsync], in all other code.
- *
- * [PythonInterpreter.environmentResult] holds the cached detection, or `null` when nothing is detected yet.
- */
-@Deprecated("Only PythonPackageManager.forSdk calls it. Get the interpreter from the project structure.")
-fun Sdk.pythonInterpreterWithoutDetection(): PythonInterpreter = PythonInterpreter(this, cachedPythonEnvironmentResult())
 
 /**
  * [Sdk.pythonInterpreter] for a caller that can suspend. This is the main entry point.

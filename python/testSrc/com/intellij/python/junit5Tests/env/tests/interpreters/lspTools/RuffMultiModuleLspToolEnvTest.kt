@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.env.tests.interpreters.lspTools
 
+import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.idea.TestFor
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.edtWriteAction
@@ -20,8 +21,8 @@ import com.intellij.platform.lsp.api.getClients
 import com.intellij.platform.testFramework.junit5.codeInsight.fixture.codeInsightFixture
 import com.intellij.python.junit5Tests.framework.LeakedProcessReporterExtension
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.junit5Tests.framework.subdirectoryFixture
 import com.intellij.python.lsp.core.pyServedModules
@@ -90,23 +91,30 @@ class RuffMultiModuleLspToolEnvTest {
   private val projectPath = tempPathFixture(prefix = "ruff_multi_module")
   private val servicePath = projectPath.subdirectoryFixture("service")
   private val projectFixture = projectFixture(projectPath, openAfterCreation = true)
-  private val rootModuleFixture = projectFixture.pyModuleFixture(projectPath, addPathToSourceRoot = true)
-  private val serviceModuleFixture = projectFixture.pyModuleFixture(servicePath, addPathToSourceRoot = true)
-  private val projectSdkFixture = pySdkFixture().pyVenvFixture(where = projectPath, addToSdkTable = true)
-  private val serviceSdkFixture = pySdkFixture().pyVenvFixture(where = servicePath, addToSdkTable = true, serviceModuleFixture)
+  private val rootPyProjectFixture = projectFixture.pyProjectFixture(projectPath)
+  private val servicePyProjectFixture = projectFixture.pyProjectFixture(servicePath)
+  private val projectSdkFixture = projectFixture.pyInterpreterFixture().pyVenvFixture(where = projectPath)
+  private val serviceSdkFixture = projectFixture.pyInterpreterFixture().pyVenvFixture(where = servicePath, servicePyProjectFixture)
 
   /** A module outside the project directory. It is a workspace of its own, so it never joins the group of a module above. */
   private val sparePath = tempPathFixture(prefix = "ruff_spare")
-  private val spareModuleFixture = projectFixture.pyModuleFixture(sparePath, addPathToSourceRoot = true)
-  private val spareSdkFixture = pySdkFixture().pyVenvFixture(where = sparePath, addToSdkTable = true, spareModuleFixture)
+  private val sparePyProjectFixture = projectFixture.pyProjectFixture(sparePath)
+  private val spareSdkFixture = projectFixture.pyInterpreterFixture().pyVenvFixture(where = sparePath, sparePyProjectFixture)
 
   private val project: Project by projectFixture
-  private val rootModule: Module by rootModuleFixture
-  private val serviceModule: Module by serviceModuleFixture
-  private val rootPyProject: PyProject by rootModuleFixture.pyProjectFixture()
-  private val servicePyProject: PyProject by serviceModuleFixture.pyProjectFixture()
-  private val sparePyProject: PyProject by spareModuleFixture.pyProjectFixture()
-  private val projectSdk: Sdk by projectSdkFixture
+  private val rootPyProject: PyProject by rootPyProjectFixture
+  private val servicePyProject: PyProject by servicePyProjectFixture
+  private val sparePyProject: PyProject by sparePyProjectFixture
+  private val rootModule: Module get() = rootPyProject.residesOnModule
+  private val serviceModule: Module get() = servicePyProject.residesOnModule
+
+  // The test sets module and project SDKs the way the Project Structure dialog does.
+  @Suppress("DEPRECATION")
+  private val projectSdk: Sdk get() = projectSdkFixture.get().getSdkAPI()
+  @Suppress("DEPRECATION")
+  private val serviceSdk: Sdk get() = serviceSdkFixture.get().getSdkAPI()
+  @Suppress("DEPRECATION")
+  private val spareSdk: Sdk get() = spareSdkFixture.get().getSdkAPI()
   private val codeInsightFixture by codeInsightFixture(projectFixture, projectPath)
 
   private val pinnedRuffVersion = LspToolVersions.requirement(RuffPyTool.getInstance()).substringAfter("==")
@@ -132,7 +140,7 @@ class RuffMultiModuleLspToolEnvTest {
     sparePyProject.installToolPackage("ruff==$SPARE_RUFF_VERSION")
     assertRuffChecks(serviceFile, serviceModule, SERVICE_RUFF_VERSION)
 
-    ModuleRootModificationUtil.setModuleSdk(serviceModule, spareSdkFixture.get())
+    ModuleRootModificationUtil.setModuleSdk(serviceModule, spareSdk)
 
     val client = awaitRuffClientOf(serviceModule, "the Ruff server of module 'service' did not restart with Ruff $SPARE_RUFF_VERSION") {
       it.ruffVersion == SPARE_RUFF_VERSION
@@ -171,7 +179,7 @@ class RuffMultiModuleLspToolEnvTest {
       val (rootFile, serviceFile) = setUpModules()
       assertRuffChecks(rootFile, rootModule, pinnedRuffVersion)
 
-      edtWriteAction { ProjectRootManager.getInstance(project).projectSdk = serviceSdkFixture.get() }
+      edtWriteAction { ProjectRootManager.getInstance(project).projectSdk = serviceSdk }
 
       val client = awaitOneRuffServer(SERVICE_RUFF_VERSION)
       awaitLspDiagnostics(client, rootFile) { it.code?.get()?.toString() == "F401" }
@@ -191,7 +199,7 @@ class RuffMultiModuleLspToolEnvTest {
    */
   private suspend fun setUpModules(oneInterpreter: Boolean = false): Pair<VirtualFile, VirtualFile> {
     assertNotEquals(pinnedRuffVersion, SERVICE_RUFF_VERSION, "the two interpreters must hold different Ruff versions")
-    assertEquals(serviceSdkFixture.get(), serviceModule.pythonSdk, "the service module must have its own interpreter")
+    assertEquals(serviceSdk, serviceModule.pythonSdk, "the service module must have its own interpreter")
     edtWriteAction {
       ProjectRootManager.getInstance(project).projectSdk = projectSdk
       ModuleRootModificationUtil.setSdkInherited(rootModule)

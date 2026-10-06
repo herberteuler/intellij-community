@@ -19,6 +19,8 @@ import com.intellij.python.pyrefly.PyreflyPyTool
 import com.intellij.python.pytools.backend.ProjectLevelPyTool
 import com.intellij.python.pytools.backend.setEnabledOn
 import com.intellij.python.pytools.backend.PyToolsState
+import com.intellij.python.sdk.backend.PythonInterpreter
+import com.intellij.python.sdk.backend.findPythonInterpreterIfReady
 import com.intellij.python.typeEngine.common.PyTypeEngineApi
 import com.intellij.python.typeEngine.common.PyTypeEngineEvent
 import com.intellij.python.typeEngine.common.PyTypeEngineEventRequest
@@ -123,7 +125,7 @@ private fun stateChanges(project: Project): Flow<Unit> = callbackFlow {
     override fun moduleSdkUpdated(module: Module, prevSdk: Sdk?, newSdk: Sdk?) = publish()
   })
   connection.subscribe(PythonPackageManager.PACKAGE_MANAGEMENT_TOPIC, object : PythonPackageManagementListener {
-    override fun packagesChanged(sdk: Sdk) = publish()
+    override fun packagesChanged(interpreter: PythonInterpreter) = publish()
   })
   publish()
   awaitClose { connection.disconnect() }
@@ -136,7 +138,11 @@ private fun state(project: Project): PyTypeEngineStateDto {
     when (type) {
       PyTypeEngineId.PYCHARM -> true
       PyTypeEngineId.TY -> TyUtil.isTyInstalled()
-      else -> sdks.any { sdk -> PythonPackageManager.forSdk(project, sdk).hasInstalledPackageSnapshot(type.packageName) }
+      else -> sdks.any { sdk ->
+        // A read action, so it does not wait. Before the first registry computation, the engine is not installed.
+        val interpreter = project.findPythonInterpreterIfReady(sdk) ?: return@any false
+        PythonPackageManager.forPythonInterpreter(project, interpreter).hasInstalledPackageSnapshot(type.packageName)
+      }
     }
   }
   return PyTypeEngineStateDto(

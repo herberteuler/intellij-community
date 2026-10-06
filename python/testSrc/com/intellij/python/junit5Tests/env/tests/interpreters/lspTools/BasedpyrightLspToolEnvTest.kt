@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.env.tests.interpreters.lspTools
 
+import com.intellij.openapi.module.Module
 import com.intellij.idea.TestFor
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
@@ -11,8 +12,7 @@ import com.intellij.platform.lsp.api.LspServerState
 import com.intellij.platform.lsp.api.getClients
 import com.intellij.platform.testFramework.junit5.codeInsight.fixture.codeInsightFixture
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.pyright.BasedpyrightConfiguration
 import com.intellij.python.pyright.BasedpyrightPyTool
@@ -143,13 +143,12 @@ class BasedpyrightLspToolEnvTest {
     private val tempPathFixture = tempPathFixture()
     private val projectFixture = projectFixture(openAfterCreation = true)
     internal val project by projectFixture
-    private val moduleFixture = projectFixture.pyModuleFixture(tempPathFixture, addPathToSourceRoot = true)
-    internal val module by moduleFixture
-    internal val pyProject by moduleFixture.pyProjectFixture()
-    internal val venv by pySdkFixture().pyVenvFixture(
+    private val pyProjectFixture = projectFixture.pyProjectFixture(tempPathFixture)
+    internal val pyProject by pyProjectFixture
+    internal val module: Module get() = pyProject.residesOnModule
+    internal val venv by projectFixture.pyInterpreterFixture().pyVenvFixture(
       where = tempPathFixture,
-      addToSdkTable = true,
-      moduleFixture = moduleFixture,
+      pyProjectFixture = pyProjectFixture,
     )
     internal val codeInsightFixture by codeInsightFixture(projectFixture, tempPathFixture)
   }

@@ -4,13 +4,13 @@ package com.jetbrains.python.junit5.framework.showcase
 import com.intellij.platform.testFramework.junit5.codeInsight.fixture.codeInsightFixture
 import com.intellij.testFramework.TestDataPath
 import com.intellij.testFramework.junit5.TestApplication
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.jetbrains.python.tools.sdkTools.PythonMockSdk
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
-import com.jetbrains.python.junit5.framework.pyMockSdkFixture
+import com.jetbrains.python.junit5.framework.pyMockInterpreterFixture
 import com.jetbrains.python.inspections.PyTypeCheckerInspection
 import com.jetbrains.python.psi.LanguageLevel
 import org.junit.jupiter.api.BeforeEach
@@ -31,9 +31,9 @@ class PlatformWayJUnit5CodeInsightTest {
     private val tempDir = tempPathFixture()
     private val project = projectFixture(tempDir, openAfterCreation = true)
     @Suppress("unused")
-    private val module = project.pyModuleFixture(tempDir, addPathToSourceRoot = true)
+    private val pyProject = project.pyProjectFixture(tempDir)
     @Suppress("unused")
-    private val mockSdk = project.pyMockSdkFixture(module) {
+    private val mockSdk = project.pyMockInterpreterFixture(pyProject) {
       PythonMockSdk.create(LanguageLevel.getLatest())
     }
   }

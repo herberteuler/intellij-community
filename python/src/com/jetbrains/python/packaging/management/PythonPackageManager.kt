@@ -23,7 +23,7 @@ import com.intellij.python.pyproject.PyDependencyGroup
 import com.intellij.python.pyproject.model.spi.ProjectName
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.getSdkAPI
-import com.intellij.python.sdk.backend.pythonInterpreterWithoutDetection
+import com.intellij.python.sdk.backend.pythonInterpreter
 import com.intellij.serviceContainer.AlreadyDisposedException
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.concurrency.annotations.RequiresEdt
@@ -86,18 +86,13 @@ import org.jetbrains.annotations.Nls
 @ApiStatus.Experimental
 abstract class PythonPackageManager @ApiStatus.Internal constructor(
   val project: Project,
-  /** The interpreter whose environment this manager manages. */
+  /** The interpreter whose environment this manager manages. It is detected, so its environment is known. */
   @ApiStatus.Internal
   val interpreter: PythonInterpreter,
 ) : Disposable {
-  /** For a subclass that still has only an [Sdk]. It does not detect the environment. */
-  @Deprecated("Pass a PythonInterpreter")
-  @ApiStatus.Internal
-  constructor(project: Project, sdk: Sdk) : this(project, @Suppress("DEPRECATION") sdk.pythonInterpreterWithoutDetection())
-
-  /** The SDK of [interpreter], for the callers that still use an SDK API. */
+  /** The SDK of [interpreter], for the subclasses that still call an SDK API. */
   @Suppress("DEPRECATION")
-  val sdk: Sdk get() = interpreter.getSdkAPI()
+  protected val sdk: Sdk get() = interpreter.getSdkAPI()
 
   /**
    * Whether this manager has an explicit list of top-level dependencies (e.g. from pyproject.toml).
@@ -646,20 +641,14 @@ abstract class PythonPackageManager @ApiStatus.Internal constructor(
 
   companion object {
     /**
-     * [forPythonInterpreter] for a caller that holds only an [Sdk].
-     *
-     * It does not detect the environment, so the manager it returns has an incomplete interpreter. The packaging code and
-     * its UI do not call it any more. The other callers move to [forPythonInterpreter] in a follow-up change, one change
-     * per owner, so each owner reviews their own part: the LSP tools, the type engine, Jupyter, AI Assistant, Qodana,
-     * Aqua, marimo, dbt and django-core. [PythonPackageManagerUI.forSdk] stays until then for the same callers. This
-     * function is removed with the last of them.
+     * [forPythonInterpreter] for a caller that holds only an [Sdk]. It detects the environment of [sdk] on the calling
+     * thread. It stays for the plugins outside this repository.
      */
     @Deprecated("Pass a PythonInterpreter to forPythonInterpreter. Get it from the project structure or with pythonInterpreterAsync.")
+    @RequiresBackgroundThread
     @Throws(AlreadyDisposedException::class)
-    fun forSdk(project: Project, sdk: Sdk): PythonPackageManager {
-      @Suppress("DEPRECATION") // This is the one bridge from an SDK to a package manager.
-      return forPythonInterpreter(project, sdk.pythonInterpreterWithoutDetection())
-    }
+    fun forSdk(project: Project, sdk: Sdk): PythonPackageManager =
+      forPythonInterpreter(project, sdk.pythonInterpreter())
 
     /** The manager of the environment [interpreter] runs in. */
     @ApiStatus.Internal

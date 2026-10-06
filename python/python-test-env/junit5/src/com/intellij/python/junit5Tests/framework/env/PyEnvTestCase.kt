@@ -5,12 +5,11 @@ import com.intellij.python.test.env.common.PredefinedPyEnvironments
 import com.intellij.python.test.env.junit5.EnvTestPythonProviderExtension
 import com.intellij.python.test.env.junit5.PythonBinaryPathExtension
 import com.intellij.python.test.env.junit5.PythonFactoryExtension
-import com.intellij.python.test.env.junit5.PythonSdkExtension
 import com.intellij.testFramework.junit5.TestApplication
 import org.junit.jupiter.api.extension.ExtendWith
 
 /**
- * Python env test case that supports [PythonBinaryPath] and [PythonSdk] parameter injection.
+ * Python env test case that supports [PythonBinaryPath] parameter injection. For an SDK, use [pyInterpreterFixture].
  * 
  * @param envs values from [com.intellij.python.test.env.common.PredefinedPyEnvironments] for environments where to run test.
  *             If empty, defaults to Python 3.12.
@@ -21,9 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 class PyEnvTestExample {
   @Test
   fun test(@PythonBinaryPath binary: PythonBinary) { ... }
-  
-  @Test
-  fun testSdk(@PythonSdk sdk: Sdk) { ... }
 }
 
 @PyEnvTestCase(env = PredefinedPyEnvironments.CONDA)
@@ -37,7 +33,6 @@ class PyCondaTest {
 @Target(AnnotationTarget.CLASS)
 @ExtendWith(
   PythonBinaryPathExtension::class,
-  PythonSdkExtension::class,
   PythonFactoryExtension::class,
   EnvTestPythonProviderExtension::class
 )

@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.junit5.framework.showcase
 
+import com.intellij.python.junit5Tests.framework.pyProjectInProjectFixture
 import com.jetbrains.python.project.PyProject.Companion.asPyProject
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
@@ -13,7 +14,6 @@ import com.intellij.python.pyproject.model.api.configureSdkIfNeeded
 import com.intellij.python.pyproject.model.api.getModuleSdkState
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
-import com.intellij.testFramework.junit5.fixture.moduleInProjectFixture
 import com.jetbrains.python.allure.Layers
 import com.jetbrains.python.allure.Subsystems
 import com.jetbrains.python.junit5.framework.annotations.PyCodeInsightTestApplication
@@ -49,7 +49,7 @@ internal class PyUvWorkspaceMemberSdkTest(val project: Project) {
 
     // The mock SDK is assigned to the workspace root module.
     @JvmField
-    val moduleFixture = projectFixture.moduleInProjectFixture("workspace-root")
+    val pyProjectFixture = projectFixture.pyProjectInProjectFixture("workspace-root")
   }
 
   @Test

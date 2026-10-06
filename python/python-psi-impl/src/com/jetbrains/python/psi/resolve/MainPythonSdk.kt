@@ -3,7 +3,7 @@ package com.jetbrains.python.psi.resolve
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
+import com.intellij.python.pyproject.model.evolution.findMainEvoPyProjectIfReady
 import com.intellij.python.sdk.backend.getSdkAPI
 
 /**
@@ -17,4 +17,4 @@ import com.intellij.python.sdk.backend.getSdkAPI
  * [com.intellij.python.pyproject.model.evolution.findMainPythonInterpreter], which waits.
  */
 @Suppress("DEPRECATION")
-internal fun Project.mainPythonSdk(): Sdk? = EvoPyProjectModel.getInstance(this).snapshotOrNull()?.main?.interpreter?.getSdkAPI()
+internal fun Project.mainPythonSdk(): Sdk? = findMainEvoPyProjectIfReady()?.interpreter?.getSdkAPI()

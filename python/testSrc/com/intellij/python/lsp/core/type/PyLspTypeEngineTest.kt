@@ -10,7 +10,7 @@ import com.intellij.platform.lsp.api.LspClient
 import com.intellij.platform.lsp.api.LspServerState
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.lsp.core.fakePyToolClient
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.projectFixture
@@ -39,27 +39,27 @@ internal class PyLspTypeEngineTest {
   private val mainPath = tempPathFixture()
   private val secondPath = tempPathFixture()
   private val outsidePath = tempPathFixture()
-  private val mainModule = projectFixture.pyModuleFixture(mainPath, addPathToSourceRoot = true)
-  private val secondModule = projectFixture.pyModuleFixture(secondPath, addPathToSourceRoot = true)
+  private val mainPyProject = projectFixture.pyProjectFixture(mainPath)
+  private val secondPyProject = projectFixture.pyProjectFixture(secondPath)
 
   @Test
   fun `an element of a served module is supported`() = runBlocking {
-    val engine = engineServing(mainModule.get())
+    val engine = engineServing(mainPyProject.get().residesOnModule)
 
     assertTrue(engine.isSupportedForResolve(referenceIn(mainPath.get())))
   }
 
   @Test
   fun `an element of a module the server does not serve is not supported`() = runBlocking {
-    val engine = engineServing(mainModule.get())
-    secondModule.get()
+    val engine = engineServing(mainPyProject.get().residesOnModule)
+    secondPyProject.get().residesOnModule
 
     assertFalse(engine.isSupportedForResolve(referenceIn(secondPath.get())))
   }
 
   @Test
   fun `one server that serves both modules answers for both`() = runBlocking {
-    val engine = engineServing(mainModule.get(), secondModule.get())
+    val engine = engineServing(mainPyProject.get().residesOnModule, secondPyProject.get().residesOnModule)
 
     assertTrue(engine.isSupportedForResolve(referenceIn(mainPath.get())))
     assertTrue(engine.isSupportedForResolve(referenceIn(secondPath.get())))
@@ -67,8 +67,8 @@ internal class PyLspTypeEngineTest {
 
   @Test
   fun `the answer does not change when it is asked twice`() = runBlocking {
-    val engine = engineServing(mainModule.get())
-    secondModule.get()
+    val engine = engineServing(mainPyProject.get().residesOnModule)
+    secondPyProject.get().residesOnModule
     val ownReference = referenceIn(mainPath.get())
     val otherReference = referenceIn(secondPath.get())
 
@@ -80,8 +80,8 @@ internal class PyLspTypeEngineTest {
 
   @Test
   fun `an element of no module is supported`() = runBlocking {
-    val engine = engineServing(mainModule.get())
-    secondModule.get()
+    val engine = engineServing(mainPyProject.get().residesOnModule)
+    secondPyProject.get().residesOnModule
 
     assertTrue(engine.isSupportedForResolve(referenceIn(outsidePath.get())))
   }
@@ -93,8 +93,8 @@ internal class PyLspTypeEngineTest {
   @Test
   @TestFor(issues = ["PY-92008"])
   fun `an engine behind a stopped server supports nothing`() = runBlocking {
-    val stopped = fakePyToolClient(mainModule.get(), serverState = LspServerState.ShutdownNormally)
-    val engine = FakeLspTypeEngine(mainModule.get(), stopped)
+    val stopped = fakePyToolClient(mainPyProject.get().residesOnModule, serverState = LspServerState.ShutdownNormally)
+    val engine = FakeLspTypeEngine(mainPyProject.get().residesOnModule, stopped)
 
     assertFalse(engine.isSupportedForResolve(referenceIn(mainPath.get())))
   }
@@ -106,8 +106,8 @@ internal class PyLspTypeEngineTest {
   @Test
   @TestFor(issues = ["PY-92008"])
   fun `an engine behind an initializing server supports nothing`() = runBlocking {
-    val initializing = fakePyToolClient(mainModule.get(), serverState = LspServerState.Initializing)
-    val engine = FakeLspTypeEngine(mainModule.get(), initializing)
+    val initializing = fakePyToolClient(mainPyProject.get().residesOnModule, serverState = LspServerState.Initializing)
+    val engine = FakeLspTypeEngine(mainPyProject.get().residesOnModule, initializing)
 
     assertFalse(engine.isSupportedForResolve(referenceIn(mainPath.get())))
   }

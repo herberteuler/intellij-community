@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.framework
 
+import com.jetbrains.python.project.PyProject
+import com.intellij.testFramework.junit5.fixture.testFixture
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
@@ -19,9 +21,7 @@ import com.intellij.testFramework.junit5.fixture.LookupFixtureExtension.Companio
 import com.intellij.testFramework.junit5.fixture.LookupFixtureExtension.Companion.registerImplicitFixtures
 import com.intellij.testFramework.junit5.fixture.TestFixture
 import com.intellij.testFramework.junit5.fixture.editorFixture
-import com.intellij.testFramework.junit5.fixture.pathInProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
-import com.intellij.testFramework.junit5.fixture.sourceRootFixture
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -30,7 +30,6 @@ import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.extension.Extension
 import org.junit.jupiter.api.extension.ExtensionContext
-import java.nio.file.Path
 
 /**
  * PyDefaultTestApplication is a test annotation used to initialize a shared application context
@@ -46,6 +45,7 @@ import java.nio.file.Path
 annotation class PyDefaultTestApplication
 
 private const val DEFAULT_PROJECT: String = "DEFAULT_PROJECT"
+private const val DEFAULT_PY_PROJECT: String = "DEFAULT_PY_PROJECT"
 private const val DEFAULT_PY_MODULE: String = "DEFAULT_PY_MODULE"
 private const val DEFAULT_SOURCE_ROOT: String = "DEFAULT_SOURCE_ROOT"
 private const val DEFAULT_EDITOR: String = "DEFAULT_EDITOR"
@@ -70,17 +70,23 @@ private class PyWithDefaultFixturesExtension : BeforeAllCallback, BeforeEachCall
       }
     }
 
-    val module = manager.getOrDefault {
-      project.pyModuleFixture(project.pathInProjectFixture(Path.of("."))).also {
+    val testDataPath = context.getTestClassInfo().testDataPath
+    // The default Python project gets the test data before its module scans the root. A Python project the test
+    // declares itself gets it in the source root step.
+    val isExplicitPyProject = manager.findInstance(PyProject::class.java, null) != null
+    val pyProject = manager.getOrDefault {
+      project.pyProjectFixture(blueprintResourcePath = testDataPath).also {
+        implicitFixtures += LookupFixture(DEFAULT_PY_PROJECT, it, true)
+      }
+    }
+    manager.getOrDefault {
+      testFixture("pyProjectModule") { initialized(pyProject.init().residesOnModule) {} }.also {
         implicitFixtures += LookupFixture(DEFAULT_PY_MODULE, it, true)
       }
     }
 
     manager.getOrDefault {
-      module.sourceRootFixture(
-        pathFixture = project.pathInProjectFixture(Path.of(".")),
-        blueprintResourcePath = context.getTestClassInfo().testDataPath
-      ).also {
+      pyProject.rootSourceRootFixture(blueprintResourcePath = testDataPath.takeIf { isExplicitPyProject }).also {
         implicitFixtures += LookupFixture(DEFAULT_SOURCE_ROOT, it, true)
       }
     }

@@ -3,7 +3,7 @@ package com.intellij.python.community.junit5Tests.framework.conda
 
 /**
  * Mark [com.jetbrains.python.sdk.flavors.conda.PyCondaEnv] test parameter to get first conda binary for env test.
- * If you need sdk -- use [com.intellij.python.junit5Tests.framework.env.pySdkFixture]
+ * If you need sdk -- use [com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture]
  *
  * Example:
  * ```kotlin

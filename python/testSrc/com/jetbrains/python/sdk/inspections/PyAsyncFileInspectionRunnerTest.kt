@@ -10,7 +10,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.common.waitUntilAssertSucceeds
 import com.intellij.testFramework.junit5.TestApplication
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
@@ -33,7 +33,8 @@ private const val PROGRESS_TITLE = "Test Progress"
 class PyAsyncFileInspectionRunnerTest {
 
   private val projectFixture = projectFixture()
-  private val module by projectFixture.pyModuleFixture()
+  private val pyProject by projectFixture.pyProjectFixture()
+  private val module: Module get() = pyProject.residesOnModule
   private lateinit var expectedFixes: List<InterpreterFix>
 
   @BeforeEach

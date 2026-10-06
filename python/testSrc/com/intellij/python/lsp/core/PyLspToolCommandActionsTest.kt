@@ -8,7 +8,7 @@ import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.ex.ProjectManagerEx
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.ty.TyLspClientDescriptor
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.createTestOpenProjectOptions
@@ -40,7 +40,7 @@ private const val COMMAND = "py89555.printDebugInformation"
 @TestFor(issues = ["PY-89555"])
 internal class PyLspToolCommandActionsTest {
   private val projectFixture = projectFixture(openAfterCreation = true)
-  private val moduleFixture = projectFixture.pyModuleFixture("main")
+  private val pyProjectFixture = projectFixture.pyProjectFixture()
   private val closedProjectPath = tempPathFixture()
 
   /** A failed assertion must not leave an application-wide action that keeps the project of the next test. */
@@ -51,7 +51,7 @@ internal class PyLspToolCommandActionsTest {
 
   @Test
   fun `the stop of the server unregisters its command actions`() {
-    val descriptor = TyLspClientDescriptor(moduleFixture.get())
+    val descriptor = TyLspClientDescriptor(pyProjectFixture.get().residesOnModule)
     descriptor.lspServerListener.serverInitialized(initializeResult())
     assertNotNull(commandAction())
 
@@ -82,8 +82,8 @@ internal class PyLspToolCommandActionsTest {
 
   @Test
   fun `the stop of a server keeps the command action that another server took over`() {
-    val first = TyLspClientDescriptor(moduleFixture.get())
-    val second = TyLspClientDescriptor(moduleFixture.get())
+    val first = TyLspClientDescriptor(pyProjectFixture.get().residesOnModule)
+    val second = TyLspClientDescriptor(pyProjectFixture.get().residesOnModule)
     first.lspServerListener.serverInitialized(initializeResult())
     second.lspServerListener.serverInitialized(initializeResult())
     val secondAction = commandAction()
@@ -99,7 +99,7 @@ internal class PyLspToolCommandActionsTest {
   /** A restart reuses the descriptor, and the old server can report its stop after the new one initialized. */
   @Test
   fun `the late stop of the old server keeps the command actions of the restarted one`() {
-    val descriptor = TyLspClientDescriptor(moduleFixture.get())
+    val descriptor = TyLspClientDescriptor(pyProjectFixture.get().residesOnModule)
     descriptor.lspServerListener.serverInitialized(initializeResult())
     descriptor.lspServerListener.serverInitialized(initializeResult())
     val restartedAction = commandAction()
@@ -115,7 +115,7 @@ internal class PyLspToolCommandActionsTest {
   /** A server that fails to initialize also reports a stop, and that stop must not take the actions of a later start. */
   @Test
   fun `the stop of a server that never initialized keeps the command actions of the next start`() {
-    val descriptor = TyLspClientDescriptor(moduleFixture.get())
+    val descriptor = TyLspClientDescriptor(pyProjectFixture.get().residesOnModule)
     descriptor.lspServerListener.serverStopped(false)
     descriptor.lspServerListener.serverInitialized(initializeResult())
     assertNotNull(commandAction())
@@ -126,7 +126,7 @@ internal class PyLspToolCommandActionsTest {
 
   @Test
   fun `a server without server info names the command action after the tool`() {
-    val descriptor = TyLspClientDescriptor(moduleFixture.get())
+    val descriptor = TyLspClientDescriptor(pyProjectFixture.get().residesOnModule)
     descriptor.lspServerListener.serverInitialized(initializeResult(serverInfo = null))
     try {
       assertEquals("${descriptor.presentableName}: $COMMAND", commandAction()?.templateText)
@@ -139,7 +139,7 @@ internal class PyLspToolCommandActionsTest {
   private fun initializeResult(serverInfo: ServerInfo? = ServerInfo("ty")): InitializeResult =
     InitializeResult(ServerCapabilities().apply { executeCommandProvider = ExecuteCommandOptions(listOf(COMMAND)) }, serverInfo)
 
-  private val commandActionId by lazy { "LSP.Command.${TyLspClientDescriptor(moduleFixture.get()).presentableName}.$COMMAND" }
+  private val commandActionId by lazy { "LSP.Command.${TyLspClientDescriptor(pyProjectFixture.get().residesOnModule).presentableName}.$COMMAND" }
 
   private fun commandAction(): AnAction? = ActionManager.getInstance().getAction(commandActionId)
 }

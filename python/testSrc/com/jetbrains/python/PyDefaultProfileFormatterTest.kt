@@ -9,7 +9,7 @@ import com.intellij.platform.testFramework.junit5.codeInsight.fixture.codeInsigh
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.psi.codeStyle.CommonCodeStyleSettings
 import com.intellij.testFramework.junit5.TestApplication
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.jetbrains.python.allure.Layers
@@ -44,7 +44,7 @@ class PyDefaultProfileFormatterTest {
     private val project = projectFixture(tempDir, openAfterCreation = true)
 
     @Suppress("unused")
-    private val module = project.pyModuleFixture(tempDir, addPathToSourceRoot = true)
+    private val pyProject = project.pyProjectFixture(tempDir)
   }
 
   private val codeInsightFixture by codeInsightFixture(project, tempDir)

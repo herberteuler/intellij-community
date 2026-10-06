@@ -1,19 +1,24 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit
 
+import com.intellij.python.junit5Tests.framework.rootSourceRootFixture
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.project.guessModuleDir
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.community.common.tools.ToolId
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
+import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.intellij.testFramework.ExtensionTestUtil
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.common.waitUntilAssertSucceeds
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.disposableFixture
-import com.intellij.testFramework.junit5.fixture.pathInProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
-import com.intellij.testFramework.junit5.fixture.sourceRootFixture
+import com.jetbrains.python.PythonBinary
+import com.jetbrains.python.project.PyProject
+import com.jetbrains.python.sdk.configuration.CreateInterpreterInfo
+import com.jetbrains.python.sdk.configuration.PyProjectTomlConfigurationExtension
 import com.jetbrains.python.tools.sdkTools.PythonMockSdk
 import com.jetbrains.python.sdk.inspections.PyInterpreterNotificationProvider
 import com.jetbrains.python.sdk.configuration.PyProjectSdkConfigurationExtension
@@ -22,7 +27,6 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.nio.file.Path
 import kotlin.io.path.writeText
 import kotlin.time.Duration.Companion.seconds
 
@@ -30,20 +34,19 @@ import kotlin.time.Duration.Companion.seconds
 class PyInterpreterInspectionTest {
   private val testDisposable by disposableFixture()
   private val projectFixture = projectFixture(openAfterCreation = true)
-  private val moduleFixture = projectFixture.pyModuleFixture()
-  private val sourceRootFixture = moduleFixture.sourceRootFixture(
-    pathFixture = projectFixture.pathInProjectFixture(Path.of("src")),
-  )
+  private val pyProjectFixture = projectFixture.pyProjectFixture()
+  private val sourceRootFixture = pyProjectFixture.rootSourceRootFixture()
 
   private val project get() = projectFixture.get()
-  private val module get() = moduleFixture.get()
+  private val module get() = pyProjectFixture.get().residesOnModule
 
   @BeforeEach
   fun setUp() {
     sourceRootFixture.get()
+    // No real configurator probes the machine. The fake one still claims pyproject.toml, which makes that file relevant.
     ExtensionTestUtil.maskExtensions(
       PyProjectSdkConfigurationExtension.EP_NAME,
-      emptyList(),
+      listOf(PyProjectTomlOnlyConfigurator),
       testDisposable,
     )
   }
@@ -126,6 +129,14 @@ class PyInterpreterInspectionTest {
         assertNotNull(provider.collectNotificationData(project, file), "Expected notification for '$fileName' when no SDK is configured")
       }
     }
+  }
+
+  /** Claims pyproject.toml and offers no environment, so it runs no tool. */
+  private object PyProjectTomlOnlyConfigurator : PyProjectSdkConfigurationExtension {
+    override val toolId: ToolId = ToolId("pyproject-toml-only-test-tool")
+    override val potentialDependencyFiles: Set<String> = setOf(PY_PROJECT_TOML)
+    override suspend fun checkEnvironmentAndPrepareSdkCreator(pyProject: PyProject, venvs: List<PythonBinary>): CreateInterpreterInfo? = null
+    override fun asPyProjectTomlSdkConfigurationExtension(): PyProjectTomlConfigurationExtension? = null
   }
 
   private fun createFileInModule(fileName: String, content: String): VirtualFile {

@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.env.tests.black
 
+import com.intellij.python.junit5Tests.framework.sourceRootFixture
 import com.intellij.codeInsight.actions.onSave.FormatOnSaveOptions
 import com.intellij.ide.actionsOnSave.impl.ActionsOnSaveManager
 import com.intellij.openapi.actionSystem.ActionManager
@@ -16,14 +17,13 @@ import com.intellij.openapi.application.writeIntentReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.python.black.BlackPyTool
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.python.pytools.backend.PyToolsState
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.fixture.editorFixture
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.psiFileFixture
-import com.intellij.testFramework.junit5.fixture.sourceRootFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -45,8 +45,8 @@ internal class BlackActionOnSaveTest {
   companion object {
     val tempPathFixture = tempPathFixture()
     val projectFixture = projectFixture(tempPathFixture, openAfterCreation = true)
-    val moduleFixture = projectFixture.pyModuleFixture(tempPathFixture, addPathToSourceRoot = true)
-    val sdkFixture = pySdkFixture().pyEnvSdkFixture(moduleFixture)
+    val pyProjectFixture = projectFixture.pyProjectFixture(tempPathFixture)
+    val sdkFixture = projectFixture.pyInterpreterFixture().pyEnvInterpreterFixture(pyProjectFixture)
 
     @JvmStatic
     @BeforeAll
@@ -58,7 +58,7 @@ internal class BlackActionOnSaveTest {
   // Instance-scoped so the editor is closed before TestApplicationExtension's afterEach runs
   // its `checkEditorsReleased` assertion. A class-scoped editorFixture lives until class teardown,
   // which is too late and shows up as a leaked editor.
-  private val sourceRootFixture = moduleFixture.sourceRootFixture()
+  private val sourceRootFixture = pyProjectFixture.sourceRootFixture()
   private val psiFileFixture = sourceRootFixture.psiFileFixture("test.py", "print('abc')\n")
   private val editorFixture = psiFileFixture.editorFixture()
 

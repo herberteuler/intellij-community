@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit.packaging
 
+import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
@@ -12,18 +13,17 @@ import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.jetbrains.python.tools.sdkTools.PythonMockSdk
 import com.jetbrains.python.PythonTestUtil
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
-import com.jetbrains.python.junit5.framework.pyMockSdkFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
+import com.jetbrains.python.junit5.framework.pyMockInterpreterFixture
 import com.intellij.python.pyproject.model.evolution.EvoPyProjectModel
 import com.intellij.python.pyproject.model.evolution.findMainPythonInterpreter
 import com.intellij.python.pyproject.model.evolution.findPythonInterpreter
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.jetbrains.python.psi.LanguageLevel
 import com.jetbrains.python.sdk.PythonSdkType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
@@ -48,20 +48,20 @@ internal class PyPackagesToolWindowSdkResolutionTest {
   private val firstModulePath = tempPathFixture()
   private val secondModulePath = tempPathFixture()
   // Python modules, so each is a `PyProject` the structure knows: that is what the resolution reads.
-  private val firstModule = projectFixture.pyModuleFixture(firstModulePath, addPathToSourceRoot = true)
-  private val secondModule = projectFixture.pyModuleFixture(secondModulePath, addPathToSourceRoot = true)
+  private val firstPyProject = projectFixture.pyProjectFixture(firstModulePath)
+  private val secondPyProject = projectFixture.pyProjectFixture(secondModulePath)
 
   // Distinct names matter: a module stores its SDK by name, so same-named mocks would make both
   // modules resolve to the same interpreter and the test would prove nothing.
-  private val firstSdk = projectFixture.pyMockSdkFixture(firstModule) { mockPythonSdk("firstModuleSdk") }
-  private val secondSdk = projectFixture.pyMockSdkFixture(secondModule) { mockPythonSdk("secondModuleSdk") }
+  private val firstSdk = projectFixture.pyMockInterpreterFixture(firstPyProject) { mockPythonSdk("firstModuleSdk") }
+  private val secondSdk = projectFixture.pyMockInterpreterFixture(secondPyProject) { mockPythonSdk("secondModuleSdk") }
 
   @Test
   fun `resolves the interpreter of the module owning the selected file`(): Unit = timeoutRunBlocking {
     val expected = bothInterpretersConfigured().second
     openFileIn(secondModulePath.get())
 
-    assertSame(expected, resolvedInterpreter(),
+    assertEquals(expected, resolvedInterpreter(),
                "The tool window must open on the interpreter of the subproject being edited")
   }
 
@@ -70,7 +70,7 @@ internal class PyPackagesToolWindowSdkResolutionTest {
     val expected = bothInterpretersConfigured().first
     openFileIn(firstModulePath.get())
 
-    assertSame(expected, resolvedInterpreter(),
+    assertEquals(expected, resolvedInterpreter(),
                "The tool window must open on the interpreter of the subproject being edited")
   }
 
@@ -84,13 +84,11 @@ internal class PyPackagesToolWindowSdkResolutionTest {
                "With no editor to go by and no Python project at the root, neither surface can name an interpreter")
   }
 
-  /** Asserted on SDK identity, which is what the interpreter wraps. */
-  @Suppress("DEPRECATION")
-  private suspend fun resolvedInterpreter(): Sdk? {
+  private suspend fun resolvedInterpreter(): PythonInterpreter? {
     val project = projectFixture.get()
     val selected = FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
     val interpreter = if (selected == null) project.findMainPythonInterpreter() else project.findPythonInterpreter(selected)
-    return interpreter?.getSdkAPI()
+    return interpreter
   }
 
   /**
@@ -98,7 +96,7 @@ internal class PyPackagesToolWindowSdkResolutionTest {
    * not name would have no interpreter at all and a first-module-wins regression would have nothing
    * to pick up.
    */
-  private fun bothInterpretersConfigured(): Pair<Sdk, Sdk> = Pair(firstSdk.get(), secondSdk.get())
+  private fun bothInterpretersConfigured(): Pair<PythonInterpreter, PythonInterpreter> = Pair(firstSdk.get(), secondSdk.get())
 
   private suspend fun openFileIn(moduleDir: Path) {
     val project: Project = projectFixture.get()

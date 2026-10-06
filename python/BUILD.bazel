@@ -1297,6 +1297,8 @@ jvm_library(
         "//python/python-psi-api:psi_test_lib",
         "//python/python-pytools/backend",
         "//python/python-pytools/backend:backend_test_lib",
+        "//python/common",
+        "//python/common:common_test_lib",
         "//python/python-pytools/frontend",
         "//python/python-pytools/frontend:frontend_test_lib",
         "//platform/xdebugger-api:debugger",

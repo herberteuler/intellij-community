@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.codeInsight.stubs.checkers
 
+import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.openapi.Disposable
@@ -32,7 +33,8 @@ internal abstract class PyStubsChecker(val project: Project) : Disposable.Defaul
     project.sdks.filter { PythonSdkUtil.isPythonSdk(it) }.forEach { startCheckForSdk(it) }
   }
 
-  fun getCached(sdk: Sdk): Set<PyPackageStubLink> = sdk.getUserData(key) ?: emptySet()
+  /** The stubs suggested for [interpreter], or none before the first check. */
+  fun getCached(interpreter: PythonInterpreter): Set<PyPackageStubLink> = interpreter.stubsHolder.getUserData(key) ?: emptySet()
 
   protected abstract suspend fun detectSuggestedStubs(packageManager: PythonPackageManager): List<PyPackageStubLink>
 
@@ -56,9 +58,16 @@ internal abstract class PyStubsChecker(val project: Project) : Disposable.Defaul
     check(PythonPackageManager.forPythonInterpreter(project, sdk.pythonInterpreterAsync()))
   }
 
-  /** Stores the stubs [packageManager] suggests on its SDK, where [getCached] reads them. */
+  /** Stores the stubs [packageManager] suggests for its interpreter, where [getCached] reads them. */
   private suspend fun check(packageManager: PythonPackageManager) {
     val suggested = detectSuggestedStubs(packageManager).toSet()
-    packageManager.sdk.putUserData(key, suggested)
+    packageManager.interpreter.stubsHolder.putUserData(key, suggested)
   }
 }
+
+/**
+ * The object that holds the stubs of this interpreter. The interpreter wrapper is new on each call, so the stubs live on
+ * its SDK, which is the same object for every wrapper.
+ */
+private val PythonInterpreter.stubsHolder: Sdk
+  @Suppress("DEPRECATION") get() = getSdkAPI()

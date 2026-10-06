@@ -6,7 +6,7 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.modules
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.intellij.python.test.env.junit5.pyUvVenvFixture
 import com.intellij.testFramework.ExtensionTestUtil
@@ -20,7 +20,7 @@ import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl
 import com.intellij.testFramework.fixtures.impl.TempDirTestFixtureImpl
 import com.intellij.testFramework.junit5.fixture.TestFixture
 import com.intellij.testFramework.junit5.fixture.disposableFixture
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import com.intellij.testFramework.junit5.fixture.testFixture
@@ -42,12 +42,11 @@ class UnsatisfiedRequirementInspectionTest {
   private val testDisposable by disposableFixture()
   private val tempDir = tempPathFixture()
   private val project = projectFixture(tempDir, openAfterCreation = true)
-  private val module = project.pyModuleFixture(tempDir, addPathToSourceRoot = true)
+  private val pyProject = project.pyProjectFixture(tempDir)
 
   @Suppress("unused")
-  private val venvFixture = pySdkFixture().pyUvVenvFixture(
-    addToSdkTable = true,
-    moduleFixture = module,
+  private val venvFixture = project.pyInterpreterFixture().pyUvVenvFixture(
+    pyProjectFixture = pyProject,
   )
 
   private val fixture = pyCodeInsightFixture(project, tempDir)

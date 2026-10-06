@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.junit5.framework.util
 
+import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.psi.PsiFile
 import com.intellij.python.junit5Tests.framework.metaInfo.Repository
@@ -46,9 +47,11 @@ class PyJUnit5CodeInsightIsolationTest {
     fixture.doTestByFile(mainFile)
   }
 
+  /** The source root of the current test is the only one besides the root of the Python project. */
   private fun assertSingleManagedSourceRoot(fixture: CodeInsightTestFixture) {
     val rootModel = ModuleRootManager.getInstance(fixture.module)
-    val contentEntriesWithSourceFolders = rootModel.contentEntries.filter { it.sourceFolders.isNotEmpty() }
+    val projectRoot = fixture.project.guessProjectDir()
+    val contentEntriesWithSourceFolders = rootModel.contentEntries.filter { it.sourceFolders.isNotEmpty() && it.file != projectRoot }
     Assertions.assertEquals(
       1,
       contentEntriesWithSourceFolders.size,
@@ -56,7 +59,7 @@ class PyJUnit5CodeInsightIsolationTest {
     )
     Assertions.assertEquals(
       1,
-      rootModel.sourceRoots.size,
+      rootModel.sourceRoots.count { it != projectRoot },
       "Expected a single source root, but got: ${rootModel.sourceRoots.map { it.path }}",
     )
   }

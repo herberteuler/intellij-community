@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.env.tests.interpreters.lspTools
 
+import com.intellij.openapi.module.Module
+import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.idea.TestFor
 import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.application.EDT
@@ -15,8 +17,8 @@ import com.intellij.platform.lsp.api.LspClientManager
 import com.intellij.platform.lsp.api.LspServerState
 import com.intellij.platform.testFramework.junit5.codeInsight.fixture.codeInsightFixture
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
-import com.intellij.python.junit5Tests.framework.pyModuleFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
 import com.intellij.python.ruff.RuffConfiguration
 import com.intellij.python.ruff.RuffPyTool
 import com.intellij.python.ruff.server.RuffLspIntegrationProvider
@@ -73,7 +75,8 @@ class RuffProjectConfigEnvTest {
         ModuleRootModificationUtil.addContentRoot(module, secondRoot.toString())
         ModuleRootModificationUtil.addContentRoot(module, ownRoot.toString())
         // The same interpreter, so the module runs the same Ruff.
-        ModuleRootModificationUtil.setModuleSdk(outsideModule, venv)
+        @Suppress("DEPRECATION") // The test sets the module SDK the way the Project Structure dialog does.
+        ModuleRootModificationUtil.setModuleSdk(outsideModule, venv.getSdkAPI())
       }
       assertEquals(3, ModuleRootManager.getInstance(module).contentRoots.size)
     }
@@ -176,9 +179,9 @@ class RuffProjectConfigEnvTest {
     private val ownRootFixture = tempPathFixture()
     private val outsideRootFixture = tempPathFixture()
     private val projectFixture = projectFixture(projectDirFixture, openAfterCreation = true)
-    private val moduleFixture = projectFixture.pyModuleFixture(projectDirFixture, addPathToSourceRoot = true)
-    private val venvFixture = pySdkFixture().pyVenvFixture(where = projectDirFixture, addToSdkTable = true, moduleFixture = moduleFixture)
-    private val outsideModuleFixture = projectFixture.pyModuleFixture(outsideRootFixture, addPathToSourceRoot = true)
+    private val pyProjectFixture = projectFixture.pyProjectFixture(projectDirFixture)
+    private val venvFixture = projectFixture.pyInterpreterFixture().pyVenvFixture(where = projectDirFixture, pyProjectFixture = pyProjectFixture)
+    private val outsidePyProjectFixture = projectFixture.pyProjectFixture(outsideRootFixture)
     private val codeInsightFixtureFixture = codeInsightFixture(projectFixture, projectDirFixture)
 
     private val projectDir by projectDirFixture
@@ -186,8 +189,10 @@ class RuffProjectConfigEnvTest {
     private val ownRoot by ownRootFixture
     private val outsideRoot by outsideRootFixture
     private val project by projectFixture
-    private val module by moduleFixture
-    private val outsideModule by outsideModuleFixture
+    private val pyProject by pyProjectFixture
+    private val module: Module get() = pyProject.residesOnModule
+    private val outsidePyProject by outsidePyProjectFixture
+    private val outsideModule: Module get() = outsidePyProject.residesOnModule
     private val venv by venvFixture
     private val editorFixture by codeInsightFixtureFixture
   }

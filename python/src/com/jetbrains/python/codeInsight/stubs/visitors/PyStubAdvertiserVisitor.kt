@@ -19,7 +19,7 @@ internal class PyStubAdvertiserVisitor(
 
   override fun checkImports(file: PyFile, importedPackages: Set<String>, packageManager: PythonPackageManager) {
     val checker = PyNotInstalledStubsChecker.getInstance(project = packageManager.project)
-    val cached = checker.getCached(packageManager.sdk)
+    val cached = checker.getCached(packageManager.interpreter)
     val stubs = cached.filter { it.packageName.name in importedPackages && it.packageName.name !in ignoredPackages }
     for (stub in stubs) {
       val message = PyBundle.message("code.insight.type.hints.are.not.installed", stub.stubRequirement.name)

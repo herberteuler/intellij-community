@@ -52,8 +52,6 @@ class PythonPackageManagerUI private constructor(
   @ApiStatus.Internal
   val project: Project = manager.project
 
-  @ApiStatus.Internal
-  val sdk: Sdk = manager.sdk
 
   /**
    * @return List of installed packages or null if the operation was failed.
@@ -196,17 +194,6 @@ class PythonPackageManagerUI private constructor(
   }
 
   companion object {
-    /** [forPythonInterpreter] for a caller that holds only an [Sdk]. See [PythonPackageManager.forSdk]. */
-    @Deprecated("Pass a PythonInterpreter to forPythonInterpreter. Get it from the project structure or with pythonInterpreterAsync.")
-    @JvmStatic
-    @JvmOverloads
-    @ApiStatus.Internal
-    fun forSdk(project: Project, sdk: Sdk, sink: ErrorSink = ErrorSink()): PythonPackageManagerUI {
-      @Suppress("DEPRECATION")
-      val packageManager = PythonPackageManager.forSdk(project, sdk)
-      return PythonPackageManagerUI(packageManager, sink)
-    }
-
     @ApiStatus.Internal
     fun forPythonInterpreter(project: Project, interpreter: PythonInterpreter, sink: ErrorSink = ErrorSink()): PythonPackageManagerUI =
       PythonPackageManagerUI(PythonPackageManager.forPythonInterpreter(project, interpreter), sink)

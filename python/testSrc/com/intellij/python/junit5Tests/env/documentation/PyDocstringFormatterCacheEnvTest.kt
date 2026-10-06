@@ -1,9 +1,10 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.env.documentation
 
+import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.openapi.progress.runBlockingMaybeCancellable
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
-import com.intellij.python.junit5Tests.framework.env.pySdkFixture
+import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.util.io.write
 import com.jetbrains.python.documentation.PyDocstringFormatterCache
@@ -16,10 +17,12 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
+import com.intellij.testFramework.junit5.fixture.projectFixture
 
 @PyEnvTestCase
 internal class PyDocstringFormatterCacheEnvTest {
-  private val sdkFixture by pySdkFixture()
+  private val projectFixture = projectFixture()
+  private val sdkFixture by projectFixture.pyInterpreterFixture()
 
   @Test
   fun `identical docstring is formatted by the real interpreter only once`(
@@ -31,7 +34,7 @@ internal class PyDocstringFormatterCacheEnvTest {
     inputFile.write(INPUT)
 
     fun format(): String? = PyRuntimeDocstringFormatter.formatCached(
-      sdkHome = sdkFixture.sdk.homePath!!,
+      sdkHome = sdkFixture.interpreter.pythonBinaryPath!!.toString(),
       languageLevel = LanguageLevel.PYTHON312,
       format = DocStringFormat.REST,
       formatterFlags = emptyList(),
@@ -53,7 +56,7 @@ internal class PyDocstringFormatterCacheEnvTest {
   }
 
   private fun runRealFormatter(): String? =
-    runExternalTool(PyRuntimeDocstringFormatter.ModuleOrSdk.TheSdk(sdkFixture.sdk),
+    runExternalTool(PyRuntimeDocstringFormatter.ModuleOrSdk.TheSdk(@Suppress("DEPRECATION") sdkFixture.interpreter.getSdkAPI()),
                     DocStringFormat.REST,
                     INPUT,
                     emptyList())

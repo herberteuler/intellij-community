@@ -1,0 +1,63 @@
+Name the MSVC C runtime of the CRT mode at link time.
+
+`static_link_msvcrt` and `dynamic_link_msvcrt` pass `/MT` or `/MD` to the compile and the link actions. clang-cl
+names the C runtime only in the `.drectve` section of an object that it compiles, and it ignores `/MT` and `/MD` at
+link time. So a link of objects that name no C runtime gets none: a Rust object, or an LTO object. The link then
+fails on `memcpy`, `__chkstk` and `_DllMainCRTStartup`. A Rust link gets `libcmt.lib` only by chance, from a member
+of `clang_rt.builtins.lib` that compiler-rt adds, and fat LTO needs none of them.
+
+So pass `/DEFAULTLIB:libcmt.lib` or `/DEFAULTLIB:msvcrt.lib` to each link action, as the toolchain does for
+`libc++.lib`. Each library names the rest of its runtime, such as `libvcruntime.lib` and `libucrt.lib`.
+--- a/toolchain/features/msvc/BUILD.bazel
++++ b/toolchain/features/msvc/BUILD.bazel
+@@ -206,6 +206,17 @@
+     args = ["/MT"],
+ )
+ 
++# clang-cl does not name the C runtime for `/MT` at link time. Only an object that clang-cl compiles names it, in its
++# `.drectve` section. So name it here, for a link of objects that name no C runtime, such as a Rust object.
++cc_args(
++    name = "static_crt_link_args",
++    actions = _LINK_ACTIONS,
++    args = [
++        "/clang:-Xlinker",
++        "/clang:/DEFAULTLIB:libcmt.lib",
++    ],
++)
++
+ cc_feature(
+     name = "static_link_msvcrt",
+     feature_name = "static_link_msvcrt",
+@@ -216,6 +227,15 @@
+     name = "dynamic_crt_compile_args",
+     actions = _COMPILE_ACTIONS + _LINK_ACTIONS,
+     args = ["/MD"],
++)
++
++cc_args(
++    name = "dynamic_crt_link_args",
++    actions = _LINK_ACTIONS,
++    args = [
++        "/clang:-Xlinker",
++        "/clang:/DEFAULTLIB:msvcrt.lib",
++    ],
+ )
+ 
+ cc_feature(
+@@ -227,8 +247,14 @@
+ cc_args_list(
+     name = "crt_compile_args",
+     args = select({
+-        ":static_crt_config": [":static_crt_compile_args"],
+-        "//conditions:default": [":dynamic_crt_compile_args"],
++        ":static_crt_config": [
++            ":static_crt_compile_args",
++            ":static_crt_link_args",
++        ],
++        "//conditions:default": [
++            ":dynamic_crt_compile_args",
++            ":dynamic_crt_link_args",
++        ],
+     }),
+ )
+ 

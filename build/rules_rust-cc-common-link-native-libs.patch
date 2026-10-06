@@ -24,11 +24,10 @@ a packed link output, so the action sets `split-debuginfo=unpacked` there. That 
 diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
 --- a/rust/private/rustc.bzl
 +++ b/rust/private/rustc.bzl
-@@ -2122,7 +2122,32 @@
-         emit.append("link")
+@@ -2123,6 +2123,31 @@
      if output_o:
          emit.append(("obj", output_o))
-+
+ 
 +    # Under cc_common.link, rustc never links, so the libraries of the `#[link]` attributes never reach the linker.
 +    # rustc reads them from the crate metadata, and it passes them only to the linker that it runs. So let rustc also
 +    # link with a recorder, which writes them to a response file for cc_common.link.
@@ -42,7 +41,7 @@ diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
 +        native_libs = ctx.actions.declare_file(crate_info.output.basename + ".native_libs", sibling = crate_info.output)
 +        native_libs_link_output = ctx.actions.declare_file(crate_info.output.basename + ".native_libs_link", sibling = crate_info.output)
 +        emit.append(("link", native_libs_link_output))
- 
++
 +        # The recorder keeps a copy of each file that the link takes by path here: the allocator shim of rustc, and
 +        # on Windows the import library of a `raw-dylib` import or one that a build script finds.
 +        native_libs_files = ctx.actions.declare_directory(crate_info.output.basename + ".native_libs_files", sibling = crate_info.output)
@@ -180,18 +179,18 @@ diff --git a/rust/private/toolchain.bzl b/rust/private/toolchain.bzl
          _experimental_use_global_allocator = experimental_use_global_allocator,
          _skip_fission_for_rust = ctx.attr._skip_fission_for_rust[BuildSettingInfo].value,
          _experimental_use_coverage_metadata_files = ctx.attr._experimental_use_coverage_metadata_files[BuildSettingInfo].value,
-@@ -950,6 +953,11 @@
-         ),
+@@ -951,6 +954,11 @@
          "_experimental_use_coverage_metadata_files": attr.label(
              default = Label("//rust/settings:experimental_use_coverage_metadata_files"),
-+        ),
+         ),
 +        "_experimental_cc_common_link_native_libs_recorder": attr.label(
 +            default = Label("//rust/settings:experimental_cc_common_link_native_libs_recorder"),
 +            cfg = "exec",
 +            doc = "The linker that rustc also runs for a `cc_common.link` target, to record its native inputs.",
-         ),
++        ),
          "_experimental_use_global_allocator": attr.label(
              default = Label("//rust/settings:experimental_use_global_allocator"),
+             doc = (
 diff --git a/rust/settings/BUILD.bazel b/rust/settings/BUILD.bazel
 --- a/rust/settings/BUILD.bazel
 +++ b/rust/settings/BUILD.bazel
@@ -237,7 +236,7 @@ diff --git a/rust/private/native_libs_recorder/main.rs b/rust/private/native_lib
 new file mode 100644
 --- /dev/null
 +++ b/rust/private/native_libs_recorder/main.rs
-@@ -0,0 +1,365 @@
+@@ -0,0 +1,359 @@
 +//! A linker for `rustc` that links nothing: it writes the native inputs of the link to a response file.
 +//!
 +//! Under `cc_common.link`, `rustc` only emits an object, so the libraries of each `#[link]` attribute never reach the
@@ -422,18 +421,12 @@ new file mode 100644
 +    }
 +
 +    /// A `link.exe` link names a library from a search path by its bare file name, such as `ole32.lib`, and other
-+    /// libraries by path. `rustc` names the C runtime with a `/defaultlib:` option, such as `/defaultlib:libcmt`.
++    /// libraries by path. `rustc` also names the C runtime with a `/defaultlib:` option, such as `/defaultlib:libcmt`.
++    /// The CRT mode of the cc toolchain names the C runtime of the link, so the program ignores that option.
 +    fn parse_msvc(&mut self, args: &'a [String]) {
 +        for arg in args {
 +            if starts_with_ignore_case(arg, "/OUT:") {
 +                self.output = Some(&arg["/OUT:".len()..]);
-+            } else if starts_with_ignore_case(arg, "/DEFAULTLIB:") {
-+                let name = &arg["/DEFAULTLIB:".len()..];
-+                if name.to_ascii_lowercase().ends_with(".lib") {
-+                    self.add(&[&name.to_string()]);
-+                } else {
-+                    self.add(&[&format!("{name}.lib")]);
-+                }
 +            } else if arg.to_ascii_lowercase().ends_with(".lib") && !is_msvc_option(arg) {
 +                if arg.contains(['/', '\\']) {
 +                    self.library_files.push(arg);
@@ -526,7 +519,7 @@ new file mode 100644
 +        assert_eq!(
 +            Link::parse(&args),
 +            Link {
-+                libraries: strings(&["ole32.lib", "kernel32.lib", "libcmt.lib", "oldnames.lib"]),
++                libraries: strings(&["ole32.lib", "kernel32.lib"]),
 +                library_files: vec![
 +                    "C:\\tmp\\rustcXYZ\\propsys.dll_imports.lib",
 +                    "/Users/me/out/m/lib/windows.0.52.0.lib"

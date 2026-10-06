@@ -92,6 +92,7 @@ single_version_override(
         "//:build/llvm-0.8.24-clang-cl-quote-includes.patch",  # TODO: remove that once merged to upstream
         "//:build/llvm-0.8.24-module-map-generator-long-paths.patch",  # TODO: remove that once merged to upstream
         "//:build/llvm-0.8.24-msvc-legacy-stdio-definitions.patch",  # TODO: remove that once merged to upstream
+        "//:build/llvm-0.8.24-msvc-crt-link-args.patch",  # TODO: remove that once merged to upstream
     ],
 )
 

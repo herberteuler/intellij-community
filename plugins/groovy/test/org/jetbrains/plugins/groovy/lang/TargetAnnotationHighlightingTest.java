@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.groovy.lang;
 
 import com.intellij.testFramework.LightProjectDescriptor;
@@ -64,13 +64,13 @@ public class TargetAnnotationHighlightingTest extends LightJavaCodeInsightFixtur
       """);
 
     myFixture.configureByText("_.groovy", """
-      @<error descr="'@Ann' not applicable to type">Ann</error>
+      @<error descr="'@Ann' annotation not allowed on type">Ann</error>
       class C {
         @Ann
         def foo
 
         def ar() {
-          @<error descr="'@Ann' not applicable to local variable">Ann</error>
+          @<error descr="'@Ann' annotation not allowed on local variable">Ann</error>
           def x
         }
       }""");
@@ -97,7 +97,7 @@ public class TargetAnnotationHighlightingTest extends LightJavaCodeInsightFixtur
         def foo
 
         def ar() {
-          @<error descr="'@Ann' not applicable to local variable">Ann</error>
+          @<error descr="'@Ann' annotation not allowed on local variable">Ann</error>
           def x
         }
       }""");
@@ -117,9 +117,9 @@ public class TargetAnnotationHighlightingTest extends LightJavaCodeInsightFixtur
       """);
 
     myFixture.configureByText("_.groovy", """
-      @<error descr="'@Ann' not applicable to type">Ann</error>
+      @<error descr="'@Ann' annotation not allowed on type">Ann</error>
       class C {
-        @<error descr="'@Ann' not applicable to field">Ann</error>
+        @<error descr="'@Ann' annotation not allowed on field">Ann</error>
         def foo
 
         def ar() {

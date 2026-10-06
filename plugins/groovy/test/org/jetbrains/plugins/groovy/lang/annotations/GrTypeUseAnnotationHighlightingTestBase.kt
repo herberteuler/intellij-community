@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.groovy.lang.annotations
 
 import com.intellij.testFramework.LightProjectDescriptor
@@ -21,17 +21,17 @@ abstract class GrTypeUseAnnotationHighlightingTestBase : GrHighlightingTestBase(
     override fun getProjectDescriptor(): LightProjectDescriptor = GroovyProjectDescriptors.GROOVY_3_0
 
     fun testAnnotationClass() = doTestHighlighting("""
-        @<error descr="'@ExampleAnno' not applicable to annotation type">ExampleAnno</error>
+        @<error descr="'@ExampleAnno' annotation not allowed on annotation type">ExampleAnno</error>
         @interface InnerAnnotation {}
     """.trimIndent())
 
     fun testNoHighlightingForTypeUse() = doTestHighlighting("""
-    @<error descr="'@ExampleAnno' not applicable to type">ExampleAnno</error>
+    @<error descr="'@ExampleAnno' annotation not allowed on type">ExampleAnno</error>
     class Main2 {
-        @<error descr="'@ExampleAnno' not applicable to field">ExampleAnno</error>
+        @<error descr="'@ExampleAnno' annotation not allowed on field">ExampleAnno</error>
         private String field = null;
         
-         @<error descr="'@ExampleAnno' not applicable to constructor">ExampleAnno</error>
+         @<error descr="'@ExampleAnno' annotation not allowed on constructor">ExampleAnno</error>
         Main2() {
         }
     
@@ -39,9 +39,9 @@ abstract class GrTypeUseAnnotationHighlightingTestBase : GrHighlightingTestBase(
             method("string")
         }
     
-        @<error descr="'@ExampleAnno' not applicable to method">ExampleAnno</error>
-        static String method(@<error descr="'@ExampleAnno' not applicable to parameter">ExampleAnno</error> String s) {
-            @<error descr="'@ExampleAnno' not applicable to local variable">ExampleAnno</error> String t = "r";
+        @<error descr="'@ExampleAnno' annotation not allowed on method">ExampleAnno</error>
+        static String method(@<error descr="'@ExampleAnno' annotation not allowed on parameter">ExampleAnno</error> String s) {
+            @<error descr="'@ExampleAnno' annotation not allowed on local variable">ExampleAnno</error> String t = "r";
         }
     }
   """.trimIndent())

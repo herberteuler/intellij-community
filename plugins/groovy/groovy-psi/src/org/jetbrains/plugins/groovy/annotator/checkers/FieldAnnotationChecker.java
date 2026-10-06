@@ -1,11 +1,8 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.groovy.annotator.checkers;
 
-import com.intellij.codeInsight.daemon.JavaErrorBundle;
-import com.intellij.core.JavaPsiBundle;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.HighlightSeverity;
-import com.intellij.psi.PsiAnnotation;
 import com.intellij.psi.PsiAnnotationOwner;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiModifierList;
@@ -15,7 +12,6 @@ import org.jetbrains.plugins.groovy.GroovyBundle;
 import org.jetbrains.plugins.groovy.lang.psi.api.auxiliary.modifiers.annotation.GrAnnotation;
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.GrVariableDeclaration;
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.typedef.members.GrMember;
-import org.jetbrains.plugins.groovy.lang.psi.api.types.GrCodeReferenceElement;
 import org.jetbrains.plugins.groovy.lang.psi.impl.auxiliary.annotation.GrAnnotationImpl;
 import org.jetbrains.plugins.groovy.lang.psi.impl.synthetic.GroovyScriptClass;
 import org.jetbrains.plugins.groovy.lang.psi.util.GroovyCommonClassNames;
@@ -44,11 +40,10 @@ public final class FieldAnnotationChecker extends CustomAnnotationChecker {
       }
     }
 
-    if (!GrAnnotationImpl.isAnnotationApplicableTo(annotation, PsiAnnotation.TargetType.LOCAL_VARIABLE)) {
-      GrCodeReferenceElement ref = annotation.getClassReference();
-      String target = JavaPsiBundle.message("annotation.target.LOCAL_VARIABLE");
-      String description = JavaErrorBundle.message("annotation.not.applicable", ref.getText(), target);
-      holder.newAnnotation(HighlightSeverity.ERROR, description).range(ref).create();
+    if (!GrAnnotationImpl.isAnnotationApplicableTo(annotation, GrAnnotation.TargetType.LOCAL_VARIABLE)) {
+      String target = GroovyBundle.message("annotation.target.LOCAL_VARIABLE");
+      String description = GroovyBundle.message("annotation.not.applicable", annotation.getShortName(), target);
+      holder.newAnnotation(HighlightSeverity.ERROR, description).range(annotation.getClassReference()).create();
     }
 
     return true;

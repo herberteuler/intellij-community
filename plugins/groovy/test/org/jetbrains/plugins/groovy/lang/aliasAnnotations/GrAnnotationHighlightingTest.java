@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.groovy.lang.aliasAnnotations;
 
 import org.jetbrains.plugins.groovy.codeInspection.untypedUnresolvedAccess.GrUnresolvedAccessInspection;
@@ -64,7 +64,7 @@ public class GrAnnotationHighlightingTest extends GrHighlightingTestBase {
                          @AnnotationCollector([EqualsAndHashCode, Immutable])
                          @interface Alias {}
                          
-                         @<error descr="'@groovy.transform.EqualsAndHashCode' not applicable to local variable"><error descr="'@groovy.transform.Immutable' not applicable to local variable"><error descr="'@groovy.transform.ToString' not applicable to local variable">Alias</error></error></error>(excludes = ['a'])
+                         @<error descr="'@EqualsAndHashCode' annotation not allowed on local variable"><error descr="'@Immutable' annotation not allowed on local variable"><error descr="'@ToString' annotation not allowed on local variable">Alias</error></error></error>(excludes = ['a'])
                          int foo
                          """);
   }
@@ -174,10 +174,10 @@ public class GrAnnotationHighlightingTest extends GrHighlightingTestBase {
                          @AnnotationCollector
                          @interface Alias5 {}
                          
-                         @<error descr="'@groovy.transform.Immutable' not applicable to method"><error descr="'@groovy.transform.ToString' not applicable to method">Alias4</error></error>
+                         @<error descr="'@Immutable' annotation not allowed on method"><error descr="'@ToString' annotation not allowed on method">Alias4</error></error>
                          def aaa() {}
                          
-                         @<error descr="'@groovy.transform.Immutable' not applicable to method"><error descr="'@groovy.transform.ToString' not applicable to method">Alias5</error></error>
+                         @<error descr="'@Immutable' annotation not allowed on method"><error descr="'@ToString' annotation not allowed on method">Alias5</error></error>
                          def bbb() {}
                          """);
   }

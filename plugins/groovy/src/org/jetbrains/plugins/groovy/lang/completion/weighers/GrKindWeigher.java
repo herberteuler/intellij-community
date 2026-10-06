@@ -1,14 +1,12 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.groovy.lang.completion.weighers;
 
-import com.intellij.codeInsight.AnnotationTargetUtil;
 import com.intellij.codeInsight.completion.CompletionLocation;
 import com.intellij.codeInsight.completion.CompletionWeigher;
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.PsiTypeLookupItem;
 import com.intellij.java.syntax.parser.JavaKeywords;
 import com.intellij.psi.CommonClassNames;
-import com.intellij.psi.PsiAnnotation;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiElement;
@@ -94,8 +92,8 @@ public final class GrKindWeigher extends CompletionWeigher {
           if (annotation != null) {
             PsiElement annoParent = annotation.getParent();
             PsiElement ownerToUse = annoParent instanceof PsiModifierList ? annoParent.getParent() : annoParent;
-            PsiAnnotation.TargetType[] elementTypeFields = GrAnnotationImpl.getApplicableElementTypeFields(ownerToUse);
-            if (AnnotationTargetUtil.findAnnotationTarget(cls, elementTypeFields) != null) {
+            GrAnnotation.TargetType[] elementTypeFields = GrAnnotationImpl.getApplicableElementTypeFields(ownerToUse);
+            if (GrAnnotationImpl.findAnnotationTarget(cls, elementTypeFields) != null) {
               return NotQualifiedKind.restrictedClass;
             }
           }

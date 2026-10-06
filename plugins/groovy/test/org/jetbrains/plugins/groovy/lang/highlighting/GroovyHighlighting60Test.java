@@ -84,12 +84,19 @@ public class GroovyHighlighting60Test extends LightGroovyTestCase implements Hig
                        """);
   }
 
-  public void testMpduleImport() {
+  public void testModuleImport() {
     highlightingTest("""
                        import module java.sql
                        <warning descr="Unused import">import module java.base <error descr="Import alias not allowed on module import">as Basic</error></warning>
                        def conn = DriverManager.getConnection('jdbc:h2:mem:test')
                        def stmt = conn.createStatement()
+                       """);
+  }
+
+  public void testAnnotatedImport() {
+    highlightingTest("""
+                       @<error descr="'@Deprecated' annotation not allowed on import">Deprecated</error>
+                       <warning descr="Unused import">import java.lang.String</warning>
                        """);
   }
 

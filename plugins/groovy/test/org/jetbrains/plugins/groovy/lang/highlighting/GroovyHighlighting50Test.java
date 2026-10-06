@@ -162,6 +162,13 @@ public class GroovyHighlighting50Test extends LightGroovyTestCase implements Hig
                        """);
   }
 
+  public void testAnnotatedImport() {
+    highlightingTest("""
+                       @Deprecated
+                       <warning descr="Unused import">import java.lang.String</warning>
+                       """);
+  }
+
   public void testSimpleVar() {
     myFixture.enableInspections(new GroovyVariableCanBeFinalInspection());
     highlightingTest("""

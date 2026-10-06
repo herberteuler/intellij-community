@@ -1,3 +1,4 @@
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 import java.lang.annotation.Retention
 import java.lang.annotation.Target
 
@@ -10,26 +11,26 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME
 
 class JSR308BaseClass<T> {}
 interface JSR308Interface1<T> {}
-interface JSR308Interface2<T extends @<error descr="'@JSR308' not applicable to type use">JSR308</error> CharSequence> {}
+interface JSR308Interface2<T extends @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> CharSequence> {}
 
-class JSR308Class extends @<error descr="'@JSR308' not applicable to type use">JSR308</error> JSR308BaseClass<@<error descr="'@JSR308' not applicable to type use">JSR308</error> List> implements @<error descr="'@JSR308' not applicable to type use">JSR308</error> JSR308Interface1<@<error descr="'@JSR308' not applicable to type use">JSR308</error> String>, @<error descr="'@JSR308' not applicable to type use">JSR308</error> JSR308Interface2<@<error descr="'@JSR308' not applicable to type use">JSR308</error> String> {
+class JSR308Class extends @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> JSR308BaseClass<@<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> List> implements @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> JSR308Interface1<@<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> String>, @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> JSR308Interface2<@<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> String> {
   @JSR308 private  String name;
 
-  @JSR308 List<@<error descr="'@JSR308' not applicable to type use">JSR308</error> String> test(@JSR308 List<@<error descr="'@JSR308' not applicable to type use">JSR308</error> ? extends @<error descr="'@JSR308' not applicable to type use">JSR308</error> Object> list) throws @<error descr="'@JSR308' not applicable to type use">JSR308</error> IOException, @<error descr="'@JSR308' not applicable to type use">JSR308</error> java.sql.SQLException {
-    @JSR308 List<@<error descr="'@JSR308' not applicable to type use">JSR308</error> String> localVar = new @<error descr="'@JSR308' not applicable to type use">JSR308</error> ArrayList<@<error descr="'@JSR308' not applicable to type use">JSR308</error> String>();
+  @JSR308 List<@<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> String> test(@JSR308 List<@<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> ? extends @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> Object> list) throws @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> IOException, @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> java.sql.SQLException {
+    @JSR308 List<@<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> String> localVar = new @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> ArrayList<@<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> String>();
 
     try {
       for (e in list) {
-        String t = (@<error descr="'@JSR308' not applicable to type use">JSR308</error> String) e;
+        String t = (@<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> String) e;
         localVar.add(t);
       }
     } catch (@JSR308 Exception e) {
     }
 
-    String @<error descr="'@JSR308' not applicable to type use">JSR308</error> []  strs = new String @JSR308 [] { 'a' }
-    String @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] strs2 = new String @JSR308 [] @JSR308 [] { new String[] {'a', 'b'} }
-    String @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] strs3 = new String @JSR308 [1] @JSR308 [2] @JSR308 []
-    String @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] @<error descr="'@JSR308' not applicable to type use">JSR308</error> [] strs4 = new String @JSR308 [1] @JSR308 [2] @JSR308 [] @JSR308 []
+    String @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> []  strs = new String @JSR308 [] { 'a' }
+    String @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] strs2 = new String @JSR308 [] @JSR308 [] { new String[] {'a', 'b'} }
+    String @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] strs3 = new String @JSR308 [1] @JSR308 [2] @JSR308 []
+    String @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] @<error descr="'@JSR308' annotation not allowed on type use">JSR308</error> [] strs4 = new String @JSR308 [1] @JSR308 [2] @JSR308 [] @JSR308 []
 
     localVar.add(strs[0])
     localVar.add(strs2[0][1])

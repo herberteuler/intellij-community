@@ -9,7 +9,7 @@ import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.html.GeneratingProvider
 import org.intellij.markdown.parser.LinkMap
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import java.net.URI
 import kotlin.test.assertEquals
 

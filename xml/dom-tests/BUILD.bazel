@@ -110,6 +110,8 @@ jvm_library(
         "//platform/code-style-api:codeStyle_test_lib",
         "//platform/util-ex",
         "//platform/util-ex:util-ex_test_lib",
+        "//platform/util/xmlDom",
+        "//platform/util/xmlDom:xmlDom_test_lib",
         "//platform/statistics",
         "//platform/statistics:statistics_test_lib",
         "//libraries/junit4",

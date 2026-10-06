@@ -3,6 +3,7 @@ package com.intellij.util.xml.impl;
 
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.extensions.ExtensionPoint;
 import com.intellij.openapi.extensions.ExtensionPointListener;
 import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.openapi.extensions.PluginDescriptor;
@@ -24,7 +25,8 @@ final class ImplementationClassCache {
     throw new AssertionError("Incompatible implementation classes: " + o1 + " & " + o2);
   };
 
-  private final MultiMap<String, DomImplementationClassEP> myImplementationClasses = new MultiMap<>();
+  // a set, because the listener and the constructor loop can both add the same extension
+  private final MultiMap<String, DomImplementationClassEP> myImplementationClasses = MultiMap.createLinkedSet();
 
   private final SofterCache<Class<?>, Class<?>> myCache = new SofterCache<>(concreteInterface -> {
     TreeSet<Class<?>> set = new TreeSet<>(CLASS_COMPARATOR);
@@ -41,7 +43,8 @@ final class ImplementationClassCache {
       return;
     }
 
-    epName.getPoint().addExtensionPointListener(new ExtensionPointListener<>() {
+    ExtensionPoint<DomImplementationClassEP> point = epName.getPoint();
+    ExtensionPointListener<DomImplementationClassEP> listener = new ExtensionPointListener<>() {
       @Override
       public void extensionAdded(@NotNull DomImplementationClassEP ep, @NotNull PluginDescriptor pluginDescriptor) {
         myImplementationClasses.putValue(ep.interfaceName, ep);
@@ -53,7 +56,18 @@ final class ImplementationClassCache {
         myImplementationClasses.remove(ep.interfaceName, ep);
         clearCache();
       }
-    }, true, null);
+    };
+    // do not use `invokeForLoadedExtensions = true`: it swallows a cancellation and leaves the cache incomplete
+    point.addExtensionPointListener(listener, false, null);
+    try {
+      for (DomImplementationClassEP ep : point.getExtensionList()) {
+        myImplementationClasses.putValue(ep.interfaceName, ep);
+      }
+    }
+    catch (Throwable e) {
+      point.removeExtensionPointListener(listener);
+      throw e;
+    }
   }
 
   private void findImplementationClassDFS(@NotNull Class<?> concreteInterface, SortedSet<? super Class<?>> results) {

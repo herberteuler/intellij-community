@@ -5,17 +5,18 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.testFramework.PerformanceUnitTest;
 import com.intellij.tools.ide.metrics.benchmark.Benchmark;
 import com.intellij.util.containers.ContainerUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ThreadDumpParserTest {
   @Test
@@ -1047,7 +1048,8 @@ public class ThreadDumpParserTest {
     assertTrue(lockOwner.isAwaitedBy(waiter));
   }
 
-  @Test(timeout = 10_000)
+  @Test
+  @Timeout(10)
   public void testDeadlockDetectionWithManyUnownedContendedMonitors() {
     List<ThreadState> threads = new ArrayList<>();
     for (int i = 0; i < 50_000; i++) {

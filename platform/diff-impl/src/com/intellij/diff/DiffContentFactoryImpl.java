@@ -46,6 +46,7 @@ import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.encoding.EncodingManager;
 import com.intellij.openapi.vfs.encoding.EncodingProjectManager;
+import com.intellij.openapi.vfs.limits.FileSizeLimit;
 import com.intellij.openapi.vfs.transformer.TextPresentationTransformer;
 import com.intellij.openapi.vfs.transformer.TextPresentationTransformers;
 import com.intellij.psi.PsiDocumentManager;
@@ -192,7 +193,7 @@ public final class DiffContentFactoryImpl extends DiffContentFactoryEx {
 
   @Override
   public @NotNull DiffContent create(@Nullable Project project, @NotNull VirtualFile file, @Nullable VirtualFile highlightFile) {
-    return createContentFromFile(project, file, highlightFile);
+    return createContentFromFile(project, file, highlightFile, true);
   }
 
   @Override
@@ -338,12 +339,13 @@ public final class DiffContentFactoryImpl extends DiffContentFactoryEx {
 
   private static @NotNull DiffContent createContentFromFile(@Nullable Project project,
                                                             @NotNull VirtualFile file) {
-    return createContentFromFile(project, file, file);
+    return createContentFromFile(project, file, file, true);
   }
 
   private static @NotNull DiffContent createContentFromFile(@Nullable Project project,
                                                             @NotNull VirtualFile file,
-                                                            @Nullable VirtualFile highlightFile) {
+                                                            @Nullable VirtualFile highlightFile,
+                                                            boolean detectNativeText) {
     if (file.isDirectory()) return new DirectoryContentImpl(project, file, highlightFile);
 
     Document document = ReadAction.computeBlocking(() -> FileDocumentManager.getInstance().getDocument(file));
@@ -351,9 +353,28 @@ public final class DiffContentFactoryImpl extends DiffContentFactoryEx {
       // TODO: add notification if file is decompiled ?
       return new FileDocumentContentImpl(project, document, file, highlightFile);
     }
-    else {
-      return new FileContentImpl(project, file, highlightFile);
+    if (detectNativeText && file.isValid() && file.getFileType() instanceof INativeFileType &&
+        !FileSizeLimit.isTooLargeForContentLoading(file.getLength(), file.getExtension())) {
+      try {
+        var bytes = file.contentsToByteArray();
+        var fileType = file.getFileType();
+        if (!isBinaryContent(bytes, fileType)) {
+          var charset = guessCharset(project, bytes, fileType, file.getPath(), file, null);
+          var textContent = TextContent.fromBytes(bytes, charset);
+          var snapshot = createDocument(project, textContent.text, fileType, file.getPath(), true);
+          var content = new NativeFileDocumentContent(project, snapshot, file, highlightFile, textContent);
+          content.putUserData(DiffUserDataKeysEx.FILE_NAME, file.getName());
+          if (textContent.notification != null) {
+            DiffUtil.addNotification(textContent.notification, content);
+          }
+          return content;
+        }
+      }
+      catch (IOException e) {
+        LOG.info(e);
+      }
     }
+    return new FileContentImpl(project, file, highlightFile);
   }
 
   private static @NotNull DiffContent createBinaryImpl(@Nullable Project project,
@@ -374,7 +395,7 @@ public final class DiffContentFactoryImpl extends DiffContentFactoryEx {
     }
     file.putUserData(DiffUtil.TEMP_FILE_KEY, Boolean.TRUE);
 
-    return createContentFromFile(project, file, highlightFile);
+    return createContentFromFile(project, file, highlightFile, false);
   }
 
 
@@ -445,6 +466,10 @@ public final class DiffContentFactoryImpl extends DiffContentFactoryEx {
     }
 
     if (!fileType.isBinary()) {
+      return false;
+    }
+
+    if (fileType instanceof INativeFileType && content.length == 0) {
       return false;
     }
 
@@ -729,6 +754,36 @@ public final class DiffContentFactoryImpl extends DiffContentFactoryEx {
     @Override
     public String toString() {
       return "DiffContentFactory " + super.toString();
+    }
+  }
+
+  private static final class NativeFileDocumentContent extends FileDocumentContentImpl {
+    private final @Nullable LineSeparator mySeparator;
+    private final @Nullable Charset myCharset;
+    private final @Nullable Boolean myBOM;
+
+    private NativeFileDocumentContent(@Nullable Project project, @NotNull Document document,
+                                      @NotNull VirtualFile file, @Nullable VirtualFile highlightFile,
+                                      @NotNull TextContent content) {
+      super(project, document, file, highlightFile);
+      mySeparator = content.separators;
+      myCharset = content.charset;
+      myBOM = content.isBom;
+    }
+
+    @Override
+    public @Nullable LineSeparator getLineSeparator() {
+      return mySeparator;
+    }
+
+    @Override
+    public @Nullable Charset getCharset() {
+      return myCharset;
+    }
+
+    @Override
+    public @Nullable Boolean hasBom() {
+      return myBOM;
     }
   }
 

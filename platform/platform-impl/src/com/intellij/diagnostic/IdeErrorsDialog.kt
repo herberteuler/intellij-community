@@ -756,11 +756,11 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     override fun isEnabled(index: Int): Boolean = myEditable && index > 0
   }
 
-  override suspend fun afterEntryAdded(e: MessagePoolAdvisor.AfterEntryAddedEvent) {
+  override suspend fun afterEntryAdded(message: AbstractMessage) {
     updateMessages(defaultMessage = null)
   }
 
-  override fun poolCleared(e: MessagePoolAdvisor.PoolClearedEvent) {
+  override fun poolCleared() {
     UIUtil.invokeLaterIfNeeded {
       if (isShowing) {
         doCancelAction()

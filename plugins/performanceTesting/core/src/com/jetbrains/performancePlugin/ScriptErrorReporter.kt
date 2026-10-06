@@ -30,8 +30,8 @@ private const val PRODUCT_INFO_FILE = "product_info.txt"
 internal fun errorReportingDir(): Path = LogDirHandler.currentLogDir().resolve(ERRORS_DIR)
 
 internal val toErrorDirReporter: MessagePoolAdvisor = object : MessagePoolAdvisor {
-  override suspend fun beforeEntryAdded(e: MessagePoolAdvisor.BeforeEntryAddedEvent): Boolean {
-    reportAndMark(e.message, errorReportingDir())
+  override suspend fun beforeEntryAdded(message: AbstractMessage): Boolean {
+    reportAndMark(message, errorReportingDir())
     return true
   }
 }

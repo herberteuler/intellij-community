@@ -1,10 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.diagnostic
 
-import com.intellij.diagnostic.MessagePoolAdvisor.AfterEntryAddedEvent
-import com.intellij.diagnostic.MessagePoolAdvisor.BeforeEntryAddedEvent
-import com.intellij.diagnostic.MessagePoolAdvisor.EntryReadEvent
-import com.intellij.diagnostic.MessagePoolAdvisor.PoolClearedEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Attachment
 import com.intellij.util.SlowOperations
@@ -85,9 +81,8 @@ object MessagePool {
       message.setRead(true) // expire notifications
     }
     myErrors.clear()
-    val event = PoolClearedEvent()
     for (it in myAdvisors) {
-      it.poolCleared(event)
+      it.poolCleared()
     }
   }
 
@@ -109,17 +104,15 @@ object MessagePool {
     myAdvisors.remove(advisor)
   }
 
-  private fun notifyEntryRead(m: AbstractMessage) {
-    val event = EntryReadEvent(m)
-    myAdvisors.forEach { it.entryWasRead(event) }
+  private fun notifyEntryRead(message: AbstractMessage) {
+    myAdvisors.forEach { it.entryWasRead(message) }
   }
 
   private suspend fun doAddMessage(message: AbstractMessage) {
     if (myErrors.lastOrNull() == message) return // already added
 
-    val beforeEvent = BeforeEntryAddedEvent(message)
     for (listener in myAdvisors) {
-      if (!listener.beforeEntryAdded(beforeEvent)) {
+      if (!listener.beforeEntryAdded(message)) {
         return
       }
     }
@@ -127,16 +120,15 @@ object MessagePool {
     if (ApplicationManager.getApplication().isInternal()) {
       message.allAttachments.forEach { it.isIncluded = true }
     }
-
     if (shallAddSilently(message)) {
       message.setRead(true)
     }
-
     message.setOnReadCallback { notifyEntryRead(message) }
+
     myErrors.add(message)
-    val afterEvent = AfterEntryAddedEvent(message)
+
     for (it in myAdvisors) {
-      it.afterEntryAdded(afterEvent)
+      it.afterEntryAdded(message)
     }
   }
 

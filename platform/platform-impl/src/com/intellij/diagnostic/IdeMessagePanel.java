@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.diagnostic;
 
 import com.intellij.codeWithMe.ClientId;
@@ -66,7 +66,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.intellij.notification.NotificationAction.createSimpleExpiring;
 
-/** Internal API. See a note in {@link MessagePool}. */
+/// Internal API. See a note in [MessagePool].
 @ApiStatus.Internal
 public final class IdeMessagePanel implements MessagePoolAdvisor, IconLikeCustomStatusBarWidget {
   private static final Logger LOG = Logger.getInstance(IdeMessagePanel.class);
@@ -77,11 +77,11 @@ public final class IdeMessagePanel implements MessagePoolAdvisor, IconLikeCustom
 
   private static final String GROUP_ID = "IDE-errors";
 
-  /** The debounce window for {@link #updateIconAndNotify()}. */
+  /// The debounce window for [#updateIconAndNotify()].
   private static final int UPDATE_DELAY_MS = 200;
   private static final Object UPDATE_REQUEST = new Object();
-  private final UpdateQueue<Object> updateRequests;
 
+  private final UpdateQueue<Object> updateRequests;
   private final LazyValue<JPanel> component;
   private final @Nullable IdeFrame frame;
   private final @Nullable Project project;
@@ -230,50 +230,41 @@ public final class IdeMessagePanel implements MessagePoolAdvisor, IconLikeCustom
   }
 
   @Override
-  public @Nullable Object afterEntryAdded(@NotNull AfterEntryAddedEvent e, @NotNull Continuation<? super @NotNull Unit> $completion) {
+  public @Nullable Object afterEntryAdded(@NotNull AbstractMessage message, @NotNull Continuation<? super @NotNull Unit> $completion) {
     var app = ApplicationManager.getApplication();
-    if (app == null) {
-      return MessagePoolAdvisor.super.afterEntryAdded(e, $completion);
-    }
-
-    var message = e.getMessage();
-    if (app.isInternal() || app.isEAP()
-        || NOTIFICATIONS_ENABLED
-        || showPluginError(message.getThrowable(), message.getMessage(), findPlugin(message.getThrowable()))) {
+    if (app != null && (app.isInternal() || app.isEAP() || NOTIFICATIONS_ENABLED || showPluginError(message))) {
       LOG.debug("Update error indicator");
       scheduleUpdateIconAndNotify();
     }
-
-    return MessagePoolAdvisor.super.afterEntryAdded(e, $completion);
+    return MessagePoolAdvisor.super.afterEntryAdded(message, $completion);
   }
 
-  private static @Nullable IdeaPluginDescriptor findPlugin(Throwable throwable) {
-    return PluginManagerCore.getPlugin(PluginUtil.getInstance().findPluginId(throwable));
-  }
-
-  private boolean showPluginError(Throwable throwable, @Nullable String message, @Nullable IdeaPluginDescriptor plugin) {
-    var submitter = DefaultIdeaErrorLogger.findSubmitter(throwable, plugin);
-    if (plugin != null
-        && !isBuiltIn(plugin)
-        && !pluginUpdateScheduled.getAndSet(true)
-        && UpdateSettings.getInstance().isPluginsCheckNeeded()) {
-      UpdateCheckerFacade.getInstance().updateAndShowResult();  // push users to update plugins producing exceptions
+  private boolean showPluginError(AbstractMessage message) {
+    var throwable = message.getThrowable();
+    var plugin = PluginManagerCore.getPlugin(PluginUtil.getInstance().findPluginId(throwable));
+    if (
+      plugin != null &&
+      !isBuiltIn(plugin) &&
+      !pluginUpdateScheduled.getAndSet(true) &&
+      UpdateSettings.getInstance().isPluginsCheckNeeded()
+    ) {
+      UpdateCheckerFacade.getInstance().updateAndShowResult();  // nudge users to update plugins producing exceptions
     }
-    return !(submitter instanceof ITNReporter) || ((ITNReporter)submitter).showErrorInRelease(new IdeaLoggingEvent(message, throwable));
+    var submitter = DefaultIdeaErrorLogger.findSubmitter(throwable, plugin);
+    return !(submitter instanceof ITNReporter itnReporter) || itnReporter.showErrorInRelease(new IdeaLoggingEvent(message.getMessage(), throwable));
   }
 
   static boolean isBuiltIn(@Nullable IdeaPluginDescriptor plugin) {
-    if (plugin == null) return true;
-    return plugin.isBundled() || PluginManagerCore.isUpdatedBundledPlugin(plugin);
+    return plugin == null || plugin.isBundled() || PluginManagerCore.isUpdatedBundledPlugin(plugin);
   }
 
   @Override
-  public void poolCleared(@NotNull PoolClearedEvent e) {
+  public void poolCleared() {
     scheduleUpdateIconAndNotify();
   }
 
   @Override
-  public void entryWasRead(@NotNull EntryReadEvent e) {
+  public void entryWasRead(@NotNull AbstractMessage message) {
     scheduleUpdateIconAndNotify();
   }
 
@@ -282,15 +273,13 @@ public final class IdeMessagePanel implements MessagePoolAdvisor, IconLikeCustom
     return activeWindow instanceof JDialog d && d.isModal() && (dialog == null || dialog.getWindow() != activeWindow);
   }
 
-  /**
-   * Asks for an icon and notification update. The request is debounced, and the update runs on a background thread.
-   * This method is safe to call from any thread.
-   */
+  /// Asks for an icon and notification update. The request is debounced, and the update runs on a background thread.
+  /// This method is safe to call from any thread.
   private void scheduleUpdateIconAndNotify() {
     updateRequests.queue(UPDATE_REQUEST);
   }
 
-  /** Reads the pool state and updates the UI. The caller must go through {@link #scheduleUpdateIconAndNotify()}. */
+  /// Reads the pool state and updates the UI. The caller must go through [#scheduleUpdateIconAndNotify()].
   @RequiresBackgroundThread
   private void updateIconAndNotify() {
     var state = messagePool.getState();

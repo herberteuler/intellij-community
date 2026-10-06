@@ -6,8 +6,10 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.progress.EmptyProgressIndicator;
 import com.intellij.openapi.util.Couple;
 import com.intellij.openapi.util.TextRange;
+import com.intellij.pom.tree.events.impl.TreeChangeEventImpl;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
@@ -17,7 +19,9 @@ import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.impl.BlockSupportImpl;
 import com.intellij.psi.impl.ChangedPsiRangeUtil;
 import com.intellij.psi.impl.DebugUtil;
+import com.intellij.psi.impl.DiffLog;
 import com.intellij.psi.impl.source.PsiFileImpl;
+import com.intellij.psi.impl.source.tree.mvcc.InternalPsiVersioning;
 import com.intellij.util.containers.ContainerUtil;
 import junit.framework.TestCase;
 import org.jetbrains.annotations.NotNull;
@@ -75,6 +79,34 @@ public final class ParsingTestUtil {
         element.acceptChildren(this);
       }
     });
+  }
+
+  /**
+   * Reparses the full text of {@code file}. Fails if the PSI tree changes or if the reparse fires PSI events.
+   */
+  public static void ensureCorrectReparse(@NotNull PsiFile file) {
+    ensureCorrectReparse(file, true);
+  }
+
+  static void ensureCorrectReparse(@NotNull PsiFile file, boolean isCheckNoPsiEventsOnReparse) {
+    final String psiToStringDefault = DebugUtil.psiToString(file, true, false);
+
+    TreeChangeEventImpl event = InternalPsiVersioning.runModificationOfVersionedPsi(() -> {
+      return DebugUtil.performPsiModification("ensureCorrectReparse", () -> {
+        String fileText = file.getText();
+        DiffLog diffLog = new BlockSupportImpl().reparseRange(
+          file, file.getNode(), TextRange.allOf(fileText), fileText, new EmptyProgressIndicator(), fileText
+        );
+        return diffLog.performActualPsiChange(file);
+      });
+    });
+
+    TestCase.assertEquals(psiToStringDefault, DebugUtil.psiToString(file, true, false));
+
+    // this if-check is only for compatibility reasons! Please fix your parser instead of employing the flag!
+    if (isCheckNoPsiEventsOnReparse) {
+      UsefulTestCase.assertEmpty(event.getChangedElements());
+    }
   }
 
   /**

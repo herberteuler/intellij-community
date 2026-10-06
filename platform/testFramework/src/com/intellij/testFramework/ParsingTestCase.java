@@ -63,7 +63,6 @@ import com.intellij.platform.syntax.util.log.LogProvider;
 import com.intellij.pom.PomModel;
 import com.intellij.pom.core.impl.PomModelImpl;
 import com.intellij.pom.tree.TreeAspect;
-import com.intellij.pom.tree.events.impl.TreeChangeEventImpl;
 import com.intellij.psi.FileViewProvider;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
@@ -72,13 +71,11 @@ import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiRecursiveElementWalkingVisitor;
 import com.intellij.psi.impl.BlockSupportImpl;
 import com.intellij.psi.impl.DebugUtil;
-import com.intellij.psi.impl.DiffLog;
 import com.intellij.psi.impl.PsiCachedValuesFactory;
 import com.intellij.psi.impl.PsiFileFactoryImpl;
 import com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistry;
 import com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistryImpl;
 import com.intellij.psi.impl.source.tree.ForeignLeafPsiElement;
-import com.intellij.psi.impl.source.tree.mvcc.InternalPsiVersioning;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.util.CachedValuesManagerImpl;
@@ -381,7 +378,7 @@ public abstract class ParsingTestCase extends UsefulTestCase {
   private void doSanityChecks(PsiFile root) {
     assertEquals("psi text mismatch", root.getViewProvider().getContents().toString(), root.getText());
     ensureParsed(root);
-    ensureCorrectReparse(root, isCheckNoPsiEventsOnReparse());
+    ParsingTestUtil.ensureCorrectReparse(root, isCheckNoPsiEventsOnReparse());
     checkRangeConsistency(root);
   }
 
@@ -609,27 +606,6 @@ public abstract class ParsingTestCase extends UsefulTestCase {
   }
 
   public static void ensureCorrectReparse(@NotNull PsiFile file) {
-    ensureCorrectReparse(file, true);
-  }
-
-  private static void ensureCorrectReparse(@NotNull PsiFile file, boolean isCheckNoPsiEventsOnReparse) {
-    final String psiToStringDefault = DebugUtil.psiToString(file, true, false);
-
-    TreeChangeEventImpl event = InternalPsiVersioning.runModificationOfVersionedPsi(() -> {
-      return DebugUtil.performPsiModification("ensureCorrectReparse", () -> {
-        String fileText = file.getText();
-        DiffLog diffLog = new BlockSupportImpl().reparseRange(
-          file, file.getNode(), TextRange.allOf(fileText), fileText, new EmptyProgressIndicator(), fileText
-        );
-        return diffLog.performActualPsiChange(file);
-      });
-    });
-
-    assertEquals(psiToStringDefault, DebugUtil.psiToString(file, true, false));
-
-    // this if-check is only for compatibility reasons! Please fix your parser instead of employing the flag!
-    if (isCheckNoPsiEventsOnReparse) {
-      assertEmpty(event.getChangedElements());
-    }
+    ParsingTestUtil.ensureCorrectReparse(file);
   }
 }

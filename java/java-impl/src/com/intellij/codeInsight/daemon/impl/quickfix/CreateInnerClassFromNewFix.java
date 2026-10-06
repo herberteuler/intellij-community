@@ -22,6 +22,8 @@ import com.intellij.psi.PsiJavaCodeReferenceElement;
 import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiModifierList;
 import com.intellij.psi.PsiNewExpression;
+import com.intellij.psi.PsiReferenceParameterList;
+import com.intellij.psi.codeStyle.JavaCodeStyleManager;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiUtil;
 import com.intellij.util.IncorrectOperationException;
@@ -159,8 +161,29 @@ public class CreateInnerClassFromNewFix extends CreateClassFromNewFix {
       if (targetClasses.isEmpty()) return;
       PsiClass created = createInnerClass(updater.getWritable(targetClasses.getFirst()), newExpression);
       if (created == null) return;
+      shortenClassReference(newExpression, created);
       setupNewClass(created, newExpression, DummyTemplateBuilder.INSTANCE);
       updater.moveCaretTo(ObjectUtils.notNull(created.getNameIdentifier(), created));
+    }
+  }
+
+  /**
+   * Replaces a qualified class reference which does not resolve to the new class with the short name of the
+   * new class. {@link PsiJavaCodeReferenceElement#bindToElement} cannot do it in a non-physical copy, because
+   * it looks for the new class in the index.
+   *
+   * @param newExpression the expression which creates an instance of the new class
+   * @param created       the new class
+   */
+  private static void shortenClassReference(@NotNull PsiNewExpression newExpression, @NotNull PsiClass created) {
+    PsiJavaCodeReferenceElement classReference = newExpression.getClassReference();
+    if (classReference == null || !classReference.isQualified() || classReference.isReferenceTo(created)) return;
+    PsiReferenceParameterList parameterList = classReference.getParameterList();
+    String text = created.getName() + (parameterList == null ? "" : parameterList.getText());
+    PsiJavaCodeReferenceElement shortReference =
+      JavaPsiFacade.getElementFactory(newExpression.getProject()).createReferenceFromText(text, classReference);
+    if (shortReference.isReferenceTo(created)) {
+      classReference.replace(shortReference);
     }
   }
 

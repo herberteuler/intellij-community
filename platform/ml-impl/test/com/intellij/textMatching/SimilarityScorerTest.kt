@@ -1,8 +1,8 @@
 // Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package com.intellij.textMatching
 
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Test
 
 class SimilarityScorerTest {
   @Test
@@ -24,6 +24,6 @@ class SimilarityScorerTest {
   private fun SimilarityScorer.checkScores(elementText: String, expectedScores: List<Double>) {
     val delta = 0.001
     val scores = score(elementText)
-    Assert.assertArrayEquals(scores.toDoubleArray(), expectedScores.toDoubleArray(), delta)
+    assertArrayEquals(scores.toDoubleArray(), expectedScores.toDoubleArray(), delta)
   }
 }

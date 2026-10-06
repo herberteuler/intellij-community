@@ -4,6 +4,7 @@ package com.intellij.platform.ml.impl
 import com.intellij.internal.statistic.service.fus.collectors.CounterUsagesCollector
 import com.intellij.internal.statistic.service.fus.collectors.UsageCollectors.COUNTER_EP_NAME
 import com.intellij.lang.Language
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.extensions.DefaultPluginDescriptor
 import com.intellij.openapi.extensions.PluginDescriptor
 import com.intellij.openapi.extensions.PluginId
@@ -26,8 +27,11 @@ import com.intellij.platform.ml.logs.schema.ClassEventField
 import com.intellij.platform.ml.logs.schema.EventField
 import com.intellij.platform.ml.logs.schema.EventPair
 import com.intellij.testFramework.ParsingTestCase
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.junit5.TestApplication
+import com.intellij.testFramework.junit5.TestDisposable
 import com.intellij.util.application
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.TestInfo
 import java.net.URI
 
 
@@ -170,11 +174,16 @@ class FailureLogger<M : MLModel<P>, P : Any> : SessionAnalyser.Default<M, P>() {
   }
 }
 
-abstract class MLApiLogsTestCase : BasePlatformTestCase() {
+@TestApplication
+abstract class MLApiLogsTestCase {
+  @TestDisposable
+  lateinit var testDisposable: Disposable
+
   private lateinit var counterUsagesCollectorEP: ExtensionPointImpl<CounterUsagesCollector>
 
-  override fun setUp() {
-    super.setUp()
+  @BeforeEach
+  fun setUp(testInfo: TestInfo) {
+    val name = testInfo.testMethod.get().name
     val area = application.extensionArea as ExtensionsAreaImpl
     val pluginDescriptor: PluginDescriptor = DefaultPluginDescriptor(PluginId.getId(javaClass.name + "." + name), ParsingTestCase::class.java.classLoader)
     area.unregisterExtensionPoint(COUNTER_EP_NAME.name)
@@ -182,6 +191,6 @@ abstract class MLApiLogsTestCase : BasePlatformTestCase() {
   }
 
   fun registerEventLogger(counterUsagesCollector: CounterUsagesCollector) {
-    counterUsagesCollectorEP.registerExtension(counterUsagesCollector, testRootDisposable)
+    counterUsagesCollectorEP.registerExtension(counterUsagesCollector, testDisposable)
   }
 }

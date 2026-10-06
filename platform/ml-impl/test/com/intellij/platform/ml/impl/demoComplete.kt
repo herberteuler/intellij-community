@@ -55,6 +55,7 @@ import com.intellij.platform.ml.with
 import com.jetbrains.fus.reporting.model.lion3.LogEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Test
 import java.util.function.Consumer
 import kotlin.random.Random
 
@@ -272,6 +273,7 @@ private class VeryUselessSessionAnalyser : SessionAnalyser.Default<RandomModel, 
 }
 
 class MockTaskTaskTest : MLApiLogsTestCase() {
+  @Test
   fun `test demo ml task`() {
     // After the session is finished, it will be logged to community/platform/ml-impl/testResources/ml_logs.js
 
@@ -284,7 +286,7 @@ class MockTaskTaskTest : MLApiLogsTestCase() {
       Disposer.newCheckedDisposable("MLTask::test ml task").use { disposable ->
         registerEventLogger(MockTaskFusLogger(disposable))
 
-        FUCollectorTestCase.listenForEvents("FUS", this.testRootDisposable, collectLogs) {
+        FUCollectorTestCase.listenForEvents("FUS", testDisposable, collectLogs) {
 
           repeat(3) { sessionIndex ->
 

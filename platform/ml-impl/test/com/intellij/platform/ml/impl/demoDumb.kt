@@ -24,6 +24,7 @@ import com.intellij.platform.ml.withNestedDumbSessions
 import com.intellij.util.application
 import com.jetbrains.fus.reporting.model.lion3.LogEvent
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Test
 import java.util.function.Consumer
 
 object MockDumbTask : DumbMLTask(
@@ -72,6 +73,7 @@ private class DumbTaskFusLogger(private val disposable: Disposable) : CounterUsa
 }
 
 class DumbTask : MLApiLogsTestCase() {
+  @Test
   fun `test dumb ml task`() {
     // After the session is finished, it will be logged to community/platform/ml-impl/testResources/dumb_ml_logs.js
 
@@ -85,9 +87,9 @@ class DumbTask : MLApiLogsTestCase() {
         registerEventLogger(DumbTaskFusLogger(disposable))
 
         val loggerEP = CounterUsageCollectorEP()
-        application.extensionArea.getExtensionPoint(COUNTER_EP_NAME).registerExtension(loggerEP, this.testRootDisposable)
+        application.extensionArea.getExtensionPoint(COUNTER_EP_NAME).registerExtension(loggerEP, testDisposable)
 
-        FUCollectorTestCase.listenForEvents(ML_RECORDER_ID, this.testRootDisposable, collectLogs) {
+        FUCollectorTestCase.listenForEvents(ML_RECORDER_ID, testDisposable, collectLogs) {
 
           repeat(3) { sessionIndex ->
 

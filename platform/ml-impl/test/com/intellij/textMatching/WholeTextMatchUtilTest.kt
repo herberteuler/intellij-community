@@ -1,15 +1,15 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.textMatching
 
-import junit.framework.TestCase.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class WholeTextMatchUtilTest {
   private fun assertMapsEquals(expected: Map<*, *>, actual: Map<*, *>) {
     assertEquals(expected.size, actual.size)
     assertEquals(expected.keys, actual.keys)
     for (key in expected.keys) {
-      assertEquals("Value not equal for key $key.", expected[key], actual[key])
+      assertEquals(expected[key], actual[key], "Value not equal for key $key.")
     }
   }
 

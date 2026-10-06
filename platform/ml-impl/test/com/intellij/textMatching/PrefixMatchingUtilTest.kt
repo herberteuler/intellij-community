@@ -2,7 +2,7 @@
 package com.intellij.textMatching
 
 import org.assertj.core.api.Assertions
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class PrefixMatchingUtilTest {
   private val camelCaseLookupString = "isEmptyString"

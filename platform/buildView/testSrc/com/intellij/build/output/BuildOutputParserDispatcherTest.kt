@@ -4,14 +4,14 @@ package com.intellij.build.output
 import com.intellij.build.events.BuildEvent
 import com.intellij.build.events.StartId
 import com.intellij.testFramework.common.timeoutRunBlocking
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 import java.util.function.Consumer
 
 class BuildOutputParserDispatcherTest {
 
   @Test
-  fun `test lines are parsed`() = timeoutRunBlocking {
+  fun `test lines are parsed`(): Unit = timeoutRunBlocking {
     val parser = RecordingBuildOutputParser()
 
     val dispatcher = BuildOutputParserDispatcherImpl(StartId(), listOf(parser), NoopBuildOutputMulticaster)
@@ -23,7 +23,7 @@ class BuildOutputParserDispatcherTest {
   }
 
   @Test
-  fun `test blank lines are skipped`() = timeoutRunBlocking {
+  fun `test blank lines are skipped`(): Unit = timeoutRunBlocking {
     val parser = RecordingBuildOutputParser()
 
     val dispatcher = BuildOutputParserDispatcherImpl(StartId(), listOf(parser), NoopBuildOutputMulticaster)
@@ -36,7 +36,7 @@ class BuildOutputParserDispatcherTest {
   }
 
   @Test
-  fun `test lines are parsed by multiple parsers`() = timeoutRunBlocking {
+  fun `test lines are parsed by multiple parsers`(): Unit = timeoutRunBlocking {
     val firstParser = RecordingBuildOutputParser(result = false)
     val secondParser = RecordingBuildOutputParser(result = false)
 
@@ -49,7 +49,7 @@ class BuildOutputParserDispatcherTest {
   }
 
   @Test
-  fun `test parser returning true stops further parsers`() = timeoutRunBlocking {
+  fun `test parser returning true stops further parsers`(): Unit = timeoutRunBlocking {
     val firstParser = RecordingBuildOutputParser(result = true)
     val secondParser = RecordingBuildOutputParser(result = true)
 
@@ -62,7 +62,7 @@ class BuildOutputParserDispatcherTest {
   }
 
   @Test
-  fun `test pushBack inside parser works correctly`() = timeoutRunBlocking {
+  fun `test pushBack inside parser works correctly`(): Unit = timeoutRunBlocking {
     val lines = mutableListOf<Pair<String, List<String>>>()
 
     val parser = BuildOutputParser { line, reader, _ ->
@@ -88,7 +88,7 @@ class BuildOutputParserDispatcherTest {
   }
 
   @Test
-  fun `test dispatcher close waits for reader to finish`() = timeoutRunBlocking {
+  fun `test dispatcher close waits for reader to finish`(): Unit = timeoutRunBlocking {
     val parser = RecordingBuildOutputParser { Thread.sleep(50); true }
 
     val dispatcher = BuildOutputParserDispatcherImpl(StartId(), listOf(parser), NoopBuildOutputMulticaster)
@@ -100,7 +100,7 @@ class BuildOutputParserDispatcherTest {
   }
 
   @Test
-  fun `duplicate events are not forwarded`() = timeoutRunBlocking {
+  fun `duplicate events are not forwarded`(): Unit = timeoutRunBlocking {
     val multicaster = RecordingBuildOutputMulticaster()
 
     val event = object : BuildEvent {

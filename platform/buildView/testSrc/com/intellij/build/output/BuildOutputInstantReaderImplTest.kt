@@ -7,8 +7,8 @@ import com.intellij.build.events.MessageEvent.Kind.ERROR
 import com.intellij.build.events.MessageEvent.Kind.INFO
 import com.intellij.build.events.MessageEvent.Kind.WARNING
 import com.intellij.build.events.impl.MessageEventImpl
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 import java.util.Collections
 
 class BuildOutputInstantReaderImplTest {
@@ -82,7 +82,7 @@ class BuildOutputInstantReaderImplTest {
 
     outputReader.append(inputData).closeAndGetFuture().get()
 
-    Assert.assertEquals("""
+    assertEquals("""
         lines of warns:80
         error1
       """.trimIndent(), messages.joinToString("\n").trimEnd())
@@ -151,7 +151,7 @@ class BuildOutputInstantReaderImplTest {
       line(5).appended(),
       line(4).parsed(), line(5).parsed()
     )
-    Assert.assertEquals(expected, eventLog)
+    assertEquals(expected, eventLog)
   }
 
   companion object {
@@ -198,9 +198,9 @@ class BuildOutputInstantReaderImplTest {
       outputReader.append(inputData).closeAndGetFuture().get()
 
       if (assertUnparsedLines) {
-        Assert.assertEquals(trashOut + trashOut, unparsedLines)
+        assertEquals(trashOut + trashOut, unparsedLines)
       }
-      Assert.assertEquals("""
+      assertEquals("""
         error1
         info1
         info2

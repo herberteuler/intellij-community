@@ -12,11 +12,11 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.progress.ProcessCanceledException
-import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.runBlockingCancellable
 import com.intellij.openapi.progress.util.ProgressIndicatorBase
 import com.intellij.openapi.util.Computable
+import com.intellij.openapi.util.Pair
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiFile
 import com.intellij.testFramework.common.timeoutRunBlocking
@@ -34,7 +34,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -48,7 +47,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @TestApplication
@@ -69,7 +67,8 @@ class MainPassesRunnerTest {
     @TestDisposable disposable: Disposable,
   ): Unit = timeoutRunBlocking {
     assumeTrue(JobSchedulerImpl.getJobPoolParallelism() > 1)
-    val files = listOf(firstFile.get().virtualFile, secondFile.get().virtualFile)
+    val requestFile = firstFile.get().virtualFile
+    val files = listOf(requestFile, secondFile.get().virtualFile)
     val runnerThread = AtomicReference<Thread>()
     val requestStarted = CompletableDeferred<Job>()
     val response = CompletableDeferred<Unit>()
@@ -78,30 +77,30 @@ class MainPassesRunnerTest {
     val siblingCancelled = AtomicBoolean()
     val writeRequested = CompletableDeferred<Unit>()
     val writeFinished = CompletableDeferred<Unit>()
-    val batchTaskIndicator = CompletableDeferred<ProgressIndicator>()
-    val firstAttempt = AtomicBoolean()
+    val runnerInBatch = AtomicBoolean()
     val launcher = JobLauncher.getInstance()
     ApplicationManager.getApplication().replaceService(JobLauncher::class.java, object : JobLauncher() {
       override fun <T> processConcurrentlyAsync(things: List<T>, thingProcessor: Processor<in T>, runnable: Runnable): Boolean {
-        val coordinateFailure = Thread.currentThread() === runnerThread.get() && firstAttempt.compareAndSet(false, true)
-        return launcher.processConcurrentlyAsync(things, Processor { item ->
-          if (coordinateFailure) {
-            batchTaskIndicator.complete(ProgressManager.getGlobalProgressIndicator()!!)
-          }
-          thingProcessor.process(item)
-        }, Runnable {
-          runnable.run()
-          if (coordinateFailure) {
-            runBlockingCancellable {
-              withTimeout(5.seconds) {
-                val indicator = batchTaskIndicator.await()
-                while (!indicator.isCanceled) {
-                  delay(1.milliseconds)
-                }
-              }
+        if (Thread.currentThread() !== runnerThread.get() || !runnerInBatch.compareAndSet(false, true)) {
+          return launcher.processConcurrentlyAsync(things, thingProcessor, runnable)
+        }
+        // The runner thread must not process the request file, because it then misses the cancellation of the batch.
+        // Thus, it waits until a pool thread takes the request file. After that, it can take only the sibling file.
+        val requestFileTaken = CompletableDeferred<Unit>()
+        try {
+          return launcher.processConcurrentlyAsync(things, Processor { item ->
+            if ((item as Pair<*, *>).first == requestFile) {
+              requestFileTaken.complete(Unit)
             }
-          }
-        })
+            thingProcessor.process(item)
+          }, Runnable {
+            runnable.run()
+            runBlockingCancellable { requestFileTaken.await() }
+          })
+        }
+        finally {
+          runnerInBatch.set(false)
+        }
       }
     }, disposable)
     val inspection = object : LocalInspectionTool() {
@@ -111,7 +110,7 @@ class MainPassesRunnerTest {
 
       override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor = object : PsiElementVisitor() {
         override fun visitFile(file: PsiFile) {
-          if (Thread.currentThread() !== runnerThread.get() && requestClaimed.compareAndSet(false, true)) {
+          if (file.virtualFile == requestFile && requestClaimed.compareAndSet(false, true)) {
             assertTrue(ApplicationManager.getApplication().isReadAccessAllowed)
             try {
               runBlockingCancellable {

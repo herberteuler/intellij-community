@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.allOverriddenSymbols
 import org.jetbrains.kotlin.analysis.api.types.KaUsualClassType
 import org.jetbrains.kotlin.analysis.api.types.isMarkedNullable
 import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.psi.safeDeparenthesize
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinApplicableInspectionBase
@@ -168,7 +169,7 @@ internal class VerboseNullabilityAndEmptinessInspection :
                         writableOuterBinaryExpression.right?.replace(callExpression) // flag && a.isNotEmpty() -> flag && !a.isNullOrEmpty()
                     }
                 }
-                if (parenthesizedParent != null && KtPsiUtil.areParenthesesUseless(parenthesizedParent)) {
+                if (parenthesizedParent != null && areParenthesesUseless(parenthesizedParent)) {
                     val writableParenthesizedParent = updater.getWritable(parenthesizedParent)
                     writableParenthesizedParent.replace(writableParenthesizedParent.safeDeparenthesize())
                 }

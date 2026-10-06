@@ -21675,6 +21675,11 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
                 KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
             }
 
+            @TestMetadata("annotatedLambda.kt")
+            public void testAnnotatedLambda() throws Exception {
+                runTest("testData/inspectionsLocal/removeUnnecessaryParentheses/annotatedLambda.kt");
+            }
+
             @TestMetadata("binaryExpressionInAssignment.kt")
             public void testBinaryExpressionInAssignment() throws Exception {
                 runTest("testData/inspectionsLocal/removeUnnecessaryParentheses/binaryExpressionInAssignment.kt");
@@ -21788,6 +21793,11 @@ public abstract class K2LocalInspectionTestGenerated extends AbstractK2LocalInsp
             @TestMetadata("interfaceDelegation.kt")
             public void testInterfaceDelegation() throws Exception {
                 runTest("testData/inspectionsLocal/removeUnnecessaryParentheses/interfaceDelegation.kt");
+            }
+
+            @TestMetadata("labeledLambda.kt")
+            public void testLabeledLambda() throws Exception {
+                runTest("testData/inspectionsLocal/removeUnnecessaryParentheses/labeledLambda.kt");
             }
 
             @TestMetadata("lambda.kt")

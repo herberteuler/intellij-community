@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.analysis.api.fir.diagnostics.KaFirDiagnostic
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.api.types.isNullable
 import org.jetbrains.kotlin.analysis.api.types.isSubtypeOf
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.psi.imports.addImport
 import org.jetbrains.kotlin.idea.base.psi.replaced
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
@@ -98,7 +99,7 @@ private class ToJavaInstantFix(
             KtPsiFactory.contextual(element).createExpression("(${element.text})${navigationOperator}${callShortName}()")
         ) as? KtQualifiedExpression ?: return
         val receiver = replaced.receiverExpression as? KtParenthesizedExpression ?: return
-        if (KtPsiUtil.areParenthesesUseless(receiver)) {
+        if (areParenthesesUseless(receiver)) {
             receiver.expression?.let { receiver.replace(it) }
         }
     }

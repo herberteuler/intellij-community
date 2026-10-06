@@ -783,7 +783,7 @@ internal class KtPsiMutationServiceImpl : KtPsiMutationService {
         if (newElement is KtExpression) {
             when (parent) {
                 is KtExpression, is KtValueArgument -> {
-                    if (KtPsiUtil.areParenthesesNecessary(newElement, expression, parent)) {
+                    if (areParenthesesNecessary(newElement, expression, parent)) {
                         val factory = KtPsiFactory(expression.project)
                         return rawReplaceHandler(factory.createExpressionByPattern("($0)", newElement, reformat = reformat))
                     }

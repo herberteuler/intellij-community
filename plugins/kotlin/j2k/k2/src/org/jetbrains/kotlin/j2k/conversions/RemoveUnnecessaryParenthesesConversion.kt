@@ -2,6 +2,7 @@
 
 package org.jetbrains.kotlin.j2k.conversions
 
+import org.jetbrains.kotlin.idea.base.psi.MAX_PRIORITY
 import org.jetbrains.kotlin.j2k.ConverterContext
 import org.jetbrains.kotlin.lang.BinaryOperationPrecedence
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -153,7 +154,7 @@ class RemoveUnnecessaryParenthesesConversion(context: ConverterContext) : Recurs
      */
     private fun getPriority(expression: JKElement): Int {
         if (expression is JKSuperExpression) {
-            return KtPsiUtil.MAX_PRIORITY
+            return MAX_PRIORITY
         }
 
         if (expression is JKPostfixExpression ||
@@ -162,11 +163,11 @@ class RemoveUnnecessaryParenthesesConversion(context: ConverterContext) : Recurs
             expression is JKMethodReferenceExpression ||
             expression is JKArrayAccessExpression
         ) {
-            return KtPsiUtil.MAX_PRIORITY - 1
+            return MAX_PRIORITY - 1
         }
 
         if (expression is JKPrefixExpression || expression is JKLabeledExpression || expression is JKIfElseExpression) {
-            return KtPsiUtil.MAX_PRIORITY - 2
+            return MAX_PRIORITY - 2
         }
 
         if (expression is JKBinaryExpression) {
@@ -182,10 +183,10 @@ class RemoveUnnecessaryParenthesesConversion(context: ConverterContext) : Recurs
 
             val binaryOperationPrecedence = BinaryOperationPrecedence.TOKEN_TO_BINARY_PRECEDENCE_MAP[binaryOperation];
             if (binaryOperationPrecedence != null) {
-                return (KtPsiUtil.MAX_PRIORITY - 3) - binaryOperationPrecedence.ordinal;
+                return (MAX_PRIORITY - 3) - binaryOperationPrecedence.ordinal;
             }
         }
 
-        return KtPsiUtil.MAX_PRIORITY
+        return MAX_PRIORITY
     }
 }

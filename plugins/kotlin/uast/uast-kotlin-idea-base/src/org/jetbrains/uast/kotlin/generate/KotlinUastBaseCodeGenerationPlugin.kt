@@ -13,11 +13,11 @@ import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.idea.base.psi.appendTypeArgument
 import org.jetbrains.kotlin.idea.base.psi.appendValueArgument
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.psi.getOrCreateBody
 import org.jetbrains.kotlin.idea.base.psi.setPropertyInitializer
 import org.jetbrains.kotlin.idea.references.KtSimpleNameReference
@@ -43,7 +43,6 @@ import org.jetbrains.kotlin.psi.KtPrefixExpression
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory
-import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtReturnExpression
 import org.jetbrains.kotlin.psi.KtSafeQualifiedExpression
@@ -524,7 +523,7 @@ abstract class KotlinUastElementFactory(project: Project) : UastElementFactory {
     ): UPolyadicExpression? {
         fun unwrapParentheses(exp: KtExpression?) {
             if (exp !is KtParenthesizedExpression) return
-            if (!KtPsiUtil.areParenthesesUseless(exp)) return
+            if (!areParenthesesUseless(exp)) return
             exp.expression?.let { exp.replace(it) }
         }
 

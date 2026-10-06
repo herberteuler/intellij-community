@@ -135,7 +135,7 @@ fun KtExpression.dropEnclosingParenthesesIfPossible(): KtExpression {
 
     while (true) {
         val parent = current.parent as? KtParenthesizedExpression ?: break
-        if (!KtPsiUtil.areParenthesesUseless(parent)) break
+        if (!areParenthesesUseless(parent)) break
         current = parent
     }
     return current.replaced(innermostExpression)

@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.analysis.api.types.isSubtypeOf
 import org.jetbrains.kotlin.idea.base.codeInsight.KotlinDeclarationNameValidator
 import org.jetbrains.kotlin.idea.base.codeInsight.KotlinNameSuggester
 import org.jetbrains.kotlin.idea.base.codeInsight.KotlinNameSuggestionProvider
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.psi.isAssignmentLHS
 import org.jetbrains.kotlin.idea.base.psi.replaced
 import org.jetbrains.kotlin.idea.base.psi.safeDeparenthesize
@@ -448,7 +449,7 @@ class ReplaceManualRangeWithIndicesCallsInspection : KotlinApplicableInspectionB
 
         private fun KtExpression.removeUnnecessaryParentheses() {
             parents.takeWhile { it is KtParenthesizedExpression }.lastOrNull()?.let {
-                if (it is KtParenthesizedExpression && KtPsiUtil.areParenthesesUseless(it)) {
+                if (it is KtParenthesizedExpression && areParenthesesUseless(it)) {
                     it.replace(it.safeDeparenthesize())
                 }
             }

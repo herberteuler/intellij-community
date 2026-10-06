@@ -7,12 +7,12 @@ import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinApplicableInspectionBase
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.idea.codeinsight.utils.removeUnnecessaryParentheses
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
-import org.jetbrains.kotlin.psi.KtPsiUtil
 import org.jetbrains.kotlin.psi.KtVisitor
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
@@ -34,7 +34,7 @@ class RemoveUnnecessaryParenthesesInspection : KotlinApplicableInspectionBase.Si
     override fun getApplicableRanges(element: KtParenthesizedExpression): List<TextRange> {
         val inner = element.expression ?: return emptyList()
 
-        if (!KtPsiUtil.areParenthesesUseless(element)) return emptyList()
+        if (!areParenthesesUseless(element)) return emptyList()
 
         val elementRange = element.textRange
         val innerRange = inner.textRange

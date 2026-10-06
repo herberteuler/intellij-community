@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.single
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.resolution.variable
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinApplicableInspectionBase
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
@@ -93,7 +94,7 @@ internal class LazyWithoutDelegationInspection :
 
                 writableLazyValues.forEach {
                     val replaced = it.replace(factory.createExpression(it.receiverExpression.text))
-                    if (replaced is KtParenthesizedExpression && KtPsiUtil.areParenthesesUseless(replaced)) {
+                    if (replaced is KtParenthesizedExpression && areParenthesesUseless(replaced)) {
                         replaced.removeUnnecessaryParentheses()
                     }
                 }

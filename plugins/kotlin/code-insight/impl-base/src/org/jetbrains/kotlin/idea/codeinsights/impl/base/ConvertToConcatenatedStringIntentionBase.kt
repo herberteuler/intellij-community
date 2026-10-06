@@ -8,6 +8,7 @@ import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.modcommand.Presentation
 import com.intellij.modcommand.PsiUpdateModCommandAction
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotatedExpression
@@ -74,7 +75,7 @@ abstract class ConvertToConcatenatedStringIntentionBase : PsiUpdateModCommandAct
                 deparenthesizedRight.text
             )
         }
-        if (this is KtParenthesizedExpression && KtPsiUtil.areParenthesesUseless(this)) {
+        if (this is KtParenthesizedExpression && areParenthesesUseless(this)) {
             return KtPsiUtil.safeDeparenthesize(this, true)
         }
         return this

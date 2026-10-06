@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.analysis.api.types.expandedSymbol
 import org.jetbrains.kotlin.analysis.api.types.isMarkedNullable
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.idea.base.analysis.api.utils.shortenReferences
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.psi.imports.addImport
 import org.jetbrains.kotlin.idea.base.psi.replaced
 import org.jetbrains.kotlin.idea.util.CommentSaver
@@ -74,7 +75,7 @@ object ToExtensionFunctionWithNonNullableReceiver : Transformation {
             psiFactory.createExpression("($receiverText).${replacement.kotlinFunctionShortName}$typeArguments($argumentsText)")
         ) as KtDotQualifiedExpression
         val receiver = replaced.receiverExpression as KtParenthesizedExpression
-        if (KtPsiUtil.areParenthesesUseless(receiver)) {
+        if (areParenthesesUseless(receiver)) {
             receiver.expression?.let { receiver.replace(it) }
         }
         commentSaver.restore(replaced)

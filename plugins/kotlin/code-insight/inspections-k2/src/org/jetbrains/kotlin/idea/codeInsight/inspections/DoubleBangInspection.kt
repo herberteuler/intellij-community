@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.diagnostics.diagnostics
 import org.jetbrains.kotlin.analysis.api.fir.diagnostics.KaFirDiagnostic
 import org.jetbrains.kotlin.idea.base.analysis.api.utils.shortenReferences
+import org.jetbrains.kotlin.idea.base.psi.areParenthesesUseless
 import org.jetbrains.kotlin.idea.base.psi.replaced
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinApplicableInspectionBase
@@ -97,7 +98,7 @@ internal class DoubleBangInspection :
             shortenReferences(binaryExpression.right as KtElement)
 
             val parenthesizedExpression = replacedExpression as? KtParenthesizedExpression ?: return
-            if (KtPsiUtil.areParenthesesUseless(parenthesizedExpression)) {
+            if (areParenthesesUseless(parenthesizedExpression)) {
                 val innerExpression = parenthesizedExpression.expression ?: return
                 parenthesizedExpression.replace(innerExpression)
             }

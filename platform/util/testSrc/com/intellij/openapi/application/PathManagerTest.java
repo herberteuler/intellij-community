@@ -1,7 +1,6 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.application;
 
-import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.testFramework.rules.TempDirectory;
 import com.intellij.util.io.Decompressor;
 import com.intellij.util.lang.UrlClassLoader;
@@ -12,7 +11,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -24,17 +23,17 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class PathManagerTest {
-  private static final String TEST_RPOP = "__ij_subst_test__";
+  private static final String TEST_PROP = "__ij_subst_test__";
   private static final String TEST_VALUE = "__" + new Random().nextInt(1000) + "__";
 
   @Before
   public void setUp() {
-    System.setProperty(TEST_RPOP, TEST_VALUE);
+    System.setProperty(TEST_PROP, TEST_VALUE);
   }
 
   @After
   public void tearDown() {
-    System.clearProperty(TEST_RPOP);
+    System.clearProperty(TEST_PROP);
   }
 
   @Rule
@@ -42,23 +41,23 @@ public class PathManagerTest {
 
   @Test
   public void testResourceRoot() throws Exception {
-    String resourceName = "/" + Test.class.getName().replace('.', '/') + ".class";
-    String jarRoot = PathManager.getResourceRoot(getClass(), resourceName);
+    var resourceName = "/" + Test.class.getName().replace('.', '/') + ".class";
+    var jarRoot = PathManager.getResourceRoot(getClass(), resourceName);
+    var jar = Path.of(jarRoot);
     assertNotNull(jarRoot);
     assertTrue(jarRoot, jarRoot.endsWith(".jar"));
-    assertTrue(new File(jarRoot).isFile());
+    assertTrue(Files.isRegularFile(jar));
 
-    Path jar = Path.of(jarRoot);
-    Path directory = tempDir.newDirectoryPath("extracted-jar");
+    var directory = tempDir.newDirectoryPath("extracted-jar");
     new Decompressor.Zip(jar).extract(directory);
 
-    UrlClassLoader loader = UrlClassLoader.build().files(List.of(directory)).get();
-    Class<?> loadedClass = loader.loadClass(Test.class.getName());
+    var loader = UrlClassLoader.build().files(List.of(directory)).get();
+    var loadedClass = loader.loadClass(Test.class.getName());
 
-    String dirRoot = PathManager.getResourceRoot(loadedClass, resourceName);
+    var dirRoot = PathManager.getResourceRoot(loadedClass, resourceName);
     assertNotNull(dirRoot);
     assertFalse(dirRoot, dirRoot.endsWith("/"));
-    assertTrue(new File(dirRoot).isDirectory());
+    assertTrue(Files.isDirectory(Path.of(dirRoot)));
     assertEquals(directory.toString(), dirRoot);
   }
 
@@ -68,13 +67,11 @@ public class PathManagerTest {
     assertEquals("abc", substituteVars("abc"));
     assertEquals("a$b$c", substituteVars("a$b$c"));
 
-    assertEquals("/" + TEST_VALUE + "/" + TEST_VALUE + "/", substituteVars("/${" + TEST_RPOP + "}/${" + TEST_RPOP + "}/"));
+    assertEquals("/" + TEST_VALUE + "/" + TEST_VALUE + "/", substituteVars("/${" + TEST_PROP + "}/${" + TEST_PROP + "}/"));
 
-    String home = System.clearProperty(PathManager.PROPERTY_HOME_PATH);
+    var home = System.clearProperty(PathManager.PROPERTY_HOME_PATH);
     try {
-      assertEquals(PathManager.getHomePath() + "/build.txt", substituteVars("${idea.home}/build.txt"));
-      assertEquals(PathManager.getHomePath() + "\\build.txt", substituteVars("${idea.home.path}\\build.txt"));
-      assertEquals("/opt/idea/build.txt", PathManager.substituteVars("${idea.home}/build.txt", "/opt/idea"));
+      assertEquals(PathManager.getHomeDir() + "\\build.txt", substituteVars("${idea.home.path}\\build.txt"));
       assertEquals("C:\\opt\\idea\\build.txt", PathManager.substituteVars("${idea.home.path}\\build.txt", "C:\\opt\\idea"));
     }
     finally {
@@ -83,9 +80,9 @@ public class PathManagerTest {
       }
     }
 
-    String config = System.clearProperty(PathManager.PROPERTY_CONFIG_PATH);
+    var config = System.clearProperty(PathManager.PROPERTY_CONFIG_PATH);
     try {
-      assertEquals(PathManager.getConfigPath() + "/opts", substituteVars("${idea.config.path}/opts"));
+      assertEquals(PathManager.getConfigDir() + "/opts", substituteVars("${idea.config.path}/opts"));
     }
     finally {
       if (config != null) {
@@ -93,9 +90,9 @@ public class PathManagerTest {
       }
     }
 
-    String system = System.clearProperty(PathManager.PROPERTY_SYSTEM_PATH);
+    var system = System.clearProperty(PathManager.PROPERTY_SYSTEM_PATH);
     try {
-      assertEquals(PathManager.getSystemPath() + "/logs2", substituteVars("${idea.system.path}/logs2"));
+      assertEquals(PathManager.getSystemDir() + "/logs2", substituteVars("${idea.system.path}/logs2"));
     }
     finally {
       if (system != null) {
@@ -103,29 +100,39 @@ public class PathManagerTest {
       }
     }
 
-    assertTrue(FileUtil.pathsEqual(PathManager.getBinPath() + "/../license", substituteVars("../license")));
+    assertEquals(PathManager.getBinDir().resolve("../license"), Path.of(substituteVars("../license")));
 
     assertEquals("//", substituteVars("/${unknown_property_ignore_the_error}/"));
   }
 
   @Test
   public void testDefaultCommonDataPath() {
-    String vendorName = System.getProperty("idea.vendor.name", "JetBrains");
+    var vendorName = System.getProperty("idea.vendor.name", "JetBrains");
 
-    assertEquals("C:\\Users\\test\\AppData\\Roaming\\" + vendorName,
-                 PathManager.getDefaultCommonDataPathFor(OS.Windows, "C:\\Users\\test", Map.of()));
-    assertEquals("C:\\Data\\" + vendorName,
-                 PathManager.getDefaultCommonDataPathFor(OS.Windows, "C:\\Users\\test", Map.of("APPDATA", "C:\\Data")));
-    assertEquals("/Users/test/Library/Application Support/" + vendorName,
-                 PathManager.getDefaultCommonDataPathFor(OS.macOS, "/Users/test", Map.of()));
-    assertEquals("/home/test/.local/share/" + vendorName,
-                 PathManager.getDefaultCommonDataPathFor(OS.Linux, "/home/test", Map.of()));
-    assertEquals("/var/data/" + vendorName,
-                 PathManager.getDefaultCommonDataPathFor(OS.Linux, "/home/test", Map.of("XDG_DATA_HOME", "/var/data")));
+    assertEquals(
+      "C:\\Users\\test\\AppData\\Roaming\\" + vendorName,
+      PathManager.getDefaultCommonDataPathFor(OS.Windows, "C:\\Users\\test", Map.of())
+    );
+    assertEquals(
+      "C:\\Data\\" + vendorName,
+      PathManager.getDefaultCommonDataPathFor(OS.Windows, "C:\\Users\\test", Map.of("APPDATA", "C:\\Data"))
+    );
+    assertEquals(
+      "/Users/test/Library/Application Support/" + vendorName,
+      PathManager.getDefaultCommonDataPathFor(OS.macOS, "/Users/test", Map.of())
+    );
+    assertEquals(
+      "/home/test/.local/share/" + vendorName,
+      PathManager.getDefaultCommonDataPathFor(OS.Linux, "/home/test", Map.of())
+    );
+    assertEquals(
+      "/var/data/" + vendorName,
+      PathManager.getDefaultCommonDataPathFor(OS.Linux, "/home/test", Map.of("XDG_DATA_HOME", "/var/data"))
+    );
   }
 
   @Contract("null -> null")
-  public static String substituteVars(String s) {
-    return PathManager.substituteVars(s, PathManager.getHomePath());
+  private static String substituteVars(String s) {
+    return PathManager.substituteVars(s, PathManager.getHomeDir().toString());
   }
 }

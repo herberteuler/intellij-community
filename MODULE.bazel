@@ -80,6 +80,17 @@ local_path_override(
 )
 
 bazel_dep(name = "rules_cc", version = "0.2.25")
+single_version_override(
+    module_name = "rules_cc",
+    patch_strip = 1,
+    patches = [
+        # we do not see a reality where one would want a transitive dependency to revert
+        # their asked statically linked MSVC runtime, implemented as a patch to avoid setting
+        # transitions manually everywhere or with a wrapper or child rule
+        "//:build/rules_cc-msvc-crt-transition.patch",
+    ],
+)
+
 bazel_dep(name = "windows_support", version = "0.4.1")
 bazel_dep(name = "llvm", version = "0.8.24")
 single_version_override(
@@ -262,6 +273,10 @@ rules_rust.patch(
     patches = [
         "//:build/rules_rust-msvc-rustc-link-through-lld-link.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/rules_rust/issues/80
         "//:build/rules_rust-process-wrapper-skip-static-lib-symlinks.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/rules_rust/pull/82 and rules_rs is updated to point to that rules_rust commit
+        # we do not see a reality where one would want a transitive dependency to revert
+        # their asked statically linked MSVC runtime, implemented as a patch to avoid setting
+        # transitions manually everywhere or with a wrapper or child rule
+        "//:build/rules_rust-msvc-crt-transition.patch",
     ],
     strip = 1,
 )

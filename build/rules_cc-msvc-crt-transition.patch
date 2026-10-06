@@ -1,0 +1,94 @@
+Apply the MSVC C runtime mode of a linking target to its whole configuration.
+
+A toolchain can select the CRT mode only from `--features`, for each configuration. The MSVC toolchain of `@llvm`
+does, and it builds one libc++ archive for each configuration in that mode. So `features = ["static_link_msvcrt"]` on
+a `cc_binary`, a `cc_shared_library` or a `cc_test` does not change its link: the target still imports the dynamic C
+runtime.
+
+Give the three linking rules a transition. When the `features` of the target hold `static_link_msvcrt`, it adds
+`static_link_msvcrt` and `-dynamic_link_msvcrt` to `--features`, so the whole dependency graph of the target takes the
+static CRT. A target without the feature keeps its configuration.
+diff --git a/cc/private/rules_impl/cc_binary.bzl b/cc/private/rules_impl/cc_binary.bzl
+--- a/cc/private/rules_impl/cc_binary.bzl
++++ b/cc/private/rules_impl/cc_binary.bzl
+@@ -21,6 +21,7 @@
+ load(":attrs.bzl", "cc_binary_attrs")
+ load(":cc_shared_library.bzl", "dynamic_deps_initializer")
+ load(":function_providing_rule.bzl", "proxy")
++load(":msvc_crt_transition.bzl", "msvc_crt_transition")
+ 
+ def _cc_binary_initializer(**kwargs):
+     kwargs = postmark_initializer(**kwargs)
+@@ -29,6 +30,7 @@
+ cc_binary = rule(
+     implementation = proxy,
+     initializer = _cc_binary_initializer,
++    cfg = msvc_crt_transition,
+     doc = """
+ <p>It produces an executable binary.</p>
+ 
+diff --git a/cc/private/rules_impl/cc_shared_library.bzl b/cc/private/rules_impl/cc_shared_library.bzl
+--- a/cc/private/rules_impl/cc_shared_library.bzl
++++ b/cc/private/rules_impl/cc_shared_library.bzl
+@@ -22,6 +22,7 @@
+ load("//cc/common:semantics.bzl", "semantics")
+ load("//cc/private:graph_node_info.bzl", "GraphNodeInfo")
+ load(":function_providing_rule.bzl", "proxy")
++load(":msvc_crt_transition.bzl", "msvc_crt_transition")
+ 
+ # TODO(#5200): Add export_define to library_to_link and cc_library
+ 
+@@ -104,6 +105,7 @@
+ cc_shared_library = rule(
+     implementation = proxy,
+     initializer = _cc_shared_library_initializer,
++    cfg = msvc_crt_transition,
+     doc = """
+ <p>It produces a shared library.</p>
+ 
+diff --git a/cc/private/rules_impl/cc_test.bzl b/cc/private/rules_impl/cc_test.bzl
+--- a/cc/private/rules_impl/cc_test.bzl
++++ b/cc/private/rules_impl/cc_test.bzl
+@@ -21,6 +21,7 @@
+ load(":attrs.bzl", "cc_binary_attrs", "linkstatic_doc", "stamp_doc")
+ load(":cc_shared_library.bzl", "dynamic_deps_initializer")
+ load(":function_providing_rule.bzl", "proxy")
++load(":msvc_crt_transition.bzl", "msvc_crt_transition")
+ 
+ _CC_TEST_TOOLCHAIN_TYPE = "@bazel_tools//tools/cpp:test_runner_toolchain_type"
+ _cc_test_attrs = dict(cc_binary_attrs)
+@@ -71,6 +72,7 @@
+ cc_test = rule(
+     initializer = cc_test_initializer,
+     implementation = proxy,
++    cfg = msvc_crt_transition,
+     doc = """
+ <p>
+ A <code>cc_test()</code> rule compiles a test.  Here, a test
+diff --git a/cc/private/rules_impl/msvc_crt_transition.bzl b/cc/private/rules_impl/msvc_crt_transition.bzl
+new file mode 100644
+--- /dev/null
++++ b/cc/private/rules_impl/msvc_crt_transition.bzl
+@@ -0,0 +1,22 @@
++"""Applies the MSVC C runtime mode that a linking target asks for to its whole configuration."""
++
++_FEATURES = "//command_line_option:features"
++
++# The toolchain enables `dynamic_link_msvcrt` by default, and both features select the same CRT mode.
++_STATIC_MSVC_CRT_FEATURES = ["static_link_msvcrt", "-dynamic_link_msvcrt"]
++
++def _msvc_crt_transition_impl(settings, attr):
++    features = settings["//command_line_option:features"]
++    if "static_link_msvcrt" not in attr.features:
++        return {_FEATURES: features}
++    return {_FEATURES: features + [feature for feature in _STATIC_MSVC_CRT_FEATURES if feature not in features]}
++
++# A toolchain can select the CRT mode only from `--features`, for each configuration. The MSVC toolchain of `@llvm`
++# does, and it builds one libc++ archive for each configuration in that mode. So a `static_link_msvcrt` feature on the
++# target alone would not change its link. This transition copies it to `--features`, so the whole dependency graph of
++# the target takes the same CRT mode. A target without the feature keeps its configuration.
++msvc_crt_transition = transition(
++    implementation = _msvc_crt_transition_impl,
++    inputs = [_FEATURES],
++    outputs = [_FEATURES],
++)

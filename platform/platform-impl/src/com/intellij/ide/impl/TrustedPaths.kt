@@ -73,6 +73,11 @@ class TrustedPaths : TrustedProjectsStateStorage<TrustedPaths.State>(State()) {
     return state.trustedPaths.filterValues { it }.keys.sorted()
   }
 
+  /** Removes all saved trust decisions, including decisions to keep a path untrusted. */
+  fun clearTrustedPaths() {
+    updateState { State() }
+  }
+
   /**
    * Replaces the set of [explicitly trusted paths][getExplicitlyTrustedPaths].
    * A path removed from the set is forgotten rather than marked untrusted: the next open asks for trust again.

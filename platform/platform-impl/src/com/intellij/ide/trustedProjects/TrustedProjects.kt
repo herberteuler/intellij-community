@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.ide.trustedProjects
 
+import com.intellij.ide.impl.TrustedPaths
 import com.intellij.ide.impl.TrustedPathsSettings
 import com.intellij.ide.impl.TrustedProjectsStatistics
 import com.intellij.ide.lightEdit.LightEdit
@@ -8,6 +9,7 @@ import com.intellij.ide.lightEdit.LightEditUtil
 import com.intellij.ide.trustedProjects.TrustedProjectsLocator.LocatedProject
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.wm.ex.WelcomeScreenProjectProvider
 import com.intellij.util.ThreeState
 import com.intellij.util.application
@@ -89,6 +91,23 @@ object TrustedProjects {
         else -> syncPublisher.onProjectUntrusted(locatedProject)
       }
     }
+  }
+
+  /** Removes saved trust decisions and trusted locations, then publishes changes to the effective trust state. */
+  @ApiStatus.Internal
+  fun clearSavedTrust() {
+    val paths = TrustedPaths.getInstance()
+    val locations = TrustedPathsSettings.getInstance()
+    val recordedPaths = paths.state.trustedPaths.keys + locations.getTrustedPaths()
+    val projects = ProjectManager.getInstance().openProjects.map { TrustedProjectsLocator.locateProject(it) }
+    val affected = projects + recordedPaths.map { TrustedProjectsLocator.locateProject(Path.of(it), null) }
+    val trustedBefore = affected.filter { isProjectTrusted(it) }
+
+    paths.clearTrustedPaths()
+    locations.setTrustedPaths(emptyList())
+
+    val publisher = application.messageBus.syncPublisher(TrustedProjectsListener.TOPIC)
+    trustedBefore.filterNot { isProjectTrusted(it) }.forEach { publisher.onProjectUntrusted(it) }
   }
 
   /**

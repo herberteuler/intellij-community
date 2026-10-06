@@ -186,9 +186,12 @@ class SdkBridgeImpl(
 
   internal fun reloadAdditionalData() {
     val rawAdditionalData = sdkEntityBuilder.additionalData
-    if (rawAdditionalData.isNotBlank()) {
+    additionalData = if (rawAdditionalData.isNotBlank()) {
       val additionalDataElement = JDOMUtil.load(rawAdditionalData)
-      additionalData = sdkEntityBuilder.getSdkType().loadAdditionalData(this, additionalDataElement)
+      sdkEntityBuilder.getSdkType().loadAdditionalData(this, additionalDataElement)
+    }
+    else {
+      null
     }
   }
 

@@ -74,6 +74,10 @@ public interface SdkModificator {
 
   boolean isWritable();
 
+  /**
+   * Applies the changes to an SDK that is not in the {@link ProjectJdkTable}.
+   * For a registered SDK, call {@link #commitChanges()} instead.
+   */
   @ApiStatus.Internal
   default void applyChangesWithoutWriteAction() { }
 }

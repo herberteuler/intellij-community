@@ -136,26 +136,22 @@ internal class SdkModificatorBridgeImpl(
     // In some cases we create SDK in air and need to modify it somehow e.g ProjectSdksModel.createSdkInternal,
     // so it's OK that entity may not be in storage
 
-    modifiedSdkEntity.additionalData = if (additionalData != null) {
-      val additionalDataElement = Element(ELEMENT_ADDITIONAL)
-      modifiedSdkEntity.getSdkType().saveAdditionalData(additionalData!!, additionalDataElement)
-      JDOMUtil.write(additionalDataElement)
-    } else ""
+    modifiedSdkEntity.additionalData = serializeAdditionalData()
 
     // Update only entity existing in the storage
     val existingEntity = globalWorkspaceModel.currentSnapshot.sdkMap.getFirstEntity(originalSdk) as? SdkEntity
-    existingEntity?.let { entity ->
+    if (existingEntity != null) {
       globalWorkspaceModel.updateModel("Modifying SDK ${SdkId(originalEntity.name, originalEntity.type)}") {
-        it.modifySdkEntity(entity) {
+        it.modifySdkEntity(existingEntity) {
           this.applyChangesFrom(modifiedSdkEntity)
         }
+        // The change listeners of `updateModel` must see the bridge in the same state as the entity
+        originalSdkDelegate.applyChangesFrom(modifiedSdkEntity)
       }
-    }
-    originalSdkDelegate.applyChangesFrom(modifiedSdkEntity)
-
-    if (existingEntity != null) {
       originalSdkDelegate.fireRootSetChanged()
-    } else {
+    }
+    else {
+      originalSdkDelegate.applyChangesFrom(modifiedSdkEntity)
       // A workaround for the cases where or `ProjectJdkTableImpl` doesn't use, so the entities are in the air,
       // but any way we need to keep old contract and fire roots change event.
       // Example of such case: `ServerProjectJdkTable` with enabled new implementation, so we have Sdk(with entity in it),
@@ -171,14 +167,22 @@ internal class SdkModificatorBridgeImpl(
   override fun applyChangesWithoutWriteAction() {
     if (isCommitted) error("Modification already completed")
 
-    modifiedSdkEntity.additionalData = if (additionalData != null) {
-      val additionalDataElement = Element(ELEMENT_ADDITIONAL)
-      modifiedSdkEntity.getSdkType().saveAdditionalData(additionalData!!, additionalDataElement)
-      JDOMUtil.write(additionalDataElement)
-    } else ""
+    if (GlobalWorkspaceModel.getInstancesBlocking().any { it.currentSnapshot.sdkMap.getFirstEntity(originalSdk) != null }) {
+      thisLogger().error("SDK ${SdkId(originalEntity.name, originalEntity.type)} is registered in the SDK table. " +
+                         "Use `commitChanges` in a write action, otherwise the SDK entity keeps the previous state")
+    }
+
+    modifiedSdkEntity.additionalData = serializeAdditionalData()
 
     originalSdkDelegate.applyChangesFrom(modifiedSdkEntity)
     isCommitted = true
+  }
+
+  private fun serializeAdditionalData(): String {
+    val additionalData = additionalData ?: return ""
+    val additionalDataElement = Element(ELEMENT_ADDITIONAL)
+    modifiedSdkEntity.getSdkType().saveAdditionalData(additionalData, additionalDataElement)
+    return JDOMUtil.write(additionalDataElement)
   }
 
   override fun isWritable(): Boolean = !isCommitted

@@ -149,11 +149,11 @@ open class JpsGlobalModelSynchronizerImpl(private val coroutineScope: CoroutineS
     val globalWorkspaceModels = GlobalWorkspaceModel.getInstances()
     for (globalWorkspaceModel in globalWorkspaceModels) {
       setVirtualFileUrlManager(globalWorkspaceModel.getVirtualFileUrlManager())
-      val entityStorage = globalWorkspaceModel.currentSnapshot
       val serializers = createSerializers(globalWorkspaceModel.internalEnvironmentName)
+      val (entityStorage, entitiesToSave) = readEntitiesToSave(globalWorkspaceModel, serializers)
       val contentWriter = (ApplicationManager.getApplication().stateStore as ApplicationStoreJpsContentReader).createContentWriter()
-      for (serializer in serializers) {
-        serializeEntities(entityStorage, serializer, contentWriter)
+      for ((serializer, entities) in serializers.zip(entitiesToSave)) {
+        saveEntities(entities, entityStorage, serializer, contentWriter)
       }
       contentWriter.saveSession()
     }
@@ -172,37 +172,51 @@ open class JpsGlobalModelSynchronizerImpl(private val coroutineScope: CoroutineS
         environmentName = globalWorkspaceModel.internalEnvironmentName,
       ) as JpsFileEntityTypeSerializer<WorkspaceEntity>
       val contentWriter = (ApplicationManager.getApplication().stateStore as ApplicationStoreJpsContentReader).createContentWriter()
-      val entityStorage = globalWorkspaceModel.currentSnapshot
-      serializeEntities(entityStorage, sdkSerializer, contentWriter)
+      val (entityStorage, entitiesToSave) = readEntitiesToSave(globalWorkspaceModel, listOf(sdkSerializer))
+      saveEntities(entitiesToSave.single(), entityStorage, sdkSerializer, contentWriter)
       contentWriter.saveSession()
     }
   }
 
-  private fun serializeEntities(
-    entityStorage: EntityStorage, serializer: JpsFileEntityTypeSerializer<WorkspaceEntity>,
+  private fun readEntitiesToSave(
+    globalWorkspaceModel: GlobalWorkspaceModel,
+    serializers: List<JpsFileEntityTypeSerializer<WorkspaceEntity>>,
+  ): Pair<EntityStorage, List<List<WorkspaceEntity>>> {
+    val entityStorage = globalWorkspaceModel.currentSnapshot
+    return entityStorage to serializers.map { selectEntitiesToSave(entityStorage, it) }
+  }
+
+  private fun selectEntitiesToSave(
+    entityStorage: EntityStorage,
+    serializer: JpsFileEntityTypeSerializer<WorkspaceEntity>,
+  ): List<WorkspaceEntity> {
+    val entities = entityStorage.entities(serializer.mainEntityClass)
+    return when (serializer.mainEntityClass) {
+      LibraryEntity::class.java -> {
+        // We need to filter custom libraries, they will be serialized by the client code and not by the platform
+        entities.filter { it.entitySource is JpsGlobalFileEntitySource }.toList()
+      }
+      SdkEntity::class.java -> {
+        filterValidSdkEntitiesAssertingUnexpectedAdditionalDataModification(entityStorage)
+      }
+      else -> entities.toList()
+    }
+  }
+
+  private fun saveEntities(
+    entities: List<WorkspaceEntity>,
+    entityStorage: EntityStorage,
+    serializer: JpsFileEntityTypeSerializer<WorkspaceEntity>,
     contentWriter: JpsAppFileContentWriter,
   ) {
-    val entities = entityStorage.entities(serializer.mainEntityClass)
     LOG.info("Saving global entities ${serializer.mainEntityClass.name} to files")
 
-    val filteredEntities =
-      when (serializer.mainEntityClass) {
-        LibraryEntity::class.java -> {
-          // We need to filter custom libraries, they will be serialized by the client code and not by the platform
-          entities.filter { it.entitySource is JpsGlobalFileEntitySource }.toList()
-        }
-        SdkEntity::class.java -> {
-          filterValidSdkEntitiesAssertingUnexpectedAdditionalDataModification(entityStorage)
-        }
-        else -> entities.toList()
-      }
-
-    if (filteredEntities.isEmpty()) {
+    if (entities.isEmpty()) {
       // Remove empty files
       serializer.deleteObsoleteFile(serializer.fileUrl.url, contentWriter)
     }
     else {
-      serializer.saveEntities(filteredEntities, emptyMap(), entityStorage, contentWriter)
+      serializer.saveEntities(entities, emptyMap(), entityStorage, contentWriter)
     }
   }
 

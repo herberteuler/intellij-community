@@ -1,0 +1,15 @@
+// "Remove supertype" "true"
+// WITH_STDLIB
+// COMPILER_ARGUMENTS: -XXLanguage:+FullValueClasses
+// K2_ERROR: INCOMPATIBLE_MODIFIERS
+// K2_ERROR: INCOMPATIBLE_MODIFIERS
+// K2_ERROR: VALUE_CLASS_CANNOT_EXTEND_IDENTITY_CLASSES
+// K2_ERROR: VALUE_CLASS_CONSTRUCTOR_NOT_FINAL_READ_ONLY_PARAMETER
+// K2_AFTER_ERROR: INCOMPATIBLE_MODIFIERS
+// K2_AFTER_ERROR: INCOMPATIBLE_MODIFIERS
+// K2_AFTER_ERROR: VALUE_CLASS_CONSTRUCTOR_NOT_FINAL_READ_ONLY_PARAMETER
+open data class IdentityClass(val value: Int)
+
+value class ExtendsIdentity(val name: String, value: Int) : <caret>IdentityClass(value)
+
+// FUS_QUICKFIX_NAME: org.jetbrains.kotlin.idea.quickfix.RemoveSupertypeFix

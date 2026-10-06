@@ -11440,9 +11440,19 @@ public abstract class HighLevelQuickFixTestGenerated extends AbstractHighLevelQu
                 runTest("../../../idea/tests/testData/quickfix/modifiers/removeSupertype4.kt");
             }
 
+            @TestMetadata("removeSupertypeValueClassCannotExtendIdentityAnnotationClass.kt")
+            public void testRemoveSupertypeValueClassCannotExtendIdentityAnnotationClass() throws Exception {
+                runTest("../../../idea/tests/testData/quickfix/modifiers/removeSupertypeValueClassCannotExtendIdentityAnnotationClass.kt");
+            }
+
             @TestMetadata("removeSupertypeValueClassCannotExtendIdentityClass.kt")
             public void testRemoveSupertypeValueClassCannotExtendIdentityClass() throws Exception {
                 runTest("../../../idea/tests/testData/quickfix/modifiers/removeSupertypeValueClassCannotExtendIdentityClass.kt");
+            }
+
+            @TestMetadata("removeSupertypeValueClassCannotExtendIdentityDataClass.kt")
+            public void testRemoveSupertypeValueClassCannotExtendIdentityDataClass() throws Exception {
+                runTest("../../../idea/tests/testData/quickfix/modifiers/removeSupertypeValueClassCannotExtendIdentityDataClass.kt");
             }
 
             @TestMetadata("visibilityModifer1.kt")

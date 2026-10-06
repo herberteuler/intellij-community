@@ -65,7 +65,7 @@
   <extensions defaultExtensionNs="com.intellij">
     <lang.lineWrapStrategy language="Markdown" implementationClass="org.intellij.plugins.markdown.editor.MarkdownLineWrapPositionStrategy"/>
     <registryKey key="markdown.live.preview.enabled"
-                 defaultValue="false"
+                 defaultValue="true"
                  description="Shows the Markdown live preview layout."/>
     <registryKey key="markdown.live.preview.image.max.megabytes"
                  defaultValue="4"

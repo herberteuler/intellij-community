@@ -163,9 +163,6 @@ public class StubBuildingVisitor<T> extends ClassVisitor {
     if (myClassInfo == null) {
       myClassInfo = parseClassDescription(superName, interfaces);
     }
-    else if (interfaces != null && myClassInfo.interfaces.size() != interfaces.length) {
-      myClassInfo.interfaces = myFirstPassData.createTypes(interfaces);
-    }
 
     new PsiTypeParameterListStubImpl(myResult);
 

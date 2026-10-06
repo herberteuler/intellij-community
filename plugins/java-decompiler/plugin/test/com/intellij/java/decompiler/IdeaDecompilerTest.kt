@@ -129,9 +129,9 @@ class IdeaDecompilerTest : LightJavaCodeInsightFixtureTestCase() {
     }
   }
 
-  fun testSignatureWithMoreInterfacesThanClassFile() = doTestInterfaceSignatureMismatch("MoreInterfaces", "Runnable")
+  fun testSignatureWithMoreInterfacesThanClassFile() = doTestInterfaceSignatureMismatch("MoreInterfaces", "Runnable", "Serializable")
 
-  fun testSignatureWithFewerInterfacesThanClassFile() = doTestInterfaceSignatureMismatch("FewerInterfaces", "Runnable", "Serializable")
+  fun testSignatureWithFewerInterfacesThanClassFile() = doTestInterfaceSignatureMismatch("FewerInterfaces", "Runnable")
 
   private fun doTestInterfaceSignatureMismatch(name: String, vararg interfaces: String) {
     val psiFile = psiManager.findFile(getTestFile("${JavaTestUtil.getJavaTestDataPath()}/psi/cls/mirror/pkg/$name.class")) as ClsFileImpl

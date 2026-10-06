@@ -6,9 +6,8 @@ import com.intellij.lambda.testFramework.junit.RunInMonolithAndSplitMode
 import com.intellij.lambda.testFramework.junit.WithProject
 import com.intellij.lambda.testFramework.testApi.editor.getVirtualFileByRelativePath
 import com.intellij.lambda.testFramework.testApi.editor.openFileAndWaitEditorSelected
-import com.intellij.lambda.testFramework.testApi.editor.selectedFileEditor
+import com.intellij.lambda.testFramework.testApi.editor.waitForSelectedEditor
 import com.intellij.lambda.testFramework.testApi.getProject
-import com.intellij.lambda.testFramework.testApi.getProjectOrNull
 import com.intellij.lambda.testFramework.utils.IdeWithLambda
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.roots.impl.FilePropertyPusher
@@ -16,14 +15,12 @@ import com.intellij.python.syntax.lambdaTests.project.PythonLangLevelSyncProject
 import com.intellij.python.syntax.lambdaTests.util.IdeConfigSetup
 import com.intellij.python.syntax.lambdaTests.util.SetLambdaPluginCallback
 import com.intellij.remoteDev.tests.impl.utils.waitSuspending
-import com.intellij.remoteDev.tests.impl.utils.waitSuspendingNotNull
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.jetbrains.python.PyLanguageFacade
 import com.jetbrains.python.psi.LanguageLevel
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -86,11 +83,7 @@ internal class PyLanguageFacadeFrontendSyncTest {
         }
 
         val levelBeforePush = runInFrontendGetResult("Read the level the frontend starts with") {
-          val virtualFile = waitSuspendingNotNull(
-            "Frontend has $MAIN_PY_RELATIVE_PATH selected", 30.seconds, delay = 50.milliseconds,
-          ) {
-            getProjectOrNull()?.selectedFileEditor?.takeIf { it.file?.path?.endsWith("/$MAIN_PY_RELATIVE_PATH") == true }
-          }.file
+          val virtualFile = waitForSelectedEditor(MAIN_PY_RELATIVE_PATH).file
           PyLanguageFacade.INSTANCE.getEffectiveLanguageLevel(getProject(), virtualFile)
         } as LanguageLevel
 
@@ -117,11 +110,7 @@ internal class PyLanguageFacadeFrontendSyncTest {
           "Wait for the frontend facade to observe the pushed level", timeout = TEST_TIMEOUT,
         ) {
           val project = getProject()
-          val virtualFile = waitSuspendingNotNull(
-            "Frontend has $MAIN_PY_RELATIVE_PATH selected", 30.seconds, delay = 50.milliseconds,
-          ) {
-            getProjectOrNull()?.selectedFileEditor?.takeIf { it.file?.path?.endsWith("/$MAIN_PY_RELATIVE_PATH") == true }
-          }.file
+          val virtualFile = waitForSelectedEditor(MAIN_PY_RELATIVE_PATH).file
           waitSuspending("PyLanguageFacade.INSTANCE.getEffectiveLanguageLevel reaches $PYTHON_LEVEL", 30.seconds) {
             PyLanguageFacade.INSTANCE.getEffectiveLanguageLevel(project, virtualFile) == PYTHON_LEVEL
           }

@@ -97,7 +97,7 @@ public final class KeyHashLog<Key> implements Closeable {
                                                               storageLockContext,
                                                               /*pageSize: */ IOUtil.MiB,
                                                               /*valuesAreAligned: */ true,
-                                                              IntPairInArrayKeyDescriptor.INSTANCE);
+                                                              IntPairAsArrayExternalizer.INSTANCE);
   }
 
   public void addKeyHashToVirtualFileMapping(Key key, int inputId) throws StorageException {
@@ -428,8 +428,8 @@ public final class KeyHashLog<Key> implements Closeable {
     return myBaseStorageFile.resolveSibling(myBaseStorageFile.getFileName() + ".project");
   }
 
-  private static final class IntPairInArrayKeyDescriptor implements DataExternalizer<int[]> {
-    private static final IntPairInArrayKeyDescriptor INSTANCE = new IntPairInArrayKeyDescriptor();
+  private static final class IntPairAsArrayExternalizer implements DataExternalizer<int[]> {
+    private static final IntPairAsArrayExternalizer INSTANCE = new IntPairAsArrayExternalizer();
 
     @Override
     public void save(@NotNull DataOutput out, int[] value) throws IOException {
@@ -437,9 +437,16 @@ public final class KeyHashLog<Key> implements Closeable {
       DataInputOutputUtil.writeINT(out, value[1]);
     }
 
+    /// This externalizer is used _only_ privately in this class => we can be sure returned array doesn't leak
+    /// from this class, and thread-local caching is ok:
+    private static final ThreadLocal<int[]> PAIR = ThreadLocal.withInitial(() -> new int[2]);
+
     @Override
     public int[] read(@NotNull DataInput in) throws IOException {
-      return new int[]{DataInputOutputUtil.readINT(in), DataInputOutputUtil.readINT(in)};
+      int[] result = PAIR.get();
+      result[0] = DataInputOutputUtil.readINT(in);
+      result[1] = DataInputOutputUtil.readINT(in);
+      return result;
     }
   }
 

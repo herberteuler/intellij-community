@@ -104,15 +104,6 @@ class AutoImportProjectTracker(
         projectChangeOperation.traceFinish()
     }
 
-  private fun createExternalSystemAutoImportAwareListener() =
-    object : ExternalSystemAutoImportAwareListener {
-      override fun autoImportAwareOperationStarted() =
-        projectChangeOperation.traceStart()
-
-      override fun autoImportAwareOperationCompleted() =
-        projectChangeOperation.traceFinish()
-    }
-
   private fun createProjectReloadListener(projectData: ProjectData) =
     object : ExternalSystemProjectListener {
 
@@ -488,8 +479,6 @@ class AutoImportProjectTracker(
       .subscribe(BatchFileChangeListener.TOPIC, createProjectChangesListener())
     project.messageBus.connect(serviceDisposable)
       .subscribe(LookupManagerListener.TOPIC, createProjectCompletionListener())
-    project.messageBus.connect(serviceDisposable)
-      .subscribe(ExternalSystemAutoImportAwareListener.TOPIC, createExternalSystemAutoImportAwareListener())
   }
 
   private data class ProjectData(

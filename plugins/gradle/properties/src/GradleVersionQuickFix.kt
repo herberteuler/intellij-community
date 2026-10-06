@@ -4,6 +4,7 @@ package com.intellij.gradle.properties
 import com.intellij.build.issue.BuildIssueQuickFix
 import com.intellij.gradle.properties.GradleVersionQuickFix.Companion.VERSION_SPECIFIC_WRAPPER_KEYS
 import com.intellij.ide.actions.ShowLogAction
+import com.intellij.ide.file.BatchFileChangeListener
 import com.intellij.lang.properties.psi.PropertiesFile
 import com.intellij.lang.properties.psi.PropertyKeyValueFormat
 import com.intellij.notification.NotificationGroupManager
@@ -11,7 +12,6 @@ import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.command.writeCommandAction
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.externalSystem.autoimport.ExternalSystemAutoImportAwareListener
 import com.intellij.openapi.externalSystem.service.notification.ExternalSystemNotificationManager
 import com.intellij.openapi.externalSystem.service.notification.NotificationCategory.WARNING
 import com.intellij.openapi.externalSystem.service.notification.NotificationData
@@ -113,16 +113,13 @@ class GradleVersionQuickFix(
 
   // Auto-import and indexing should be disabled while Gradle wrapper is in an incorrect state and cannot be used
   private suspend fun <T> runBatchChange(project: Project, execution: suspend () -> T): T {
-    // BatchFileChangeListener.TOPIC should be used there, but it was substituted to ExternalSystemAutoImportAwareListener.TOPIC only
-    // to disable auto-sync. Indexing could happen during the execution.
-    // The original topic should be returned as a result of IDEA-389819.
-    val publisher = BackgroundTaskUtil.syncPublisher(project, ExternalSystemAutoImportAwareListener.TOPIC)
-    publisher.autoImportAwareOperationStarted()
+    val publisher = BackgroundTaskUtil.syncPublisher(project, BatchFileChangeListener.TOPIC)
+    publisher.batchChangeStarted(project, GradleBundle.message("grable.execution.name.upgrade.wrapper"))
     try {
       return execution.invoke()
     }
     finally {
-      publisher.autoImportAwareOperationCompleted()
+      publisher.batchChangeCompleted(project)
     }
   }
 

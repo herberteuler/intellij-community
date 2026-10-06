@@ -279,8 +279,8 @@
     <module name="intellij.platform.icons.impl.intellij" loading="embedded"/>
     <module name="intellij.platform.consoleView" loading="embedded"/>
     <module name="intellij.platform.consoleView.impl" loading="embedded"/>
-    <module name="intellij.platform.execution" loading="embedded"/>
-    <module name="intellij.platform.execution.impl" loading="embedded"/>
+    <module name="intellij.platform.execution"/>
+    <module name="intellij.platform.execution.impl"/>
     <module name="intellij.platform.lvcs" loading="embedded"/>
     <module name="intellij.platform.configurationStore.impl" loading="embedded"/>
     <module name="intellij.platform.lang.core" loading="embedded"/>

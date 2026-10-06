@@ -483,6 +483,8 @@ private val contentModulesExtractedInCorePluginWhichCanBeUsedFromExternalPlugins
   "intellij.platform.ide.fileChooser.universal",
   "intellij.platform.lsp",
   "intellij.platform.lsp.impl",
+  "intellij.platform.execution",
+  "intellij.platform.execution.impl",
   "intellij.platform.externalSystem",
   "intellij.platform.externalSystem.impl",
   "intellij.platform.tasks",

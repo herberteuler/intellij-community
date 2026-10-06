@@ -52,7 +52,6 @@ import com.intellij.util.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 
 public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements IntentionActionWithModCommandFallback {
   private final SmartPsiElementPointer<PsiNewExpression> myNewExpression;
@@ -117,7 +116,7 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
       if (aClass.isPhysical()) {
         getReferenceElement(newExpression).bindToElement(aClass);
       }
-      CreateFromUsageBaseFix.startTemplate(project, aClass, templateBuilder.buildTemplate(), getText());
+      startTemplate(project, aClass, templateBuilder.buildTemplate(), getText());
     }
     else {
       CodeInsightUtil.positionCursor(project, aClass.getContainingFile(), ObjectUtils.notNull(aClass.getNameIdentifier(), aClass));
@@ -127,7 +126,7 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
   /**
    * Adds the members which the arguments of the new expression need. It adds a constructor, and it adds
    * the template fields into the builder. It starts no template, so a
-   * {@link com.intellij.modcommand.ModCommandAction} can call it with a builder which drops every field.
+   * {@link ModCommandAction} can call it with a {@link RecordingTemplateBuilder}.
    *
    * @param aClass        the new class
    * @param newExpression the expression which creates an instance of the new class
@@ -140,6 +139,23 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
                                         @NotNull PsiNewExpression newExpression,
                                         @NotNull PsiExpressionList argList,
                                         @NotNull TemplateBuilder builder) {
+    return createConstructor(aClass, newExpression, argList, builder);
+  }
+
+  /**
+   * Adds a constructor whose parameters match the arguments of the new expression, and adds the template
+   * fields into the builder. It starts no template.
+   *
+   * @param aClass        the new class
+   * @param newExpression the expression which creates an instance of the new class
+   * @param argList       the arguments of the new expression
+   * @param builder       the builder which gets one field per parameter
+   * @return the element after which the template puts the caret
+   */
+  static @NotNull PsiElement createConstructor(@NotNull PsiClass aClass,
+                                               @NotNull PsiNewExpression newExpression,
+                                               @NotNull PsiExpressionList argList,
+                                               @NotNull TemplateBuilder builder) {
     final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(newExpression.getProject());
     PsiMethod constructor = elementFactory.createConstructor();
     constructor = (PsiMethod)aClass.add(constructor);
@@ -150,24 +166,26 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
   }
 
   /**
-   * Adds the members which the new expression needs, and starts no template. A
-   * {@link com.intellij.modcommand.ModCommandAction} calls it, so it navigates nowhere.
+   * Adds the members which the new expression needs, and adds the template fields into the builder.
+   * It starts no template, and it navigates nowhere.
    *
    * @param aClass        the new class
    * @param newExpression the expression which creates an instance of the new class
    * @param builder       the builder which gets one field per parameter
+   * @return the element after which the template puts the caret, or null when the template chooses the
+   * position itself, or when the class needs no constructor
    */
-  void setupNewClass(@NotNull PsiClass aClass, @NotNull PsiNewExpression newExpression, @NotNull TemplateBuilder builder) {
+  private @Nullable PsiElement setupNewClass(@NotNull PsiClass aClass, @NotNull PsiNewExpression newExpression,
+                                             @NotNull TemplateBuilder builder) {
     setupInheritance(newExpression, aClass);
     PsiExpressionList argList = newExpression.getArgumentList();
-    if (argList != null && !argList.isEmpty()) {
-      setupConstructor(aClass, newExpression, argList, builder);
-    }
+    if (argList == null || argList.isEmpty()) return null;
+    return setupConstructor(aClass, newExpression, argList, builder);
   }
 
   /**
    * Adds the {@code super()} call which a new constructor needs, and leaves the caret alone. A
-   * {@link com.intellij.modcommand.ModCommandAction} builds the body of the constructor itself, so it
+   * {@link ModCommandAction} builds the body of the constructor itself, so it
    * decides the caret position on its own.
    *
    * @return the super constructor whose arguments the call needs, or null when the super class has a
@@ -221,7 +239,7 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
     return new SuperCall(null, constructor.getBody().getLBrace());
   }
 
-  private static void setupInheritance(PsiNewExpression element, PsiClass targetClass) throws IncorrectOperationException {
+  static void setupInheritance(PsiNewExpression element, PsiClass targetClass) throws IncorrectOperationException {
     if (element.getParent() instanceof PsiReferenceExpression) return;
 
     ExpectedTypeInfo[] expectedTypes = ExpectedTypesProvider.getExpectedTypes(element, false);
@@ -249,7 +267,7 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
     }
   }
 
-  private static PsiFile getTargetFile(PsiElement element) {
+  static PsiFile getTargetFile(PsiElement element) {
     PsiJavaCodeReferenceElement referenceElement = getReferenceElement((PsiNewExpression)element);
 
     PsiElement q = referenceElement.getQualifier();
@@ -316,7 +334,7 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
       PsiJavaCodeReferenceElement containerReference = ObjectUtils.tryCast(classReference.getQualifier(), PsiJavaCodeReferenceElement.class);
       if (containerReference != null) {
         PsiElement targetClass = containerReference.resolve();
-        return !(targetClass instanceof PsiClass) || !InheritanceUtil.hasEnclosingInstanceInScope((PsiClass)targetClass, expression, true, true);
+        return !(targetClass instanceof PsiClass aClass) || !InheritanceUtil.hasEnclosingInstanceInScope(aClass, expression, true, true);
       }
       return true;
     }
@@ -386,8 +404,11 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
       PsiClass aClass = CreateFromUsageUtils.createClassInDirectory(
         getKind(), updater.getWritable(directory), name, reference, newExpression.getContainingFile(), null);
       if (aClass == null) return;
-      setupNewClass(aClass, newExpression, DummyTemplateBuilder.INSTANCE);
-      updater.moveCaretTo(Objects.requireNonNullElse(aClass.getNameIdentifier(), aClass));
+      RecordingTemplateBuilder fields = new RecordingTemplateBuilder();
+      PsiElement endAfter = setupNewClass(aClass, newExpression, fields);
+      SmartPsiElementPointer<PsiElement> endAfterPointer = endAfter == null ? null : SmartPointerManager.createPointer(endAfter);
+      aClass = (PsiClass)CodeStyleManager.getInstance(context.project()).reformat(aClass);
+      fields.startTemplate(updater, aClass, endAfterPointer == null ? null : endAfterPointer.getElement());
     }
 
     /**
@@ -395,7 +416,7 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
      * @return the name of the new class, or null when the reference has a qualifier which decides the
      * package or the container class
      */
-    private @Nullable String getNewClassName(@NotNull PsiNewExpression newExpression) {
+    private static @Nullable String getNewClassName(@NotNull PsiNewExpression newExpression) {
       PsiJavaCodeReferenceElement reference = getReferenceElement(newExpression);
       if (reference == null || reference.getQualifier() != null) return null;
       return reference.getReferenceName();

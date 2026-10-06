@@ -12,7 +12,6 @@ import com.intellij.codeInsight.daemon.impl.quickfix.CreateClassFromUsageFix;
 import com.intellij.codeInsight.daemon.impl.quickfix.CreateClassKind;
 import com.intellij.codeInsight.daemon.impl.quickfix.CreateInnerClassFromNewFix;
 import com.intellij.codeInsight.daemon.impl.quickfix.CreateInnerClassFromUsageFix;
-import com.intellij.codeInsight.daemon.impl.quickfix.CreateInnerRecordFromNewFix;
 import com.intellij.codeInsight.daemon.impl.quickfix.CreateLocalFromUsageFix;
 import com.intellij.codeInsight.daemon.impl.quickfix.CreateParameterFromUsageFix;
 import com.intellij.codeInsight.daemon.impl.quickfix.CreateRecordFromNewFix;
@@ -229,7 +228,7 @@ public final class AdditionalJavaErrorFixProvider extends AbstractJavaErrorFixPr
     PsiElement refParent = ref.getParent();
     if (refParent != null && refParent.getParent() instanceof PsiDeconstructionPattern) {
       result.add(new CreateClassFromUsageFix(ref, CreateClassKind.RECORD));
-      result.add(new CreateInnerClassFromUsageFix(ref, CreateClassKind.RECORD));
+      result.add(new CreateInnerClassFromUsageFix(ref, CreateClassKind.RECORD).asIntention());
     }
     else {
       PsiElement parent = PsiTreeUtil.getParentOfType(ref, PsiNewExpression.class, PsiMethod.class);
@@ -264,13 +263,13 @@ public final class AdditionalJavaErrorFixProvider extends AbstractJavaErrorFixPr
       }
 
       if (isNewExpression) {
-        result.add(new CreateInnerClassFromNewFix((PsiNewExpression)parent));
+        result.add(new CreateInnerClassFromNewFix((PsiNewExpression)parent, CreateClassKind.CLASS).asIntention());
         if (PsiUtil.isAvailable(JavaFeature.RECORDS, ref) && ((PsiNewExpression)parent).getQualifier() == null) {
-          result.add(new CreateInnerRecordFromNewFix((PsiNewExpression)parent));
+          result.add(new CreateInnerClassFromNewFix((PsiNewExpression)parent, CreateClassKind.RECORD).asIntention());
         }
       }
       else {
-        result.add(new CreateInnerClassFromUsageFix(ref, CreateClassKind.CLASS));
+        result.add(new CreateInnerClassFromUsageFix(ref, CreateClassKind.CLASS).asIntention());
       }
     }
     return result;

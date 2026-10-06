@@ -1,9 +1,12 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInsight.daemon.impl.quickfix;
 
+import com.intellij.codeInsight.CodeInsightUtil;
 import com.intellij.codeInsight.FileModificationService;
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo;
+import com.intellij.codeInsight.template.TemplateBuilderImpl;
 import com.intellij.codeInspection.CommonQuickFixBundle;
+import com.intellij.codeInspection.util.IntentionName;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.ide.util.PsiNavigationSupport;
 import com.intellij.modcommand.ActionContext;
@@ -20,18 +23,20 @@ import com.intellij.pom.Navigatable;
 import com.intellij.psi.CommonClassNames;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiDeconstructionList;
 import com.intellij.psi.PsiDeconstructionPattern;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaCodeReferenceElement;
+import com.intellij.psi.PsiRecordHeader;
 import com.intellij.psi.codeStyle.CodeStyleManager;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.IncorrectOperationException;
+import com.intellij.util.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 
 public final class CreateClassFromUsageFix extends CreateClassFromUsageBaseFix {
   public CreateClassFromUsageFix(PsiJavaCodeReferenceElement refElement, CreateClassKind kind) {
@@ -53,7 +58,7 @@ public final class CreateClassFromUsageFix extends CreateClassFromUsageBaseFix {
     CreateFromUsageBaseFix.setupGenericParameters(aClass, element);
     PsiDeconstructionPattern pattern = getDeconstructionPattern(element);
     if (pattern != null) {
-      CreateInnerClassFromUsageFix.setupRecordFromDeconstructionPattern(aClass, pattern, getText());
+      setupRecordFromDeconstructionPattern(aClass, pattern, getText());
     }
     CodeStyleManager.getInstance(project).reformat(aClass);
     return new IntentionPreviewInfo.CustomDiff(JavaFileType.INSTANCE, "", aClass.getText());
@@ -92,7 +97,7 @@ public final class CreateClassFromUsageFix extends CreateClassFromUsageBaseFix {
 
       PsiDeconstructionPattern pattern = getDeconstructionPattern(element);
       if (pattern != null) {
-        CreateInnerClassFromUsageFix.setupRecordFromDeconstructionPattern(aClass, pattern, getText());
+        setupRecordFromDeconstructionPattern(aClass, pattern, getText());
       }
       else {
         Navigatable descriptor = PsiNavigationSupport.getInstance()
@@ -105,6 +110,28 @@ public final class CreateClassFromUsageFix extends CreateClassFromUsageBaseFix {
   @Override
   public boolean startInWriteAction() {
     return false;
+  }
+
+  private static void setupRecordFromDeconstructionPattern(@Nullable PsiClass aClass, final @NotNull PsiDeconstructionPattern pattern,
+                                                           @IntentionName @NotNull String text) {
+    if (aClass == null) return;
+
+    final PsiJavaCodeReferenceElement classReference = pattern.getTypeElement().getInnermostComponentReferenceElement();
+    if (classReference != null && aClass.isPhysical()) {
+      classReference.bindToElement(aClass);
+    }
+
+    PsiDeconstructionList deconstructionList = pattern.getDeconstructionList();
+    final Project project = aClass.getProject();
+    if (deconstructionList.getDeconstructionComponents().length != 0) {
+      TemplateBuilderImpl templateBuilder = new TemplateBuilderImpl(aClass);
+      PsiRecordHeader header = aClass.getRecordHeader();
+      CreateRecordFromNewFix.setupRecordComponentsFromPattern(header, templateBuilder, deconstructionList);
+      CreateFromUsageBaseFix.startTemplate(project, aClass, templateBuilder.buildTemplate(), text);
+    }
+    else {
+      CodeInsightUtil.positionCursor(project, aClass.getContainingFile(), ObjectUtils.notNull(aClass.getNameIdentifier(), aClass));
+    }
   }
 
   @Override
@@ -149,11 +176,11 @@ public final class CreateClassFromUsageFix extends CreateClassFromUsageBaseFix {
         myKind, updater.getWritable(directory), name, element, element.getContainingFile(), getSuperClassName(element));
       if (aClass == null) return;
       PsiDeconstructionPattern pattern = getDeconstructionPattern(element);
+      RecordingTemplateBuilder fields = new RecordingTemplateBuilder();
       if (pattern != null) {
-        CreateRecordFromNewFix.setupRecordComponentsFromPattern(aClass.getRecordHeader(), DummyTemplateBuilder.INSTANCE,
-                                                                pattern.getDeconstructionList());
+        CreateRecordFromNewFix.setupRecordComponentsFromPattern(aClass.getRecordHeader(), fields, pattern.getDeconstructionList());
       }
-      updater.moveCaretTo(Objects.requireNonNullElse(aClass.getNameIdentifier(), aClass));
+      fields.startTemplate(updater, aClass, null);
     }
   }
 }

@@ -71,6 +71,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
 
@@ -119,7 +120,16 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
   }
 
   protected @Unmodifiable List<PsiClass> filterTargetClasses(PsiElement element, Project project) {
-    return ContainerUtil.filter(getTargetClasses(element), psiClass -> JVMElementFactories.getFactory(psiClass.getLanguage(), project) != null);
+    return filterTargetClasses(getTargetClasses(element), project);
+  }
+
+  /**
+   * @param classes the target classes
+   * @param project the project of the classes
+   * @return the classes in a language which can get a new member
+   */
+  static @Unmodifiable List<PsiClass> filterTargetClasses(@NotNull List<PsiClass> classes, @NotNull Project project) {
+    return ContainerUtil.filter(classes, psiClass -> JVMElementFactories.getFactory(psiClass.getLanguage(), project) != null);
   }
 
   private static void doInvoke(final PsiClass targetClass, Consumer<? super PsiClass> invokeImpl) {
@@ -258,6 +268,18 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
 
   //Should return only valid project classes
   protected @NotNull List<PsiClass> getTargetClasses(PsiElement element) {
+    return getTargetClasses(element, isAllowOuterTargetClass(), this::canBeTargetClass);
+  }
+
+  /**
+   * @param element               the element which needs a new member
+   * @param allowOuterTargetClass whether the outer classes of the class around the element can get the member
+   * @param canBeTargetClass      whether a super class of the target class can get the member
+   * @return the valid project classes which can get the member
+   */
+  static @NotNull List<PsiClass> getTargetClasses(PsiElement element,
+                                                  boolean allowOuterTargetClass,
+                                                  @NotNull Predicate<? super PsiClass> canBeTargetClass) {
     PsiClass psiClass = null;
     PsiExpression qualifier = null;
 
@@ -352,9 +374,9 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
         return Collections.emptyList();
       }
 
-      if (!allowOuterClasses || !isAllowOuterTargetClass()) {
+      if (!allowOuterClasses || !allowOuterTargetClass) {
         final ArrayList<PsiClass> classes = new ArrayList<>();
-        collectSupers(psiClass, classes);
+        collectSupers(psiClass, classes, canBeTargetClass);
         return classes;
       }
 
@@ -369,14 +391,15 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
     }
   }
 
-  private void collectSupers(PsiClass psiClass, ArrayList<? super PsiClass> classes) {
+  private static void collectSupers(PsiClass psiClass, ArrayList<? super PsiClass> classes,
+                                    @NotNull Predicate<? super PsiClass> canBeTargetClass) {
     classes.add(psiClass);
 
     final PsiClass[] supers = psiClass.getSupers();
     for (PsiClass aSuper : supers) {
       if (classes.contains(aSuper)) continue;
-      if (canBeTargetClass(aSuper)) {
-        collectSupers(aSuper, classes);
+      if (canBeTargetClass.test(aSuper)) {
+        collectSupers(aSuper, classes, canBeTargetClass);
       }
     }
   }

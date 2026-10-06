@@ -92,6 +92,7 @@ import com.intellij.psi.PsiRecordHeader;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiReferenceList;
+import com.intellij.psi.PsiReferenceParameterList;
 import com.intellij.psi.PsiSubstitutor;
 import com.intellij.psi.PsiType;
 import com.intellij.psi.PsiTypeVisitor;
@@ -1000,6 +1001,31 @@ public final class CreateFromUsageUtils {
     if (range.getLength() == 0) return false;
     boolean isInNamedElement = range.contains(offset);
     return isInNamedElement || element.getTextRange().contains(offset - 1);
+  }
+
+  /**
+   * Replaces a qualified class reference which does not resolve to the new class with the short name of the
+   * new class. {@link PsiJavaCodeReferenceElement#bindToElement} cannot do it in a non-physical copy, because
+   * it looks for the new class in the index.
+   *
+   * @param reference the reference which needs the new class
+   * @param created   the new class
+   */
+  static void shortenClassReference(@NotNull PsiJavaCodeReferenceElement reference, @NotNull PsiClass created) {
+    if (!reference.isQualified() || reference.isReferenceTo(created)) return;
+    PsiElementFactory factory = JavaPsiFacade.getElementFactory(reference.getProject());
+    PsiJavaCodeReferenceElement shortReference;
+    if (reference instanceof PsiReferenceExpression) {
+      shortReference = (PsiReferenceExpression)factory.createExpressionFromText(Objects.requireNonNull(created.getName()), reference);
+    }
+    else {
+      PsiReferenceParameterList parameterList = reference.getParameterList();
+      String text = created.getName() + (parameterList == null ? "" : parameterList.getText());
+      shortReference = factory.createReferenceFromText(text, reference);
+    }
+    if (shortReference.isReferenceTo(created)) {
+      reference.replace(shortReference);
+    }
   }
 
   public static void addClassesWithMember(String memberName, PsiFile psiFile, Set<? super String> possibleClassNames, boolean method,

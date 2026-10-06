@@ -73,6 +73,8 @@ class WslEelMachine internal constructor(val distribution: WSLDistribution) : Ee
     return distribution == other.distribution
   }
 
+
+
   override fun hashCode(): Int {
     val result = distribution.hashCode()
     return result
@@ -88,6 +90,8 @@ class WslEelMachine internal constructor(val distribution: WSLDistribution) : Ee
   override suspend fun getIjentSession(sessionScope: ParentOfIjentScopes): IjentSession.Posix {
     return WslIjentManager.instanceAsync().getIjentSession(distribution, null, rootUser = false, sessionScope)
   }
+
+  override fun toString(): String = "WslEelMachine(distribution=$distribution)"
 
   companion object {
     @VisibleForTesting

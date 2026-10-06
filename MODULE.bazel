@@ -86,13 +86,12 @@ single_version_override(
     module_name = "llvm",
     patch_strip = 1,
     patches = [
-        "//:build/llvm-0.8.24-clang-cl-warning-order.patch",  # TODO: remove that once merged to upstream
-        "//:build/llvm-0.8.24-merged-resource-directory-headers.patch",  # TODO: remove that once merged to upstream
-        "//:build/llvm-0.8.24-windows-exec-case-overlays.patch",  # TODO: remove that once merged to upstream
-        "//:build/llvm-0.8.24-clang-cl-quote-includes.patch",  # TODO: remove that once merged to upstream
-        "//:build/llvm-0.8.24-module-map-generator-long-paths.patch",  # TODO: remove that once merged to upstream
-        "//:build/llvm-0.8.24-msvc-legacy-stdio-definitions.patch",  # TODO: remove that once merged to upstream
-        "//:build/llvm-0.8.24-msvc-crt-link-args.patch",  # TODO: remove that once merged to upstream
+        "//:build/llvm-0.8.24-clang-cl-warning-order.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/hermetic-llvm/issues/808
+        "//:build/llvm-0.8.24-merged-resource-directory-headers.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/hermetic-llvm/issues/812
+        "//:build/llvm-0.8.24-windows-exec-case-overlays.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/hermetic-llvm/issues/809
+        "//:build/llvm-0.8.24-clang-cl-quote-includes.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/hermetic-llvm/issues/807
+        "//:build/llvm-0.8.24-module-map-generator-long-paths.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/hermetic-llvm/issues/810
+        "//:build/llvm-0.8.24-msvc-legacy-stdio-definitions.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/hermetic-llvm/issues/811
     ],
 )
 
@@ -250,7 +249,7 @@ single_version_override(
     module_name = "rules_rs",
     patch_strip = 1,
     patches = [
-        "//:build/rules_rs-0.0.112-github-crate-tarball.patch",  # TODO: remove that once merged to upstream
+        "//:build/rules_rs-0.0.112-github-crate-tarball.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/rules_rs/pull/247
     ],
 )
 
@@ -260,12 +259,8 @@ rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
 # the patch applies twice.
 rules_rust.patch(
     patches = [
-        "//:build/rules_rust-cdylib-implib.patch",  # TODO: remove that once merged to upstream
-        "//:build/rules_rust-msvc-rustc-link-through-lld-link.patch",  # TODO: remove that once merged to upstream
-        "//:build/rules_rust-process-wrapper-skip-static-lib-symlinks.patch",  # TODO: remove that once merged to upstream
-        "//:build/rules_rust-cdylib-def-file.patch",  # TODO: remove that once merged to upstream
-        "//:build/rules_rust-cc-common-link-native-libs.patch",  # TODO: remove that once merged to upstream
-        "//:build/rules_rust-cc-common-link-strip.patch",  # TODO: remove that once merged to upstream
+        "//:build/rules_rust-msvc-rustc-link-through-lld-link.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/rules_rust/issues/80
+        "//:build/rules_rust-process-wrapper-skip-static-lib-symlinks.patch",  # TODO: remove that once merged to upstream https://github.com/hermeticbuild/rules_rust/pull/82 and rules_rs is updated to point to that rules_rust commit
     ],
     strip = 1,
 )

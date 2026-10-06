@@ -271,10 +271,6 @@ common:windows --host_platform=//build/native/platforms:local_windows
 # third-party crates.
 build --@rules_rust//rust/settings:extra_rustc_flags=-Dwarnings
 
-# Rust links through `cc_common.link`, so the cc toolchain drives every link. `rustc` cannot drive the MSVC link:
-# it passes link.exe flags that the `clang-cl` link tool of `@llvm` rejects.
-build --@rules_rust//rust/settings:experimental_use_cc_common_link=True
-
 # C/C++ warnings are errors. Each external dependency disables exactly the diagnostics it emits.
 build --copt=-Werror
 build --per_file_copt=external/[+]http_archive[+]dmg_hfsplus/@-Wno-alloc-size,-Wno-sometimes-uninitialized,-Wno-uninitialized,-Wno-unused-but-set-variable,-Wno-unused-variable

@@ -1,12 +1,15 @@
 Let rustc drive an MSVC link through `lld-link` when the cc link tool is `clang-cl`.
 
-rustc links a proc-macro itself, because `rust_proc_macro` has no `experimental_use_cc_common_link`. For an
-MSVC target it passes link.exe flags such as `/NOLOGO` and `/PDBALTPATH:%_PDB%`. The hermetic `llvm` toolchain
-links through `clang-cl`, which rejects them, so every proc-macro fails to link on a Windows exec platform.
+Without `experimental_use_cc_common_link`, rustc links each Rust binary, cdylib and proc-macro itself. For an MSVC
+target it passes link.exe flags such as `/NOLOGO` and `/PDBALTPATH:%_PDB%`. The hermetic `llvm` toolchain links
+through `clang-cl`, which rejects them, so every MSVC link fails.
 
 `lld-link` takes link.exe flags, and a `clang-cl` link tool keeps it in the same directory. Pass it as the
 linker, and translate the cc link arguments: keep each `/clang:-Xlinker /clang:<flag>` as `<flag>`, keep the
 library search paths and the input files, and drop the `clang-cl` driver flags.
+
+Drop the `/SUBSYSTEM:` flag of the cc toolchain too. rustc names the subsystem from `#![windows_subsystem]`, and the
+cc link arguments come after its own, so the toolchain's `/SUBSYSTEM:CONSOLE` would win.
 --- a/rust/private/rustc.bzl
 +++ b/rust/private/rustc.bzl
 @@ -412,6 +412,7 @@
@@ -40,7 +43,7 @@ library search paths and the input files, and drop the `clang-cl` driver flags.
          rust_linker = toolchain.linker if use_rust_linker else None,
          is_direct_driver = use_rust_linker and toolchain.linker_type == "direct",
          target_arch = toolchain.target_arch,
-@@ -476,11 +486,33 @@
+@@ -476,11 +486,38 @@
  def _get_linker_path(linker_config):
      if linker_config.rust_linker:
          return linker_config.rust_linker.path
@@ -59,12 +62,17 @@ library search paths and the input files, and drop the `clang-cl` driver flags.
  
 +    `clang-cl` wraps each linker flag as `/clang:-Xlinker /clang:<flag>`, so keep `<flag>`. Keep the library search
 +    paths and the input files too. Drop every other argument: it is a `clang-cl` driver flag, such as `/MT`.
++
++    Also drop a `/SUBSYSTEM:` flag. rustc names the subsystem itself, from `#![windows_subsystem]`, and it puts these
++    arguments after its own, so the flag of the cc toolchain would win.
 +    """
 +    lld_link_args = []
 +    forward_next = False
 +    for arg in args:
 +        if forward_next:
-+            lld_link_args.append(arg.removeprefix("/clang:"))
++            flag = arg.removeprefix("/clang:")
++            if not flag.upper().startswith(("/SUBSYSTEM:", "-SUBSYSTEM:")):
++                lld_link_args.append(flag)
 +            forward_next = False
 +        elif arg in ("/clang:-Xlinker", "-Xlinker"):
 +            forward_next = True

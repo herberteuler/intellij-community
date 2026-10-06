@@ -11,6 +11,7 @@
     <module name="intellij.platform.editor.ui"/>
     <module name="intellij.platform.ide.concurrency"/>
     <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.ide.playback"/>
     <module name="intellij.platform.problemView.shared"/>
     <module name="intellij.platform.problemView.ui"/>
     <module name="intellij.platform.util.ui"/>

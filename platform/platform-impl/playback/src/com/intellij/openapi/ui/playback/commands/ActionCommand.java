@@ -8,6 +8,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.KeyboardShortcut;
 import com.intellij.openapi.actionSystem.Shortcut;
 import com.intellij.openapi.actionSystem.ex.AnActionListener;
+import com.intellij.openapi.actionSystem.impl.ActionInputEvents;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.ui.playback.PlaybackContext;
@@ -19,11 +20,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.concurrency.Promise;
 import org.jetbrains.concurrency.Promises;
 
-import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
 
 import static com.intellij.openapi.keymap.KeymapUtil.getActiveKeymapShortcuts;
 
@@ -108,27 +106,6 @@ public class ActionCommand extends TypeCommand {
   }
 
   public static InputEvent getInputEvent(String actionName) {
-    final Shortcut[] shortcuts = getActiveKeymapShortcuts(actionName).getShortcuts();
-    KeyStroke keyStroke = null;
-    for (Shortcut each : shortcuts) {
-      if (each instanceof KeyboardShortcut) {
-        keyStroke = ((KeyboardShortcut)each).getFirstKeyStroke();
-        break;
-      }
-    }
-
-    if (keyStroke != null) {
-      return new KeyEvent(JOptionPane.getRootFrame(),
-                                             KeyEvent.KEY_PRESSED,
-                                             System.currentTimeMillis(),
-                                             keyStroke.getModifiers(),
-                                             keyStroke.getKeyCode(),
-                                             keyStroke.getKeyChar(),
-                                             KeyEvent.KEY_LOCATION_STANDARD);
-    } else {
-      return new MouseEvent(JOptionPane.getRootFrame(), MouseEvent.MOUSE_PRESSED, 0, 0, 0, 0, 1, false, MouseEvent.BUTTON1);
-    }
-
-
+    return ActionInputEvents.create(actionName);
   }
 }

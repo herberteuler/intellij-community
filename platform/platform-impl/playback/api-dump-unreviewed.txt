@@ -1,0 +1,36 @@
+a:com.intellij.openapi.ui.playback.PlaybackContext
+- code(java.lang.String,I):V
+- error(java.lang.String,I):V
+- getBaseDir():java.io.File
+- getCallClasses():java.util.Set
+- getCurrentCmd():com.intellij.openapi.ui.playback.PlaybackCommand
+- getCurrentLine():I
+- a:getCurrentStageDepth():I
+- getRobot():java.awt.Robot
+- a:isDisposed():Z
+- isUseDirectActionCall():Z
+- isUseTypingTargets():Z
+- message(java.lang.String,I):V
+- runPooledThread(java.lang.Runnable):V
+- setBaseDir(java.io.File):V
+- a:setProject(com.intellij.openapi.project.Project):V
+- a:storeRegistryValue(java.lang.String):V
+- test(java.lang.String,I):V
+a:com.intellij.openapi.ui.playback.commands.AbstractCommand
+- sf:CMD_PREFIX:java.lang.String
+- <init>(java.lang.String,I):V
+- <init>(java.lang.String,I,Z):V
+- pa:_execute(com.intellij.openapi.ui.playback.PlaybackContext):org.jetbrains.concurrency.Promise
+- canGoFurther():Z
+- pf:dumpError(com.intellij.openapi.ui.playback.PlaybackContext,java.lang.String):V
+- f:execute(com.intellij.openapi.ui.playback.PlaybackContext):java.util.concurrent.CompletableFuture
+- extractCommandArgument(java.lang.String):java.lang.String
+- extractCommandList(java.lang.String,java.lang.String):java.util.ArrayList
+- f:getScriptDir():java.io.File
+- f:getText():java.lang.String
+- p:isToDumpCommand():Z
+- f:setScriptDir(java.io.File):V
+c:com.intellij.openapi.ui.playback.commands.ActionCommand
+- sf:PREFIX:java.lang.String
+- <init>(java.lang.String,I):V
+- p:_execute(com.intellij.openapi.ui.playback.PlaybackContext):org.jetbrains.concurrency.Promise

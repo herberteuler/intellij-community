@@ -18,6 +18,7 @@
     <orderEntry type="module" module-name="intellij.platform.editor.ui" />
     <orderEntry type="module" module-name="intellij.platform.ide.concurrency" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
+    <orderEntry type="module" module-name="intellij.platform.ide.playback" />
     <orderEntry type="module" module-name="intellij.platform.problemView.shared" />
     <orderEntry type="module" module-name="intellij.platform.problemView.ui" />
     <orderEntry type="module" module-name="intellij.platform.util.ui" />

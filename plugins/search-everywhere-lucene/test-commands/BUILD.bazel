@@ -29,6 +29,7 @@ jvm_library(
         "//plugins/search-everywhere-lucene/backend",
         "//platform/core-api:core",
         "//platform/platform-impl:ide-impl",
+        "//platform/platform-impl/playback",
     ],
 )
 
@@ -48,6 +49,7 @@ jvm_library(
         "//plugins/search-everywhere-lucene/backend:backend_test_lib",
         "//platform/core-api:core_test_lib",
         "//platform/platform-impl:ide-impl_test_lib",
+        "//platform/platform-impl/playback:playback_test_lib",
     ],
 )
 ### auto-generated section `build intellij.searchEverywhereLucene.performanceTesting` end

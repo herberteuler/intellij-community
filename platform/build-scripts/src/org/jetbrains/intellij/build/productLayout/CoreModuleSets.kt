@@ -315,6 +315,7 @@ object CoreModuleSets {
     module("intellij.platform.ide.errorTreeView")
     // keeps the Learn tab in every product with ide.impl
     module("intellij.platform.ide.learnIde")
+    module("intellij.platform.ide.playback")
     module("intellij.platform.threadDumpParser")
     module("intellij.platform.ide.favoritesTreeView")
     // todo not used by platform - move to plugin

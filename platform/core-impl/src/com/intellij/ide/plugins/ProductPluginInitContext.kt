@@ -478,6 +478,7 @@ private val contentModulesExtractedInCorePluginWhichCanBeUsedFromExternalPlugins
   "intellij.platform.ide.errorTreeView",
   "intellij.platform.ide.filterField",
   "intellij.platform.ide.learnIde",
+  "intellij.platform.ide.playback",
   "intellij.platform.lsp",
   "intellij.platform.lsp.impl",
   "intellij.platform.externalSystem",

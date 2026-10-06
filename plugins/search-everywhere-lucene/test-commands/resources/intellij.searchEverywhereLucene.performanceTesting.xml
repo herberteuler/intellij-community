@@ -1,12 +1,13 @@
 <idea-plugin>
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
   <dependencies>
-    <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
     <plugin id="com.jetbrains.performancePlugin"/>
     <module name="intellij.platform.core"/>
     <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.ide.playback"/>
     <module name="intellij.searchEverywhereLucene.backend"/>
-    <!-- endregion -->
   </dependencies>
+  <!-- endregion -->
 
   <extensions defaultExtensionNs="com.jetbrains">
     <performancePlugin.commandProvider

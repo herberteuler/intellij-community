@@ -1310,9 +1310,7 @@
                          id="reference.settings.ide.settings.file-colors"
                          key="configurable.file.colors" bundle="messages.IdeBundle"/>
     <search.optionContributor implementation="com.intellij.ui.tabs.FileColorsSearchOptionContributor"/>
-    <uiDebuggerExtension implementation="com.intellij.ui.debugger.extensions.PlaybackDebugger"/>
     <uiDebuggerExtension implementation="com.intellij.ui.debugger.extensions.ActionTracer"/>
-    <applicationService serviceImplementation="com.intellij.ui.debugger.extensions.PlaybackDebugger$PlaybackDebuggerState"/>
     <localInspection language="" shortName="LossyEncoding" bundle="messages.LangBundle" key="lossy.encoding"
                      groupBundle="messages.InspectionsBundle" groupKey="group.names.internationalization.issues" enabledByDefault="true"
                      level="WARNING"
@@ -1731,7 +1729,6 @@
     <applicationSettings service="com.intellij.psi.templateLanguages.TemplateDataLanguagePatterns"/>
     <applicationSettings service="com.intellij.codeInsight.template.impl.TemplateSettings"/>
     <projectSettings service="com.intellij.openapi.file.exclude.ProjectPlainTextFileTypeManager"/>
-    <applicationSettings service="com.intellij.ui.debugger.extensions.PlaybackDebugger$PlaybackDebuggerState"/>
     <applicationSettings service="com.intellij.psi.impl.source.codeStyle.PersistableCodeStyleSchemes"/>
     <applicationSettings service="com.intellij.packageDependencies.DependencyUISettings"/>
     <applicationSettings service="com.intellij.ide.scratch.ScratchFileServiceImpl"/>

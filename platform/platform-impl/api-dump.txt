@@ -3662,18 +3662,6 @@ f:com.intellij.openapi.ui.impl.ShadowBorderPainter$Shadow
 - getImage():java.awt.Image
 - getX():I
 - getY():I
-com.intellij.openapi.ui.playback.PlaybackCommand
-- a:canGoFurther():Z
-- a:execute(com.intellij.openapi.ui.playback.PlaybackContext):java.util.concurrent.CompletableFuture
-- getScriptDir():java.io.File
-a:com.intellij.openapi.ui.playback.PlaybackContext
-- a:getProject():com.intellij.openapi.project.Project
-a:com.intellij.openapi.ui.playback.commands.AbstractCommand
-- com.intellij.openapi.ui.playback.PlaybackCommand
-- f:getLine():I
-c:com.intellij.openapi.ui.playback.commands.ActionCommand
-- com.intellij.openapi.ui.playback.commands.AbstractCommand
-- s:getInputEvent(java.lang.String):java.awt.event.InputEvent
 a:com.intellij.openapi.ui.popup.MultiSelectionListPopupStep
 - com.intellij.openapi.ui.popup.util.BaseListPopupStep
 f:com.intellij.openapi.ui.validation.RequestorsKt

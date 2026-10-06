@@ -952,6 +952,7 @@ platform/platform-impl/jcef
 platform/platform-impl/json
 platform/platform-impl/learn-ide
 platform/platform-impl/os-certificates
+platform/platform-impl/playback
 platform/platform-impl/plugin-signature-verifier
 platform/platform-impl/presentation-assistant
 platform/platform-impl/recentProjects

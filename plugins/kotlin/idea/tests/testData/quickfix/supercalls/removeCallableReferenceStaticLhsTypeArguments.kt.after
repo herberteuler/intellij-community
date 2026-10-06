@@ -1,6 +1,6 @@
 // "Remove type arguments" "true"
 // K2_ERROR: UNRESOLVED_REFERENCE_WRONG_RECEIVER
-// K2_AFTER_ERROR: WRONG_NUMBER_OF_TYPE_ARGUMENTS
+// COMPILER_ARGUMENTS: -Xcompanion-blocks
 class G<A> {
     companion object
 }

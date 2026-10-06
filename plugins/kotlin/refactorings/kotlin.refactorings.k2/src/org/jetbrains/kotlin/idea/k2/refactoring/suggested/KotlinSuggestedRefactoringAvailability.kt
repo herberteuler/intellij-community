@@ -106,6 +106,9 @@ class KotlinSuggestedRefactoringAvailability(refactoringSupport: SuggestedRefact
         val oldSignature = state.oldSignature
         val newSignature = state.newSignature
 
+        if (oldSignature.parameters.size != descriptorWithOldSignature.parameterTypes.size) return state
+        if (newSignature.parameters.size != descriptorWithNewSignature.parameterTypes.size) return state
+
         val (oldReturnType, newReturnType) = refineType(
             oldSignature.type,
             newSignature.type,

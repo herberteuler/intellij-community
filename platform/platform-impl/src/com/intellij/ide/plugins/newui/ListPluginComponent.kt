@@ -2199,6 +2199,7 @@ class ListPluginComponent private constructor(
     ): PluginRowRenderKey {
       val compatible = !plugin.isIncompatibleWithCurrentPlatform
       val available = (compatible || installationState.fullyInstalled && pluginEnabled) && plugin.canBeEnabled
+
       @Suppress("HardCodedStringLiteral")
       val tags = if (restrictedByProduct) {
         listOf(if (PlatformUtils.isPyCharmPro()) Tags.Pro.name else Tags.Ultimate.name)
@@ -2337,9 +2338,14 @@ class ListPluginComponent private constructor(
     }
 
     internal fun shouldHidePluginUpdateSourceUI(installationState: PluginInstallationState?): Boolean {
-      return installationState == null ||
-             !installationState.fullyInstalled ||
-             installationState.status == PluginStatus.UNINSTALLED_WITHOUT_RESTART
+      return when {
+        installationState == null -> true
+        installationState.status == PluginStatus.UNINSTALLED_WITHOUT_RESTART -> true
+        installationState.fullyInstalled -> false
+        installationState.status == PluginStatus.INSTALLED_WITHOUT_RESTART -> false
+        installationState.status == PluginStatus.INSTALLED_AND_REQUIRED_RESTART -> false
+        else -> true
+      }
     }
   }
 }

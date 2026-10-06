@@ -1,17 +1,23 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.kotlin.onboarding.gradle
 
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.junit5.TestApplication
 import org.jetbrains.kotlin.onboarding.gradle.BuildProcessSatisfactionSurveyStore.Companion.MINIMUM_BUILDS_BEFORE_SURVEY
 import org.jetbrains.kotlin.onboarding.gradle.BuildProcessSatisfactionSurveyStore.Companion.MINIMUM_DURATION_SINCE_FIRST_BUILD
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.absoluteValue
-import kotlin.test.assertNotEquals
 
-class BuildProcessSatisfactionSurveyStoreTest : BasePlatformTestCase() {
+@TestApplication
+class BuildProcessSatisfactionSurveyStoreTest {
     private val today = LocalDate.now()
     private val now = Instant.now()
     private fun createInstance(): BuildProcessSatisfactionSurveyStore {
@@ -30,6 +36,7 @@ class BuildProcessSatisfactionSurveyStoreTest : BasePlatformTestCase() {
 
     private fun LocalDate.daysSinceDate(): Int = ChronoUnit.DAYS.between(this, today).toInt()
 
+    @Test
     fun testEmptyState() {
         val instance = createInstance()
         assertFalse(instance.currentState.userSawSurvey)
@@ -40,6 +47,7 @@ class BuildProcessSatisfactionSurveyStoreTest : BasePlatformTestCase() {
         assertFalse(instance.shouldShowDialog())
     }
 
+    @Test
     fun testCorrectRecordBuildBehavior() {
         val instance = createInstance()
         val currentTime = Instant.now()
@@ -72,6 +80,7 @@ class BuildProcessSatisfactionSurveyStoreTest : BasePlatformTestCase() {
         assertEquals(1L, instance.currentState.firstKotlinGradleBuildTime)
     }
 
+    @Test
     fun testCorrectRecordGradleBuildBehavior() {
         val instance = createInstance()
         assertEquals(0L, instance.currentState.firstKotlinGradleBuildTime)
@@ -85,6 +94,7 @@ class BuildProcessSatisfactionSurveyStoreTest : BasePlatformTestCase() {
         assertEquals(1L, instance.currentState.firstGradleBuildTime)
     }
 
+    @Test
     fun testGetFirstKotlinGradleUsageDate() {
         val instance = createInstance()
         assertNull(instance.getFirstKotlinGradleUsageDate())
@@ -102,28 +112,33 @@ class BuildProcessSatisfactionSurveyStoreTest : BasePlatformTestCase() {
         assertTrue(instance.getFirstGradleUsageDate()!!.daysSinceDate() in 6..8)
     }
 
+    @Test
     fun testRecordDialogShown() {
         val instance = createInstance()
         instance.recordSurveyShown()
         assertTrue(instance.currentState.userSawSurvey)
     }
 
+    @Test
     fun testShouldShowIfEverythingIsFulfilled() {
         assertTrue(createStateThatShouldShow().shouldShowDialog())
     }
 
+    @Test
     fun testFirstBuildTooRecent() {
         val instance = createInstance()
         instance.currentState.firstKotlinGradleBuildTime = (Instant.now() - MINIMUM_DURATION_SINCE_FIRST_BUILD).epochSecond + 60L
         assertFalse(instance.shouldShowDialog())
     }
 
+    @Test
     fun testDialogWasAlreadyShown() {
         val instance = createInstance()
         instance.currentState.userSawSurvey = true
         assertFalse(instance.shouldShowDialog())
     }
 
+    @Test
     fun testBuildCountTooLow() {
         val instance = createInstance()
         instance.currentState.daysWithGradleBuilds = MINIMUM_BUILDS_BEFORE_SURVEY - 1

@@ -225,6 +225,37 @@ class MarkdownLivePreviewSpecTest : BasePlatformTestCase() {
     assertEquals(headings("# Hello **big**").single().html, headings("some text\n\n# Hello **big**").single().html)
   }
 
+  fun testSetextHeadingsCoverTheirContentLineAndRulesCoverTheirUnderlines() {
+    val content = "One\n===\n\nTwo\n---\n\nThree *text*\n====="
+    val headings = headings(content)
+    val rules = elements(content).filterIsInstance<MarkdownLivePreviewSpec.HorizontalRule>()
+
+    assertEquals(listOf(1, 2, 1), headings.map { it.level })
+    assertEquals(listOf("One", "Two", "Three *text*"), headings.map { content.substring(it.range.startOffset, it.range.endOffset) })
+    assertEquals(listOf("One", "Two", "Three text"), headings.map { it.body().text() })
+    assertEquals(listOf("===", "---", "====="), rules.map { content.substring(it.range.startOffset, it.range.endOffset) })
+  }
+
+  /** The parser takes only one line before the underline. If it learns more, the heading spec must cover all those lines. */
+  fun testMultiLineSetextContentIsNotAHeading() {
+    assertEmpty(headings("Multi\nline\n====="))
+    assertEmpty(headings("Multi\nline\n-----"))
+  }
+
+  fun testSetextHeadingSpansCoverTheirSource() {
+    val content = "before\n\n  Hello **big** (world)\n---"
+    val heading = headings(content).single()
+    val lines = content.substring(heading.range.startOffset, heading.range.endOffset)
+    val spans = heading.body().select("span[md-src-pos]")
+
+    assertEquals("  Hello **big** (world)", lines)
+    assertEquals("Hello big (world)", spans.joinToString("") { it.wholeText() }.trim())
+    for (span in spans) {
+      val (start, end) = span.attr("md-src-pos").split("..").map(String::toInt)
+      assertEquals(span.toString(), span.wholeText(), lines.substring(start, end))
+    }
+  }
+
   fun testNestedAndUnsupportedHeadingsAreNotReported() {
     val content = """
       |- # list heading
@@ -236,8 +267,8 @@ class MarkdownLivePreviewSpecTest : BasePlatformTestCase() {
       |#### html heading
       |</section>
       |
-      |Setext heading
-      |--------------
+      |> Quoted setext heading
+      |> ---------------------
       |
       |####### too deep
       |

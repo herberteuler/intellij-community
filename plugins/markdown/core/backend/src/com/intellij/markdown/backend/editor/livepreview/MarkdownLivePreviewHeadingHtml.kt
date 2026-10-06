@@ -41,7 +41,7 @@ private val HeadingProviders: Map<IElementType, GeneratingProvider> =
   )
 
 /**
- * Generates the inline HTML of the headings. Only the heading lines are parsed.
+ * Generates the inline HTML of the headings, ATX and Setext. Only the heading lines are parsed.
  * Raw HTML and math stay literal text. Images are left out, because an inlay below the line paints them.
  */
 internal object HeadingHtmlGenerator {
@@ -57,8 +57,9 @@ internal object HeadingHtmlGenerator {
     val range = content.textRange
     val line = content.parent.text
     val lineEnd = range.endOffset - lineStart
+    val type = if (content.isSetextContent) MarkdownTokenTypes.SETEXT_CONTENT else MarkdownTokenTypes.ATX_CONTENT
     val root = MarkdownParserManager.createMarkdownParser(MarkdownParserManager.FLAVOUR)
-      .parseInline(MarkdownTokenTypes.ATX_CONTENT, line, range.startOffset - lineStart, lineEnd)
+      .parseInline(type, line, range.startOffset - lineStart, lineEnd)
     return HtmlGenerator(line, root, providers, includeSrcPositions = true).generateHtml()
   }
 }

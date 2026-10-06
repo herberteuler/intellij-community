@@ -137,7 +137,8 @@ sealed interface MarkdownLivePreviewSpec {
   data class HorizontalRule(override val range: MarkdownLivePreviewRange) : MarkdownLivePreviewSpec
 
   /**
-   * Renders a top-level ATX heading over its full logical line.
+   * Renders a top-level ATX or Setext heading over its full logical line.
+   * The range of a Setext heading excludes its underline. A separate [HorizontalRule] covers the underline.
    * The frontend uses [level] to select the HTML heading element.
    * [html] is inline HTML. Each text run in it is a span with its `md-src-pos` source range.
    * The source ranges are relative to the start of [range].

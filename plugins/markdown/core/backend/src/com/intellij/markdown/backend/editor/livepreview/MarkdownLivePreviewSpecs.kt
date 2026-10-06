@@ -96,12 +96,12 @@ private fun PsiElement.toDecorationSpecs(editor: Editor): MarkdownLivePreviewSpe
     // flat and keeps them as siblings, so the two forms need different lookups.
     MarkdownElementTypes.AUTOLINK -> toAutolinkSpecs()
     in LeafAutolinkTypes -> toAutolinkSpecs()
-    in MarkdownTokenTypeSets.ATX_HEADERS -> (this as? MarkdownHeader)?.toHeadingSpec(editor)
+    in MarkdownTokenTypeSets.HEADERS -> (this as? MarkdownHeader)?.toHeadingSpec(editor)
     MarkdownTokenTypes.LIST_BULLET -> toBulletSpec()
     MarkdownTokenTypes.CHECK_BOX -> toTaskCheckboxSpec()
     MarkdownTokenTypes.HORIZONTAL_RULE -> toHorizontalRuleSpec()
     MarkdownElementTypes.FRONT_MATTER_HEADER_DELIMITER -> toFrontMatterDelimiterSpec()
-    MarkdownTokenTypes.SETEXT_2 -> toSetextCodeSpanUnderlineSpec()
+    MarkdownTokenTypes.SETEXT_1, MarkdownTokenTypes.SETEXT_2 -> toSetextUnderlineSpec()
     MarkdownTokenTypes.ALERT_TITLE -> toAlertTitleSpec()
     else -> null
   }
@@ -234,7 +234,7 @@ private fun PsiElement.isInsideTable(): Boolean = PsiTreeUtil.getParentOfType(th
 
 private fun MarkdownHeader.toHeadingSpec(editor: Editor): MarkdownLivePreviewSpec.Heading? {
   val content = contentElement
-  if (parent !is MarkdownFile || content?.isAtxContent != true) return null
+  if (parent !is MarkdownFile || content == null) return null
   val range = logicalLineRange(editor)
   val html = HeadingHtmlGenerator.generate(content, range.startOffset)
   return MarkdownLivePreviewSpec.Heading(range.toMarkdownLivePreviewRange(), level, html)
@@ -252,12 +252,9 @@ private fun PsiElement.toImageSpec(editor: Editor): MarkdownLivePreviewSpec.Imag
   return MarkdownLivePreviewSpec.Image(range.toMarkdownLivePreviewRange(), destination, placeholderText, source)
 }
 
-private fun PsiElement.toSetextCodeSpanUnderlineSpec(): MarkdownLivePreviewSpec? {
-  val header = parent ?: return null
-  if (PsiUtilCore.getElementType(header) != MarkdownElementTypes.SETEXT_2) return null
-  val content = header.children.singleOrNull { PsiUtilCore.getElementType(it) == MarkdownTokenTypes.SETEXT_CONTENT } ?: return null
-  if (content.children.singleOrNull { PsiUtilCore.getElementType(it) == MarkdownElementTypes.CODE_SPAN } == null) return null
-  return toHorizontalRuleSpec()
+/** Paints the `===` or `---` line under a Setext heading as a horizontal rule. */
+private fun PsiElement.toSetextUnderlineSpec(): MarkdownLivePreviewSpec.HorizontalRule? {
+  return if (parent is MarkdownHeader) toHorizontalRuleSpec() else null
 }
 
 private fun PsiElement.toHorizontalRuleSpec(): MarkdownLivePreviewSpec.HorizontalRule {

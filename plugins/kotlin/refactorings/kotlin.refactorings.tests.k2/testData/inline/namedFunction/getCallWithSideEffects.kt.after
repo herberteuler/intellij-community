@@ -1,0 +1,12 @@
+class A {
+    operator fun get(i: Int): A {
+        println(i)
+        return this
+    }
+
+}
+
+fun test() {
+    val a = A()
+    a.get(42)
+}

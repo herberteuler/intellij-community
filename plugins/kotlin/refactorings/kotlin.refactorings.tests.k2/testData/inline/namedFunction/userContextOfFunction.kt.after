@@ -1,0 +1,8 @@
+fun contextOf(): Int {
+    println("side effect")
+    return 42
+}
+
+fun test() {
+    contextOf()
+}

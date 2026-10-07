@@ -56,6 +56,7 @@ import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.ExpressionReplac
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.NEW_DECLARATION_KEY
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.RECEIVER_VALUE_KEY
+import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.SIDE_EFFECTS
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.USER_CODE_KEY
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.WAS_CONVERTED_TO_FUNCTION_KEY
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.WAS_FUNCTION_LITERAL_ARGUMENT_KEY
@@ -486,6 +487,7 @@ class CodeInliner(
         if (parameter.isContextParameter) {
             val exprText = contextArguments?.getOrNull(parameter.parameterIndex()) ?: return null
             val resultExpression = KtPsiFactory(call.project).createExpressionCodeFragment(exprText, call).getContentElement() ?: return null
+            resultExpression.putCopyableUserData(SIDE_EFFECTS, false)
             val expressionType = analyze(resultExpression) {
                 createTypeDescription(resultExpression.expressionType)
             }

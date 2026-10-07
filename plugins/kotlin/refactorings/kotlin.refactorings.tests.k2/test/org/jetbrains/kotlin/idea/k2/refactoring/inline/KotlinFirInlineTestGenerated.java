@@ -2034,6 +2034,16 @@ public abstract class KotlinFirInlineTestGenerated extends AbstractKotlinFirInli
                 runTest("testData/inline/namedFunction/apply.kt");
             }
 
+            @TestMetadata("arrayAccessWithSideEffects.kt")
+            public void testArrayAccessWithSideEffects() throws Exception {
+                runTest("testData/inline/namedFunction/arrayAccessWithSideEffects.kt");
+            }
+
+            @TestMetadata("arrayAccessWithoutSideEffects.kt")
+            public void testArrayAccessWithoutSideEffects() throws Exception {
+                runTest("testData/inline/namedFunction/arrayAccessWithoutSideEffects.kt");
+            }
+
             @TestMetadata("bothReceivers.kt")
             public void testBothReceivers() throws Exception {
                 runTest("testData/inline/namedFunction/bothReceivers.kt");
@@ -2062,6 +2072,11 @@ public abstract class KotlinFirInlineTestGenerated extends AbstractKotlinFirInli
             @TestMetadata("companionWithSuperType.kt")
             public void testCompanionWithSuperType() throws Exception {
                 runTest("testData/inline/namedFunction/companionWithSuperType.kt");
+            }
+
+            @TestMetadata("contextOfInInlinedBody.kt")
+            public void testContextOfInInlinedBody() throws Exception {
+                runTest("testData/inline/namedFunction/contextOfInInlinedBody.kt");
             }
 
             @TestMetadata("customLet.kt")
@@ -2212,6 +2227,11 @@ public abstract class KotlinFirInlineTestGenerated extends AbstractKotlinFirInli
             @TestMetadata("functionalParameterWithReceiverPassedAsParameter.kt")
             public void testFunctionalParameterWithReceiverPassedAsParameter() throws Exception {
                 runTest("testData/inline/namedFunction/functionalParameterWithReceiverPassedAsParameter.kt");
+            }
+
+            @TestMetadata("getCallWithSideEffects.kt")
+            public void testGetCallWithSideEffects() throws Exception {
+                runTest("testData/inline/namedFunction/getCallWithSideEffects.kt");
             }
 
             @TestMetadata("getOperator.kt")
@@ -2672,6 +2692,16 @@ public abstract class KotlinFirInlineTestGenerated extends AbstractKotlinFirInli
             @TestMetadata("unresolvedReference.kt")
             public void testUnresolvedReference() throws Exception {
                 runTest("testData/inline/namedFunction/unresolvedReference.kt");
+            }
+
+            @TestMetadata("userContextOfFunction.kt")
+            public void testUserContextOfFunction() throws Exception {
+                runTest("testData/inline/namedFunction/userContextOfFunction.kt");
+            }
+
+            @TestMetadata("userContextOfFunctionWithLambda.kt")
+            public void testUserContextOfFunctionWithLambda() throws Exception {
+                runTest("testData/inline/namedFunction/userContextOfFunctionWithLambda.kt");
             }
 
             @TestMetadata("varargrs.kt")

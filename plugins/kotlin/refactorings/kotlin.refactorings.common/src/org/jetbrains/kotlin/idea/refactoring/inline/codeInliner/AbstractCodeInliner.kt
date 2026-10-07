@@ -15,8 +15,8 @@ import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.M
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.NEW_DECLARATION_KEY
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.PARAMETER_VALUE_KEY
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.RECEIVER_VALUE_KEY
+import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.SIDE_EFFECTS
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.InlineDataKeys.USER_CODE_KEY
-import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
@@ -34,7 +34,6 @@ import org.jetbrains.kotlin.psi.KtIfExpression
 import org.jetbrains.kotlin.psi.KtIntersectionType
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
@@ -74,7 +73,7 @@ abstract class AbstractCodeInliner<TCallElement : KtElement, Parameter : Any, Ko
         val sideEffectOnly = usageCount == 0
 
         return when (this) {
-            is KtCallExpression -> !isPureFunction()
+            is KtCallExpression -> getCopyableUserData(SIDE_EFFECTS) ?: true
             is KtSimpleNameExpression -> false
             is KtQualifiedExpression -> receiverExpression.shouldKeepValue(usageCount) || selectorExpression.shouldKeepValue(usageCount)
             is KtUnaryExpression -> operationToken in setOf(KtTokens.PLUSPLUS, KtTokens.MINUSMINUS) ||
@@ -88,6 +87,7 @@ abstract class AbstractCodeInliner<TCallElement : KtElement, Parameter : Any, Ko
             is KtThisExpression, is KtSuperExpression, is KtConstantExpression -> false
             is KtParenthesizedExpression -> expression.shouldKeepValue(usageCount)
             is KtArrayAccessExpression -> !sideEffectOnly ||
+                    getCopyableUserData(SIDE_EFFECTS) ?: false ||
                     arrayExpression.shouldKeepValue(usageCount) ||
                     indexExpressions.any { it.shouldKeepValue(usageCount) }
 
@@ -107,14 +107,6 @@ abstract class AbstractCodeInliner<TCallElement : KtElement, Parameter : Any, Ko
             null -> false
             else -> true
         }
-    }
-
-    private fun KtCallExpression.isPureFunction(): Boolean = isContextOfCall()
-
-    private fun KtCallExpression.isContextOfCall(): Boolean {
-        if (valueArguments.isNotEmpty() || lambdaArguments.isNotEmpty() || calleeExpression?.text != "contextOf") return false
-        val resolved = calleeExpression?.mainReference?.resolve() as? KtNamedFunction ?: return false
-        return resolved.fqName?.asString() == "kotlin.contextOf"
     }
 
     protected fun MutableCodeToInline.convertToCallableReferenceIfNeeded(elementToBeReplaced: KtElement) {

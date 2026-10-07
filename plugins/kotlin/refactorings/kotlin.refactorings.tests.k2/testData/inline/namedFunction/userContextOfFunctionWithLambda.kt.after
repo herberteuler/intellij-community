@@ -1,0 +1,8 @@
+fun contextOf(block: () -> Unit): Int {
+    block()
+    return 42
+}
+
+fun test() {
+    contextOf { println("side effect") }
+}

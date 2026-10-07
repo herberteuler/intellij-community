@@ -55,13 +55,22 @@ public final class DevMainKt {
     try (var tempClassLoader = new URLClassLoader(classLoader.getUrls().toArray(URL[]::new), ClassLoader.getPlatformClassLoader())) {
       var implClass = tempClassLoader.loadClass("org.jetbrains.intellij.build.devServer.DevMainImpl");
 
-      @SuppressWarnings({"unchecked", "ConfusingArgumentToVarargsMethod"})
-      var mainClassAndClassPath = (AbstractMap.SimpleImmutableEntry<String, Collection<Path>>)lookup
-        .findStatic(implClass, "buildDevMain", MethodType.methodType(AbstractMap.SimpleImmutableEntry.class, String[].class))
-        .invokeExact(rawArgs);
+      // a ServiceLoader lookup in the build must find the providers of the temporary class loader
+      var thread = Thread.currentThread();
+      var contextClassLoader = thread.getContextClassLoader();
+      thread.setContextClassLoader(tempClassLoader);
+      try {
+        @SuppressWarnings({"unchecked", "ConfusingArgumentToVarargsMethod"})
+        var mainClassAndClassPath = (AbstractMap.SimpleImmutableEntry<String, Collection<Path>>)lookup
+          .findStatic(implClass, "buildDevMain", MethodType.methodType(AbstractMap.SimpleImmutableEntry.class, String[].class))
+          .invokeExact(rawArgs);
 
-      mainClass = mainClassAndClassPath.getKey();
-      classPath = mainClassAndClassPath.getValue();
+        mainClass = mainClassAndClassPath.getKey();
+        classPath = mainClassAndClassPath.getValue();
+      }
+      finally {
+        thread.setContextClassLoader(contextClassLoader);
+      }
     }
 
     classLoader.reset(classPath);

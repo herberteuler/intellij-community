@@ -80,15 +80,24 @@ public final class JUnitDevMainKt {
   private static boolean build(MethodHandles.Lookup lookup, PathClassLoader classLoader) throws Throwable {
     // do not use classLoader as a parent - make sure that we don't make the initial classloader dirty
     // (say, do not load kotlin coroutine classes)
-    Class<?> implClass = new PathClassLoader(UrlClassLoader.buildAsSystemClassLoader(classLoader.getFiles())
-                                               .parent(ClassLoader.getPlatformClassLoader()))
-      .loadClass("org.jetbrains.intellij.build.devServer.DevMainImpl");
+    PathClassLoader buildClassLoader = new PathClassLoader(UrlClassLoader.buildAsSystemClassLoader(classLoader.getFiles())
+                                                             .parent(ClassLoader.getPlatformClassLoader()));
+    Class<?> implClass = buildClassLoader.loadClass("org.jetbrains.intellij.build.devServer.DevMainImpl");
 
-    @SuppressWarnings("unchecked")
-    Collection<Path> newClassPath =
-      ((SimpleImmutableEntry<String, Collection<Path>>)
-         lookup.findStatic(implClass, "buildDevMain", MethodType.methodType(SimpleImmutableEntry.class)).invokeExact())
-      .getValue();
+    // a ServiceLoader lookup in the build must find the providers of the build class loader
+    Thread thread = Thread.currentThread();
+    ClassLoader contextClassLoader = thread.getContextClassLoader();
+    thread.setContextClassLoader(buildClassLoader);
+    Collection<Path> newClassPath;
+    try {
+      @SuppressWarnings("unchecked")
+      SimpleImmutableEntry<String, Collection<Path>> result = (SimpleImmutableEntry<String, Collection<Path>>)
+        lookup.findStatic(implClass, "buildDevMain", MethodType.methodType(SimpleImmutableEntry.class)).invokeExact();
+      newClassPath = result.getValue();
+    }
+    finally {
+      thread.setContextClassLoader(contextClassLoader);
+    }
 
     classLoader.reset(newClassPath);
     return true;

@@ -2,6 +2,7 @@
 package com.intellij.find.actions
 
 import com.intellij.codeInsight.TargetElementUtil
+import com.intellij.find.FindManager
 import com.intellij.find.findUsages.PsiElement2UsageTargetAdapter
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
@@ -26,7 +27,11 @@ internal fun targetVariants(dc: DataContext): List<TargetVariant> {
       try {
         val reference = TargetElementUtil.findReference(editor, offset)
         if (reference != null) {
-          TargetElementUtil.getInstance().getTargetCandidates(reference).mapTo(allTargets, ::PsiTargetVariant)
+          // a candidate without a find usages handler does nothing when chosen
+          val findManager = FindManager.getInstance(reference.element.project)
+          TargetElementUtil.getInstance().getTargetCandidates(reference)
+            .filter(findManager::canFindUsages)
+            .mapTo(allTargets, ::PsiTargetVariant)
         }
       }
       catch (ignore: IndexNotReadyException) {

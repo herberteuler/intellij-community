@@ -68,5 +68,7 @@
     <applicationService serviceInterface="com.intellij.diagnostic.PluginProblemReporter"
                         serviceImplementation="com.intellij.diagnostic.PluginProblemReporterImpl"/>
     <projectService serviceImplementation="com.intellij.psi.impl.source.resolve.ResolveCache"/>
+    <applicationService serviceInterface="com.intellij.psi.meta.MetaDataRegistrar"
+                        serviceImplementation="com.intellij.psi.impl.meta.MetaRegistry"/>
   </extensions>
 </idea-plugin>

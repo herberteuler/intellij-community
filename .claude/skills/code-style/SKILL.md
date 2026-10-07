@@ -35,6 +35,18 @@ Follow the IntelliJ Coding Guidelines with these IntelliJ-specific rules.
   - Braces: `else`, `catch`, and `finally` on new lines
 - Only in `/rustrover` directory you must always use standard Kotlin formatting rules with 4 spaces indentation.
 
+## Threading annotations
+
+- When you add `@RequiresEdt`, `@RequiresBackgroundThread`, `@RequiresReadLock`, `@RequiresWriteLock`,
+  or `@RequiresReadLockAbsence`, do not pass `generateAssertion`. Keep the default value unless the user explicitly requests a different one.
+- Never write `generateAssertion = false /* IJPL-115548 */`. It is a legacy mass-migration marker. Do not copy it from existing code.
+- Set `generateAssertion = false` only when the user explicitly requests it, or when the runtime assertion is known to fail. State the reason in a comment.
+
+```kotlin
+@RequiresEdt
+fun updateUi() { ... }
+```
+
 ## Error handling
 
 - In a `catch` block for `Throwable` or `Exception`, call `com.intellij.diagnostic.rethrowControlFlowException(e)` first.

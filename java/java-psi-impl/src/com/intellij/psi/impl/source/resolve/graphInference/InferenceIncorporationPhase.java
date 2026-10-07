@@ -355,8 +355,7 @@ public class InferenceIncorporationPhase {
           usageNullability.source() instanceof NullabilitySource.ExtendsBound) {
         return bound;
       }
-      TypeNullability nullability = usageNullability.instantiatedWith(bound.getNullability());
-      return nullability.equals(bound.getNullability()) ? bound : bound.withNullability(nullability);
+      return usageNullability.equals(bound.getNullability()) ? bound : bound.withNullability(usageNullability);
     }
     return bound;
   }

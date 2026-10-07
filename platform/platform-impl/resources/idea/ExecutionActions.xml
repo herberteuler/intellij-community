@@ -46,8 +46,6 @@
       </group>
     </group>
 
-    <reference ref="RunToolbarRollbackToPrevious"/>
-
     <reference ref="RunTab.TopToolbar.Old"/>
     <reference ref="RunTab.TopToolbar"/>
 

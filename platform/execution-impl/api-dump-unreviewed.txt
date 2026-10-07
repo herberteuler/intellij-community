@@ -885,16 +885,6 @@ e:com.intellij.execution.runToolbar.RunToolbarMainSlotState
 f:com.intellij.execution.runToolbar.RunToolbarMoreActionGroup
 - getActionUpdateThread():com.intellij.openapi.actionSystem.ActionUpdateThread
 - update(com.intellij.openapi.actionSystem.AnActionEvent):V
-f:com.intellij.execution.runToolbar.RunToolbarRollbackToPrevious
-- com.intellij.openapi.project.DumbAwareAction
-- sf:Companion:com.intellij.execution.runToolbar.RunToolbarRollbackToPrevious$Companion
-- <init>():V
-- actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent):V
-- getActionUpdateThread():com.intellij.openapi.actionSystem.ActionUpdateThread
-- update(com.intellij.openapi.actionSystem.AnActionEvent):V
-f:com.intellij.execution.runToolbar.RunToolbarRollbackToPrevious$Companion
-- f:addHideActionHelper():V
-- f:saveDataIfNeeded(Z):V
 c:com.intellij.execution.runToolbar.components.TrimmedMiddleLabel
 - javax.swing.JLabel
 - <init>():V

@@ -65,7 +65,6 @@
     <action id="RunToolbarMainSlotInfoAction" class="com.intellij.execution.runToolbar.RunToolbarMainSlotInfoAction"/>
     <action id="RunToolbarMainRunConfigurationsAction" class="com.intellij.execution.runToolbar.RunToolbarMainRunConfigurationsAction"/>
     <action id="RunToolbarMainMultipleStopAction" class="com.intellij.execution.runToolbar.RunToolbarMainMultipleStopAction" icon="AllIcons.Actions.Suspend"/>
-    <action id="RunToolbarRollbackToPrevious" class="com.intellij.execution.runToolbar.RunToolbarRollbackToPrevious"/>
     <action id="SegmentedVcsControlAction" class="com.intellij.execution.segmentedVcsWidget.SegmentedVcsControlAction"/>
     <action id="ConsoleView.ClearAll" class="com.intellij.execution.actions.ClearConsoleAction"/>
     <action id="UpdateRunningApplication" class="com.intellij.execution.update.UpdateRunningApplicationAction"

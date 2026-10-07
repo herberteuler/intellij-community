@@ -20,6 +20,7 @@ import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.util.SystemInfoRt
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.backend.workspace.WorkspaceModel
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.junit5.RegistryKey
@@ -27,6 +28,7 @@ import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.rules.ProjectModelExtension
 import com.intellij.workspaceModel.core.fileIndex.WorkspaceFileIndex
 import com.intellij.workspaceModel.ide.OptionalExclusionUtil
+import com.intellij.workspaceModel.ide.registerProjectRoot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -40,6 +42,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 
 private const val ENABLED = "ide.analysisignore.file.enabled"
+
+private const val DEFAULTS = "ide.analysisignore.defaults.enabled"
+
+/** The text that a new file at a root starts with. */
+private val ROOT_DEFAULTS: String = AnalysisIgnoreDefaults.LINES.joinToString("\n", postfix = "\n")
 
 /**
  * "Mark as Excluded" and "Cancel Exclusion" with a `.analysisignore` file as their store. The tests drive the real actions, and thus they
@@ -63,6 +70,10 @@ class AnalysisIgnoreExclusionContributorTest {
     projectRoot = projectModel.baseProjectDir.newVirtualDirectory("projectRoot")
     module = projectModel.createModule()
     ModuleRootModificationUtil.addContentRoot(module, projectRoot)
+    // Only a project root gets the defaults.
+    val projectRootUrl = WorkspaceModel.getInstance(project).getVirtualFileUrlManager().storeAndGet(projectRoot.url)
+    runBlocking { registerProjectRoot(project, projectRootUrl) }
+    service.syncDefaultsBlocking()
     IndexingTestUtil.waitUntilIndexesAreReady(project)
   }
 
@@ -312,6 +323,147 @@ class AnalysisIgnoreExclusionContributorTest {
     assertEquals(3, AnalysisIgnoreFileWriter.lineIndexOf(text, "*.log"))
     assertEquals(-1, AnalysisIgnoreFileWriter.lineIndexOf(text, "# comment"))
     assertEquals(-1, AnalysisIgnoreFileWriter.lineIndexOf(text, "/out/"))
+  }
+
+  // -----------------------------------------------------------------------------------------------------------------------------------
+  // The default exclusions of a root
+  // -----------------------------------------------------------------------------------------------------------------------------------
+
+  @Test
+  fun `every default line is a pattern that the format supports`() {
+    for (line in AnalysisIgnoreDefaults.LINES) {
+      assertEquals(AnalysisIgnoreValidated.Supported, AnalysisIgnorePattern.validate(line), line)
+    }
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `marking a directory writes the default lines before the line of a new file`() = runBlocking {
+    val buildDir = dir("projectRoot/build")
+
+    invoke(MarkExcludeRootAction(), buildDir)
+
+    assertEquals("$ROOT_DEFAULTS/build/\n", textOfIgnoreFile("projectRoot"))
+    assertFalse(isInContent(buildDir))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `the default lines of a new file exclude what they name`() = runBlocking {
+    val buildDir = dir("projectRoot/build")
+    val nodeModules = dir("projectRoot/sub/node_modules")
+    val outDir = dir("projectRoot/out")
+    val outBelow = dir("projectRoot/sub/out")
+
+    invoke(MarkExcludeRootAction(), buildDir)
+
+    assertFalse(isInContent(buildDir))
+    assertFalse(isInContent(nodeModules))
+    assertFalse(isInContent(outDir))
+    assertTrue(isInContent(outBelow))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `a file that exists gets the line alone`() = runBlocking {
+    val buildDir = dir("projectRoot/build")
+    discover(writeAnalysisIgnoreFile("projectRoot", "/other/"))
+
+    invoke(MarkExcludeRootAction(), buildDir)
+
+    assertEquals("/other/\n/build/\n", textOfIgnoreFile("projectRoot"))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `a default line equal to the line is written once, as the line`() = runBlocking {
+    // The defaults already exclude the directory, so the action offers no exclusion of it. The writer alone shows the case.
+    withContext(Dispatchers.EDT) { AnalysisIgnoreFileWriter.appendLine(project, projectRoot, "/out/") }
+    IndexingTestUtil.suspendUntilIndexesAreReady(project)
+
+    val expected = buildList {
+      addAll(AnalysisIgnoreDefaults.LINES)
+      remove("/out/")
+      add("/out/")
+    }
+    assertEquals(expected.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `a new file below the root gets the line alone`() = runBlocking {
+    val cDir = dir("projectRoot/a/b/c")
+    val aDir = cDir.parent.parent
+    val nodeModules = dir("projectRoot/node_modules")
+
+    withContext(Dispatchers.EDT) { AnalysisIgnoreFileWriter.appendLine(project, aDir, "/b/c/") }
+    IndexingTestUtil.suspendUntilIndexesAreReady(project)
+
+    // A file below the project root gets no default lines, and it removes the defaults of the root.
+    assertEquals("/b/c/\n", textOfIgnoreFile("projectRoot/a"))
+    assertFalse(isInContent(cDir))
+    assertTrue(isInContent(nodeModules))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `cancel exclusion after mark as excluded keeps the default lines`() = runBlocking {
+    val buildDir = dir("projectRoot/build")
+    invoke(MarkExcludeRootAction(), buildDir)
+
+    invoke(UnmarkRootAction(), buildDir)
+
+    // The user removes the default lines in the editor.
+    assertEquals(ROOT_DEFAULTS, textOfIgnoreFile("projectRoot"))
+    assertTrue(isInContent(buildDir))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `cancel exclusion of a name that the defaults exclude writes the other default lines`() = runBlocking {
+    val nodeModules = dir("projectRoot/node_modules")
+    val target = dir("projectRoot/target")
+    assertFalse(isInContent(nodeModules))
+    assertTrue(presentationOf(UnmarkRootAction(), nodeModules).isEnabledAndVisible)
+
+    invoke(UnmarkRootAction(), nodeModules)
+
+    val expected = AnalysisIgnoreDefaults.LINES - "node_modules"
+    assertEquals(expected.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
+    assertEquals(expected, service.defaultLinesAddedTo(projectRoot.findChild(ANALYSIS_IGNORE_FILE_NAME)!!))
+    assertTrue(isInContent(nodeModules))
+    assertFalse(isInContent(target))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `cancel exclusion of a root directory that the defaults exclude drops its line alone`() = runBlocking {
+    val target = dir("projectRoot/target")
+    val nodeModules = dir("projectRoot/node_modules")
+
+    invoke(UnmarkRootAction(), target)
+
+    val expected = AnalysisIgnoreDefaults.LINES - "/target/"
+    assertEquals(expected.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
+    assertTrue(isInContent(target))
+    assertFalse(isInContent(nodeModules))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  fun `cancel exclusion is not offered for a default name while the defaults are off`() = runBlocking {
+    val nodeModules = dir("projectRoot/node_modules")
+
+    assertTrue(isInContent(nodeModules))
+    assertTrue(findDefaultExclusions(project, nodeModules).isEmpty())
   }
 
   // -----------------------------------------------------------------------------------------------------------------------------------

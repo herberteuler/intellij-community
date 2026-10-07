@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.ide.analysisignore
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.VirtualFile
@@ -18,6 +19,11 @@ class AnalysisIgnoreIndexableFileScanner : IndexableFileScanner {
     }
 
     val service = AnalysisIgnoreService.getInstance(project)
+    // A new project root gets its default entity before this scan visits its files. Under a lock, the sync of the service does it instead.
+    val application = ApplicationManager.getApplication()
+    if (!application.isReadAccessAllowed && !application.isDispatchThread) {
+      service.syncDefaultsBlocking()
+    }
     val knownBaseDirUrls = ConcurrentHashMap.newKeySet<String>().apply { addAll(service.knownBaseDirUrls()) }
 
     return IndexableFileScanner.ScanSession { origin ->

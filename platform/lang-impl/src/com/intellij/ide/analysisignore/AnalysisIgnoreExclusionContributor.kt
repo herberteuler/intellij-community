@@ -16,7 +16,8 @@ import com.intellij.workspaceModel.ide.OptionalExclusionContributor
 
 /**
  * Routes "Mark as Excluded" and "Cancel Exclusion" to the [`.analysisignore`][ANALYSIS_IGNORE_FILE_NAME] files. "Mark as Excluded" adds
- * a line that names the path, and "Cancel Exclusion" removes that line.
+ * a line that names the path, and "Cancel Exclusion" removes that line. For a path that the [defaults][AnalysisIgnoreDefaults] of a
+ * project root exclude, "Cancel Exclusion" creates the file of that root with the other default lines.
  */
 internal class AnalysisIgnoreExclusionContributor : OptionalExclusionContributor {
 
@@ -34,20 +35,23 @@ internal class AnalysisIgnoreExclusionContributor : OptionalExclusionContributor
   }
 
   override fun canCancelExclusion(project: Project, excludedFileOrDir: VirtualFile): Boolean {
-    return isEnabled() && findAnalysisIgnoreExclusions(project, excludedFileOrDir).isNotEmpty()
+    return isEnabled() &&
+           (findAnalysisIgnoreExclusions(project, excludedFileOrDir).isNotEmpty() ||
+            findDefaultExclusions(project, excludedFileOrDir).isNotEmpty())
   }
 
   override fun requestExclusionCancellation(project: Project, excludedFileOrDir: VirtualFile): Boolean {
     if (!isEnabled()) return false
     val exclusions = findAnalysisIgnoreExclusions(project, excludedFileOrDir)
-    if (exclusions.isEmpty()) return false
+    val defaultExclusions = findDefaultExclusions(project, excludedFileOrDir)
+    if (exclusions.isEmpty() && defaultExclusions.isEmpty()) return false
 
     val application = ApplicationManager.getApplication()
     if (application.isDispatchThread) {
-      cancelExclusion(project, excludedFileOrDir, exclusions)
+      cancelExclusion(project, excludedFileOrDir, exclusions, defaultExclusions)
     }
     else {
-      application.invokeLater({ cancelExclusion(project, excludedFileOrDir, exclusions) }, project.disposed)
+      application.invokeLater({ cancelExclusion(project, excludedFileOrDir, exclusions, defaultExclusions) }, project.disposed)
     }
     return true
   }
@@ -56,11 +60,23 @@ internal class AnalysisIgnoreExclusionContributor : OptionalExclusionContributor
 }
 
 /**
- * Removes every line that names [fileOrDir] itself. When a line of a directory above [fileOrDir], or a wildcard, still excludes it, opens
- * the first such line after the action, because the user has to edit that line.
+ * Creates the `.analysisignore` file of each root of [defaultExclusions]. The file holds the default lines without the lines that exclude
+ * [fileOrDir], and its editor banner tells the user about them. Then removes every line that names [fileOrDir] itself. When a line of a
+ * directory above [fileOrDir], or a wildcard, still excludes it, opens the first such line after the action, because the user has to edit
+ * that line.
  */
 @RequiresEdt
-private fun cancelExclusion(project: Project, fileOrDir: VirtualFile, exclusions: List<AnalysisIgnoreExclusion>) {
+private fun cancelExclusion(
+  project: Project,
+  fileOrDir: VirtualFile,
+  exclusions: List<AnalysisIgnoreExclusion>,
+  defaultExclusions: List<AnalysisIgnoreExclusion>,
+) {
+  for ((root, rootExclusions) in defaultExclusions.groupBy { it.baseDir }) {
+    val lines = AnalysisIgnoreDefaults.LINES - rootExclusions.mapTo(HashSet()) { it.pattern.source }
+    val ignoreFile = AnalysisIgnoreFileWriter.createFile(project, root, lines) ?: continue
+    AnalysisIgnoreService.getInstance(project).rememberDefaultLines(ignoreFile, lines)
+  }
   val remaining = ArrayList<AnalysisIgnoreExclusion>()
   for (exclusion in exclusions) {
     val ignoreFile = exclusion.ignoreFile ?: continue
@@ -72,14 +88,15 @@ private fun cancelExclusion(project: Project, fileOrDir: VirtualFile, exclusions
     }
   }
   val responsible = remaining.firstOrNull() ?: return
-  ApplicationManager.getApplication().invokeLater({ showResponsibleLine(project, fileOrDir, responsible) }, project.disposed)
+  ApplicationManager.getApplication().invokeLater({ showResponsibleLine(project, responsible) }, project.disposed)
 }
 
 /**
- * Opens the `.analysisignore` file of [exclusion] with its line selected, and tells in a balloon why [fileOrDir] stays excluded.
+ * Opens the `.analysisignore` file of [exclusion] with its line selected. A balloon then tells the user to edit or remove that line to
+ * cancel the exclusion.
  */
 @RequiresEdt
-private fun showResponsibleLine(project: Project, fileOrDir: VirtualFile, exclusion: AnalysisIgnoreExclusion) {
+private fun showResponsibleLine(project: Project, exclusion: AnalysisIgnoreExclusion) {
   val ignoreFile = exclusion.ignoreFile ?: return
   val source = exclusion.pattern.source
   val document = FileDocumentManager.getInstance().getDocument(ignoreFile)
@@ -95,7 +112,7 @@ private fun showResponsibleLine(project: Project, fileOrDir: VirtualFile, exclus
   NotificationGroupManager.getInstance().getNotificationGroup(NOTIFICATION_GROUP_ID)
     .createNotification(
       LangBundle.message("analysis.ignore.notification.excluded.by.line.title", ANALYSIS_IGNORE_FILE_NAME),
-      LangBundle.message("analysis.ignore.notification.excluded.by.line.content", fileOrDir.name, source, ignoreFile.presentableUrl),
+      LangBundle.message("analysis.ignore.notification.excluded.by.line.content"),
       NotificationType.INFORMATION,
     )
     .notify(project)

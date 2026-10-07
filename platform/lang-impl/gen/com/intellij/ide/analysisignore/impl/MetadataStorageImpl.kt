@@ -15,6 +15,18 @@ internal object MetadataStorageImpl : MetadataStorageBase() {
     val primitiveTypeStringNotNullable = ValueTypeMetadata.SimpleType.PrimitiveType(isNullable = false, type = "String")
     val primitiveTypeListNotNullable = ValueTypeMetadata.SimpleType.PrimitiveType(isNullable = false, type = "List")
     var typeMetadata: StorageTypeMetadata
+    typeMetadata = FinalClassMetadata.ObjectMetadata(fqName = "com.intellij.ide.analysisignore.AnalysisIgnoreDefaultEntitySource",
+                                                     properties = listOf(OwnPropertyMetadata(isComputable = false,
+                                                                                             isKey = false,
+                                                                                             isOpen = false,
+                                                                                             name = "virtualFileUrl",
+                                                                                             valueType = ValueTypeMetadata.SimpleType.CustomType(
+                                                                                               isNullable = true,
+                                                                                               typeMetadata = FinalClassMetadata.KnownClass(
+                                                                                                 fqName = "com.intellij.platform.workspace.storage.url.VirtualFileUrl")),
+                                                                                             withDefault = false)),
+                                                     supertypes = listOf("com.intellij.platform.workspace.storage.EntitySource"))
+    addMetadata(typeMetadata)
     typeMetadata = FinalClassMetadata.ObjectMetadata(fqName = "com.intellij.ide.analysisignore.AnalysisIgnoreEntitySource",
                                                      properties = listOf(OwnPropertyMetadata(isComputable = false,
                                                                                              isKey = false,
@@ -98,7 +110,8 @@ internal object MetadataStorageImpl : MetadataStorageBase() {
   override fun initializeMetadataHash() {
     addMetadataHash(typeFqn = "com.intellij.ide.analysisignore.AnalysisIgnoreEntity", metadataHash = -947811108)
     addMetadataHash(typeFqn = "com.intellij.ide.scratch.workspace.ScratchRootsEntity", metadataHash = 103732653)
-    addMetadataHash(typeFqn = "com.intellij.platform.workspace.storage.EntitySource", metadataHash = -1581626506)
+    addMetadataHash(typeFqn = "com.intellij.platform.workspace.storage.EntitySource", metadataHash = -653140441)
+    addMetadataHash(typeFqn = "com.intellij.ide.analysisignore.AnalysisIgnoreDefaultEntitySource", metadataHash = 1749421053)
     addMetadataHash(typeFqn = "com.intellij.ide.analysisignore.AnalysisIgnoreEntitySource", metadataHash = -1380112140)
     addMetadataHash(typeFqn = "com.intellij.ide.scratch.workspace.ScratchRootsEntitySource", metadataHash = 750435212)
   }

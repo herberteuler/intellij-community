@@ -35,7 +35,11 @@ fun collectAnalysisIgnoreVfsChanges(events: List<VFileEvent>): AnalysisIgnoreVfs
   for (event in events) {
     when (event) {
       is VFileCreateEvent -> {
-        if (event.childName == ANALYSIS_IGNORE_FILE_NAME) changes.readEvents.add(event)
+        if (event.childName == ANALYSIS_IGNORE_FILE_NAME && !event.isDirectory) {
+          changes.readEvents.add(event)
+          // A file that appears on disk, as from a checkout, stays as it is: an empty file there turns off the defaults on purpose.
+          if (!event.isFromRefresh) changes.createEvents.add(event)
+        }
       }
       is VFileCopyEvent -> {
         if (event.newChildName == ANALYSIS_IGNORE_FILE_NAME) changes.readEvents.add(event)
@@ -67,6 +71,12 @@ class AnalysisIgnoreVfsChanges {
   val forgetSubtreeUrls: MutableList<String> = SmartList()
   val readEvents: MutableList<VFileEvent> = SmartList()
 
+  /**
+   * The events that create a file in the IDE, as New File does. A new empty file gets the
+   * [default lines][AnalysisIgnoreService.scheduleChanges].
+   */
+  val createEvents: MutableList<VFileCreateEvent> = SmartList()
+
   fun isEmpty(): Boolean = forgetBaseDirUrls.isEmpty() && forgetSubtreeUrls.isEmpty() && readEvents.isEmpty()
 
   fun applyTo(service: AnalysisIgnoreService) {
@@ -74,6 +84,7 @@ class AnalysisIgnoreVfsChanges {
       files = readEvents.mapNotNull { it.file },
       baseDirUrls = forgetBaseDirUrls,
       subtreeUrls = forgetSubtreeUrls,
+      createdFiles = createEvents.mapNotNull { it.file },
     )
   }
 

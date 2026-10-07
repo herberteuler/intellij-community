@@ -8,7 +8,6 @@ import com.intellij.internal.statistic.service.fus.collectors.ProjectUsagesColle
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.platform.backend.workspace.WorkspaceModel
-import com.intellij.platform.workspace.storage.entities
 import org.jetbrains.annotations.ApiStatus
 
 /**
@@ -28,7 +27,7 @@ class AnalysisIgnoreUsagesCollector : ProjectUsagesCollector() {
     return buildSet {
       add(featureEnabled.metric(enabled))
       if (enabled) {
-        val count = WorkspaceModel.getInstance(project).currentSnapshot.entities<AnalysisIgnoreEntity>().count()
+        val count = WorkspaceModel.getInstance(project).currentSnapshot.fileEntities().count { it.patterns.isNotEmpty() }
         add(filesFound.metric(count))
       }
     }

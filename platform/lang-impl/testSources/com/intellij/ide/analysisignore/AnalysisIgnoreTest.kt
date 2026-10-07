@@ -1122,8 +1122,8 @@ class AnalysisIgnoreTest {
     setEditorText(excludeFile, "")
     discover(excludeFile)
 
-    // A file that gives no pattern leaves no entity, and the entity from before it must not stay.
-    assertEquals(emptyMap<String, List<String>>(), patternsByFile())
+    // A file that gives no pattern keeps an entity without patterns, so that its root takes no defaults.
+    assertEquals(mapOf(projectRoot.url to emptyList<String>()), patternsByFile())
     assertTrue(isInContent(buildDir))
   }
 

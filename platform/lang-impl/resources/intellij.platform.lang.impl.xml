@@ -866,7 +866,10 @@
 
     <registryKey key="ide.analysisignore.file.enabled" defaultValue="true" restartRequired="true"
                  description="Enable the '.analysisignore' file: a list of files and directories excluded from the IDE analysis."/>
+    <registryKey key="ide.analysisignore.defaults.enabled" defaultValue="false" restartRequired="true"
+                 description="Exclude the default names, as 'node_modules' and '.venv', from a project root without a '.analysisignore' file."/>
     <workspaceModel.fileIndexContributor implementation="com.intellij.ide.analysisignore.AnalysisIgnoreWorkspaceFileIndexContributor"/>
+    <postStartupActivity implementation="com.intellij.ide.analysisignore.AnalysisIgnoreStartupActivity"/>
     <projectFileScanner implementation="com.intellij.ide.analysisignore.AnalysisIgnoreIndexableFileScanner"/>
     <vfs.asyncListenerBackgroundable implementation="com.intellij.ide.analysisignore.AnalysisIgnoreVfsListener"/>
     <editorFactoryDocumentListener implementation="com.intellij.ide.analysisignore.AnalysisIgnoreDocumentListener"/>
@@ -878,6 +881,7 @@
                                    implementationClass="com.intellij.ide.analysisignore.lang.AnalysisIgnoreSyntaxHighlighterFactory"/>
     <lang.commenter language="AnalysisIgnore" implementationClass="com.intellij.ide.analysisignore.lang.AnalysisIgnoreCommenter"/>
     <editorNotificationProvider implementation="com.intellij.ide.analysisignore.AnalysisIgnoreEditorNotificationProvider"/>
+    <editorNotificationProvider implementation="com.intellij.ide.analysisignore.AnalysisIgnoreDefaultLinesNotificationProvider"/>
     <statistics.projectUsagesCollector implementation="com.intellij.ide.analysisignore.AnalysisIgnoreUsagesCollector"/>
     <workspaceModel.optionalExclusionContributor implementation="com.intellij.ide.analysisignore.AnalysisIgnoreExclusionContributor"
                                                  order="last"/>

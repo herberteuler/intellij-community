@@ -48,7 +48,7 @@ class AnalysisIgnoreUsagesCollectorTest {
     val metrics = collect()
 
     assertEquals(true, metrics.dataOf("feature.enabled")["enabled"])
-    // The file with the comment only has no pattern, and thus no entity, and thus it is not counted.
+    // The file with the comment only has no pattern, and thus it is not counted.
     assertEquals(2, metrics.dataOf("files.found")["count"])
   }
 

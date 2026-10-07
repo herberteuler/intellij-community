@@ -25,7 +25,8 @@ import java.io.IOException
 object AnalysisIgnoreFileWriter {
 
   /**
-   * Returns the directory whose `.analysisignore` file takes the line for [fileOrDir].
+   * Returns the directory whose `.analysisignore` file takes the line for [fileOrDir]: the nearest directory with a file, or else the
+   * content root.
    */
   fun targetBaseDirOf(project: Project, fileOrDir: VirtualFile): VirtualFile? = runReadAction {
     val fileIndex = ProjectFileIndex.getInstance(project)
@@ -54,24 +55,76 @@ object AnalysisIgnoreFileWriter {
   }
 
   /**
-   * Adds [line] to the `.analysisignore` file of [baseDir], and creates that file when there is none. Returns the file, or `null` when
-   * the file system refuses.
+   * Adds [line] to the `.analysisignore` file of [baseDir]. Creates that file when there is none. In a new file, the
+   * [default exclusions][AnalysisIgnoreDefaults.linesOfNewFileIn] come before [line], so that the file states every exclusion of its
+   * directory, and the editor banner of the file tells the user. A file that exists gets [line] alone. Returns the file, or `null` when the
+   * file system refuses.
    */
   @RequiresEdt
   fun appendLine(project: Project, baseDir: VirtualFile, line: String): VirtualFile? {
+    val defaultLines =
+      if (baseDir.analysisIgnoreFile() == null) AnalysisIgnoreDefaults.linesOfNewFileIn(project, baseDir) - line else emptyList()
     var ignoreFile: VirtualFile? = null
+    var writtenDefaultLines = emptyList<String>()
     runCommand(project, LangBundle.message("analysis.ignore.command.exclude", ANALYSIS_IGNORE_FILE_NAME)) {
-      val file = baseDir.analysisIgnoreFile() ?: createIgnoreFile(baseDir) ?: return@runCommand
+      val existingFile = baseDir.analysisIgnoreFile()
+      val file = existingFile ?: createIgnoreFile(baseDir) ?: return@runCommand
       val document = FileDocumentManager.getInstance().getDocument(file) ?: return@runCommand
+      if (existingFile == null) writtenDefaultLines = defaultLines
+      val lines = writtenDefaultLines + line
       if (document.textLength > 0 && document.charsSequence[document.textLength - 1] != '\n') {
         document.insertString(document.textLength, "\n")
       }
-      document.insertString(document.textLength, line + "\n")
+      document.insertString(document.textLength, lines.joinToString(separator = "\n", postfix = "\n"))
+      AnalysisIgnoreService.getInstance(project).applyInWriteAction(file)
+      ignoreFile = file
+    }
+    ignoreFile?.let {
+      save(it)
+      AnalysisIgnoreService.getInstance(project).rememberDefaultLines(it, writtenDefaultLines)
+    }
+    return ignoreFile
+  }
+
+  /**
+   * Creates the `.analysisignore` file of [baseDir] with [lines]. Does nothing when [baseDir] has that file. Returns the new file, or
+   * `null` when the file system refuses.
+   */
+  @RequiresEdt
+  fun createFile(project: Project, baseDir: VirtualFile, lines: List<String>): VirtualFile? {
+    if (baseDir.analysisIgnoreFile() != null) return null
+    var ignoreFile: VirtualFile? = null
+    runCommand(project, LangBundle.message("analysis.ignore.command.cancel.exclusion", ANALYSIS_IGNORE_FILE_NAME)) {
+      val file = createIgnoreFile(baseDir) ?: return@runCommand
+      val document = FileDocumentManager.getInstance().getDocument(file) ?: return@runCommand
+      if (lines.isNotEmpty()) {
+        document.insertString(0, lines.joinToString(separator = "\n", postfix = "\n"))
+      }
       AnalysisIgnoreService.getInstance(project).applyInWriteAction(file)
       ignoreFile = file
     }
     ignoreFile?.let { save(it) }
     return ignoreFile
+  }
+
+  /**
+   * Writes [lines] into [ignoreFile] while the file is still empty. Returns `true` when the lines went in, and `false` when the file has
+   * text, as the user typed something first.
+   */
+  @RequiresEdt
+  fun fillEmptyFile(project: Project, ignoreFile: VirtualFile, lines: List<String>): Boolean {
+    if (lines.isEmpty()) return false
+    var filled = false
+    runCommand(project, LangBundle.message("analysis.ignore.command.add.default.lines", ANALYSIS_IGNORE_FILE_NAME)) {
+      if (!ignoreFile.isValid) return@runCommand
+      val document = FileDocumentManager.getInstance().getDocument(ignoreFile) ?: return@runCommand
+      if (document.textLength > 0) return@runCommand
+      document.insertString(0, lines.joinToString(separator = "\n", postfix = "\n"))
+      AnalysisIgnoreService.getInstance(project).applyInWriteAction(ignoreFile)
+      filled = true
+    }
+    if (filled) save(ignoreFile)
+    return filled
   }
 
   /**

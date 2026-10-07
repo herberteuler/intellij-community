@@ -8,7 +8,8 @@ import com.intellij.platform.workspace.storage.url.VirtualFileUrl
 import org.jetbrains.annotations.ApiStatus
 
 /**
- * One `.analysisignore` file in the Workspace Model.
+ * One `.analysisignore` file in the Workspace Model. An entity of [AnalysisIgnoreDefaultEntitySource] holds the defaults of a project
+ * root instead.
  */
 @ApiStatus.Internal
 interface AnalysisIgnoreEntity : WorkspaceEntity {
@@ -19,3 +20,10 @@ interface AnalysisIgnoreEntity : WorkspaceEntity {
 
 @ApiStatus.Internal
 object AnalysisIgnoreEntitySource : EntitySource
+
+/**
+ * The source of an entity without a `.analysisignore` file. A project root holds one such entity with the
+ * [default lines][AnalysisIgnoreDefaults.LINES] while no file is at or below it. The first such file removes the entity.
+ */
+@ApiStatus.Internal
+object AnalysisIgnoreDefaultEntitySource : EntitySource

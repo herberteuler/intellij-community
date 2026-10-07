@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.performanceTesting.freezes
 
 import com.intellij.diagnostic.FreezeNotifier
@@ -25,6 +25,7 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.util.text.HtmlChunk
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.EditorNotificationProvider
 import com.intellij.ui.EditorNotifications
@@ -121,13 +122,11 @@ internal class PluginFreezeNotificationPanel : EditorNotificationProvider {
   private fun reportFreeze(project: Project, pluginDescriptor: PluginDescriptor, freezeReason: FreezeReason, ijProject: Boolean) {
     if (reported.add(freezeReason)) {
       // must be added only once
-      MessagePool.getInstance().addErrorMessage(freezeReason.event).invokeOnCompletion {
-        openInErrorDialog(project, ijProject, freezeReason, pluginDescriptor)
+      runWithModalProgressBlocking(project, PluginFreezeBundle.message("action.report.progress")) {
+        MessagePool.getInstance().addErrorMessage(freezeReason.event)
       }
     }
-    else { // already added to pool
-      openInErrorDialog(project, ijProject, freezeReason, pluginDescriptor)
-    }
+    openInErrorDialog(project, ijProject, freezeReason, pluginDescriptor)
   }
 
   private fun openInErrorDialog(project: Project, ijProject: Boolean, freezeReason: FreezeReason, pluginDescriptor: PluginDescriptor) {

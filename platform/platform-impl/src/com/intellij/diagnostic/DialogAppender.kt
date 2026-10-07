@@ -122,6 +122,7 @@ class DialogAppender : Handler() {
       coroutineScope.coroutineContext.job.children.toList()
     }
     currentPendingJobs.joinAll()
+    MessagePool.getInstance().awaitPendingJobs()
   }
 
   override fun flush() { }

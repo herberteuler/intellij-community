@@ -6,7 +6,7 @@ load(
     _PluginVersionProvider = "PluginVersionProvider",
 )
 load("@rules_java//java/common:java_common.bzl", "java_common")
-load("@rules_jvm//:jvm.bzl", _jvm_platform_transition = "jvm_platform_transition", _scrubbed_host_platform_transition = "scrubbed_host_platform_transition")
+load("@rules_jvm//:jvm.bzl", _jvm_platform_transition = "jvm_platform_transition")
 load("@rules_kotlin//kotlin/internal:defs.bzl", _KtJvmInfo = "KtJvmInfo")
 load("//platform/build-scripts/bazel-rules:ij_plugin_module.bzl", _PluginModuleInfo = "PluginModuleInfo")
 load(":content_module_jar.bzl", _module_output_jar = "module_output_jar")
@@ -172,11 +172,13 @@ This rule is experimental, and its API may change. Do not migrate plugins to it 
 """,
     attrs = {
         "_packager": attr.label(
-            default = Label("//platform/build-scripts/bazel-rules/ij-plugin-packager:ij-plugin-packager_deploy.jar"),
+            default = Label("//platform/build-scripts/bazel-rules/ij-plugin-packager:ij-plugin-packager-scrubbed_host_tool"),
             allow_single_file = True,
-            # the deploy jar is platform-independent, so build it under a host-independent output directory to keep the
-            # `IjPluginPackaging` action key (and thus its remote cache entries) the same on Linux/macOS/Windows
-            cfg = _scrubbed_host_platform_transition,
+            # The exec edge builds the packager once per execution platform, free of the Starlark flags of the
+            # plugin's configuration (the ij-ide-build-settings flags differ per plugin fixture, and the packager does
+            # not read them). The target behind the edge applies the scrubbed host platform to the deploy jar, so the
+            # `IjPluginPackaging` action key, and thus its remote cache entries, is the same on Linux/macOS/Windows.
+            cfg = "exec",
         ),
         "_packager_jvm_flags": attr.label(
             default = Label("//platform/build-scripts/bazel-rules/ij-plugin-packager:ij-plugin-packager-jvm_flags"),

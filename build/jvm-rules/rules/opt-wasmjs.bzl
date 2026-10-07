@@ -1,6 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
-load("//:rules/impl/transitions.bzl", "scrubbed_host_platform_transition")
 
 visibility("private")
 
@@ -33,9 +32,11 @@ WASM_OPT_IMPLICIT_ATTRS = {
         cfg = "exec",
     ),
     "_wasm_opt_worker": attr.label(
-        default = "//wasm-opt-worker:wasm-opt-worker_deploy.jar",
+        # An exec edge to the scrubbed_host_tool wrapper of the deploy jar: the worker is built once per execution
+        # platform, under a host-independent output directory (see scrubbed_host_tool in //:jvm.bzl).
+        default = "//:wasm-opt-worker-scrubbed_host_tool",
         allow_single_file = True,
-        cfg = scrubbed_host_platform_transition,
+        cfg = "exec",
     ),
     "_wasm_opt_worker_jvm_flags": attr.label(
         default = "//wasm-opt-worker:wasm-opt-worker-jvm_flags",

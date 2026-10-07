@@ -552,7 +552,26 @@ label_flag(
 
 scrubbed_host_tool(
     name = "jvm-builder-scrubbed_host_tool",
+    # Reached through the exec edge of the compile rules only: a wildcard pattern must not build it at the top
+    # level, in the target configuration, which would add a second copy of the worker.
+    tags = ["manual"],
     tool = "//:jvm-builder",
+    visibility = ["//visibility:public"],
+)
+
+# The workers of the wasmjs rules, reached the same way through the exec edges of rules/library-wasmjs.bzl,
+# rules/binary-wasmjs.bzl and rules/opt-wasmjs.bzl.
+scrubbed_host_tool(
+    name = "kotlin-builder-wasmjs-scrubbed_host_tool",
+    tags = ["manual"],
+    tool = "//kotlin-builder-wasmjs:kotlin-builder-wasmjs_deploy.jar",
+    visibility = ["//visibility:public"],
+)
+
+scrubbed_host_tool(
+    name = "wasm-opt-worker-scrubbed_host_tool",
+    tags = ["manual"],
+    tool = "//wasm-opt-worker:wasm-opt-worker_deploy.jar",
     visibility = ["//visibility:public"],
 )
 

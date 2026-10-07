@@ -1,7 +1,7 @@
 load("//:rules/common-attrs.bzl", "add_dicts", "common_toolchains")
 load("//:rules/impl/compile-wasmjs.bzl", "KtWasmJsInfo", "merged_npm_packages", "wasmjs_link_action")
 load("//:rules/impl/kotlinc-options.bzl", "KotlincExtraOptionsInfo", "KotlincOptions")
-load("//:rules/impl/transitions.bzl", "jvm_platform_transition", "scrubbed_host_platform_transition")
+load("//:rules/impl/transitions.bzl", "jvm_platform_transition")
 load("//:rules/opt-wasmjs.bzl", "WASM_OPT_IMPLICIT_ATTRS", "wasm_opt_action")
 
 visibility("private")
@@ -102,9 +102,11 @@ wasmjs_binary = rule(
               the first place.""",
         ),
         "_wasmjs_builder": attr.label(
-            default = "//kotlin-builder-wasmjs:kotlin-builder-wasmjs_deploy.jar",
+            # An exec edge to the scrubbed_host_tool wrapper of the deploy jar: the worker is built once per execution
+            # platform, under a host-independent output directory (see scrubbed_host_tool in //:jvm.bzl).
+            default = "//:kotlin-builder-wasmjs-scrubbed_host_tool",
             allow_single_file = True,
-            cfg = scrubbed_host_platform_transition,
+            cfg = "exec",
         ),
         "_wasmjs_builder_jvm_flags": attr.label(
             default = "//kotlin-builder-wasmjs:kotlin-builder-wasmjs-jvm_flags",

@@ -231,6 +231,20 @@ common --@protobuf//bazel/toolchains:prefer_prebuilt_protoc=true
 # need to use Python from rules_python in rules_pkg in pkg_zip target
 common --@rules_python//python/config_settings:bootstrap_impl=script
 
+# Explicitly enumerate the flags, tool closures actually need.
+# A transition inside a tool closure that sets a flag needs that flag listed here too, or the closure cannot be built.
+# Without this allow-list, any new custom flag would be silently included in exec configuration, and, depending on the flag value,
+# would create additional distinct exec configuration.
+# As a result, the new copy of tools (rules_kotlin builder and the JPS worker) will be built.
+common --incompatible_exclude_starlark_flags_from_exec_config
+common --experimental_propagate_custom_flag=@protobuf//bazel/toolchains:prefer_prebuilt_protoc
+common --experimental_propagate_custom_flag=@rules_kotlin//kotlin/settings:jvm_emit_jdeps
+common --experimental_propagate_custom_flag=@rules_kotlin//kotlin/settings:experimental_prune_transitive_deps
+common --experimental_propagate_custom_flag=@rules_jvm//:default-javac-opts
+common --experimental_propagate_custom_flag=@rules_jvm//:default-kotlinc-opts
+common --experimental_propagate_custom_flag=@rules_python//python/config_settings:bootstrap_impl
+common --experimental_propagate_custom_flag=@rules_go//go/config:pure
+
 # Retry downloads up to 5 times.
 # Please note that this is not applicable to Coursier which requires its own configuration.
 common --experimental_repository_downloader_retries=5

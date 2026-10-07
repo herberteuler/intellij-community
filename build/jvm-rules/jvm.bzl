@@ -4,6 +4,7 @@ load(
     "//:rules/impl/transitions.bzl",
     _jvm_platform_transition = "jvm_platform_transition",
     _scrubbed_host_platform_transition = "scrubbed_host_platform_transition",
+    _scrubbed_host_tool = "scrubbed_host_tool",
 )
 load("//:rules/import.bzl", _jvm_import = "jvm_import")
 load("//:rules/library.bzl", _jvm_library = "jvm_library")
@@ -38,4 +39,11 @@ jvm_platform_transition = _jvm_platform_transition
 # `JvmCompile` in rules/impl/compile.bzl is the reference implementation. To verify, run
 # `bazel aquery --include_commandline "mnemonic(<Mnemonic>, <target>)"`: no path in the action's inputs or
 # arguments should mention the host platform, except the `java` executable that (3) scrubs.
+#
+# Apply the transition behind an exec edge, not on the attribute of the rule that runs the worker: wrap the deploy
+# jar in a `scrubbed_host_tool` target and name that target in an attribute with `cfg = "exec"`. The exec step
+# builds the worker once per execution platform, free of the Starlark flags of the configurations that use it; a
+# transition applied directly on the attribute keeps those flags, and the worker is then built once per
+# configuration that differs in a flag it does not read. `//:jvm-builder-scrubbed_host_tool` is the reference.
 scrubbed_host_platform_transition = _scrubbed_host_platform_transition
+scrubbed_host_tool = _scrubbed_host_tool

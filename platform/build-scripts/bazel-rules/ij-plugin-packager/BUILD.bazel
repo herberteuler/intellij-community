@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_list_flag")
 load("@rules_java//java:defs.bzl", "java_binary")
 load("@rules_jvm//:jvm-args.bzl", "get_jvm_flags")
+load("@rules_jvm//:jvm.bzl", "scrubbed_host_tool")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
 # The packager runs as a Bazel persistent worker: `ij_plugin.bzl` launches the `ij-plugin-packager_deploy.jar` implicit output of this
@@ -10,6 +11,18 @@ java_binary(
     main_class = "com.intellij.tools.build.bazel.ijPluginPackager.IjPluginPackager",
     visibility = ["//visibility:public"],
     runtime_deps = [":ij-plugin-packager-lib"],
+)
+
+# `ij_plugin.bzl` names this target in an attribute with `cfg = "exec"`: the packager is built once per execution
+# platform, not once per configuration of the plugins it packs, and the scrubbed host platform behind this target
+# gives the deploy jar a host-independent output directory (see `scrubbed_host_tool` in `@rules_jvm//:jvm.bzl`).
+scrubbed_host_tool(
+    name = "ij-plugin-packager-scrubbed_host_tool",
+    # Reached through the exec edge of ij_plugin only: a wildcard pattern must not build it at the top level, in the
+    # target configuration, which would add a second copy of the packager.
+    tags = ["manual"],
+    tool = ":ij-plugin-packager_deploy.jar",
+    visibility = ["//visibility:public"],
 )
 
 # JVM options for the packager worker process; shared with the other workers of `@rules_jvm` via `get_jvm_flags`.

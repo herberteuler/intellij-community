@@ -65,6 +65,11 @@ class GradleSyncOutputFailureTest(
       "The exact output is too unstable to assert reliably:" +
       " Gradle 4.8–5.x introduced Task Configuration Avoidance and a series of error-message reforms in a short window."
     }
+
+    // IDEA-394652: the sync hangs on Gradle below 7.0 and times out the whole test configuration.
+    Assumptions.assumeFalse(GradleVersionUtil.isGradleOlderThan(gradleVersion, "7.0")) {
+      "Gradle below 7.0 sync hangs, see IDEA-394652."
+    }
   }
 
   @Test

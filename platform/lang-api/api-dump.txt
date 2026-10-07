@@ -458,7 +458,8 @@ c:com.intellij.codeInspection.ui.InspectionOptionsPanel
 - addGrowing(java.awt.Component):V
 - s:getMinimumListSize():java.awt.Dimension
 f:com.intellij.codeInspection.ui.ListEditForm
-- getContentPanel():javax.swing.JComponent
+- b:<init>(java.lang.String,java.lang.String,java.util.List,java.lang.String,java.util.function.Function,I,kotlin.jvm.internal.DefaultConstructorMarker):V
+- f:getContentPanel():javax.swing.JComponent
 c:com.intellij.codeInspection.ui.ListTable
 - com.intellij.ui.table.JBTable
 - <init>(com.intellij.codeInspection.ui.ListWrappingTableModel):V

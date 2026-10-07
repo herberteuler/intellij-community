@@ -300,7 +300,8 @@ pub(crate) const CALL_END: &str = "\u{1e}\n";
 
 /// The record is staged in a file of this pid and appended by one `cat`, which writes it in one `write(2)`: the
 /// shell's `printf` flushes a long record in pieces, and two fakes spawned at once would interleave them. `printf`
-/// runs its format once even without arguments, so an empty argv is spelled out.
+/// runs its format once even without arguments, so an empty argv is spelled out. A call that cannot record itself
+/// names the call log on stderr and exits 125 before any verb. The script finds its directory without a child process.
 ///
 /// The relay runs under `/bin/bash`, because its `/dev/tcp` redirection opens the socket and no `nc` of the test
 /// host is needed. It ends like the guest relay: at the end of the socket, and not at the end of stdin. So the
@@ -310,7 +311,7 @@ pub(crate) const CALL_END: &str = "\u{1e}\n";
 /// that.
 #[cfg(unix)]
 const SCRIPT: &str = r#"#!/bin/sh
-dir=$(dirname "$0")
+case $0 in */*) dir=${0%/*} ;; *) dir=. ;; esac
 self=${0##*/}
 relay='exec 3<>"/dev/tcp/127.0.0.1/$1" || exit 70
 exec 4<&0
@@ -319,8 +320,8 @@ feeder=$!
 cat <&3
 kill "$feeder" 2>/dev/null
 exit 0'
-if [ $# -eq 0 ]; then printf '\036\n'; else printf '%s\037' "$@"; printf '\036\n'; fi > "$dir/.call-$$"
-cat "$dir/.call-$$" >> "$dir/calls.txt"
+{ if [ $# -eq 0 ]; then printf '\036\n'; else printf '%s\037' "$@"; printf '\036\n'; fi > "$dir/.call-$$" &&
+  cat "$dir/.call-$$" >> "$dir/calls.txt"; } || { echo "fake $self: cannot record the call in $dir/calls.txt" >&2; exit 125; }
 [ -f "$dir/killed-verb.txt" ] && [ "$1" = "$(cat "$dir/killed-verb.txt")" ] && kill -KILL $$
 [ -f "$dir/silent-verb.txt" ] && [ "$1" = "$(cat "$dir/silent-verb.txt")" ] && exit 0
 if [ "$self" = limactl ]; then

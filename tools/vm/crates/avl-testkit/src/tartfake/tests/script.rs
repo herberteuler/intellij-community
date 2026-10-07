@@ -275,15 +275,21 @@ fn the_call_log_keeps_every_argument_whole() {
 fn concurrent_calls_do_not_interleave() {
     let fake = Fake::install("2.33.0\n");
     let long = "x".repeat(16 * 1024);
-    std::thread::scope(|scope| {
-        for index in 0..8 {
+    let outputs: [Output; 8] = std::thread::scope(|scope| {
+        let calls: [_; 8] = std::array::from_fn(|index| {
             let fake = &fake;
             let long = &long;
-            scope.spawn(move || {
-                run(fake, &["exec", &index.to_string(), long]);
-            });
-        }
+            scope.spawn(move || run(fake, &["exec", &index.to_string(), long]))
+        });
+        calls.map(|call| call.join().unwrap())
     });
+    for (index, output) in outputs.iter().enumerate() {
+        assert_eq!(
+            (code(output), String::from_utf8_lossy(&output.stderr).into_owned()),
+            (0, String::new()),
+            "call {index}: {output:?}"
+        );
+    }
     let mut seen: Vec<String> = fake
         .argvs()
         .into_iter()

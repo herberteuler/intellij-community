@@ -42,6 +42,18 @@ class UnresolvedLinkLabelInspectionTest: BasePlatformTestCase() {
   }
 
   @Test
+  fun `test link label is not reported`() {
+    myFixture.addFileToProject("docs/test.kt", "")
+    listOf(
+      "[@test] docs/test.kt",
+      "A requirement uses [@test] docs/test.kt",
+      "- A requirement uses [@test] docs/test.kt",
+      "- A requirement\n  [@test] docs/test.kt",
+      "- A requirement\n  - A nested requirement\n    [@test] docs/test.kt",
+    ).forEach(::doTest)
+  }
+
+  @Test
   fun `test resolved label of collapsed reference link is not reported`() {
     doTest("""
       Here is a link to [Google][].

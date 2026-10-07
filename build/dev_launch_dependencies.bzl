@@ -461,26 +461,17 @@ def _dev_launch_deps_community_impl(module_ctx):
     )
 
     # downloadPyrefly - one archive per platform holds `<os>-<arch>/pyrefly`, and one archive holds the `license` tree.
-    # The Python community plugin layout copies files of the unpacked archives, so only `_extracted` is a plugin input.
+    # The Python community plugin layout copies files of the unpacked archives, so each archive is an extracted
+    # repository alone.
     pyrefly_build = pinned(community, _COMMUNITY_DEPENDENCIES, "pyreflyBuild")
-    pyrefly_license_url = pyrefly_url(None, pyrefly_build)
-    dev_launch_deps_repo(
-        name = "dev_launch_pyrefly_license",
-        urls = [pyrefly_license_url],
-    )
     dev_launch_extracted_repo(
         name = "dev_launch_pyrefly_license_extracted",
-        url = pyrefly_license_url,
+        url = pyrefly_url(None, pyrefly_build),
     )
     for platform in HOST_PLATFORMS:
-        url = pyrefly_url(platform, pyrefly_build)
-        dev_launch_deps_repo(
-            name = "dev_launch_%s_pyrefly" % platform,
-            urls = [url],
-        )
         dev_launch_extracted_repo(
             name = "dev_launch_%s_pyrefly_extracted" % platform,
-            url = url,
+            url = pyrefly_url(platform, pyrefly_build),
         )
 
     jcef_build = pinned(community, _COMMUNITY_DEPENDENCIES, "jcefBuild")

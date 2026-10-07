@@ -252,7 +252,7 @@ public final class QuickFixWrapper implements IntentionAction, PriorityAction, C
     return myFix.getRangesToHighlight(file.getProject(), myDescriptor);
   }
 
-  private static final class ModCommandQuickFixAction implements ModCommandAction, ReportingClassSubstitutor {
+  private static final class ModCommandQuickFixAction implements ModCommandAction, ReportingClassSubstitutor, PossiblyDumbAware {
     private final @NotNull ProblemDescriptor myDescriptor;
     private final @NotNull ModCommandQuickFix myFix;
     private final @Nullable ModCommandAction myUnwrappedAction;
@@ -332,6 +332,11 @@ public final class QuickFixWrapper implements IntentionAction, PriorityAction, C
     @Override
     public @NotNull Class<?> getSubstitutedClass() {
       return ReportingClassSubstitutor.getClassToReport(myFix);
+    }
+
+    @Override
+    public boolean isDumbAware() {
+      return DumbService.isDumbAware(myFix);
     }
 
     @Override

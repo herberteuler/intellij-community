@@ -9,11 +9,13 @@ import com.intellij.modcommand.ModCommand;
 import com.intellij.modcommand.ModCommandAction;
 import com.intellij.modcommand.ModCommandQuickFix;
 import com.intellij.openapi.diagnostic.ReportingClassSubstitutor;
+import com.intellij.openapi.project.DumbService;
+import com.intellij.openapi.project.PossiblyDumbAware;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
 /// Wraps [ModCommandAction] so old APIs can consume it as [LocalQuickFix].
-final class ModCommandActionQuickFixWrapper extends ModCommandQuickFix implements ReportingClassSubstitutor {
+final class ModCommandActionQuickFixWrapper extends ModCommandQuickFix implements ReportingClassSubstitutor, PossiblyDumbAware {
   private final ModCommandAction myAction;
 
   ModCommandActionQuickFixWrapper(@NotNull ModCommandAction action) {
@@ -47,6 +49,11 @@ final class ModCommandActionQuickFixWrapper extends ModCommandQuickFix implement
   @Override
   public @NotNull Class<?> getSubstitutedClass() {
     return ReportingClassSubstitutor.getClassToReport(myAction);
+  }
+
+  @Override
+  public boolean isDumbAware() {
+    return DumbService.isDumbAware(myAction);
   }
 
   @Override

@@ -59,7 +59,7 @@ class EditorSkeleton(
     add(renderer.component, BorderLayout.CENTER)
   }
 
-  fun startAnimation() {
+  internal fun startAnimation() {
     renderer.startRendering(cs, ::paintFrame)
   }
 

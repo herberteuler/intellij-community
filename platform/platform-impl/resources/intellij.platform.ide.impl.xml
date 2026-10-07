@@ -73,7 +73,6 @@
     <module name="intellij.platform.ide.core.impl"/>
     <module name="intellij.platform.ide.core.plugins"/>
     <module name="intellij.platform.ide.dnd"/>
-    <module name="intellij.platform.ide.editorSkeleton"/>
     <module name="intellij.platform.ide.json"/>
     <module name="intellij.platform.ide.observable"/>
     <module name="intellij.platform.ide.progress"/>

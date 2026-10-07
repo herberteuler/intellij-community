@@ -41,7 +41,6 @@
     <orderEntry type="module" module-name="intellij.platform.vfs.impl" exported="" />
     <orderEntry type="module" module-name="intellij.platform.ide.json" exported="" />
     <orderEntry type="module" module-name="intellij.platform.ide.dnd" exported="" />
-    <orderEntry type="module" module-name="intellij.platform.ide.editorSkeleton" exported="" />
     <orderEntry type="module" module-name="intellij.platform.icons" />
     <orderEntry type="module" module-name="intellij.platform.welcomeScreen" />
     <orderEntry type="module" module-name="intellij.platform.welcomeScreen.impl" />

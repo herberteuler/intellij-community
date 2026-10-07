@@ -107,6 +107,19 @@ exports_files(
     visibility = ["//tools/vm:__subpackages__"],
 )
 
+# The documents of the controller, whose `vm.cmd` example commands the contract test of the ultimate root parses
+# (`//plugins/air/tests/integration/vm-contract:examples-test`), so an example that the command line no longer takes
+# fails a test.
+filegroup(
+    name = "docs",
+    srcs = [
+        "AGENTS.md",
+        "README.md",
+        "provision/README.md",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # The cargo workspace, which `avl.MODULE.bazel` reads.
 exports_files([
     ".cargo/config.toml",

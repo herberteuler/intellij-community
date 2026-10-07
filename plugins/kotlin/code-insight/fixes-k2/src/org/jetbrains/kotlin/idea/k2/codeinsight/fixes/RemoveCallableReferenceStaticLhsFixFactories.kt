@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallableReferenceExpression
 import org.jetbrains.kotlin.psi.KtNullableType
 import org.jetbrains.kotlin.psi.KtTypeArgumentList
+import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.findDescendantOfType
 import org.jetbrains.kotlin.psi.psiUtil.getNextSiblingIgnoringWhitespaceAndComments
 import org.jetbrains.kotlin.psi.psiUtil.getNonStrictParentOfType
@@ -52,7 +53,7 @@ internal object RemoveCallableReferenceStaticLhsFixFactories {
             callableReference.questionMarkTokenAfterLhs()?.let {
                 RemoveCallableReferenceStaticLhsFix(it, KotlinBundle.message("text.remove.question"))
             },
-            lhs.findSelfOrDescendant<KtNullableType>()?.takeIf { it.innerType != null }?.let {
+            lhs.getLhsNullableType()?.takeIf { it.innerType != null }?.let {
                 RemoveCallableReferenceStaticLhsFix(it, KotlinBundle.message("text.remove.question"))
             },
             lhs.findSelfOrDescendant<KtTypeArgumentList>()?.let {
@@ -74,6 +75,14 @@ internal object RemoveCallableReferenceStaticLhsFixFactories {
     private fun PsiElement.questionMarkTokenBeforeCallableReference(): PsiElement? {
         val questionMark = getNextSiblingIgnoringWhitespaceAndComments()?.takeIf { it.node.elementType == KtTokens.QUEST } ?: return null
         return questionMark.takeIf { it.getNextSiblingIgnoringWhitespaceAndComments() is KtCallableReferenceExpression }
+    }
+
+    private fun PsiElement.getLhsNullableType(): KtNullableType? {
+        return when (this) {
+            is KtNullableType -> this
+            is KtTypeReference -> typeElement as? KtNullableType
+            else -> null
+        }
     }
 
     private inline fun <reified T : PsiElement> PsiElement.findSelfOrDescendant(): T? {

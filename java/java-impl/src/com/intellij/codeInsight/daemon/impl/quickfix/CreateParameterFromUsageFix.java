@@ -29,10 +29,13 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiIdentifier;
 import com.intellij.psi.PsiMember;
 import com.intellij.psi.PsiMethod;
+import com.intellij.psi.PsiMethodCallExpression;
 import com.intellij.psi.PsiParameterList;
 import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiSubstitutor;
 import com.intellij.psi.PsiType;
+import com.intellij.psi.SmartPointerManager;
+import com.intellij.psi.SmartPsiElementPointer;
 import com.intellij.psi.util.JavaElementKind;
 import com.intellij.psi.util.PsiFormatUtil;
 import com.intellij.psi.util.PsiFormatUtilBase;
@@ -52,33 +55,30 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-public class CreateParameterFromUsageFix extends CreateVarFromUsageFix {
+public class CreateParameterFromUsageFix extends CreateFromUsageBaseFix {
   private static final Logger LOG = Logger.getInstance(CreateParameterFromUsageFix.class);
+  protected final SmartPsiElementPointer<PsiReferenceExpression> myReferenceExpression;
 
   public CreateParameterFromUsageFix(PsiReferenceExpression referenceElement) {
-    super(referenceElement);
+    myReferenceExpression = SmartPointerManager.createPointer(referenceElement);
   }
 
   @Override
   protected boolean isAvailableImpl(int offset) {
-    if (!super.isAvailableImpl(offset)) return false;
     PsiReferenceExpression element = myReferenceExpression.getElement();
     if (element == null) return false;
+    String varName = element.getReferenceName();
+    String message = CommonQuickFixBundle.message("fix.create.title.x", JavaElementKind.PARAMETER.object(), varName);
+    setText(message);
     if (element.isQualified()) return false;
     PsiElement scope = element;
     do {
       scope = PsiTreeUtil.getParentOfType(scope, PsiMethod.class, PsiClass.class);
       if (!(scope instanceof PsiAnonymousClass)) {
-        return scope instanceof PsiMethod &&
-               ((PsiMethod)scope).getParameterList().isPhysical();
+        return scope instanceof PsiMethod method && method.getParameterList().isPhysical();
       }
     }
     while (true);
-  }
-
-  @Override
-  public String getText(String varName) {
-    return CommonQuickFixBundle.message("fix.create.title.x", JavaElementKind.PARAMETER.object(), varName);
   }
 
   @Override
@@ -150,6 +150,31 @@ public class CreateParameterFromUsageFix extends CreateVarFromUsageFix {
     });
   }
 
+  @Override
+  protected boolean isValidElement(PsiElement element) {
+    PsiReferenceExpression expression = (PsiReferenceExpression)element;
+    return CreateFromUsageUtils.isValidReference(expression, false);
+  }
+
+  @Override
+  protected PsiElement getElement() {
+    PsiReferenceExpression element = myReferenceExpression.getElement();
+    if (element == null) return null;
+    if (!element.isValid() || !canModify(element)) return null;
+
+    PsiElement parent = element.getParent();
+
+    if (parent instanceof PsiMethodCallExpression) return null;
+
+    if (element.getReferenceNameElement() != null) {
+      if (!CreateFromUsageUtils.isValidReference(element, false)) {
+        return element;
+      }
+    }
+
+    return null;
+  }
+
   private static void chooseEnclosingMethod(Editor editor, PsiMethod method, Consumer<PsiMethod> consumer) {
     final List<PsiMethod> validEnclosingMethods = CommonJavaRefactoringUtil.getEnclosingMethods(method);
     if (validEnclosingMethods.size() > 1 && !ApplicationManager.getApplication().isUnitTestMode()) {
@@ -192,7 +217,7 @@ public class CreateParameterFromUsageFix extends CreateVarFromUsageFix {
       builder.createPopup().showInBestPositionFor(editor);
     }
     else {
-      consumer.consume(validEnclosingMethods.get(0));
+      consumer.consume(validEnclosingMethods.getFirst());
     }
   }
 

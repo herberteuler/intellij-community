@@ -23,6 +23,7 @@ import com.intellij.openapi.application.impl.InternalUICustomization
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.fileEditor.CompositeTabIconHolderCreator
+import com.intellij.openapi.fileEditor.FileEditorManagerKeys
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.options.advanced.AdvancedSettings
 import com.intellij.openapi.project.Project
@@ -60,6 +61,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.ApiStatus.Internal
+import org.jetbrains.annotations.TestOnly
 import java.awt.Color
 import java.awt.Component
 import java.awt.Container
@@ -79,6 +81,10 @@ class EditorWindow internal constructor(
   val owner: EditorsSplitters,
   @JvmField internal val coroutineScope: CoroutineScope,
 ) {
+  @Internal
+  @TestOnly
+  constructor(manager: FileEditorManagerImpl, coroutineScope: CoroutineScope) : this(owner = manager.mainSplitters, coroutineScope = coroutineScope)
+
   @Internal
   companion object {
     @JvmField
@@ -345,7 +351,9 @@ class EditorWindow internal constructor(
           indexToInsert = composites().indexOfLast { it.isPreview }
         }
         if (indexToInsert == -1) {
-          indexToInsert = if (UISettings.getInstance().openTabsAtTheEnd) tabbedPane.tabCount else tabbedPane.selectedIndex + 1
+          val editorTabs = tabbedPane.tabs as? EditorTabs
+          indexToInsert = editorTabs?.getPreferredInsertionIndex(file, tabbedPane.selectedIndex, options.pin)
+                          ?: if (UISettings.getInstance().openTabsAtTheEnd) tabbedPane.tabCount else tabbedPane.selectedIndex + 1
         }
       }
 
@@ -962,6 +970,7 @@ class EditorWindow internal constructor(
       owner.manager.project.messageBus.syncPublisher(FileEditorManagerListener.FILE_EDITOR_MANAGER)
         .filePinStateChanged(owner.manager, composite.file)
       (tabbedPane.tabs as? JBTabsImpl)?.doLayout()
+      (tabbedPane.tabs as? EditorTabs)?.tabsChanged()
     }
   }
 
@@ -1118,12 +1127,12 @@ class EditorWindow internal constructor(
 private fun shouldReservePreview(file: VirtualFile, options: FileEditorOpenOptions, project: Project): Boolean {
   return when {
     !UISettings.getInstance().openInPreviewTabIfPossible -> false
-    FileEditorManagerImpl.FORBID_PREVIEW_TAB.get(file, false) -> false
+    FileEditorManagerKeys.FORBID_PREVIEW_TAB.get(file, false) -> false
     options.usePreviewTab -> true
     !options.selectAsCurrent || options.requestFocus -> false
     else -> {
       val focusOwner = IdeFocusManager.getInstance(project).focusOwner ?: return false
-      hasClientPropertyInHierarchy(focusOwner, FileEditorManagerImpl.OPEN_IN_PREVIEW_TAB)
+      hasClientPropertyInHierarchy(focusOwner, FileEditorManagerKeys.OPEN_IN_PREVIEW_TAB)
     }
   }
 }

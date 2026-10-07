@@ -1608,6 +1608,9 @@
       <module fileurl="file://$PROJECT_DIR$/platform/editor-ui-ex/intellij.platform.editor.ex.iml" filepath="$PROJECT_DIR$/platform/editor-ui-ex/intellij.platform.editor.ex.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/editor/frontend/intellij.platform.editor.frontend.iml" filepath="$PROJECT_DIR$/platform/editor/frontend/intellij.platform.editor.frontend.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/editor-ui-api/intellij.platform.editor.ui.iml" filepath="$PROJECT_DIR$/platform/editor-ui-api/intellij.platform.editor.ui.iml" />
+      <module fileurl="file://$PROJECT_DIR$/plugins/editor-tab-grouping/plugin/intellij.platform.editorTabGrouping.iml" filepath="$PROJECT_DIR$/plugins/editor-tab-grouping/plugin/intellij.platform.editorTabGrouping.iml" />
+      <module fileurl="file://$PROJECT_DIR$/plugins/editor-tab-grouping/intellij.platform.editorTabGrouping.impl.iml" filepath="$PROJECT_DIR$/plugins/editor-tab-grouping/intellij.platform.editorTabGrouping.impl.iml" />
+      <module fileurl="file://$PROJECT_DIR$/plugins/editor-tab-grouping/intellij.platform.editorTabGrouping.tests.iml" filepath="$PROJECT_DIR$/plugins/editor-tab-grouping/intellij.platform.editorTabGrouping.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/eel/intellij.platform.eel.iml" filepath="$PROJECT_DIR$/platform/eel/intellij.platform.eel.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/eel/intellij.platform.eel.codegen.iml" filepath="$PROJECT_DIR$/platform/eel/intellij.platform.eel.codegen.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/eel-impl/intellij.platform.eel.impl.iml" filepath="$PROJECT_DIR$/platform/eel-impl/intellij.platform.eel.impl.iml" />

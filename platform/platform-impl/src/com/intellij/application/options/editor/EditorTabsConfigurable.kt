@@ -161,4 +161,3 @@ internal class EditorTabsConfigurable : BoundCompositeSearchableConfigurable<Sea
       UISettings.getInstance().alwaysKeepTabsAlphabeticallySorted = false
     }
   }
-

@@ -782,6 +782,8 @@ jvm_library(
         "//plugins/terminal/tests:tests_test_lib",
         "//plugins/git4idea/terminal",
         "//plugins/git4idea/terminal:terminal_test_lib",
+        "//plugins/editor-tab-grouping:editorTabGrouping-tests",
+        "//plugins/editor-tab-grouping:editorTabGrouping-tests_test_lib",
         "//platform/instanceContainer:instanceContainer-tests",
         "//platform/instanceContainer:instanceContainer-tests_test_lib",
         "//platform/polySymbols:polySymbols-tests",

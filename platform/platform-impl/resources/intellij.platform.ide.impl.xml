@@ -437,6 +437,7 @@
                     interface="com.intellij.ide.plugins.PluginCategoryPromotionProvider"
                     dynamic="false"/>
     <extensionPoint qualifiedName="com.intellij.openAnotherToolHandler" interface="com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.OpenAnotherToolHandler" dynamic="true"/>
+    <extensionPoint qualifiedName="com.intellij.editorTabsFactory" interface="com.intellij.openapi.fileEditor.impl.EditorTabsFactory" dynamic="false"/>
     <extensionPoint dynamic="true" qualifiedName="com.intellij.editorTabsConfigurable" beanClass="com.intellij.application.options.editor.EditorTabsConfigurableEP">
       <with attribute="instance" implements="com.intellij.openapi.options.UnnamedConfigurable" />
     </extensionPoint>

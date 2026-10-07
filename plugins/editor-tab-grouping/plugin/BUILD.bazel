@@ -1,0 +1,51 @@
+load("@jps_dynamic_deps_community//:targets.bzl", "dev_dist_plugin")
+load("@rules_jvm//:jvm.bzl", "jvm_library")
+
+### auto-generated section `dev intellij.platform.editorTabGrouping` start
+dev_dist_plugin(
+    content_modules = ["intellij.platform.editorTabGrouping.impl"],
+    descriptor = "resources/META-INF/plugin.xml",
+    jars = {
+        "lib/platform-editorTabGrouping.jar": ["intellij.platform.editorTabGrouping"],
+    },
+    main_module = "intellij.platform.editorTabGrouping",
+)
+### auto-generated section `dev intellij.platform.editorTabGrouping` end
+
+### auto-generated section `build intellij.platform.editorTabGrouping` start
+jvm_library(
+    name = "editorTabGrouping",
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.platform.editorTabGrouping",
+    resource_strip_prefix = "resources",
+    resources = glob(
+        ["resources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
+jvm_library(
+    name = "editorTabGrouping_test_lib",
+    testonly = True,
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.platform.editorTabGrouping",
+    visibility = ["//visibility:public"],
+    runtime_deps = [":editorTabGrouping"],
+)
+### auto-generated section `build intellij.platform.editorTabGrouping` end
+
+### auto-generated section `iml intellij.platform.editorTabGrouping` start
+exports_files(
+    [
+        "intellij.platform.editorTabGrouping.iml",
+        "resources/META-INF/plugin.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.platform.editorTabGrouping` end

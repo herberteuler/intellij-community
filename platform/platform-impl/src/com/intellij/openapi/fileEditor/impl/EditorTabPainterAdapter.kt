@@ -22,7 +22,9 @@ internal class EditorTabPainterAdapter : TabPainterAdapter {
     val isSelected = info == tabs.selectedInfo
     val isHovered = tabs.isHoveredOrWithPopup(label)
 
-    val rect = Rectangle(0, 0, label.width, label.height)
+    // A tab extension can reserve space above the tab content.
+    val additionalHeight = (tabs as? EditorTabs)?.additionalTabLabelHeight(label.info) ?: 0
+    val rect = Rectangle(0, additionalHeight, label.width, (label.height - additionalHeight).coerceAtLeast(0))
 
     val g2d = g as Graphics2D
     if (isSelected) {

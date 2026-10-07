@@ -107,6 +107,7 @@ public class DragHelper extends MouseDragHelper<JBTabsImpl> {
     finally {
       disableSortingIfNeed(event, wasSorted);
       myDragOutSource = null;
+      tabs.onDragStateChanged(false);
     }
   }
 
@@ -149,8 +150,13 @@ public class DragHelper extends MouseDragHelper<JBTabsImpl> {
 
   @Override
   protected void processDragOutCancel() {
-    myDragOutSource.getDragOutDelegate().dragOutCancelled(myDragOutSource);
-    myDragOutSource = null;
+    try {
+      myDragOutSource.getDragOutDelegate().dragOutCancelled(myDragOutSource);
+    }
+    finally {
+      myDragOutSource = null;
+      tabs.onDragStateChanged(false);
+    }
   }
 
   @Override
@@ -177,6 +183,7 @@ public class DragHelper extends MouseDragHelper<JBTabsImpl> {
 
       myHoldDelta = new Dimension(startPointScreen.x - labelBounds.x, startPointScreen.y - labelBounds.y);
       dragSource = pressedTabLabel.getInfo();
+      tabs.onDragStateChanged(true);
       dragRec = new Rectangle(startPointScreen, labelBounds.getSize());
       dragOriginalRec = (Rectangle)dragRec.clone();
 
@@ -225,13 +232,15 @@ public class DragHelper extends MouseDragHelper<JBTabsImpl> {
       }
     }
 
-    if (targetLabel != null) {
+    boolean reallocated = false;
+    if (targetLabel != null && tabs.canReallocateTo(dragSource, targetLabel.getInfo())) {
       Rectangle saved = dragRec;
       dragRec = null;
       tabs.reallocate(dragSource, targetLabel.getInfo());
       dragOriginalRec = Objects.requireNonNull(tabs.getTabLabel(dragSource)).getBounds();
       dragRec = saved;
       tabs.moveDraggedTabLabel();
+      reallocated = true;
     }
     else {
       tabs.moveDraggedTabLabel();
@@ -242,7 +251,14 @@ public class DragHelper extends MouseDragHelper<JBTabsImpl> {
       headerRec.height += border * 2;
       tabs.repaint(headerRec);
     }
-    event.consume();
+    if (shouldConsumeDragEventAfterReallocateAttempt(targetLabel == null ? null : targetLabel.getInfo(), reallocated)) {
+      event.consume();
+    }
+  }
+
+  @ApiStatus.Internal
+  public static boolean shouldConsumeDragEventAfterReallocateAttempt(@Nullable TabInfo targetInfo, boolean reallocated) {
+    return targetInfo == null || reallocated;
   }
 
   private boolean isDragSource(MouseEvent event) {
@@ -356,6 +372,7 @@ public class DragHelper extends MouseDragHelper<JBTabsImpl> {
 
     dragSource = null;
     dragRec = null;
+    if (!willDragOutStart) tabs.onDragStateChanged(false);
   }
 
   @Override

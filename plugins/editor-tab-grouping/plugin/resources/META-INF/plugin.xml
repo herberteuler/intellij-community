@@ -1,0 +1,19 @@
+<idea-plugin>
+  <id>intellij.editorTabGrouping</id>
+  <name>Editor Tab Grouping</name>
+  <description><![CDATA[
+    <p>Groups the editor tabs by directory to bring order to a crowded tab row.</p>
+    <h3>Features</h3>
+    <ul>
+      <li>Keeps the tabs of files from the same directory together. Each group has a color, so you can find it at a glance.</li>
+      <li>Collects the agent tabs in a separate <b>Agents</b> group, so they do not mix with your files.</li>
+    </ul>
+    <h3>Getting started</h3>
+    <p>The grouping is on by default. Configure in <b>Settings | Editor | General | Editor Tabs</b></p>
+  ]]></description>
+  <vendor>JetBrains</vendor>
+
+  <content namespace="jetbrains">
+    <module name="intellij.platform.editorTabGrouping.impl" loading="required"/>
+  </content>
+</idea-plugin>

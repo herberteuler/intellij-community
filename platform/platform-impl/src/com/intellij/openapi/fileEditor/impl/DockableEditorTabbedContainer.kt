@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import org.intellij.lang.annotations.MagicConstant
 import org.jdom.Element
 import org.jetbrains.annotations.ApiStatus.Internal
+import org.jetbrains.annotations.TestOnly
 import java.awt.Component
 import java.awt.Graphics2D
 import java.awt.Image
@@ -277,8 +278,12 @@ class DockableEditorTabbedContainer internal constructor(
     if (currentOver == null && current != null) {
       currentOver = current
       val presentation = content.presentation
-      currentOverInfo = TabInfo(JLabel("")).setText(presentation.text).setIcon(presentation.icon)
-      currentOverImg = currentOver!!.startDropOver(currentOverInfo, point)
+      val dropInfo = TabInfo(JLabel("")).setText(presentation.text).setIcon(presentation.icon)
+      currentOverInfo = dropInfo
+      if (current is EditorTabs && content is DockableEditor) {
+        current.prepareDropPreview(dropInfo = dropInfo, file = content.file, isPinned = content.isPinned)
+      }
+      currentOverImg = current.startDropOver(dropInfo, point)
     }
 
     currentOver?.processDropOver(currentOverInfo, point)
@@ -311,6 +316,13 @@ class DockableEditorTabbedContainer internal constructor(
       glassPaneListenerDisposable?.dispose()
       currentPainter = null
     }
+  }
+
+  /** Sets the drop target without the glass pane painter that [processDropOver] needs. */
+  @TestOnly
+  internal fun setDropTarget(tabs: JBTabs, dropInfo: TabInfo) {
+    currentOver = tabs
+    currentOverInfo = dropInfo
   }
 
   override fun getContainerComponent(): JComponent = splitters

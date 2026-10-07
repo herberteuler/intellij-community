@@ -107,6 +107,7 @@ intellij.platform.diagnostic.telemetry.rt.tests
 intellij.platform.diagnostic.telemetry.tests
 intellij.platform.diff.tests
 intellij.platform.discoverability.tests
+intellij.platform.editorTabGrouping.tests
 intellij.platform.eel.tests
 intellij.platform.execution.tests
 intellij.platform.experiment.tests

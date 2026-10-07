@@ -3,6 +3,7 @@ package com.intellij.openapi.application.impl.islands
 
 import com.intellij.ide.ui.UISettings
 import com.intellij.openapi.fileEditor.impl.EditorTabPainterAdapter
+import com.intellij.openapi.fileEditor.impl.EditorTabs
 import com.intellij.openapi.rd.paint2DLine
 import com.intellij.ui.ColorUtil
 import com.intellij.ui.JBColor
@@ -52,7 +53,10 @@ internal class IslandsTabPainterAdapter(isDefault: Boolean, debugger: Boolean, v
     val hovered = tabs.isHoveredOrWithPopup(label)
 
     val tabLabelWidth = calcTabLabelWidth(label)
-    val rect = Rectangle(tabLabelWidth, label.height)
+    // A tab extension can reserve space above the tab content.
+    val additionalHeight = (tabs as? EditorTabs)?.additionalTabLabelHeight(label.info) ?: 0
+    val rect = Rectangle(0, additionalHeight, tabLabelWidth, (label.height - additionalHeight).coerceAtLeast(0))
+
     g.useCopy { g2 ->
       GraphicsUtil.setupAAPainting(g2)
 

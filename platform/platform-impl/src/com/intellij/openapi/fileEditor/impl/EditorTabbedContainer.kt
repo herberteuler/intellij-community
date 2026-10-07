@@ -39,6 +39,7 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.FileDropManager
 import com.intellij.openapi.editor.containsFileDropTargets
 import com.intellij.openapi.editor.markup.TextAttributes
+import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
@@ -104,6 +105,7 @@ import org.jetbrains.annotations.ApiStatus.Internal
 import java.awt.AWTEvent
 import java.awt.AWTException
 import java.awt.Color
+import java.awt.Insets
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Image
@@ -133,7 +135,7 @@ class EditorTabbedContainer internal constructor(
 ) {
   @JvmField
   @Internal
-  val editorTabs: JBEditorTabs
+  val editorTabs: EditorTabs
   private val dragOutDelegate: DragOutDelegate
 
   init {
@@ -142,7 +144,9 @@ class EditorTabbedContainer internal constructor(
       Disposer.dispose(disposable)
     }
 
-    editorTabs = EditorTabs(coroutineScope = coroutineScope, parentDisposable = disposable, window = window)
+    val editorTabsFactory = EditorTabsFactory.EP_NAME.extensionList.firstOrNull()
+    editorTabs = editorTabsFactory?.create(coroutineScope, disposable, window)
+                 ?: EditorTabs(coroutineScope = coroutineScope, parentDisposable = disposable, window = window)
 
     dragOutDelegate = EditorTabbedContainerDragOutDelegate(window = window, editorTabs = editorTabs)
 
@@ -161,6 +165,7 @@ class EditorTabbedContainer internal constructor(
       }
     })
     editorTabs.component.isFocusable = false
+
     editorTabs.component.transferHandler = EditorTabbedContainerTransferHandler(window)
     editorTabs
       .setPopupGroup(
@@ -313,7 +318,7 @@ class EditorTabbedContainer internal constructor(
   }
 
   internal fun setTabs(tabs: List<TabInfo>) {
-    editorTabs.setTabs(tabs)
+    editorTabs.setTabsFromWindow(tabs)
     for (tab in tabs) {
       tab.setDragOutDelegate(dragOutDelegate)
     }
@@ -473,6 +478,26 @@ internal class EditorTabbedContainerDragOutDelegate(private val window: EditorWi
 
   override fun dragOutStarted(mouseEvent: MouseEvent, info: TabInfo) {
     val img = JBTabsImpl.getComponentImage(info)
+    val file = hideDragSource(info)
+    val presentation = Presentation(info.text)
+    presentation.icon = info.icon
+    val editors = info.composite.allEditors
+    val isSingletonEditorInWindow = isSingletonEditorInWindow(editors)
+    session = DockManager.getInstance(window.manager.project).createDragSession(
+      mouseEvent,
+      DockableEditor(
+        img = img,
+        file = file,
+        presentation = presentation,
+        preferredSize = window.size,
+        isPinned = window.isFilePinned(file = file),
+        isSingletonEditorInWindow = isSingletonEditorInWindow,
+        isNorthPanelAvailable = isNorthPanelAvailable(editors),
+      ),
+    )
+  }
+
+  internal fun hideDragSource(info: TabInfo): VirtualFile {
     val file = info.`object` as VirtualFile
 
     val dragStartIndex = editorTabs.getIndexOf(info)
@@ -490,22 +515,7 @@ internal class EditorTabbedContainerDragOutDelegate(private val window: EditorWi
     file.putUserData(DRAG_START_INDEX_KEY, dragStartIndex)
     file.putUserData(DRAG_START_LOCATION_HASH_KEY, System.identityHashCode(editorTabs))
     file.putUserData(DRAG_START_PINNED_KEY, isPinnedAtStart)
-    val presentation = Presentation(info.text)
-    presentation.icon = info.icon
-    val editors = info.composite.allEditors
-    val isSingletonEditorInWindow = isSingletonEditorInWindow(editors)
-    session = DockManager.getInstance(window.manager.project).createDragSession(
-      mouseEvent,
-      DockableEditor(
-        img = img,
-        file = file,
-        presentation = presentation,
-        preferredSize = window.size,
-        isPinned = window.isFilePinned(file = file),
-        isSingletonEditorInWindow = isSingletonEditorInWindow,
-        isNorthPanelAvailable = isNorthPanelAvailable(editors),
-      ),
-    )
+    return file
   }
 
   override fun processDragOut(event: MouseEvent, source: TabInfo) {
@@ -572,37 +582,85 @@ private class EditorTabbedContainerTransferHandler(private val window: EditorWin
 private const val EDITOR_TABS_TOOLBAR_ACTION_GROUP_ID: String = "EditorTabsToolbarActions"
 private const val EDITOR_TABS_ENTRY_POINT_ACTION_GROUP_ID: String = "EditorTabsEntryPoint"
 
-private class EditorTabs(
-  coroutineScope: CoroutineScope,
+@Internal
+interface EditorTabsFactory {
+  fun create(coroutineScope: CoroutineScope, parentDisposable: Disposable, window: EditorWindow): EditorTabs
+
+  companion object {
+    @Internal
+    @JvmField
+    val EP_NAME: ExtensionPointName<EditorTabsFactory> = ExtensionPointName("com.intellij.editorTabsFactory")
+  }
+}
+
+@Internal
+open class EditorTabs(
+  project: com.intellij.openapi.project.Project?,
   parentDisposable: Disposable,
-  private val window: EditorWindow,
+  coroutineScope: CoroutineScope,
+  tabListOptions: TabListOptions,
+  protected val window: EditorWindow,
 ) : JBEditorTabs(
-  project = window.manager.project,
+  project = project,
   parentDisposable = parentDisposable,
-  coroutineScope = window.coroutineScope,
-  tabListOptions = TabListOptions(
-    supportCompression = true,
-    singleRow = UISettings.getInstance().scrollTabLayoutInEditor,
-    requestFocusOnLastFocusedComponent = true,
-    isTabDraggingEnabled = true,
-    tabPosition = when (val tabPlacement = UISettings.getInstance().editorTabPlacement) {
-      SwingConstants.TOP -> JBTabsPosition.top
-      SwingConstants.BOTTOM -> JBTabsPosition.bottom
-      SwingConstants.LEFT -> JBTabsPosition.left
-      SwingConstants.RIGHT -> JBTabsPosition.right
-      UISettings.TABS_NONE -> JBTabsPosition.top
-      else -> {
-        logger<EditorTabs>().error("Unknown tab placement code=$tabPlacement")
-        JBTabsPosition.top
-      }
-    },
-    hideTabs = UISettings.getInstance().editorTabPlacement == UISettings.TABS_NONE,
-  ),
+  coroutineScope = coroutineScope,
+  tabListOptions = tabListOptions,
 ), ComponentWithMnemonics, EditorWindowHolder, CloseTarget {
+  constructor(coroutineScope: CoroutineScope, parentDisposable: Disposable, window: EditorWindow) : this(
+    project = window.manager.project,
+    parentDisposable = parentDisposable,
+    coroutineScope = coroutineScope,
+    tabListOptions = createEditorTabListOptions(),
+    window = window,
+  )
   private val _entryPointActionGroup: DefaultActionGroup
   private var isActive = false
 
+  /**
+   * `false` while the [JBEditorTabs] constructor runs, because that constructor calls [revalidateAndRepaint].
+   */
+  private var isInitialized = false
+
+  /**
+   * Sets the tabs of the [EditorWindow] that owns this component.
+   *
+   * A subclass can react to the new tab list, for example to rearrange the tabs.
+   */
+  open fun setTabsFromWindow(tabs: List<TabInfo>) {
+    setTabs(tabs)
+  }
+
+  /**
+   * Returns the index where the [EditorWindow] must insert the tab of [file], or `null` to use the default index.
+   */
+  open fun getPreferredInsertionIndex(file: VirtualFile, currentTabIndex: Int, isPinned: Boolean): Int? = null
+
+  /**
+   * Reports that the tab list of the [EditorWindow] changed.
+   */
+  open fun tabsChanged() {
+  }
+
+  /**
+   * Prepares the [dropInfo] tab that previews the drop of the [file] tab on this component.
+   *
+   * A subclass can copy the state of the dragged tab to the preview, for example to constrain the drop index.
+   */
+  open fun prepareDropPreview(dropInfo: TabInfo, file: VirtualFile, isPinned: Boolean) {
+  }
+
+  /**
+   * Returns the extra height, in scaled pixels, that this component needs above the tab row.
+   */
+  open fun additionalHeaderHeight(): Int = 0
+
+  /**
+   * Returns the extra height, in scaled pixels, that this component paints above the content of the [info] tab.
+   */
+  open fun additionalTabLabelHeight(info: TabInfo): Int = 0
+
   init {
+    isInitialized = true
     val listener = AWTEventListener { updateActive() }
     Toolkit.getDefaultToolkit().addAWTEventListener(listener, AWTEvent.FOCUS_EVENT_MASK)
     coroutineScope.coroutineContext.job.invokeOnCompletion {
@@ -623,7 +681,6 @@ private class EditorTabs(
         )
       }
     })
-
     val actionManager = ActionManager.getInstance()
     val toolbarActions = actionManager.getAction(EDITOR_TABS_TOOLBAR_ACTION_GROUP_ID)
     val source = actionManager.getAction(EDITOR_TABS_ENTRY_POINT_ACTION_GROUP_ID)
@@ -654,7 +711,17 @@ private class EditorTabs(
   override fun getEditorWindow(): EditorWindow = window
 
   @Internal
-  override fun minHeaderHeight(): Int = ToolWindowHeader.getUnscaledHeight()
+  override fun minHeaderHeight(): Int {
+    val baseHeight = ToolWindowHeader.getUnscaledHeight()
+    val additionalHeight = if (isHorizontalTabs) additionalHeaderHeight() else 0
+    if (additionalHeight <= 0) {
+      return baseHeight
+    }
+    // The New UI gives the tab label a negative top inset. `EditorTabLabel.getInsets` clamps it to 0
+    // when it adds the extra height, so the header must grow by the same amount.
+    val clampedTopInset = -minOf(0, JBUI.scale(getTabLabelInsets().unscaled.top))
+    return baseHeight + additionalHeight + clampedTopInset
+  }
 
   override fun createRowLayout(): TabLayout {
     if (!isSingleRow || (isHorizontalTabs && (TabLayout.showPinnedTabsSeparately() || !UISettings.getInstance().hideTabsIfNeeded))) {
@@ -764,9 +831,11 @@ private class EditorTabs(
   }
 
   override fun revalidateAndRepaint(layoutNow: Boolean) {
-    // called from super constructor
-    @Suppress("SENSELESS_COMPARISON")
-    if (window != null && !window.owner.isInsideChange) {
+    if (!isInitialized) {
+      // the super constructor calls this method
+      return
+    }
+    if (!window.owner.isInsideChange) {
       super.revalidateAndRepaint(layoutNow)
     }
   }
@@ -780,7 +849,28 @@ private class EditorTabs(
   }
 }
 
-private class EditorTabLabel(info: TabInfo, tabs: JBTabsImpl) : TabLabel(tabs, info) {
+@Internal
+fun createEditorTabListOptions(): TabListOptions = TabListOptions(
+  supportCompression = true,
+  singleRow = UISettings.getInstance().scrollTabLayoutInEditor,
+  requestFocusOnLastFocusedComponent = true,
+  isTabDraggingEnabled = true,
+  tabPosition = when (val tabPlacement = UISettings.getInstance().editorTabPlacement) {
+    SwingConstants.TOP -> JBTabsPosition.top
+    SwingConstants.BOTTOM -> JBTabsPosition.bottom
+    SwingConstants.LEFT -> JBTabsPosition.left
+    SwingConstants.RIGHT -> JBTabsPosition.right
+    UISettings.TABS_NONE -> JBTabsPosition.top
+    else -> {
+      logger<EditorTabs>().error("Unknown tab placement code=$tabPlacement")
+      JBTabsPosition.top
+    }
+  },
+  hideTabs = UISettings.getInstance().editorTabPlacement == UISettings.TABS_NONE,
+)
+
+@Internal
+class EditorTabLabel(info: TabInfo, tabs: JBTabsImpl) : TabLabel(tabs, info) {
   init {
     updateFont()
   }
@@ -803,11 +893,34 @@ private class EditorTabLabel(info: TabInfo, tabs: JBTabsImpl) : TabLabel(tabs, i
     }
   }
 
+  override fun getInsets(): Insets {
+    val base = super.getInsets()
+    val extra = (tabs as? EditorTabs)?.additionalTabLabelHeight(info) ?: 0
+    @Suppress("UseDPIAwareInsets")
+    // Clamp negative base insets when an extension reserves space above the tab content.
+    return if (extra > 0) Insets(maxOf(0, base.top) + extra, base.left, maxOf(0, base.bottom), base.right) else base
+  }
+
+  override fun getInsets(insets: Insets?): Insets {
+    val result = getInsets()
+    if (insets == null) {
+      @Suppress("UseDPIAwareInsets")
+      return Insets(result.top, result.left, result.bottom, result.right)
+    }
+    insets.top = result.top
+    insets.left = result.left
+    insets.bottom = result.bottom
+    insets.right = result.right
+    return insets
+  }
+
   private fun getPreferredHeight(): Int {
-    val insets = (tabs as EditorTabs).getTabLabelInsets().unscaled
+    @Suppress("UseDPIAwareInsets")
+    val insets = (tabs as? EditorTabs)?.getTabLabelInsets()?.unscaled ?: Insets(0, 0, 0, 0)
     val height = JBUI.scale(UNSCALED_PREF_HEIGHT - insets.top - insets.bottom)
     val layoutInsets = tabs.layoutInsets
-    return height - layoutInsets.top - layoutInsets.bottom
+    val extra = (tabs as? EditorTabs)?.additionalTabLabelHeight(info) ?: 0
+    return height - layoutInsets.top - layoutInsets.bottom + extra
   }
 
   override val isShowTabActions: Boolean

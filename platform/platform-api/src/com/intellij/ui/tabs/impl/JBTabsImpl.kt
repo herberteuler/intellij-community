@@ -708,7 +708,7 @@ open class JBTabsImpl internal constructor(
     return when (tabsPosition) {
       JBTabsPosition.left -> {
         if (ExperimentalUI.isNewUI()) {
-          val tabsRect = lastLayoutPass!!.headerRectangle
+          val tabsRect = lastLayoutPass?.headerRectangle
           if (tabsRect != null) {
             Rectangle(tabsRect.x + tabsRect.width - SCROLL_BAR_THICKNESS, 0, SCROLL_BAR_THICKNESS, height)
           }
@@ -3417,16 +3417,26 @@ open class JBTabsImpl internal constructor(
     return this
   }
 
-  fun reallocate(source: TabInfo?, target: TabInfo?) {
-    if (source == target || source == null || target == null) {
-      return
-    }
+  /** Reports the lifetime of a tab drag, including drag-out. */
+  @Internal
+  open fun onDragStateChanged(active: Boolean) {}
 
-    val targetIndex = visibleInfos.indexOf(target)
-    visibleInfos.remove(source)
-    visibleInfos.add(targetIndex, source)
+  open fun reallocate(source: TabInfo?, target: TabInfo?) {
+    val sourceInfo = source ?: return
+    val targetInfo = target ?: return
+    if (!canReallocateTo(sourceInfo, targetInfo)) return
+
+    val insertIndex = visibleInfos.indexOf(targetInfo)
+    visibleInfos.remove(sourceInfo)
+    visibleInfos.add(insertIndex, sourceInfo)
+    resetTabsCache()
     invalidate()
     relayout(forced = true, layoutNow = true)
+  }
+
+  open fun canReallocateTo(source: TabInfo?, target: TabInfo?): Boolean {
+    return source != target && source != null && target != null &&
+           source in visibleInfos && target in visibleInfos
   }
 
   val isHorizontalTabs: Boolean
@@ -3453,10 +3463,14 @@ open class JBTabsImpl internal constructor(
     }
   }
 
+  protected open fun isDropIndexAllowed(dropIndex: Int, draggedInfo: TabInfo): Boolean = true
+
   override fun startDropOver(tabInfo: TabInfo, point: RelativePoint): Image {
     dropInfo = tabInfo
     val pointInMySpace = point.getPoint(this)
-    val index = effectiveLayout.getDropIndexFor(pointInMySpace)
+    val rawIndex = effectiveLayout.getDropIndexFor(pointInMySpace)
+    showDropLocation = isDropIndexAllowed(rawIndex, tabInfo)
+    val index = if (showDropLocation) rawIndex else -1
     dropInfoIndex = index
     addTab(info = tabInfo, index = index, isDropTarget = true, fireEvents = true)
     val label = tabInfo.tabLabel!!
@@ -3473,7 +3487,9 @@ open class JBTabsImpl internal constructor(
 
   override fun processDropOver(over: TabInfo, point: RelativePoint) {
     val pointInMySpace = point.getPoint(this)
-    val index = effectiveLayout.getDropIndexFor(pointInMySpace)
+    val rawIndex = effectiveLayout.getDropIndexFor(pointInMySpace)
+    val showDropLocation = dropInfo?.let { isDropIndexAllowed(rawIndex, it) } ?: true
+    val index = if (showDropLocation) rawIndex else -1
     val side: Int = if (visibleInfos.isEmpty()) {
       SwingConstants.CENTER
     }
@@ -3482,6 +3498,10 @@ open class JBTabsImpl internal constructor(
     }
     if (index != dropInfoIndex) {
       dropInfoIndex = index
+      relayout(forced = true, layoutNow = false)
+    }
+    if (showDropLocation != this.showDropLocation) {
+      this.showDropLocation = showDropLocation
       relayout(forced = true, layoutNow = false)
     }
     if (side != dropSide) {

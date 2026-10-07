@@ -1277,6 +1277,8 @@ plugins/devkit/jps-plugin
 plugins/eclipse
 plugins/eclipse/common-eclipse-util
 plugins/eclipse/jps-plugin
+plugins/editor-tab-grouping
+plugins/editor-tab-grouping/plugin
 plugins/editorconfig
 plugins/editorconfig/backend
 plugins/editorconfig/backend.spellchecking

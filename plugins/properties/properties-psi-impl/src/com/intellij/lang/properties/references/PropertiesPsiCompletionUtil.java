@@ -2,19 +2,35 @@
 package com.intellij.lang.properties.references;
 
 import com.intellij.lang.properties.IProperty;
+import com.intellij.lang.properties.PropertiesHighlighter;
 import com.intellij.lang.properties.PropertiesReferenceManager;
 import com.intellij.lang.properties.psi.PropertiesFile;
+import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import it.unimi.dsi.fastutil.Hash;
 import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
 import org.jetbrains.annotations.Nullable;
 
+import java.awt.Color;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 public final class PropertiesPsiCompletionUtil {
+  /**
+   * Returns the foreground color for a property value, or null when no color scheme is available.
+   */
+  public static @Nullable Color getPropertyValueForeground() {
+    var manager = EditorColorsManager.getInstance();
+    if (manager == null) {
+      return null;
+    }
+    var attributes = manager.getGlobalScheme()
+      .getAttributes(PropertiesHighlighter.PropertiesComponent.PROPERTY_VALUE.getTextAttributesKey());
+    return attributes == null ? null : attributes.getForegroundColor();
+  }
+
   public static void addVariantsFromFile(PropertyReferenceBase propertyReference,
                                          final PropertiesFile propertiesFile,
                                          final Set<Object> variants) {

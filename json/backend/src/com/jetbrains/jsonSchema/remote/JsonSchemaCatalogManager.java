@@ -48,8 +48,10 @@ public final class JsonSchemaCatalogManager {
 
   public JsonSchemaCatalogManager(@NotNull Project project, @NotNull Disposable parentDisposable) {
     myProject = project;
-    JsonSchemaRemoteContentProvider remoteContentProvider = new JsonSchemaRemoteContentProvider();
-    RemoteFileManager.getInstance().addRemoteContentProvider(remoteContentProvider, parentDisposable);
+    RemoteFileManager remoteFileManager = RemoteFileManager.getInstance();
+    if (remoteFileManager != null) {
+      remoteFileManager.addRemoteContentProvider(new JsonSchemaRemoteContentProvider(), parentDisposable);
+    }
   }
 
   public void startUpdates(@NotNull Disposable parentDisposable) {

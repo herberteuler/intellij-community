@@ -14,11 +14,8 @@ import com.intellij.codeInsight.lookup.LookupElementRenderer;
 import com.intellij.icons.AllIcons;
 import com.intellij.lang.properties.EmptyResourceBundle;
 import com.intellij.lang.properties.IProperty;
-import com.intellij.lang.properties.PropertiesHighlighter;
 import com.intellij.lang.properties.ResourceBundle;
 import com.intellij.lang.properties.psi.PropertiesFile;
-import com.intellij.openapi.editor.colors.EditorColorsManager;
-import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
@@ -106,9 +103,7 @@ public class PropertiesCompletionContributor extends CompletionContributor {
         presentation.setTypeText(resourceBundle.getBaseName(), AllIcons.FileTypes.Properties);
       }
 
-      TextAttributes attrs = EditorColorsManager.getInstance().getGlobalScheme()
-        .getAttributes(PropertiesHighlighter.PropertiesComponent.PROPERTY_VALUE.getTextAttributesKey());
-      presentation.setTailText("=" + value, attrs.getForegroundColor());
+      presentation.setTailText("=" + value, PropertiesPsiCompletionUtil.getPropertyValueForeground());
     }
   };
 

@@ -34,6 +34,6 @@ pub use ctx::{Ctx, PollClock};
 pub use interrupt::{Interrupts, Signal};
 pub use poll::{Backoff, Poll};
 pub use proc::{
-    Captured, Channel, GuestStream, Interruptible, PipedChild, ProbeExit, ProbeOutput, ProcError, PsField, Runner, SpawnOptions,
-    probe_unanswered,
+    Captured, Channel, GuestStream, Interruptible, PipedChild, ProbeExit, ProbeOutput, ProcError, ProcessTable, PsField, Runner,
+    SpawnOptions, probe_unanswered,
 };

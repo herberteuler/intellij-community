@@ -7,6 +7,8 @@
 //! in its own `cfg(test)` module, over [`HostPool`] and [`FakeGuests`]. `avl-host-sys` keeps a minimal fake channel
 //! of its own for the same reason.
 //!
+//! The host process table of a probe is [`FakeProcesses`] for a suite that gives one to its runner.
+//!
 //! The hypervisor is [`avl_testkit::tartfake`]'s fake, and the host `git` is [`FakeGit`]. On Unix both are shell
 //! scripts. A Windows host runs no shell script and has the Docker backend only, so there the fake `docker` and the
 //! fake `git` are the program of [`avl_testkit::fakebin`], and a pool of another backend does not load.
@@ -28,6 +30,7 @@ pub mod channel;
 pub mod git;
 pub mod pool;
 pub mod probe;
+pub mod process;
 
 pub use answer::{Answer, Verbs, answer_exit, answer_guest, answer_text, failed, handler, has, said};
 #[cfg(unix)]
@@ -36,6 +39,7 @@ pub use channel::{Call, ChannelFactory, ConnectHandler, FakeChannel, FakeGuests,
 pub use git::FakeGit;
 pub use pool::{HostPool, HostPoolBuilder};
 pub use probe::FakeProbe;
+pub use process::FakeProcesses;
 
 /// A runner over `environment`, registering with a service no signal reaches.
 pub fn runner(environment: &[(String, String)]) -> Runner {

@@ -1,6 +1,7 @@
 //! What the host knows about a process by its pid: the seam behind [`Runner::probe_process`].
 //!
-//! On Unix `/bin/ps` answers. On Windows the process object answers, through `OpenProcess`, so no subprocess runs.
+//! On Unix `/bin/ps` answers. On Windows the process object answers, through `OpenProcess`, so no subprocess runs. A
+//! runner built [`Runner::with_process_table`] asks its [`ProcessTable`] instead, and the host answers nothing.
 
 use avl_base::Refusal;
 
@@ -26,6 +27,13 @@ pub enum PsField {
     State,
 }
 
+/// The processes a runner probes in place of the host's process table: what a hermetic suite gives
+/// [`Runner::with_process_table`], so that no probe answer depends on the processes of the host.
+pub trait ProcessTable: Send + Sync {
+    /// One field of the process `pid`, or `None` when the table holds no such process.
+    fn field(&self, pid: i32, field: PsField) -> Option<String>;
+}
+
 impl Runner {
     /// Answers one field of the process `pid`, or `None` when there is no such process. A probe that gives no answer is
     /// the refusal `probe_unanswered` ([`super::probe_unanswered`]), and not a dead process: a `ps` that a signal
@@ -43,6 +51,9 @@ impl Runner {
     pub async fn probe_process(&self, ctx: &Ctx, pid: i32, field: PsField) -> Result<Option<String>, Refusal> {
         if pid <= 0 {
             return Ok(None);
+        }
+        if let Some(table) = &self.process_table {
+            return Ok(table.field(pid, field));
         }
         imp::probe(self, ctx, pid, field).await
     }

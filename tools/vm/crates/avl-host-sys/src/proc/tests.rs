@@ -613,6 +613,35 @@ async fn the_ps_probe_answers_nothing_for_absent_processes() {
     assert!(runner.probe_process(&ctx, own, PsField::Command).await.unwrap().is_some());
 }
 
+// A hermetic suite gives its runner a process table, and then no probe reads a host process.
+#[tokio::test]
+async fn a_process_table_answers_the_probe_in_place_of_the_host() {
+    struct OneProcess;
+    impl ProcessTable for OneProcess {
+        fn field(&self, pid: i32, field: PsField) -> Option<String> {
+            (pid == 7).then(|| format!("{field:?}"))
+        }
+    }
+    let ctx = Ctx::background();
+    let runner = runner().with_process_table(Arc::new(OneProcess));
+    let own = i32::try_from(std::process::id()).unwrap();
+    assert_eq!(
+        runner.probe_process(&ctx, own, PsField::StartTime).await,
+        Ok(None),
+        "the host answered"
+    );
+    assert_eq!(
+        runner.probe_process(&ctx, 7, PsField::Command).await,
+        Ok(Some("Command".to_owned()))
+    );
+    let overridden = runner.with_overrides(&[("NAME", "value")]);
+    assert_eq!(
+        overridden.probe_process(&ctx, 7, PsField::State).await,
+        Ok(Some("State".to_owned())),
+        "an override drops the table"
+    );
+}
+
 // A stop path decides from this probe whether to delete a VM's only identity record, and it runs exactly when the
 // operator pressed Ctrl-C. An interrupted service signals every group registered after the signal, and a cancelled
 // context asks every wait to stop, so a probe going through either would answer a live process as dead.

@@ -56,7 +56,7 @@ mod stream;
 mod tests;
 
 pub use answer::{ProbeExit, ProbeOutput, probe_unanswered};
-pub use probe::PsField;
+pub use probe::{ProcessTable, PsField};
 pub use stream::{GuestStream, PipedChild};
 
 /// How much of a failed host command's output travels in the refusal, newest bytes last. Bounded because this text
@@ -210,6 +210,8 @@ pub struct Runner {
     environment: Arc<[(String, String)]>,
     capture_limit: usize,
     interrupts: Interrupts,
+    /// What [`Runner::probe_process`] asks in place of the host, when set.
+    process_table: Option<Arc<dyn ProcessTable>>,
 }
 
 impl Runner {
@@ -229,7 +231,16 @@ impl Runner {
             environment: pairs.into(),
             capture_limit: CAPTURE_LIMIT_BYTES,
             interrupts,
+            process_table: None,
         }
+    }
+
+    /// A runner whose process probes `table` answers, and not the host. A clone and a runner made
+    /// [`Runner::with_overrides`] keep the table.
+    #[must_use]
+    pub fn with_process_table(mut self, table: Arc<dyn ProcessTable>) -> Self {
+        self.process_table = Some(table);
+        self
     }
 
     /// A runner whose children see extra variables. The scrub still applies: an override cannot reintroduce a name
@@ -244,6 +255,7 @@ impl Runner {
         environment.extend(self.environment.iter().cloned());
         Self {
             capture_limit: self.capture_limit,
+            process_table: self.process_table.clone(),
             ..Self::new(environment, self.interrupts.clone())
         }
     }

@@ -1,8 +1,10 @@
-//! The observation commands' fixture. Hermetic: no VM, no network, no Bazel.
+//! The observation commands' fixture. Hermetic: no VM, no network, no Bazel, and no host process.
 //!
 //! The pool is [`HostPool`] and the guests are [`FakeGuests`], one channel per worker of the pool: the manager never
 //! asks for another one. This suite drives both backends, so the pool installs both of the fake's binaries into one
 //! directory. A Tart test and a Parallels test therefore seed the same answer names, and both read one call log.
+//!
+//! The runner probes [`FakeProcesses`] and not the host. So a ready worker reads as running on a loaded host too.
 
 use std::ops::Deref;
 use std::path::PathBuf;
@@ -12,10 +14,10 @@ use crate::worker::lease::write_lease_receipt;
 use crate::worker::tart::MINIMUM_VERSION;
 use crate::worker::worker::{Dependencies, Lease, Manager, builds_nothing};
 use avl_base::{Backend, GuestOs, SCHEMA_VERSION};
-use avl_host_sys::Ctx;
 use avl_host_sys::guest::write_init_receipt;
 use avl_host_sys::lock::LockManager;
-use avl_host_testkit::{FakeChannel, FakeGuests, HostPool, answer_guest, quiet, said};
+use avl_host_sys::{Ctx, ProcessTable};
+use avl_host_testkit::{FakeChannel, FakeGuests, FakeProcesses, HostPool, answer_guest, quiet, said};
 use avl_testkit::tartfake::Answer;
 
 /// A pool over the fake hypervisor, fake guests and a temporary runtime root.
@@ -23,6 +25,7 @@ pub(crate) struct Fixture {
     pool: HostPool,
     pub(crate) manager: Manager,
     guests: Arc<FakeGuests>,
+    processes: Arc<FakeProcesses>,
 }
 
 impl Deref for Fixture {
@@ -88,7 +91,8 @@ impl Fixture {
             pool.git().outside_work_tree();
         }
         let guests = FakeGuests::of(&pool.settings.workers);
-        let runner = pool.runner();
+        let processes = Arc::new(FakeProcesses::default());
+        let runner = pool.runner().with_process_table(Arc::clone(&processes) as Arc<dyn ProcessTable>);
         #[cfg(unix)]
         let bazel = lima.then(|| Arc::new(pool.pinned_bazel()) as Arc<dyn avl_host_sys::guest::BazelHost>);
         #[cfg(windows)]
@@ -103,7 +107,12 @@ impl Fixture {
             build_guest_boot: builds_nothing(),
         });
         manager.prepare_runtime_dirs().expect("the runtime directories are created");
-        Self { pool, manager, guests }
+        Self {
+            pool,
+            manager,
+            guests,
+            processes,
+        }
     }
 
     pub(crate) fn channel(&self, worker: &str) -> Arc<FakeChannel> {
@@ -115,9 +124,10 @@ impl Fixture {
     }
 
     /// Puts one worker into the state the readiness gate accepts without booting anything: a run-process identity
-    /// naming the suite's own live process, and an init receipt for the fixture's paths.
+    /// naming a live process of the fake table, and an init receipt for the fixture's paths. The command is no `tart
+    /// run`, so no path takes the process for an orphaned run.
     pub(crate) async fn mark_ready(&self, worker: &str) {
-        let pid = i32::try_from(std::process::id()).expect("a pid fits");
+        let pid = self.processes.start(&format!("stand-in for the run process of {worker}"));
         self.manager
             .write_process_identity(&Ctx::background(), worker, pid)
             .await

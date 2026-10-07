@@ -85,6 +85,13 @@ pub(crate) fn is_unsupported(refusal: &Refusal) -> bool {
 ///
 /// Every question takes a worker name rather than the value holding one, because a backend instance serves the
 /// whole pool: `pool gc` walks every slot. On Windows the Docker backend is the only one.
+#[cfg_attr(
+    unix,
+    expect(
+        clippy::large_enum_variant,
+        reason = "a manager holds one machine for its whole life, so a box would save no memory"
+    )
+)]
 pub(crate) enum Machine {
     #[cfg(unix)]
     Tart(Tart),

@@ -1505,7 +1505,9 @@ public class JavaAutoPopupTest extends JavaCompletionAutoPopupTestCase {
   public void testSoutvTemplate() {
     TemplateManagerImpl.setTemplateTesting(myFixture.getTestRootDisposable());
     myFixture.configureByText("a.java", "class Foo {{ <caret> }}");
-    type("soutv\tgetcl.");
+    type("soutv\tgetcl");
+    myFixture.completeBasic();
+    type(".");
     myFixture.checkResult("class Foo {{\n    System.out.println(\"getClass(). = \" + getClass().<caret>);\n}}");
   }
 

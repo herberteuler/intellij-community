@@ -9,7 +9,9 @@ import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.ui.TableUtil
 import com.intellij.ui.ToolbarDecorator
-import com.intellij.util.ui.UI
+import com.intellij.ui.dsl.builder.Align
+import com.intellij.ui.dsl.builder.LabelPosition
+import com.intellij.ui.dsl.builder.panel
 import org.jetbrains.annotations.ApiStatus
 import java.awt.EventQueue
 import java.util.function.Function
@@ -52,10 +54,19 @@ class ListEditForm {
     table.tableHeader = null
     table.showHorizontalLines = false
 
-    val toolbarPanel = setupActions(ToolbarDecorator.createDecorator(table), defaultElement)
+    val toolbar = setupActions(ToolbarDecorator.createDecorator(table), defaultElement)
       .setToolbarPosition(ActionToolbarPosition.LEFT)
-      .createPanel()
-    contentPanel = UI.PanelFactory.panel(toolbarPanel).withLabel(label ?: "").moveLabelOnTop().resizeY(true).createPanel()
+    contentPanel = panel {
+      row {
+        cell(toolbar.createPanel())
+          .align(Align.FILL)
+          .apply {
+            if (!label.isNullOrEmpty()) {
+              label(label, LabelPosition.TOP)
+            }
+          }
+      }.resizableRow()
+    }
     contentPanel.minimumSize = InspectionOptionsPanel.getMinimumListSize()
   }
 

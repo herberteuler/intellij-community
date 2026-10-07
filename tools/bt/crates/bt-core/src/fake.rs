@@ -28,8 +28,8 @@ pub const AREA_DIR: &str = "plugins/air";
 pub const LANES_FILE: &str = "plugins/air/tests/integration/lanes.json";
 
 /// The fixture lane table: a copy of the Air area's, with its suite catalog, so every rule here is tested against a
-/// realistic table. It is a copy on purpose, so a change of the real table does not change what these tests
-/// state.
+/// realistic table. It is a copy because the community module cannot read the file of the ultimate root. The
+/// contract test `//plugins/air/tests/integration/vm-contract:areas-test` keeps the copy equal to the real table.
 pub const LANES_TEXT: &str = include_str!("../testdata/lanes.json");
 
 static AREAS: LazyLock<Areas> = LazyLock::new(|| {

@@ -21,15 +21,16 @@
 //!   and the implementation flows the story flows of those routes declare. The generator publishes both facts.
 //! - The authored suites file, the copy of `AirJourneySuites` that a fast-lane test keeps equal to the Kotlin.
 //! - The `targets` and the `[@test]` links of the specs.
-//! - The `.iml` files above a path, for its JPS module, and the lane-wide modules of the Air lane table, for the
-//!   harness modules.
+//! - The `.iml` files above a path, for its JPS module, and the lane-wide modules and lane-wide paths of the Air
+//!   lane table, for the harness.
 //!
 //! # The order the relations answer in
 //!
 //! A path is joined by the first of these that answers, most exact first:
 //!
 //! 1. The suite's own files: its document or its test class source, as `suite:<id>`.
-//! 2. The harness: a path in a lane-wide module reaches every suite of its lanes, as `lane-wide:<module>`.
+//! 2. The harness: a path in a lane-wide module or under a lane-wide path reaches every suite of its lanes, as
+//!    `lane-wide:<module>` or `lane-wide:<directory>`.
 //! 3. The tags: a `[suite: <id>]` attribute as `suite:<id>`, and a `@flow` tag as `flow:<id>`.
 //! 4. With no tag answered, two coarse relations answer together. The owning specs give `spec:<path>`, and for a
 //!    path with no tag at all the module relation gives `module:<endpoint>`. They reach different suites: an
@@ -47,9 +48,9 @@
 //! # The harness reaches its whole lane
 //!
 //! A path in a lane-wide module is the lane harness: the flow driver, `AirScenarioRunner`, the state reset, the
-//! generated scaffolding, the daemon, the bridge, or this controller. A change there can break every suite of the
-//! lanes the module serves. The list is held by module name because the module cache already names a path's module,
-//! so no path list goes stale beside it. Each entry is a decision about what the module holds:
+//! generated scaffolding, the daemon or the bridge. A change there can break every suite of the lanes the module
+//! serves. The list is held by module name because the module cache already names a path's module, so no path list
+//! goes stale beside it. Each entry is a decision about what the module holds:
 //!
 //! - `intellij.air.integrationTests` is `support/`, the drivers every lane uses, and the directories without a
 //!   module of their own under it, such as the lane `.bzl` rules.
@@ -62,6 +63,12 @@
 //!
 //! Left out on purpose: `…contract` runs in the fast lane and in no UI lane, `…flowProfiles` holds suite documents
 //! that each reach their own suite, and the `…headless.*` modules run in no UI lane.
+//!
+//! A harness directory that no module of the area holds is a lane-wide path of the lane table, by its repo-relative
+//! directory. A path under it is the harness too, for the lanes the directory serves. The Air table names one: this
+//! controller, `community/tools/vm`, which a change can break for every lane. The controller reads the directory
+//! from the table and names no area directory itself. A path in a lane-wide module answers first, so a lane-wide
+//! path only holds a path that no harness module holds.
 //!
 //! The harness answers after the suite's own files and before the tag relation. The harness declares no flow, so a
 //! tag that matches in it is a test fixture or a comment.
@@ -233,14 +240,16 @@ impl<'a> SuiteJoin<'a> {
             return PathJoin::unmapped(UnmappedPath::new(path, reason::PATH_UNREADABLE));
         };
         let modules = self.modules.owning(self.runtime.platform(), path);
+        let lanes = self.area.lanes();
         if let Some((harness, served)) = modules
             .iter()
-            .find_map(|module| Some((module, self.area.lanes().lane_wide_lanes(module)?)))
+            .find_map(|module| Some((module.as_str(), lanes.lane_wide_lanes(module)?)))
+            .or_else(|| lanes.lane_wide_path_lanes(path))
         {
             // The harness declares no flow, so a tag that matches here matched a fixture or a comment. That is
             // why this answers before the tag relation does.
             for (index, document) in self.documents.iter().enumerate() {
-                let lane = document.lane_name(self.area.lanes());
+                let lane = document.lane_name(lanes);
                 if served.is_empty() || lane.is_some_and(|lane| served.iter().any(|served| served == lane)) {
                     answer.reached.push((index, format!("{VIA_LANE_WIDE}{harness}")));
                 }

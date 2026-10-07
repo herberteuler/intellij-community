@@ -493,8 +493,8 @@ fn a_deleted_suite_document_is_unreadable() {
     assert_eq!(reasons_of(&affected), reason::PATH_UNREADABLE);
 }
 
-/// The base catalog plus the layout of the lane harness: the root integration module with a directory of its own
-/// under it (this controller), a shared harness module, a lane leaf, and a headless module beside them.
+/// The base catalog plus the layout of the lane harness: the root integration module with a lane rule under it, a
+/// shared harness module, a lane leaf, a headless module beside them, and this controller and BT outside the area.
 fn harness_tree() -> Tree {
     let mut tree = reach_tree();
     put(
@@ -503,6 +503,9 @@ fn harness_tree() -> Tree {
         "<module />",
     );
     put(&mut tree, LANE_RULE, "def ui_lane_ide():\n    pass\n");
+    // The controller spells real flow ids in its tests. They must not answer.
+    put(&mut tree, CONTROLLER_SOURCE, "//! the join of @flow flow-new-session-terminal\n");
+    put(&mut tree, BT_SOURCE, "//! the lane table\n");
     put(
         &mut tree,
         "plugins/air/tests/integration/flow/intellij.air.integrationTests.flow.iml",
@@ -539,6 +542,8 @@ fn harness_tree() -> Tree {
 }
 
 const LANE_RULE: &str = "plugins/air/tests/integration/ui_lane_ide.bzl";
+const CONTROLLER_SOURCE: &str = "community/tools/vm/crates/avl-affected/src/affected.rs";
+const BT_SOURCE: &str = "community/tools/bt/crates/bt-core/src/lanes.rs";
 const GUI_CHAT_GENERATED: &str = "plugins/air/tests/integration/gui-chat/testGen/AirGuiChatFlowTests.generated.kt";
 
 #[test]
@@ -561,6 +566,26 @@ fn a_lane_rule_is_the_harness_of_every_lane() {
     let affected = affected_of(&FakeRuntime::with_tree(&harness_tree()), &[LANE_RULE]);
     assert_eq!(affected.lanes, ["gui-chat", "ui", "ui-real"]);
     assert_eq!(affected.unmapped, []);
+}
+
+/// The controller has no module of the area. The lane table names its directory as a lane-wide path, which serves
+/// every lane, and the entry names the directory.
+#[test]
+fn the_controller_is_the_harness_of_every_lane() {
+    let affected = affected_of(&FakeRuntime::with_tree(&harness_tree()), &[CONTROLLER_SOURCE]);
+    assert_eq!(affected.lanes, ["gui-chat", "ui", "ui-real"]);
+    assert_eq!(affected.unmapped, []);
+    for suite in &affected.suites {
+        assert_eq!(suite.via, [format!("{VIA_LANE_WIDE}community/tools/vm")]);
+    }
+}
+
+/// A tool beside the controller is not in the lane-wide path, so it is not the harness.
+#[test]
+fn a_tool_beside_the_controller_is_not_the_harness() {
+    let affected = affected_of(&FakeRuntime::with_tree(&harness_tree()), &[BT_SOURCE]);
+    assert_eq!(affected.suites, []);
+    assert_eq!(reasons_of(&affected), reason::NO_FLOW_TAG);
 }
 
 /// A lane leaf serves its own lane only, and a suite's own test class in it is the more exact fact.
@@ -604,11 +629,11 @@ fn every_lane_the_harness_list_names_is_a_lane_the_controller_runs() {
     crate::bridge::install_fixture();
     let lanes = air_area().lanes();
     let integration = lanes.integration_lane_names();
-    for (module, served) in lanes.lane_wide_modules() {
+    for (entry, served) in lanes.lane_wide_modules().chain(lanes.lane_wide_paths()) {
         for lane in served {
             assert!(
                 integration.contains(&lane.as_str()),
-                "{module} names lane {lane}; the lanes are {integration:?}"
+                "{entry} names lane {lane}; the lanes are {integration:?}"
             );
         }
     }

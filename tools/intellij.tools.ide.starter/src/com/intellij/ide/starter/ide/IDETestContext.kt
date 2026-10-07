@@ -17,6 +17,7 @@ import com.intellij.ide.starter.process.exec.ExecOutputRedirect
 import com.intellij.ide.starter.profiler.ProfilerType
 import com.intellij.ide.starter.project.NoProject
 import com.intellij.ide.starter.report.publisher.ReportPublisher
+import com.intellij.ide.starter.runner.CurrentTestMethod
 import com.intellij.ide.starter.runner.IDECommandLine
 import com.intellij.ide.starter.runner.IDERunContext
 import com.intellij.ide.starter.runner.openTestCaseProject
@@ -47,7 +48,9 @@ import org.kodein.di.newInstance
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
 import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.copyToRecursively
 import kotlin.io.path.createDirectories
@@ -90,6 +93,28 @@ open class IDETestContext(
       "search.everywhere.new.cwm.client.enabled",
       "search.everywhere.new.allow.ab"
     )
+
+    /** The log dirs that each test method execution has launched an IDE into. See [claimLaunchDir]. */
+    private val claimedLaunchDirs: MutableSet<Triple<String, LocalDateTime, Path>> = ConcurrentHashMap.newKeySet()
+
+    /**
+     * Reports a synthetic [SyntheticTestKind.TEST_INFRA_EXCEPTION] when the current test method execution has already
+     * launched an IDE into the log dir of [runContext]. The launch goes on.
+     *
+     * The second launch overwrites the artifacts of the first one. A launch outside a test method is not checked,
+     * because a cached context serves the launches of several test classes.
+     */
+    private fun claimLaunchDir(runContext: IDERunContext) {
+      val testMethod = CurrentTestMethod.get() ?: return
+      val logsDir = runContext.originalIdeReportingData.logsDir
+      if (claimedLaunchDirs.add(Triple(testMethod.id, testMethod.startTime, logsDir))) return
+      CIServer.instance.reportTestFailure(
+        testName = "A second IDE launch of '${runContext.contextName}' overwrites the artifacts of an earlier launch in the same test method",
+        message = "Test method '${testMethod.id}' has already launched an IDE named '${runContext.launchName}' into $logsDir. " +
+                  "Give this launch another name, or restart the first launch with BackgroundRun.restart.",
+        details = Throwable("The second launch into $logsDir").stackTraceToString(),
+        kind = SyntheticTestKind.TEST_INFRA_EXCEPTION)
+    }
   }
 
   open fun copy(ide: InstalledIde? = null, resolvedProjectHome: Path? = null, sdk: SdkObject? = testCase.sdk): IDETestContext {
@@ -512,6 +537,7 @@ open class IDETestContext(
         collectNativeThreads = collectNativeThreads,
         stdOut = stdOut
       )
+      claimLaunchDir(runContext)
       try {
         configure(runContext)
       }

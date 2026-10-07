@@ -38,7 +38,7 @@ refuses. The ultimate checkout names `plugins/air`, with its lane table `plugins
 
 ## Links into the Air UI-lane workspace
 
-The Air UI-lane workspace, `plugins/air/tests/integration/vm-lane`, links crates of this workspace through path
+The Air UI-lane workspace, `community/tools/vm`, links crates of this workspace through path
 dependencies. `avl.bzl` there maps each such crate to its label in this module (`_CROSS_MODULE_CRATES`), so Bazel
 builds it once. rules_rs reads the `[package]` and `[dependencies]` of such a crate without this workspace. The same
 holds for a crate of this workspace that such a crate links, such as `refusal`. So each of these crates spells each
@@ -55,7 +55,7 @@ and takes no `regex::Regex` and no `serde_json::Value` from its caller.
 ```sh
 cd community && ./bazel.cmd test //tools/bt/...
 cd community/tools/bt && cargo test && cargo clippy --all-targets
-./bazel.cmd test @community//tools/bt/... //plugins/air/tests/integration/vm-lane/...    # from the ultimate root
+./bazel.cmd test @community//tools/bt/... @community//tools/vm/...    # from the ultimate root
 ```
 
 The clippy tests run only from `community/`. The clippy aspect of rules_rust skips a target of an external

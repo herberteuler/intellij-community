@@ -182,14 +182,10 @@ internal class PerformanceWatcherImpl(providedScope: CoroutineScope) : Performan
     startEdtSampling()
 
     if (Registry.`is`("performance.watcher.pooled.enabled", true)) {
-      CoroutineDispatcherWatcher(Dispatchers.Default,
-                                 coroutineScope,
-                                 ::calculatePooledUnresponsiveInterval,
-                                 pooledCompensationInterval).watchDispatcher()
-      CoroutineDispatcherWatcher(Dispatchers.IO,
-                                 coroutineScope,
-                                 ::calculatePooledUnresponsiveInterval,
-                                 pooledCompensationInterval).watchDispatcher()
+      CoroutineDispatcherWatcher(Dispatchers.Default, coroutineScope, ::calculatePooledUnresponsiveInterval, pooledCompensationInterval)
+        .watchDispatcher()
+      CoroutineDispatcherWatcher(Dispatchers.IO, coroutineScope, ::calculatePooledUnresponsiveInterval, pooledCompensationInterval)
+        .watchDispatcher()
     }
   }
 
@@ -273,7 +269,9 @@ internal class PerformanceWatcherImpl(providedScope: CoroutineScope) : Performan
         } ?: continue
         consumer(file, duration)
       }
-      catch (_: Exception) { }
+      catch (_: Exception) {
+        currentCoroutineContext().ensureActive()
+      }
     }
   }
 
@@ -324,9 +322,9 @@ internal class PerformanceWatcherImpl(providedScope: CoroutineScope) : Performan
     get() {
       val value = edtUnresponsiveIntervalLazy.asInteger()
       return when {
-          value <= 0 -> 0
-          forceEdtUnresponsiveIntervalLazy.asBoolean() -> value
-          else -> value.coerceIn(500, 20000)
+        value <= 0 -> 0
+        forceEdtUnresponsiveIntervalLazy.asBoolean() -> value
+        else -> value.coerceIn(500, 20000)
       }
     }
 
@@ -382,20 +380,16 @@ internal class PerformanceWatcherImpl(providedScope: CoroutineScope) : Performan
 
   @ApiStatus.Internal
   override fun edtEventStarted() {
-    if (!isActive) return
-    if (shouldSkipCurrentEdtEvent()) {
-      return
+    if (isActive && !shouldSkipCurrentEdtEvent()) {
+      stopCurrentTaskAndReEmit(FreezeCheckerTask(System.nanoTime()))
     }
-    stopCurrentTaskAndReEmit(FreezeCheckerTask(System.nanoTime()))
   }
 
   @ApiStatus.Internal
   override fun edtEventFinished() {
-    if (!isActive) return
-    if (shouldSkipCurrentEdtEvent()) {
-      return
+    if (isActive && !shouldSkipCurrentEdtEvent()) {
+      stopCurrentTaskAndReEmit(null)
     }
-    stopCurrentTaskAndReEmit(null)
   }
 
   private fun shouldSkipCurrentEdtEvent(): Boolean {
@@ -513,7 +507,7 @@ internal class PerformanceWatcherImpl(providedScope: CoroutineScope) : Performan
         it.uiFreezeStarted(reportDir, coroutineScope)
       }
 
-      val dumpTask = PerformanceWatcherSamplingTask(freezeFolder = freezeFolder, taskStart = taskStart)
+      val dumpTask = PerformanceWatcherSamplingTask(freezeFolder, taskStart)
       publisher?.uiFreezeStarted(reportDir)
 
       return dumpTask
@@ -534,7 +528,7 @@ internal class PerformanceWatcherImpl(providedScope: CoroutineScope) : Performan
         }
         publisher?.uiFreezeFinished(durationMs, freezeDir)
 
-        val reportDir = postProcessReportFolder(durationMs = durationMs, task = task, dir = logDir.resolve(freezeFolder), logDir = logDir)
+        val reportDir = postProcessReportFolder(durationMs, task, logDir.resolve(freezeFolder), logDir)
 
         EP_NAME.forEachExtensionSafeAsync {
           it.uiFreezeRecorded(durationMs, reportDir)
@@ -545,7 +539,7 @@ internal class PerformanceWatcherImpl(providedScope: CoroutineScope) : Performan
 
   @OptIn(DelicateCoroutinesApi::class)
   inner class PerformanceWatcherSamplingTask(@JvmField val freezeFolder: String, private val taskStart: Long) :
-    SamplingTask(dumpInterval = dumpInterval, maxDurationMs = maxDumpDuration, coroutineScope = coroutineScope) {
+    SamplingTask(dumpInterval, maxDumpDuration, coroutineScope) {
 
     private val dumpTasks: MutableList<Job> = ContainerUtil.createConcurrentList()
     var threadInfos: UList<Array<ThreadInfo>> = UList()
@@ -830,7 +824,7 @@ internal interface CompensatablePool {
  *
  * @param dispatcher the dispatcher whose pool is monitored
  * @param getLastSampleNs returns the timestamp, in nanoseconds, of the latest successful dispatcher health check.
- * This reuses the existing health-check coroutine managed by [CoroutineDispatcherWatcher] instead of submitting
+ * This reuses the existing health check coroutine managed by [CoroutineDispatcherWatcher] instead of submitting
  * a separate probe coroutine.
  * @param unresponsiveIntervalMs the interval, in milliseconds, after which the pool is considered unresponsive
  */
@@ -840,12 +834,12 @@ internal class DefaultCompensatablePool(
   private val unresponsiveIntervalMs: Long,
 ) : CompensatablePool {
   override fun waitForStatus(timeMs: Long): Boolean {
-    // This function checks the pool's health using `getLastSampleNs`. The health-check coroutine is managed by
+    // This function checks the pool's health using `getLastSampleNs`. The health check coroutine is managed by
     // [CoroutineDispatcherWatcher].
     //
-    // Using an empty coroutine as a probe would cause cancelled probe coroutines to accumulate in a starved pool's queue.
+    // Using an empty coroutine as a probe would cause canceled probe coroutines to accumulate in a starved pool's queue.
     // Cancelling a coroutine before it starts does not remove it from the queue; it is removed only when a worker dequeues it.
-    // When the pool is starved, no worker is available to drain these cancelled probes.
+    // When the pool is starved, no worker is available to drain these canceled probes.
 
     Thread.sleep(timeMs)
     val now = System.nanoTime()
@@ -900,7 +894,7 @@ internal class ParallelismCompensator(
     }
   }
 
-  fun shutdown() = watcherExecutor.shutdownNow()
+  fun shutdown(): List<Runnable> = watcherExecutor.shutdownNow()
 
   internal enum class ProbeResult { ALIVE, STALLED }
 
@@ -952,7 +946,7 @@ internal class ParallelismCompensator(
           if (depth >= maxGrantsAllowed) continue
           var recovered = false
           var requestedSuccessForRecover = requestedSuccess
-          // There is flapping sitation possible:
+          // There is flapping situation possible:
           // 1 granted thread fixes starvation -> so it has to be taken out -> and starvation again
           // To cope with it revoking is done through a fast health check: if at least one failure happened grant parallelism back
           // Also increase the amount of successful check needed to longer stay in responsive state
@@ -1097,7 +1091,7 @@ private fun collectCrashInfo(pid: String, lastModified: Long): CrashInfo? {
           }
         }
         catch (e: Exception) {
-          LOG.warn("failed to process MacOS diagnostic report $file", e)
+          LOG.warn("failed to process macOS diagnostic report $file", e)
         }
         null
       }

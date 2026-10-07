@@ -131,12 +131,10 @@ public final class IdeMessagePanel implements MessagePoolAdvisor, IconLikeCustom
 
     messagePool.addAdvisor(this);
 
-    var application = ApplicationManager.getApplication();
-    if (!application.isEAP() && !application.isInternal()) {
-      if (!ExceptionAutoReportUtil.INSTANCE.isAutoReportVisibleBlocking()) {
-        LOG.debug("Suppressing bundled exceptions in release build, automatic reporting is not available");
-        messagePool.addAdvisor(releaseExceptionsFilter);
-      }
+    var app = ApplicationManager.getApplication();
+    if (!(app.isEAP() || app.isInternal() || ExceptionAutoReportUtil.INSTANCE.isAutoReportVisibleBlocking())) {
+      LOG.debug("Suppressing bundled exceptions in release build, automatic reporting is not available");
+      messagePool.addAdvisor(releaseExceptionsFilter);
     }
 
     scheduleUpdateIconAndNotify();

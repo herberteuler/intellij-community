@@ -8,7 +8,6 @@ import com.intellij.ide.DataManager
 import com.intellij.ide.IdeBundle
 import com.intellij.ide.lightEdit.LightEditCompatible
 import com.intellij.ide.plugins.PluginManagerCore
-import com.intellij.ide.plugins.PluginUtil
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.idea.ActionsBundle
 import com.intellij.notification.Notification
@@ -35,7 +34,6 @@ import com.intellij.openapi.diagnostic.ErrorReportSubmitter
 import com.intellij.openapi.diagnostic.SubmittedReportInfo
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.ex.util.EditorUtil
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
@@ -992,12 +990,6 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     val CURRENT_TRACE_KEY: DataKey<String> = DataKey.create("current_stack_trace_key")
 
     @JvmStatic
-    @ApiStatus.ScheduledForRemoval
-    @Deprecated("use {@link PluginUtil#findPluginId} ",
-                ReplaceWith("PluginUtil.getInstance().findPluginId(t)"),
-                level = DeprecationLevel.HIDDEN)
-    fun findPluginId(t: Throwable): PluginId? = PluginUtil.getInstance().findPluginId(t)
-
     fun hashMessage(message: AbstractMessage): Long {
       val digest = CRC32()
       digest.update(ExceptionUtil.getThrowableText(message.throwable).toByteArray(StandardCharsets.UTF_8))

@@ -54,9 +54,7 @@ public class IdeaLoggingEvent {
     myData = data;
     myProblematicPluginInfo = problematicPluginInfo;
     myUnhandledExceptionKind = unhandledExceptionKind;
-    myPlugin = problematicPluginInfo instanceof ProblematicPluginInfoWithDescriptor
-               ? ((ProblematicPluginInfoWithDescriptor)problematicPluginInfo).getPluginDescriptor()
-               : null;
+    myPlugin = problematicPluginInfo instanceof ProblematicPluginInfoWithDescriptor descriptor ? descriptor.getPluginDescriptor() : null;
   }
 
   /** Returns a message passed to {@link Logger#error Logger.error(String, [...])} methods. */

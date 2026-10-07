@@ -45,6 +45,7 @@ private val FREEZE_NOTIFIER_EP: ExtensionPointName<FreezeNotifier> = ExtensionPo
 
 private val LOG = fileLogger()
 
+@Suppress("UseOptimizedEelFunctions")
 internal class IdeaFreezeReporter : FreezeListener {
   private var dumpTask: IdeaFreezeSamplingTask? = null
   private var freezeTelemetry: FreezeReporterTelemetry? = null
@@ -326,8 +327,7 @@ internal class IdeaFreezeReporter : FreezeListener {
         Files.writeString(reportDir.resolve("$REPORT_PREFIX.txt"), reportText)
       }
     }
-    catch (_: IOException) {
-    }
+    catch (_: IOException) { }
 
     if (commonStack.isNullOrEmpty() || commonStack.any { skippedFrame(it) }) {
       return null
@@ -570,6 +570,7 @@ internal class UnfinishedFreezeReportService(val coroutineScope: CoroutineScope)
             stacktraceCommonPart = deserializeStackTrace(readText())
           }
           catch (_: Exception) {
+            currentCoroutineContext().ensureActive()
           }
         }
         APP_INFO_FILE_NAME == name -> {
@@ -637,7 +638,7 @@ private fun cleanup(dir: Path) {
     Files.deleteIfExists(dir.resolve(APP_INFO_FILE_NAME))
   }
   catch (e: IOException) {
-    LOG.debug("Unable to cleanup reporting dirs", e)
+    LOG.debug("Unable to clean up reporting dirs", e)
   }
 }
 

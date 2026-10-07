@@ -3,11 +3,11 @@ use std::collections::BTreeMap;
 use pretty_assertions::assert_eq;
 
 use super::{
-    CLASSES_HIDDEN, CLASSES_JAR, CLASSES_JDK, CLASSES_NAMED, CLASSES_PLATFORM, CLASSES_PLUGINS, EDITOR_HIGHLIGHTED, LaunchFacts, RunId,
-    RunKind, WELCOME_BECAME_VISIBLE, collect,
+    CLASSES_HIDDEN, CLASSES_JAR, CLASSES_JDK, CLASSES_NAMED, CLASSES_PLATFORM, CLASSES_PLUGINS, EDITOR_HIGHLIGHTED, EMPTY_STATE_BUILT,
+    EMPTY_STATE_PREFIX, EMPTY_STATE_SPAN, LaunchFacts, RunId, RunKind, WELCOME_BECAME_VISIBLE, collect, named_at,
 };
 use crate::bench::arm::Arm;
-use crate::bench::testing::fixture_session;
+use crate::bench::testing::{EMPTY_STATE_FIXTURE_SPANS, empty_editor_run, fixture_session};
 
 /// The plugin of the Markdown classes of the project fixture.
 const MARKDOWN: &str = "org.intellij.plugins.markdown";
@@ -132,6 +132,8 @@ fn a_run_directory_name_round_trips() {
         "open-project-run-12",
         "project-prime",
         "open-project-prime",
+        "empty-editor-prime",
+        "empty-editor-run-02",
     ] {
         assert_eq!(RunId::parse(name).map(|id| id.dir_name()).as_deref(), Some(name));
     }
@@ -303,4 +305,153 @@ fn the_highlighted_gate_reads_the_report_without_a_trace_and_names_what_is_missi
     std::fs::remove_file(run.join("startup-stats.json")).expect("a removal");
     let record = collect(&run, &id(Arm::Project), LaunchFacts::default());
     assert_eq!(record.reason.as_deref(), Some("no opentelemetry.json and no startup-stats.json"));
+}
+
+/// An empty-editor run ends at the composer: the end of its first `air.emptyState.createComponent` span, in ms from the
+/// process start. Each composer span is a metric with its duration, without the helper twins, and the end is an anchor
+/// of the class counts.
+#[test]
+fn an_empty_editor_run_ends_at_the_built_composer_and_counts_the_classes_before_it() {
+    let (_dir, session) = fixture_session();
+    let run = empty_editor_run(&session, &EMPTY_STATE_FIXTURE_SPANS);
+    let record = collect(&run, &id(Arm::EmptyEditor), LaunchFacts::default());
+    assert_eq!(record.reason, None);
+    assert_eq!(record.notes, vec!["no fus.jsonl".to_owned()], "the span gate reads no FUS event");
+    let composer: BTreeMap<&str, f64> = record
+        .metrics
+        .iter()
+        .filter(|(metric, _)| metric.starts_with(EMPTY_STATE_PREFIX) || metric.as_str() == EMPTY_STATE_BUILT)
+        .map(|(metric, value)| (metric.as_str(), *value))
+        .collect();
+    assert_eq!(
+        composer,
+        BTreeMap::from([
+            (EMPTY_STATE_BUILT, 2900.0),
+            (EMPTY_STATE_SPAN, 900.0),
+            ("air.emptyState.prologue", 150.0),
+            ("air.emptyState.prologue.promptDocument", 136.0),
+            ("air.emptyState.prologue.aiSource", 5.0),
+            ("air.emptyState.buildOnEdt", 730.0),
+            ("air.emptyState.createContent", 651.0),
+            ("air.emptyState.initializeContent", 64.0),
+        ])
+    );
+    assert_eq!(
+        record.metrics.get(&named_at(EMPTY_STATE_BUILT)),
+        Some(&19.0),
+        "the bound is 2900 ms, before the highlighted editor of the fixture at 2950 ms"
+    );
+    assert!(
+        record.classes_by_plugin_at.contains_key(EMPTY_STATE_BUILT),
+        "{:?}",
+        record.classes_by_plugin_at.keys()
+    );
+}
+
+/// The first span of a name counts: a composer that the IDE builds again later moves no number.
+#[test]
+fn a_second_composer_moves_no_number() {
+    let (_dir, session) = fixture_session();
+    let mut spans = EMPTY_STATE_FIXTURE_SPANS.to_vec();
+    spans.push((EMPTY_STATE_SPAN, 9000, 50));
+    let run = empty_editor_run(&session, &spans);
+    let record = collect(&run, &id(Arm::EmptyEditor), LaunchFacts::default());
+    assert_eq!(record.metrics.get(EMPTY_STATE_BUILT), Some(&2900.0));
+    assert_eq!(record.metrics.get(EMPTY_STATE_SPAN), Some(&900.0));
+}
+
+/// A measured run of the empty-editor arm without the composer span is not valid, and the reason says why a run can
+/// lack it. A prime run is held to the same gate.
+#[test]
+fn an_empty_editor_run_without_the_composer_span_is_invalid() {
+    let (_dir, session) = fixture_session();
+    let spans: Vec<_> = EMPTY_STATE_FIXTURE_SPANS
+        .into_iter()
+        .filter(|(name, _, _)| *name != EMPTY_STATE_SPAN)
+        .collect();
+    let run = empty_editor_run(&session, &spans);
+    for kind in [RunKind::Measured, RunKind::Prime] {
+        let id = RunId {
+            arm: Arm::EmptyEditor,
+            kind,
+            index: u32::from(kind == RunKind::Measured),
+        };
+        let record = collect(&run, &id, LaunchFacts::default());
+        assert!(!record.valid, "{kind:?}");
+        assert_eq!(
+            record.reason.as_deref(),
+            Some(
+                "no air.emptyState.createComponent span in opentelemetry.json: the project restored an editor, or the registry key air.inline.empty.state.prompt is off"
+            )
+        );
+        assert!(record.metrics.is_empty(), "a failed run reports no number");
+    }
+
+    std::fs::remove_file(run.join("opentelemetry.json")).expect("a removal");
+    let record = collect(&run, &id(Arm::EmptyEditor), LaunchFacts::default());
+    assert_eq!(
+        record.reason.as_deref(),
+        Some("no opentelemetry.json, so no air.emptyState.createComponent span")
+    );
+}
+
+/// A project run whose trace holds no composer span has no composer metric and no anchor at the composer.
+#[test]
+fn a_project_run_without_a_composer_has_no_composer_metric() {
+    let (_dir, session) = fixture_session();
+    let record = collect(&session.join("project-run-01"), &id(Arm::Project), LaunchFacts::default());
+    assert!(record.valid, "{:?}", record.reason);
+    assert!(
+        !record
+            .metrics
+            .keys()
+            .any(|metric| metric.starts_with(EMPTY_STATE_PREFIX) || metric.contains(EMPTY_STATE_BUILT)),
+        "{:?}",
+        record.metrics.keys()
+    );
+}
+
+/// A composer build that threw ends its span too, with the error tags of the IDE, so the run is not valid and reports
+/// no number.
+#[test]
+fn an_empty_editor_run_whose_composer_threw_is_invalid() {
+    let (_dir, session) = fixture_session();
+    let run = empty_editor_run(&session, &EMPTY_STATE_FIXTURE_SPANS);
+    let path = run.join("opentelemetry.json");
+    let mut trace: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path).expect("a trace")).expect("a Jaeger trace");
+    let span = trace["data"][0]["spans"]
+        .as_array_mut()
+        .expect("a span list")
+        .iter_mut()
+        .find(|span| span["operationName"] == EMPTY_STATE_SPAN)
+        .expect("the composer span");
+    span["tags"] = serde_json::json!([
+        {"key": "otel.status_code", "type": "string", "value": "ERROR"},
+        {"key": "error", "type": "boolean", "value": "true"},
+    ]);
+    std::fs::write(&path, trace.to_string()).expect("a trace");
+    let record = collect(&run, &id(Arm::EmptyEditor), LaunchFacts::default());
+    assert!(!record.valid);
+    assert_eq!(
+        record.reason.as_deref(),
+        Some("the air.emptyState.createComponent span ended with an error")
+    );
+    assert!(record.metrics.is_empty(), "a failed run reports no number");
+}
+
+/// The quit cancels a composer build that has not finished, and the IDE still ends its span, without an error. A span
+/// that ends after `application.exit` started, at 7553.7 ms in the fixture, is thus not valid.
+#[test]
+fn an_empty_editor_run_whose_composer_the_quit_cut_short_is_invalid() {
+    let (_dir, session) = fixture_session();
+    let mut spans = EMPTY_STATE_FIXTURE_SPANS.to_vec();
+    spans[0] = (EMPTY_STATE_SPAN, 2000, 6000);
+    let run = empty_editor_run(&session, &spans);
+    let record = collect(&run, &id(Arm::EmptyEditor), LaunchFacts::default());
+    assert!(!record.valid);
+    assert_eq!(
+        record.reason.as_deref(),
+        Some("the air.emptyState.createComponent span did not end before the application.exit span started, so the quit cut it short")
+    );
+    assert!(record.metrics.is_empty(), "a failed run reports no number");
 }

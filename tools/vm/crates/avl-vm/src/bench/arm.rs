@@ -16,6 +16,9 @@ pub(crate) enum Arm {
     OpenProject,
     /// A project that the command line of the IDE names, with no welcome screen.
     Project,
+    /// A project that the command line of the IDE names and that restores no editor, so the empty editor area builds
+    /// the Air composer.
+    EmptyEditor,
 }
 
 /// What a run of an arm must show to pass the gate.
@@ -26,6 +29,8 @@ pub(crate) enum Gate {
     Welcome { modal: bool },
     /// The `editor highlighting completed` event in the trace or in the report.
     Highlighted,
+    /// The span `name` in the trace. The IDE writes a span when it ends. `missing` tells why a run can lack it.
+    Span { name: &'static str, missing: &'static str },
 }
 
 impl Arm {
@@ -36,6 +41,7 @@ impl Arm {
             Self::NonModal => "nonModal",
             Self::OpenProject => "openProject",
             Self::Project => "project",
+            Self::EmptyEditor => "emptyEditor",
         }
     }
 
@@ -46,6 +52,7 @@ impl Arm {
             Self::NonModal => "non-modal",
             Self::OpenProject => "open-project",
             Self::Project => "project",
+            Self::EmptyEditor => "empty-editor",
         }
     }
 
@@ -55,6 +62,7 @@ impl Arm {
             Self::Modal | Self::NonModal => record::WELCOME_BECAME_VISIBLE,
             Self::OpenProject => record::OPEN_HIGHLIGHTED,
             Self::Project => record::EDITOR_HIGHLIGHTED,
+            Self::EmptyEditor => record::EMPTY_STATE_BUILT,
         }
     }
 
@@ -64,11 +72,15 @@ impl Arm {
             Self::Modal => Gate::Welcome { modal: true },
             Self::NonModal | Self::OpenProject => Gate::Welcome { modal: false },
             Self::Project => Gate::Highlighted,
+            Self::EmptyEditor => Gate::Span {
+                name: record::EMPTY_STATE_SPAN,
+                missing: "the project restored an editor, or the registry key air.inline.empty.state.prompt is off",
+            },
         }
     }
 
     /// Every arm, in the order of the digest.
-    pub(crate) const ALL: [Self; 4] = [Self::Modal, Self::NonModal, Self::OpenProject, Self::Project];
+    pub(crate) const ALL: [Self; 5] = [Self::Modal, Self::NonModal, Self::OpenProject, Self::Project, Self::EmptyEditor];
 
     /// The arm of a run directory label.
     pub(crate) fn from_label(label: &str) -> Option<Self> {

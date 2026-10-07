@@ -85,3 +85,54 @@ fn a_project_session_shows_the_editor_and_the_additional_modules() {
         assert_eq!(lines.iter().filter(|line| name(line) == row).count(), 1, "{row}: {text}");
     }
 }
+
+/// A session with the empty-editor arm renders the composer group: its end, the spans with a fixed name, then the
+/// prologue steps in name order. It names no prime file, because that arm opens none.
+#[test]
+fn an_empty_editor_session_shows_the_composer() {
+    use crate::bench::arm::Arm;
+    use crate::bench::record::{self, LaunchFacts, RunId};
+    use crate::bench::session;
+    use crate::bench::summary::Summary;
+    use crate::bench::testing::{EMPTY_STATE_FIXTURE_SPANS, empty_editor_run};
+    let (_dir, session_dir) = fixture_session();
+    let mut info = session::read_info(&session_dir).expect("the session");
+    info.command = "project".to_owned();
+    info.arms = vec![Arm::EmptyEditor];
+    info.cold = true;
+    info.project = Some("<template>/projects/markdown".to_owned());
+    let run_dir = empty_editor_run(&session_dir, &EMPTY_STATE_FIXTURE_SPANS);
+    let id = RunId::parse("empty-editor-run-01").expect("a run");
+    let run = record::collect(&run_dir, &id, LaunchFacts::default());
+    let summary = Summary::build(&info, "<session>", &[run]);
+    let text = super::render(&summary);
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(lines[0].contains(", cold, "), "{}", lines[0]);
+    assert_eq!(lines[2], "project: <template>/projects/markdown");
+    assert!(lines[3].trim_start().starts_with("empty-editor 1/1 valid"), "{text}");
+    let name = |line: &str| line.chars().take(super::NAME_WIDTH).collect::<String>().trim().to_owned();
+    let group = lines
+        .iter()
+        .position(|line| *line == "empty-state composer:")
+        .expect("the composer group");
+    let rows: Vec<String> = lines[group + 1..]
+        .iter()
+        .take_while(|line| line.starts_with("  "))
+        .map(|line| name(line))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            "emptyStateBuilt",
+            "air.emptyState.createComponent",
+            "air.emptyState.prologue",
+            "air.emptyState.buildOnEdt",
+            "air.emptyState.createContent",
+            "air.emptyState.initializeContent",
+            "air.emptyState.prologue.aiSource",
+            "air.emptyState.prologue.promptDocument",
+        ]
+    );
+    assert!(!lines.contains(&"editor:"), "the editor group needs the project arm: {text}");
+    assert!(text.contains("  classes.named@emptyStateBuilt "), "{text}");
+}

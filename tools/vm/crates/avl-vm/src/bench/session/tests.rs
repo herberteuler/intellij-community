@@ -3,8 +3,8 @@ use pretty_assertions::assert_eq;
 use std::path::Path;
 
 use super::{
-    GENERAL_SETTINGS, Project, ProjectSource, RESULT_FILE, Sandbox, first_file, live_sandbox, own_welcome_project, run_dirs, write_project,
-    write_template,
+    GENERAL_SETTINGS, NO_README_SETTINGS, Project, ProjectSource, RESULT_FILE, Sandbox, first_file, live_sandbox, open_no_readme,
+    own_welcome_project, run_dirs, write_project, write_template,
 };
 use crate::bench::arm::Arm;
 use crate::bench::record::{RunId, RunKind};
@@ -76,6 +76,22 @@ fn a_sandbox_owns_its_welcome_project() {
         )
     );
     assert!(Path::new(&projects.replace("&amp;", "&")).starts_with(&sandbox.root));
+}
+
+/// A sandbox of the empty-editor arm turns the README lookup of a first project open off, in the file of the advanced
+/// settings.
+#[test]
+fn a_sandbox_can_open_no_readme() {
+    let dir = tempfile::tempdir().expect("a temporary directory");
+    let sandbox = live_sandbox(dir.path(), Arm::EmptyEditor);
+    assert_eq!(sandbox.root, dir.path().join("empty-editor-sandbox"));
+    open_no_readme(&sandbox).expect("the settings");
+    let settings = std::fs::read_to_string(sandbox.config().join("options/advancedSettings.xml")).expect("the settings");
+    assert_eq!(settings, NO_README_SETTINGS);
+    assert!(
+        settings.contains(r#"<entry key="ide.open.readme.md.on.startup" value="false" />"#),
+        "{settings}"
+    );
 }
 
 #[test]

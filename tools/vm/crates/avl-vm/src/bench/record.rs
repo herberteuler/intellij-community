@@ -17,7 +17,7 @@ use super::profile::{self, EdtProfile, FrameSamples};
 use super::session::{CLASS_LOAD_LOG, TRACE_FILE};
 use super::stats::{self, StartupStats};
 use super::timeline::QUIT_SPAN;
-use super::trace::{self, Trace, as_f64, micros_to_ms};
+use super::trace::{self, Trace, as_f64, micros_to_ms, tenth};
 
 /// The line of `idea.log` that tells that the IDE opened the welcome project.
 pub(crate) const WELCOME_PROJECT_LOG_LINE: &str = "Opened the welcome screen project";
@@ -57,8 +57,9 @@ pub(crate) const QUIT_ANCHOR: &str = "quit";
 
 /// The anchors of the class counts, in the order of the start-up. Each one except [`QUIT_ANCHOR`] is a metric in
 /// milliseconds from the process start. A run has the metric [`named_at`] for each anchor that it has.
-pub(crate) const CLASS_ANCHORS: [&str; 5] = [
+pub(crate) const CLASS_ANCHORS: [&str; 6] = [
     FRAME_BECAME_VISIBLE,
+    EMPTY_STATE_BUILT,
     WELCOME_BECAME_VISIBLE,
     WELCOME_SCREEN_PAINTED,
     EDITOR_HIGHLIGHTED,
@@ -114,6 +115,33 @@ pub(crate) const OPEN_HIGHLIGHTED: &str = "open: editor highlighting completed";
 /// The instant event of the highlighted editor, and the metric key of the project arm: the milliseconds from the
 /// process start to the event.
 pub(crate) const EDITOR_HIGHLIGHTED: &str = "editor highlighting completed";
+
+/// The span of the Air composer that an empty editor area builds, from its start to the built card. The gate of the
+/// empty-editor arm. Air writes it only as a span, because it ends after the start-up report.
+pub(crate) const EMPTY_STATE_SPAN: &str = "air.emptyState.createComponent";
+
+/// The tag that the IDE adds to a span that ended with an error, with the string value `true`.
+const ERROR_TAG: &str = "error";
+
+/// The metric key of the empty-editor arm: the milliseconds from the process start to the end of
+/// [`EMPTY_STATE_SPAN`].
+pub(crate) const EMPTY_STATE_BUILT: &str = "emptyStateBuilt";
+
+/// The prefix of the spans of the Air empty-state composer. Each span is a metric with its duration.
+pub(crate) const EMPTY_STATE_PREFIX: &str = "air.emptyState.";
+
+/// The prefix of the prologue steps of the composer, which the digest shows after [`EMPTY_STATE_SPANS`].
+pub(crate) const EMPTY_STATE_STEP_PREFIX: &str = "air.emptyState.prologue.";
+
+/// The spans of the composer with a fixed name, in the order of the digest: the whole build, the off-EDT prologue,
+/// the EDT build, and its two halves.
+pub(crate) const EMPTY_STATE_SPANS: [&str; 5] = [
+    EMPTY_STATE_SPAN,
+    "air.emptyState.prologue",
+    "air.emptyState.buildOnEdt",
+    "air.emptyState.createContent",
+    "air.emptyState.initializeContent",
+];
 
 /// The trace and report names of the second project.
 const FRAME_SPAN: &str = "project frame creating";
@@ -271,8 +299,8 @@ fn measure(run_dir: &Path, record: &mut RunRecord) -> Result<(), String> {
     let gate = record.arm.gate();
     let events = match files::read_optional(&run_dir.join("fus.jsonl")) {
         Ok(Some(text)) => fus::parse(&text).map_err(|error| format!("fus.jsonl: {error:#}"))?,
-        // The highlighted gate reads no FUS event, so the welcome events are only extra metrics.
-        Ok(None) if gate == Gate::Highlighted => {
+        // The highlighted gate and a span gate read no FUS event, so the welcome events are only extra metrics.
+        Ok(None) if !matches!(gate, Gate::Welcome { .. }) => {
             record.notes.push("no fus.jsonl".to_owned());
             Vec::new()
         }
@@ -316,6 +344,10 @@ fn measure(run_dir: &Path, record: &mut RunRecord) -> Result<(), String> {
                 metrics.entry(name.to_owned()).or_insert_with(|| micros_to_ms(span.duration));
             }
         }
+        empty_state_metrics(trace, metrics);
+    }
+    if let Gate::Span { name, missing } = gate {
+        span_gate(trace.as_ref(), name, missing)?;
     }
     if record.arm == Arm::OpenProject {
         open_project_metrics(record.launch.open_request_us, trace.as_ref(), stats.as_ref(), metrics)?;
@@ -484,6 +516,30 @@ fn welcome_gate(run_dir: &Path, arm: Arm, expected: bool, events: &[fus::Event])
     Ok(())
 }
 
+/// The span gate: the first span `name` of the trace, ended without an error and before the quit. The IDE ends the
+/// span of a build that threw or that the quit cancelled too, so its end is when the build stopped, not when it
+/// finished. A build that threw has the tag [`ERROR_TAG`]. A cancelled build has no tag, and its end is at or after
+/// the start of [`QUIT_SPAN`].
+fn span_gate(trace: Option<&Trace>, name: &str, missing: &str) -> Result<(), String> {
+    let Some(trace) = trace else {
+        return Err(format!("no {TRACE_FILE}, so no {name} span"));
+    };
+    let Some(span) = trace.first(name) else {
+        return Err(format!("no {name} span in {TRACE_FILE}: {missing}"));
+    };
+    if span.tag(ERROR_TAG) == Some("true") {
+        return Err(format!("the {name} span ended with an error"));
+    }
+    if let Some(quit) = trace.first(QUIT_SPAN)
+        && span.start_time + span.duration >= quit.start_time
+    {
+        return Err(format!(
+            "the {name} span did not end before the {QUIT_SPAN} span started, so the quit cut it short"
+        ));
+    }
+    Ok(())
+}
+
 /// The metrics of the second project, measured from the open request.
 fn open_project_metrics(
     request_us: Option<i64>,
@@ -537,6 +593,28 @@ pub(crate) fn highlighted_ms(trace: Option<&Trace>, stats: Option<&StartupStats>
         .iter()
         .find(|event| event.name == EDITOR_HIGHLIGHTED)
         .map(|event| micros_to_ms(event.ts))
+}
+
+/// The metrics of the Air empty-state composer: the duration of the first span of each name under
+/// [`EMPTY_STATE_PREFIX`], and [`EMPTY_STATE_BUILT`], the end of the first [`EMPTY_STATE_SPAN`]. A composer that the
+/// IDE builds again, after an editor closed, adds no metric: the first span of a name counts.
+fn empty_state_metrics(trace: &Trace, metrics: &mut BTreeMap<String, f64>) {
+    for span in &trace.spans {
+        let name = span.operation_name.as_str();
+        if name.starts_with(EMPTY_STATE_PREFIX)
+            && !span.is_helper()
+            && !metrics.contains_key(name)
+            && let Some(first) = trace.first(name)
+        {
+            metrics.insert(name.to_owned(), micros_to_ms(first.duration));
+        }
+    }
+    if let (Some(origin), Some(span)) = (trace.origin_us(), trace.first(EMPTY_STATE_SPAN)) {
+        metrics.insert(
+            EMPTY_STATE_BUILT.to_owned(),
+            tenth(span.offset_ms(origin) + micros_to_ms(span.duration)),
+        );
+    }
 }
 
 /// The duration of a span: the trace when it has the span, else the report item.

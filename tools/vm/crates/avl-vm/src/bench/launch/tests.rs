@@ -4,7 +4,7 @@ use pretty_assertions::assert_eq;
 
 use super::{
     FORCE_MODAL_PROPERTY, PROJECT_PROPERTIES, RunPlan, argfile_text, class_load_option, dist_options, entry_options, measure_options,
-    quote_argument, sandbox_options, scheme_arguments,
+    quote_argument, sandbox_options, scheme_arguments, span_ended,
 };
 use crate::bench::arm::Arm;
 use crate::bench::record::RunKind;
@@ -120,6 +120,62 @@ fn the_prime_run_of_a_project_opens_its_first_file_and_a_measured_run_restores_i
     for property in PROJECT_PROPERTIES {
         assert!(!welcome_options.contains(&format!("-D{property}")), "{property}");
     }
+}
+
+/// Every run of the empty-editor arm opens the project directory alone, so the IDE neither saves nor restores an
+/// editor. The arm takes the properties of a project start.
+#[test]
+fn every_run_of_the_empty_editor_arm_opens_the_project_without_a_file() {
+    let sandbox = Sandbox::new("/s/empty-editor-sandbox");
+    let project = Project {
+        name: "markdown".to_owned(),
+        file: "README.md".into(),
+    };
+    for kind in [RunKind::Prime, RunKind::Measured] {
+        let plan = RunPlan {
+            arm: Arm::EmptyEditor,
+            kind,
+            project: Some(project.paths(&sandbox)),
+            open_project: None,
+        };
+        assert_eq!(
+            plan.program_arguments(),
+            vec!["/s/empty-editor-sandbox/projects/markdown"],
+            "{kind:?}"
+        );
+    }
+    let options = measure_options(Path::new("/r"), &sandbox, Arm::EmptyEditor, None).expect("the options");
+    for property in PROJECT_PROPERTIES {
+        assert!(options.contains(&format!("-D{property}")), "{property}");
+    }
+    assert!(!options.contains(&format!("-D{FORCE_MODAL_PROPERTY}")));
+}
+
+/// The poll of a span gate: no trace, a trace without the span, then a trace that the running IDE still writes, with
+/// the span. The IDE writes a span when it ends.
+#[test]
+fn the_span_poll_passes_once_the_trace_holds_the_span() {
+    let dir = tempfile::tempdir().expect("a temporary directory");
+    let run = dir.path();
+    let name = "air.emptyState.createComponent";
+    assert!(!span_ended(run, name), "no trace");
+    let head = r#"{"data":[{"traceID":"t","spans":[{"traceID":"t","spanID":"1","operationName":"bootstrap","processID":"p1","startTime":1000,"duration":10}"#;
+    std::fs::write(run.join("opentelemetry.json"), format!("{head},")).expect("a trace");
+    assert!(!span_ended(run, name), "a trace without the span");
+    std::fs::write(
+        run.join("opentelemetry.json"),
+        format!(
+            r#"{head},{{"traceID":"t","spanID":"2","operationName":"{name}: scheduled","processID":"p1","startTime":2000,"duration":5}},"#
+        ),
+    )
+    .expect("a trace");
+    assert!(!span_ended(run, name), "a helper twin is not the span");
+    std::fs::write(
+        run.join("opentelemetry.json"),
+        format!(r#"{head},{{"traceID":"t","spanID":"3","operationName":"{name}","processID":"p1","startTime":2000,"duration":900}},"#),
+    )
+    .expect("a trace");
+    assert!(span_ended(run, name), "a truncated trace with the span");
 }
 
 #[test]

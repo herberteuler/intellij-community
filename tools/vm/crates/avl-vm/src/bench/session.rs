@@ -78,6 +78,24 @@ fn xml_attribute(value: &str) -> String {
         .replace('"', "&quot;")
 }
 
+/// The advanced settings of a sandbox whose project opens no editor. On the first open of a project, the IDE opens its
+/// `README.md`, and the next start restores that editor. The generated Markdown project has one.
+pub(crate) const NO_README_SETTINGS: &str = r#"<application>
+  <component name="AdvancedSettings">
+    <option name="settings">
+      <map>
+        <entry key="ide.open.readme.md.on.startup" value="false" />
+      </map>
+    </option>
+  </component>
+</application>
+"#;
+
+/// Keeps the IDE from opening the README of a project in this sandbox. See [`NO_README_SETTINGS`].
+pub(crate) fn open_no_readme(sandbox: &Sandbox) -> anyhow::Result<()> {
+    files::write_text(&sandbox.config().join("options").join("advancedSettings.xml"), NO_README_SETTINGS)
+}
+
 /// Points the welcome project of a sandbox at its own `projects` directory.
 pub(crate) fn own_welcome_project(sandbox: &Sandbox) -> anyhow::Result<()> {
     files::write_text(
@@ -111,7 +129,8 @@ pub(crate) struct SessionInfo {
     pub(crate) profile: bool,
     /// The project of `open-project`, or the project of `project` inside the template.
     pub(crate) project: Option<String>,
-    /// The file that the prime run of `project` opens, relative to the project.
+    /// The file that the prime run of the `project` arm opens, relative to the project. A session without that arm
+    /// has none.
     #[serde(default)]
     pub(crate) project_file: Option<String>,
     /// The `additional.modules` of the dist config. The distribution holds them, so the launch passes none.

@@ -37,6 +37,8 @@ const POLL: Duration = Duration::from_millis(200);
 pub(crate) const EVENT_TIMEOUT: Duration = Duration::from_secs(180);
 /// How long a run waits for the event of its gate after `startup-stats.json` appeared.
 const AFTER_REPORT_TIMEOUT: Duration = Duration::from_secs(20);
+/// How long a run of a span gate waits after `startup-stats.json` appeared, when the trace does not show the span yet.
+const SPAN_SETTLE: Duration = Duration::from_secs(10);
 /// How long the quit command, the open request and the IDE after the quit can take.
 const QUIT_TIMEOUT: Duration = Duration::from_secs(60);
 /// How long the IDE can take after SIGTERM.
@@ -116,7 +118,7 @@ pub(crate) fn measure_options(run_dir: &Path, sandbox: &Sandbox, arm: Arm, profi
     options.extend(MEASURE_PROPERTIES.iter().map(|property| format!("-D{property}")));
     match arm {
         Arm::Modal => options.push(format!("-D{FORCE_MODAL_PROPERTY}")),
-        Arm::Project => options.extend(PROJECT_PROPERTIES.iter().map(|property| format!("-D{property}"))),
+        Arm::Project | Arm::EmptyEditor => options.extend(PROJECT_PROPERTIES.iter().map(|property| format!("-D{property}"))),
         Arm::NonModal | Arm::OpenProject => {}
     }
     if let Some(library) = profiler {
@@ -142,12 +144,13 @@ pub(crate) struct RunPlan<'a> {
 
 impl RunPlan<'_> {
     /// The program arguments of the IDE. The prime run of the `project` arm passes the project and its first file, so
-    /// the IDE saves the editor state. A measured run passes the project only, and the IDE restores the editor.
+    /// the IDE saves the editor state. A measured run passes the project only, and the IDE restores the editor. Each
+    /// run of the `empty-editor` arm passes the project only, so the IDE saves and restores no editor.
     pub(crate) fn program_arguments(&self) -> Vec<String> {
-        match (&self.project, self.kind) {
-            (Some(project), RunKind::Prime) => vec![project.dir.display().to_string(), project.file.display().to_string()],
-            (Some(project), RunKind::Measured) => vec![project.dir.display().to_string()],
-            (None, _) => Vec::new(),
+        match (&self.project, self.arm, self.kind) {
+            (Some(project), Arm::Project, RunKind::Prime) => vec![project.dir.display().to_string(), project.file.display().to_string()],
+            (Some(project), _, _) => vec![project.dir.display().to_string()],
+            (None, _, _) => Vec::new(),
         }
     }
 }
@@ -455,6 +458,7 @@ impl Launcher {
         let mut exited = match plan.arm.gate() {
             Gate::Welcome { .. } => wait_for_welcome(ctx, &mut ide, run_dir, &fus_dir, &mut collector, &mut facts).await,
             Gate::Highlighted => wait_for_highlighted(ctx, &mut ide, run_dir, plan.kind == RunKind::Prime, &mut facts).await,
+            Gate::Span { name, missing } => wait_for_span(ctx, &mut ide, run_dir, name, missing, &mut facts).await,
         };
         facts.waited_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
         if exited.is_none()
@@ -686,6 +690,64 @@ where
             return None;
         }
     }
+}
+
+/// Polls the trace for the span `name`. Answers how the IDE ended when it exited before the span. A prime run waits
+/// for the span too, so its sandbox holds the caches of a start that built what the span measures.
+///
+/// The IDE buffers the spans of its trace and writes them in chunks and at the exit. A span that ends late in the
+/// start can therefore reach the file only at the exit. The wait thus also ends [`SPAN_SETTLE`] after
+/// `startup-stats.json`, without a failure, and the record decides the gate from the closed trace. The quit ends a
+/// build that has not finished, so the record also refuses a span that ended with an error or after the quit started.
+async fn wait_for_span<F>(ctx: &Ctx, ide: &mut F, run_dir: &Path, name: &str, missing: &str, facts: &mut LaunchFacts) -> Option<Ended>
+where
+    F: Future<Output = Result<String, ProcError>> + Unpin,
+{
+    let deadline = Instant::now() + EVENT_TIMEOUT;
+    let report = run_dir.join("startup-stats.json");
+    let mut settle_deadline: Option<Instant> = None;
+    loop {
+        tokio::select! {
+            result = &mut *ide => {
+                facts.failure = Some(format!("the IDE exited ({}) before the {name} span ended", describe(&result)));
+                return Some(ended(&result));
+            }
+            alive = ctx.sleep(POLL) => {
+                if !alive {
+                    facts.failure = Some(interrupted_text());
+                    return None;
+                }
+            }
+        }
+        if span_ended(run_dir, name) {
+            return None;
+        }
+        let now = Instant::now();
+        if settle_deadline.is_none() && report.exists() {
+            settle_deadline = Some(now + SPAN_SETTLE);
+        }
+        if settle_deadline.is_some_and(|limit| now >= limit) {
+            return None;
+        }
+        if now >= deadline {
+            facts.failure = Some(format!(
+                "no {name} span and no startup-stats.json within {} s: {missing}",
+                EVENT_TIMEOUT.as_secs()
+            ));
+            return None;
+        }
+    }
+}
+
+/// Tells whether the trace that the IDE wrote so far has the span `name`. The IDE writes a span when it ends, into a
+/// buffer that reaches the file in chunks. A trace without the name is not parsed, so a poll of a large trace is cheap.
+pub(crate) fn span_ended(run_dir: &Path, name: &str) -> bool {
+    files::read_optional(&run_dir.join(TRACE_FILE))
+        .ok()
+        .flatten()
+        .filter(|text| text.contains(name))
+        .and_then(|text| trace::parse(&text).ok())
+        .is_some_and(|trace| trace.first(name).is_some())
 }
 
 /// Tells whether the trace or the report that the IDE wrote so far has the highlighted editor at or after `from_us`.

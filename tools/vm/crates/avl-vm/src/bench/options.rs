@@ -49,10 +49,15 @@ pub(crate) enum BenchVerb {
     Replay(ReplayArgs),
     /// Starts the IDE without a project, then opens <PROJECT> in the running IDE and measures its editor.
     OpenProject(OpenProjectArgs),
-    /// Starts the IDE on PROJECT and measures the time to the highlighted editor. No welcome screen.
+    /// Starts the IDE on PROJECT and measures the time to the highlighted editor, or to the built Air composer of an
+    /// empty editor area. No welcome screen.
     ///
-    /// The prime run opens the project with its first file, so the IDE saves the editor state. Each measured run
-    /// opens the project directory and the IDE restores the editor.
+    /// In the project arm, the prime run opens the project with its first file, so the IDE saves the editor state. Each
+    /// measured run opens the project directory and the IDE restores the editor.
+    ///
+    /// In the empty-editor arm, every run opens the project directory, and the IDE opens no README. The IDE restores no
+    /// editor, so the empty editor area builds the Air composer, and the gate is the end of its
+    /// air.emptyState.createComponent span. --cold starts each run of this arm from the unprimed template.
     Project(ProjectArgs),
     /// Removes the old generations: all except the --keep newest and those a session of the last 24 hours names.
     Gc(GcArgs),
@@ -253,11 +258,33 @@ pub(crate) struct ProjectArgs {
     /// The project: `markdown`, a generated project of Markdown files only, or a directory to copy into the sandbox.
     #[arg(value_name = "PROJECT")]
     pub(crate) project: String,
-    /// The measured runs.
+    /// The measured runs per arm.
     #[arg(long, value_name = "N", default_value_t = DEFAULT_OPEN_PROJECT_RUNS, value_parser = clap::value_parser!(u32).range(1..=50))]
     pub(crate) runs: u32,
+    /// The arms of the session. `both` interleaves the project arm and the empty-editor arm.
+    #[arg(long, value_enum, default_value_t = ProjectArmChoice::Project)]
+    pub(crate) arm: ProjectArmChoice,
+    /// Starts each measured run from a fresh copy of the unprimed template, with empty caches, and skips the prime
+    /// run. Only the empty-editor arm takes it: the project arm restores the editor of its prime run.
+    #[arg(long)]
+    pub(crate) cold: bool,
     #[command(flatten)]
     pub(crate) launch: LaunchArgs,
+}
+
+impl ProjectArgs {
+    /// The arms of the session, in the interleave order. A cold session of the project arm is refused: without a
+    /// prime run, no editor state is there to restore.
+    pub(crate) fn arms(&self) -> Result<Vec<Arm>, String> {
+        let arms = self.arm.arms();
+        if self.cold && arms.contains(&Arm::Project) {
+            return Err(
+                "--cold needs --arm empty-editor: the project arm restores the editor that its prime run saved, and a cold session has no prime run"
+                    .to_owned(),
+            );
+        }
+        Ok(arms)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, clap::Args)]
@@ -276,7 +303,7 @@ pub(crate) struct GcArgs {
     pub(crate) keep: u32,
 }
 
-/// The `--arm` value.
+/// The `--arm` value of `bench welcome`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub(crate) enum ArmChoice {
     Both,
@@ -291,6 +318,25 @@ impl ArmChoice {
             Self::Both => vec![Arm::Modal, Arm::NonModal],
             Self::Modal => vec![Arm::Modal],
             Self::NonModal => vec![Arm::NonModal],
+        }
+    }
+}
+
+/// The `--arm` value of `bench project`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub(crate) enum ProjectArmChoice {
+    Project,
+    EmptyEditor,
+    Both,
+}
+
+impl ProjectArmChoice {
+    /// The arms in the interleave order.
+    pub(crate) fn arms(self) -> Vec<Arm> {
+        match self {
+            Self::Project => vec![Arm::Project],
+            Self::EmptyEditor => vec![Arm::EmptyEditor],
+            Self::Both => vec![Arm::Project, Arm::EmptyEditor],
         }
     }
 }

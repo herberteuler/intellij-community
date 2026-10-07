@@ -124,9 +124,9 @@ impl Bench<'_> {
             BenchVerb::Project(args) => {
                 let plan = Plan {
                     command: "project",
-                    arms: vec![Arm::Project],
+                    arms: args.arms().map_err(Refusal::usage)?,
                     runs: args.runs,
-                    cold: false,
+                    cold: args.cold,
                     profile: false,
                     project: Some(PlannedProject::Start(project_source(&args.project, &working_dir()?)?)),
                 };
@@ -304,7 +304,10 @@ impl Bench<'_> {
                 (Some(PlannedProject::Open(dir)), None) => Some(dir.display().to_string()),
                 (Some(PlannedProject::Start(_)) | None, None) => None,
             },
-            project_file: project.as_ref().map(|project| project.file.display().to_string()),
+            project_file: project
+                .as_ref()
+                .filter(|_| plan.arms.contains(&Arm::Project))
+                .map(|project| project.file.display().to_string()),
             additional_modules: generation.config.additional_modules.clone(),
             max_load,
             warnings,
@@ -372,6 +375,9 @@ impl Bench<'_> {
             let _ = std::fs::remove_dir_all(sandbox.root.join(stale));
         }
         session::own_welcome_project(&sandbox).map_err(failed)?;
+        if id.arm == Arm::EmptyEditor {
+            session::open_no_readme(&sandbox).map_err(failed)?;
+        }
         let name = match id.kind {
             RunKind::Prime => format!("{} prime", id.arm.label()),
             RunKind::Measured => format!("{} run {}/{}", id.arm.label(), id.index, running.plan.runs),

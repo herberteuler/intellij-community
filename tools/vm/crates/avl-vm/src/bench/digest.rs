@@ -1,6 +1,6 @@
 //! The text digest of a summary, about 40 lines. It is advisory and can change; `summary.json` is the stable half.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::time::SystemTime;
 
@@ -11,8 +11,9 @@ use super::arm::Arm;
 use super::profile::FrameSamples;
 use super::record::{
     CLASS_ANCHORS, CLASS_EDT_TIME, CLASS_REQUESTS, CLASS_TIME, CLASSES_HIDDEN, CLASSES_JAR, CLASSES_JDK, CLASSES_NAMED, CLASSES_PLATFORM,
-    CLASSES_PLUGINS, CREATE_CONTENT_PREFIX, EDITOR_HIGHLIGHTED, FRAME_BECAME_INTERACTIVE, FRAME_BECAME_VISIBLE, OPEN_EDITOR_PAINT,
-    OPEN_FRAME, OPEN_HIGHLIGHTED, PLATFORM_SPANS, PLUGIN_CLASSES, TOTAL_DURATION, WELCOME_BECAME_VISIBLE, WELCOME_SPANS, named_at,
+    CLASSES_PLUGINS, CREATE_CONTENT_PREFIX, EDITOR_HIGHLIGHTED, EMPTY_STATE_BUILT, EMPTY_STATE_SPANS, EMPTY_STATE_STEP_PREFIX,
+    FRAME_BECAME_INTERACTIVE, FRAME_BECAME_VISIBLE, OPEN_EDITOR_PAINT, OPEN_FRAME, OPEN_HIGHLIGHTED, PLATFORM_SPANS, PLUGIN_CLASSES,
+    TOTAL_DURATION, WELCOME_BECAME_VISIBLE, WELCOME_SPANS, named_at,
 };
 use super::session::SUMMARY_FILE;
 use super::summary::{ArmSummary, Summary};
@@ -146,6 +147,9 @@ pub(crate) fn metric_groups(arms: &[&ArmSummary]) -> Vec<(&'static str, Vec<Stri
     if arms.iter().any(|arm| arm.arm == Arm::Project) {
         groups.push(("editor", vec![EDITOR_HIGHLIGHTED.to_owned()]));
     }
+    if arms.iter().any(|arm| arm.arm == Arm::EmptyEditor) {
+        groups.push(("empty-state composer", empty_state_rows(arms)));
+    }
     groups.push(("platform spans", PLATFORM_SPANS.map(str::to_owned).to_vec()));
     if arms.iter().any(|arm| matches!(arm.arm, Arm::NonModal | Arm::OpenProject)) {
         groups.push(("welcome spans", welcome_rows(arms)));
@@ -185,6 +189,21 @@ pub(crate) fn table_line(name: &str, cells: &[String]) -> String {
     line.trim_end().to_owned()
 }
 
+/// The rows of the Air empty-state composer: its end, the spans with a fixed name, then the prologue steps that an
+/// arm has, in name order.
+fn empty_state_rows(arms: &[&ArmSummary]) -> Vec<String> {
+    let steps: BTreeSet<String> = arms
+        .iter()
+        .flat_map(|arm| arm.summary.keys())
+        .filter(|metric| metric.starts_with(EMPTY_STATE_STEP_PREFIX))
+        .cloned()
+        .collect();
+    std::iter::once(EMPTY_STATE_BUILT.to_owned())
+        .chain(EMPTY_STATE_SPANS.map(str::to_owned))
+        .chain(steps)
+        .collect()
+}
+
 /// The welcome span rows: the fixed names, with the per-feature rows after the feature ids.
 fn welcome_rows(arms: &[&ArmSummary]) -> Vec<String> {
     let features: Vec<String> = arms
@@ -192,7 +211,7 @@ fn welcome_rows(arms: &[&ArmSummary]) -> Vec<String> {
         .flat_map(|arm| arm.summary.keys())
         .filter(|metric| metric.starts_with(CREATE_CONTENT_PREFIX))
         .cloned()
-        .collect::<std::collections::BTreeSet<String>>()
+        .collect::<BTreeSet<String>>()
         .into_iter()
         .collect();
     let mut rows = Vec::new();

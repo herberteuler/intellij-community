@@ -5,7 +5,7 @@ use std::time::Duration;
 use avl_base::Exit;
 use pretty_assertions::assert_eq;
 
-use super::{ArmChoice, BenchVerb, DEFAULT_TARGET, ReplayArgs, parse_hold, parse_load};
+use super::{ArmChoice, BenchVerb, DEFAULT_TARGET, ProjectArmChoice, ReplayArgs, parse_hold, parse_load};
 use crate::bench::arm::Arm;
 use crate::cli::{Cmd, Parsed, parse};
 use crate::terminal::{Output, TerminalFacts};
@@ -116,6 +116,35 @@ fn project_takes_markdown_or_a_directory() {
     assert_eq!(args.launch.target, "//build:jetbrains_light_all_plugins_dist");
 }
 
+/// `bench project` runs the project arm by default. `--arm` adds the empty-editor arm or runs it alone, and only the
+/// empty-editor arm takes `--cold`, because the project arm restores the editor of its prime run.
+#[test]
+fn project_takes_the_empty_editor_arm_and_cold_for_it_alone() {
+    let arms = |argv: &[&str]| {
+        let BenchVerb::Project(args) = verb(argv) else {
+            panic!("expected project");
+        };
+        args.arms()
+    };
+    let BenchVerb::Project(args) = verb(&["project", "markdown"]) else {
+        panic!("expected project");
+    };
+    assert_eq!((args.arm, args.cold), (ProjectArmChoice::Project, false));
+    assert_eq!(arms(&["project", "markdown"]), Ok(vec![Arm::Project]));
+    assert_eq!(arms(&["project", "markdown", "--arm", "empty-editor"]), Ok(vec![Arm::EmptyEditor]));
+    assert_eq!(
+        arms(&["project", "markdown", "--arm", "both"]),
+        Ok(vec![Arm::Project, Arm::EmptyEditor])
+    );
+    assert_eq!(
+        arms(&["project", "markdown", "--arm", "empty-editor", "--cold"]),
+        Ok(vec![Arm::EmptyEditor])
+    );
+    let refused = "--cold needs --arm empty-editor: the project arm restores the editor that its prime run saved, and a cold session has no prime run";
+    assert_eq!(arms(&["project", "markdown", "--cold"]), Err(refused.to_owned()));
+    assert_eq!(arms(&["project", "markdown", "--arm", "both", "--cold"]), Err(refused.to_owned()));
+}
+
 #[test]
 fn a_bad_option_is_a_usage_refusal() {
     for argv in [
@@ -127,6 +156,7 @@ fn a_bad_option_is_a_usage_refusal() {
         &["open-project", "p", "--max-load", "-1"],
         &["project"],
         &["project", "markdown", "--runs", "0"],
+        &["project", "markdown", "--arm", "modal"],
         &["ls", "--limit", "0"],
         &["ls", "latest"],
         &["welcome", "--bogus"],

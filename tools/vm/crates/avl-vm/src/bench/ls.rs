@@ -150,10 +150,11 @@ impl Listing {
         );
         let _ = writeln!(
             text,
-            "per arm: the valid/measured runs and the median ms of {}; open-project: \"{}\"; project: \"{}\"",
+            "per arm: the valid/measured runs and the median ms of {}; open-project: \"{}\"; project: \"{}\"; empty-editor: {}",
             Arm::Modal.main_metric(),
             Arm::OpenProject.main_metric(),
-            Arm::Project.main_metric()
+            Arm::Project.main_metric(),
+            Arm::EmptyEditor.main_metric()
         );
         let name_width = self.sessions.iter().map(|listed| listed.name.chars().count()).max().unwrap_or(0);
         for listed in &self.sessions {

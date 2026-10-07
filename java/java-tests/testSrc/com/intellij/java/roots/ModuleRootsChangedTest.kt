@@ -5,6 +5,7 @@ import com.intellij.java.configurationStore.saveProjectState
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.ModuleRootListener
 import com.intellij.testFramework.ApplicationRule
+import com.intellij.testFramework.ModuleRootEventTracker
 import com.intellij.testFramework.rules.ProjectModelRule
 import org.junit.Before
 import org.junit.ClassRule
@@ -25,13 +26,13 @@ class ModuleRootsChangedTest {
   @JvmField
   val projectModel = ProjectModelRule()
 
-  private lateinit var moduleRootListener: RootsChangedTest.MyModuleRootListener
+  private lateinit var moduleRootListener: ModuleRootEventTracker
   private lateinit var module: Module
 
   @Before
   fun setUp() {
     module = projectModel.createModule("main")
-    moduleRootListener = RootsChangedTest.MyModuleRootListener(projectModel.project)
+    moduleRootListener = ModuleRootEventTracker(projectModel.project)
     projectModel.project.messageBus.connect(projectModel.project).subscribe(ModuleRootListener.TOPIC, moduleRootListener)
   }
 

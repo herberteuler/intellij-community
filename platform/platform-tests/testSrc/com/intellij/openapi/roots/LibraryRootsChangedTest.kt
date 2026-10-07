@@ -1,14 +1,13 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.java.roots
+package com.intellij.openapi.roots
 
 import com.intellij.openapi.module.Module
-import com.intellij.openapi.roots.ModuleRootListener
-import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.testFramework.ApplicationRule
 import com.intellij.testFramework.DisposableRule
+import com.intellij.testFramework.ModuleRootEventTracker
 import com.intellij.testFramework.rules.ProjectModelRule
 import com.intellij.util.io.createDirectories
 import com.intellij.util.io.zipFile
@@ -37,12 +36,12 @@ class LibraryRootsChangedTest {
   @JvmField
   val disposableRule = DisposableRule()
 
-  private lateinit var moduleRootListener: RootsChangedTest.MyModuleRootListener
+  private lateinit var moduleRootListener: ModuleRootEventTracker
   private lateinit var module: Module
 
   @Before
   fun setUp() {
-    moduleRootListener = RootsChangedTest.MyModuleRootListener(projectModel.project)
+    moduleRootListener = ModuleRootEventTracker(projectModel.project)
     projectModel.project.messageBus.connect(disposableRule.disposable).subscribe(ModuleRootListener.TOPIC, moduleRootListener)
     module = projectModel.createModule("main")
   }

@@ -8,15 +8,14 @@ import com.intellij.openapi.application.ex.PathManagerEx;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.DumbService;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.projectRoots.JavaSdk;
 import com.intellij.openapi.projectRoots.ProjectJdkTable;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.projectRoots.SdkModificator;
 import com.intellij.openapi.roots.CompilerModuleExtension;
 import com.intellij.openapi.roots.ContentEntry;
+import com.intellij.openapi.roots.LibraryRootsChangedTest;
 import com.intellij.openapi.roots.ModifiableRootModel;
-import com.intellij.openapi.roots.ModuleRootEvent;
 import com.intellij.openapi.roots.ModuleRootListener;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.roots.ModuleRootModificationUtil;
@@ -38,6 +37,7 @@ import com.intellij.openapi.vfs.newvfs.BulkFileListener;
 import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent;
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent;
 import com.intellij.testFramework.JavaModuleTestCase;
+import com.intellij.testFramework.ModuleRootEventTracker;
 import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.VfsTestUtil;
 import com.intellij.util.TimeoutUtil;
@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * or {@link ModuleRootsChangedTest} which use more convenient API.
  */
 public class RootsChangedTest extends JavaModuleTestCase {
-  private MyModuleRootListener myModuleRootListener;
+  private ModuleRootEventTracker myModuleRootListener;
 
   @Override
   protected void setUp() throws Exception {
@@ -66,7 +66,7 @@ public class RootsChangedTest extends JavaModuleTestCase {
 
     getOrCreateProjectBaseDir();
     MessageBusConnection connection = myProject.getMessageBus().connect(getTestRootDisposable());
-    myModuleRootListener = new MyModuleRootListener(myProject);
+    myModuleRootListener = new ModuleRootEventTracker(myProject);
     connection.subscribe(ModuleRootListener.TOPIC, myModuleRootListener);
   }
 
@@ -348,65 +348,6 @@ public class RootsChangedTest extends JavaModuleTestCase {
     });
   }
 
-  static class MyModuleRootListener implements ModuleRootListener {
-    private final Project myProject;
-    private int beforeCount;
-    private int afterCount;
-    private long modificationCount;
-
-    MyModuleRootListener(Project project) {
-      myProject = project;
-    }
-
-    @Override
-    public void beforeRootsChange(@NotNull ModuleRootEvent event) {
-      beforeCount++;
-    }
-
-    @Override
-    public void rootsChanged(@NotNull ModuleRootEvent event) {
-      afterCount++;
-    }
-
-    void reset() {
-      beforeCount = 0;
-      afterCount = 0;
-      modificationCount = ProjectRootManager.getInstance(myProject).getModificationCount();
-    }
-
-    void assertEventsCountAndIncrementModificationCount(int eventsCount,
-                                                        boolean modificationCountMustBeIncremented,
-                                                        boolean modificationCountMayBeIncremented) {
-      final int beforeCount = this.beforeCount;
-      final int afterCount = this.afterCount;
-      assertEquals("beforeCount = " + beforeCount + ", afterCount = " + afterCount, beforeCount, afterCount);
-      assertEquals(eventsCount, beforeCount);
-      long currentModificationCount = ProjectRootManager.getInstance(myProject).getModificationCount();
-      if (modificationCountMayBeIncremented) {
-        assertTrue(currentModificationCount >= modificationCount);
-      }
-      else if (modificationCountMustBeIncremented) {
-        assertTrue(currentModificationCount > modificationCount);
-      }
-      else {
-        assertEquals(modificationCount, currentModificationCount);
-      }
-      reset();
-    }
-
-    void assertNoEvents(boolean modificationCountMayBeIncremented) {
-      assertEventsCountAndIncrementModificationCount(0, false, modificationCountMayBeIncremented);
-    }
-
-    void assertEventsCount(int count) {
-      assertEventsCountAndIncrementModificationCount(count, count != 0, false);
-    }
-
-    void assertNoEvents() {
-      assertNoEvents(false);
-    }
-  }
-
   // create ".idea" - based project because it's 1) needed for testShelveChangesMustNotLeadToRootsChangedEvent and 2) is more common
   @Override
   protected boolean isCreateDirectoryBasedProject() {
@@ -424,7 +365,7 @@ public class RootsChangedTest extends JavaModuleTestCase {
     VirtualFile xxx = createChildData(shelf, "shelf1.dat");
     assertTrue(vcsIgnoreManager.isPotentiallyIgnoredFile(xxx));
 
-    assertEquals(myModuleRootListener.modificationCount, ProjectRootManager.getInstance(myProject).getModificationCount());
+    assertEquals(myModuleRootListener.getModificationCount(), ProjectRootManager.getInstance(myProject).getModificationCount());
 
     VirtualFile newShelf = createChildDirectory(getOrCreateProjectBaseDir().getParent(), "newShelf");
     VcsConfiguration vcs = VcsConfiguration.getInstance(myProject);
@@ -570,8 +511,8 @@ public class RootsChangedTest extends JavaModuleTestCase {
           }
           model.commit();
 
-          assertEquals(1, myModuleRootListener.beforeCount);
-          assertEquals(0, myModuleRootListener.afterCount);
+          assertEquals(1, myModuleRootListener.getBeforeCount());
+          assertEquals(0, myModuleRootListener.getAfterCount());
         }
       });
       myModuleRootListener.assertEventsCount(1);

@@ -71,6 +71,8 @@ import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.searches.AnnotatedElementsSearch;
 import com.intellij.util.EventDispatcher;
 import com.intellij.util.IncorrectOperationException;
+import com.intellij.util.graph.DFSTBuilder;
+import com.intellij.util.graph.OutboundSemiGraph;
 import com.intellij.xdebugger.frame.presentation.XValuePresentation;
 import com.intellij.xdebugger.impl.evaluate.XEvaluationOrigin;
 import com.intellij.xdebugger.impl.ui.tree.nodes.XValueNodeImpl;
@@ -83,9 +85,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.UnaryOperator;
 
 @State(name = "NodeRendererSettings", storages = @Storage("debugger.xml"), category = SettingsCategory.TOOLS)
 public class NodeRendererSettings implements PersistentStateComponent<Element> {
@@ -314,7 +319,7 @@ public class NodeRendererSettings implements PersistentStateComponent<Element> {
             return renderer;
           }
           return null;
-        }, PsiClass.class);
+        }, NodeRendererSettings::sortRendererClassesByInheritance, PsiClass.class);
       renderers.addAll(annotationRenderers);
     }
     catch (IndexNotReadyException | ProcessCanceledException ignore) {
@@ -322,6 +327,24 @@ public class NodeRendererSettings implements PersistentStateComponent<Element> {
     catch (Exception e) {
       LOG.error(e);
     }
+  }
+
+  /**
+   * Orders classes with renderer annotations so that subtypes precede their supertypes.
+   */
+  static @NotNull List<PsiClass> sortRendererClassesByInheritance(@NotNull List<PsiClass> classes) {
+    var graph = new OutboundSemiGraph<PsiClass>() {
+      @Override
+      public @NotNull Collection<PsiClass> getNodes() {
+        return classes.reversed();
+      }
+
+      @Override
+      public @NotNull Iterator<PsiClass> getOut(PsiClass node) {
+        return classes.reversed().stream().filter(parent -> node != parent && node.isInheritor(parent, true)).iterator();
+      }
+    };
+    return new DFSTBuilder<>(graph).getSortedNodes();
   }
 
   private static String getAttributeValue(PsiAnnotation annotation, String attribute) {
@@ -653,16 +676,29 @@ public class NodeRendererSettings implements PersistentStateComponent<Element> {
     }
   }
 
+  @SuppressWarnings("SameParameterValue")
   static <T extends PsiModifierListOwner, R> List<R> visitAnnotatedElements(List<String> annotationFqns,
                                                                             Project project,
                                                                             BiFunction<? super PsiModifierListOwner, ? super PsiAnnotation, R> consumer,
                                                                             Class<? extends T> @NotNull ... types) {
+    return visitAnnotatedElements(annotationFqns, project, consumer, UnaryOperator.identity(), types);
+  }
+
+  private static <T extends PsiModifierListOwner, R> List<R> visitAnnotatedElements(
+    List<String> annotationFqns,
+    Project project,
+    BiFunction<? super PsiModifierListOwner, ? super PsiAnnotation, R> consumer,
+    UnaryOperator<List<T>> orderElements,
+    Class<? extends T> @NotNull ... types
+  ) {
     return ReadAction.nonBlocking(() -> {
       List<R> result = new ArrayList<>();
       for (String annotationFqn : annotationFqns) {
         PsiClass annotationClass = JavaPsiFacade.getInstance(project).findClass(annotationFqn, GlobalSearchScope.allScope(project));
         if (annotationClass == null) continue;
-        for (T owner : AnnotatedElementsSearch.searchElements(annotationClass, GlobalSearchScope.allScope(project), types).findAll()) {
+        List<T> owners = new ArrayList<>(
+          AnnotatedElementsSearch.searchElements(annotationClass, GlobalSearchScope.allScope(project), types).findAll());
+        for (T owner : orderElements.apply(owners)) {
           R element = consumer.apply(owner, AnnotationUtil.findAnnotation(owner, annotationFqn));
           if (element != null) {
             result.add(element);

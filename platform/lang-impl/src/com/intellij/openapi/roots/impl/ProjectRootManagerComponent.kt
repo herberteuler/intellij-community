@@ -354,6 +354,9 @@ open class ProjectRootManagerComponent(
 
     collectCustomWorkspaceWatchRoots(recursivePaths, flatPaths)
 
+    removeExcludedWatchRoots(recursivePaths)
+    removeExcludedWatchRoots(flatPaths)
+
     return recursivePaths to flatPaths
   }
 
@@ -416,6 +419,14 @@ open class ProjectRootManagerComponent(
           paths.add(extractLocalPath(rootUrl))
         }
       }
+    }
+  }
+
+  private fun removeExcludedWatchRoots(watchRootPaths: MutableSet<String>) {
+    val extensions = WatchRootExcludePolicy.EP_NAME.extensionList.filter { it.isApplicable(project) }
+    if (extensions.isEmpty()) return
+    watchRootPaths.removeIf { path ->
+      extensions.any { it.shouldExclude(path) }
     }
   }
 

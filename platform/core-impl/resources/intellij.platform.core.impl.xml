@@ -36,9 +36,6 @@
     <extensionPoint name="fileEditor.fileSizeChecker"
                     interface="com.intellij.openapi.vfs.limits.FileSizeLimit"
                     dynamic="true"/>
-    <extensionPoint name="psi.batchReferenceProcessingSuppressor"
-                    interface="com.intellij.psi.impl.PsiFileEx$BatchReferenceProcessingSuppressor"
-                    dynamic="true"/>
     <extensionPoint name="controlFlowProvider" interface="com.intellij.codeInsight.controlflow.ControlFlowProvider" dynamic="true"/>
     <extensionPoint name="lang.tokenSeparatorGenerator" beanClass="com.intellij.lang.LanguageExtensionPoint" dynamic="true">
       <with attribute="implementationClass" implements="com.intellij.lang.TokenSeparatorGenerator"/>

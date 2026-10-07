@@ -1,1 +1,4 @@
 owner 'IJ Build Scripts Maintainers'
+
+/src/org/jetbrains/intellij/build/productLayout/**
+owner 'IJPL'

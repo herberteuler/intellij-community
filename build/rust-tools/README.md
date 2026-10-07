@@ -23,6 +23,11 @@ follow it.
 - `defs.bzl`: the lint rules and the macro core. `rust_lints_as_errors` appends `-Dwarnings` to the clippy flags of a
   rendered table. `rust_lints_equal_check` fails when two crate hubs render different tables. The macro core is the
   next section.
+- `rust_test_junit.bzl`: `rust_test_junit` declares a `rust_test` and a test target that runs it through a wrapper
+  binary. libtest writes no JUnit report, so the wrapper writes one test case per test to `XML_OUTPUT_FILE`. The
+  `wrapper` argument names the binary. A workspace gives the rule to the macro core as its test rule.
+- `libtest-junit-wrapper/`: the default wrapper binary, a `rust_tool_binary` over the crates of `@ddt`. Its `e2e/`
+  test runs a fixture with two failed tests and compares the report with `expected-report.xml`.
 
 Cargo inherits `[lints]` inside one workspace only. There is no include across workspaces, and rules_rs reads the
 tables from the workspace `Cargo.toml`, not from `.cargo/config.toml`. rustfmt and clippy also find `rustfmt.toml` and

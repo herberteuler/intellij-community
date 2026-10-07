@@ -23,6 +23,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
+import static org.junit.Assert.assertNotEquals;
+
 public class LossyEncodingTest extends DaemonAnalyzerTestCase {
   @NonNls private static final String BASE_PATH = "/codeInsight/daemonCodeAnalyzer/lossyEncoding";
 
@@ -124,6 +126,41 @@ public class LossyEncodingTest extends DaemonAnalyzerTestCase {
     List<HighlightInfo> infos = ((DaemonCodeAnalyzerImpl)DaemonCodeAnalyzerEx.getInstanceEx(getProject())).getFileLevelHighlights(getProject(), getFile());
     HighlightInfo info = assertOneElement(infos);
     assertEquals("The file was loaded in a wrong encoding: 'UTF-8'", info.getDescription());
+  }
+
+  public void testReloadInNativeEncodingWhenJvmUsesUtf8() throws Exception {
+    PlatformTestUtil.withSystemProperty("sun.jnu.encoding", "UTF-8", () -> {
+      PlatformTestUtil.withSystemProperty("sun.jnu.encoding.sys", "windows-31j", () -> {
+        var charset = Charset.forName("windows-31j");
+        var text = "日本語\n";
+        var encodingManager = EncodingProjectManager.getInstance(getProject());
+        encodingManager.setDefaultCharsetName(StandardCharsets.UTF_8.name());
+        var virtualFile = createTempVirtualFile("Japanese.txt", null, text, charset);
+        virtualFile.setCharset(StandardCharsets.UTF_8);
+        configureByExistingFile(virtualFile);
+        var document = Objects.requireNonNull(FileDocumentManager.getInstance().getDocument(virtualFile));
+        assertFalse(FileDocumentManager.getInstance().isDocumentUnsaved(document));
+        assertEquals(StandardCharsets.UTF_8, virtualFile.getCharset());
+        assertNotEquals(text, document.getText());
+
+        doHighlighting();
+        var infos = myDaemonCodeAnalyzer.getFileLevelHighlights(getProject(), getFile());
+        var info = assertOneElement(infos);
+        assertEquals("The file was loaded in a wrong encoding: 'UTF-8'", info.getDescription());
+        var reloadAction = "Reload in 'windows-31j'";
+        assertNotNull(findIntentionAction(infos, reloadAction, getEditor(), getFile()));
+        assertNotNull(findIntentionAction(infos, "Set project encoding to 'windows-31j'", getEditor(), getFile()));
+
+        findAndInvokeIntentionAction(infos, reloadAction, getEditor(), getFile());
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
+
+        assertEquals(charset, virtualFile.getCharset());
+        assertEquals(text, document.getText());
+        assertEquals(StandardCharsets.UTF_8, encodingManager.getDefaultCharset());
+        doHighlighting();
+        assertEmpty(myDaemonCodeAnalyzer.getFileLevelHighlights(getProject(), getFile()));
+      });
+    });
   }
 
   public void testSurrogateUTF8() {

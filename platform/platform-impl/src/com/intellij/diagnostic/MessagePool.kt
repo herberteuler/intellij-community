@@ -5,13 +5,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Attachment
 import com.intellij.util.SlowOperations
 import com.intellij.util.containers.ContainerUtil
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.job
-import kotlinx.coroutines.joinAll
 import org.jetbrains.annotations.ApiStatus
 
 /**
@@ -30,31 +23,11 @@ object MessagePool {
   @JvmStatic
   fun getInstance(): MessagePool = this
 
-  private val myErrors: MutableList<AbstractMessage> = ContainerUtil.createLockFreeCopyOnWriteList()
+  private val myErrors: MutableList<LogMessage> = ContainerUtil.createLockFreeCopyOnWriteList()
   private val myAdvisors: MutableList<MessagePoolAdvisor> = ContainerUtil.createLockFreeCopyOnWriteList()
-  @Suppress("RAW_SCOPE_CREATION") // MessagePool is a process-wide singleton.
-  private val coroutineScope = CoroutineScope(SupervisorJob() + CoroutineName("MessagePool"))
 
-  @Suppress("DeprecatedCallableAddReplaceWith")
-  @Deprecated("use 'addErrorMessage' instead", level = DeprecationLevel.ERROR)
-  fun addIdeFatalMessage(message: AbstractMessage) {
-    addErrorMessage(message)
-  }
-
-  fun addErrorMessage(message: AbstractMessage): Deferred<Unit> {
-    return coroutineScope.async { // must be functioning even during startup
-      if (myErrors.size < MAX_POOL_SIZE) {
-        doAddMessage(message)
-      }
-      else if (myErrors.size == MAX_POOL_SIZE) {
-        doAddMessage(LogMessage(TooManyErrorsException(), null, mutableListOf<Attachment>()))
-      }
-    }
-  }
-
-  /** Waits for every [addErrorMessage] call issued before this call to finish notifying advisors. */
-  suspend fun awaitPendingJobs() {
-    coroutineScope.coroutineContext.job.children.toList().joinAll()
+  suspend fun addErrorMessage(message: LogMessage) {
+    doAddMessage(message)
   }
 
   val state: State
@@ -66,11 +39,11 @@ object MessagePool {
       return State.ReadErrors
     }
 
-  fun getFatalErrors(includeReadMessages: Boolean, includeSubmittedMessages: Boolean): List<AbstractMessage> {
-    val result = ArrayList<AbstractMessage>()
+  fun getFatalErrors(includeReadMessages: Boolean, includeSubmittedMessages: Boolean): List<LogMessage> {
+    val result = ArrayList<LogMessage>(myErrors.size)
     for (message in myErrors) {
       if (!includeReadMessages && message.isRead) continue
-      if (!includeSubmittedMessages && (message.isSubmitted || message.getThrowable() is TooManyErrorsException)) continue
+      if (!includeSubmittedMessages && (message.isSubmitted || message.throwable is TooManyErrorsException)) continue
       result.add(message)
     }
     return result
@@ -80,7 +53,9 @@ object MessagePool {
     for (message in myErrors) {
       message.setRead(true) // expire notifications
     }
-    myErrors.clear()
+    synchronized(myErrors) {
+      myErrors.clear()
+    }
     for (it in myAdvisors) {
       it.poolCleared()
     }
@@ -104,11 +79,11 @@ object MessagePool {
     myAdvisors.remove(advisor)
   }
 
-  private fun notifyEntryRead(message: AbstractMessage) {
+  private fun notifyEntryRead(message: LogMessage) {
     myAdvisors.forEach { it.entryWasRead(message) }
   }
 
-  private suspend fun doAddMessage(message: AbstractMessage) {
+  private suspend fun doAddMessage(message: LogMessage) {
     if (myErrors.lastOrNull() == message) return // already added
 
     for (listener in myAdvisors) {
@@ -117,15 +92,25 @@ object MessagePool {
       }
     }
 
-    if (ApplicationManager.getApplication().isInternal()) {
-      message.allAttachments.forEach { it.isIncluded = true }
+    var message = message
+    synchronized(myErrors) {
+      if (myErrors.size > MAX_POOL_SIZE) {
+        return
+      }
+      else if (myErrors.size == MAX_POOL_SIZE) {
+        message = LogMessage(TooManyErrorsException(), null, mutableListOf<Attachment>())
+      }
+      else {
+        if (ApplicationManager.getApplication().isInternal()) {
+          message.allAttachments.forEach { it.isIncluded = true }
+        }
+        if (shallAddSilently(message)) {
+          message.setRead(true)
+        }
+      }
+      message.setOnReadCallback { notifyEntryRead(message) }
+      myErrors.add(message)
     }
-    if (shallAddSilently(message)) {
-      message.setRead(true)
-    }
-    message.setOnReadCallback { notifyEntryRead(message) }
-
-    myErrors.add(message)
 
     for (it in myAdvisors) {
       it.afterEntryAdded(message)
@@ -134,5 +119,5 @@ object MessagePool {
 
   class TooManyErrorsException internal constructor() : Exception(DiagnosticBundle.message("error.monitor.too.many.errors"))
 
-  private fun shallAddSilently(message: AbstractMessage): Boolean = SlowOperations.isMyMessage(message.getThrowable().message)
+  private fun shallAddSilently(message: LogMessage): Boolean = SlowOperations.isMyMessage(message.throwable.message)
 }

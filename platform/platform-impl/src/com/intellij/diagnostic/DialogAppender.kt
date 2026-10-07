@@ -9,11 +9,11 @@ import com.intellij.openapi.diagnostic.RuntimeExceptionWithAttachments
 import com.intellij.openapi.diagnostic.UnhandledExceptionKind
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.io.pagecache.impl.Throttler
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.job
-import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.ApiStatus
 import java.util.ArrayDeque
@@ -27,15 +27,28 @@ import java.util.logging.LogRecord
 class DialogAppender : Handler() {
   private val MAX_EARLY_LOGGING_EVENTS = 20
 
-  @Suppress("RAW_SCOPE_CREATION") // DialogAppender is a process-wide root logger handler.
-  private val coroutineScope = CoroutineScope(SupervisorJob() + DiagnosticDispatchers.Default + CoroutineName("DialogAppender"))
-
   private var earlyEventCounter = 0
   private val earlyEvents = ArrayDeque<Entry>()
   private var loggerBroken = AtomicBoolean(false)
+  private val queue = Channel<Message>(Channel.UNLIMITED)
 
+  private sealed interface Message
   /** An error that goes to the message pool. [throwable] is the real cause. See IJPL-254578. */
-  private class Entry(val message: String?, val throwable: Throwable, val unhandledExceptionKind: UnhandledExceptionKind)
+  private class Entry(val message: String?, val throwable: Throwable, val unhandledExceptionKind: UnhandledExceptionKind) : Message
+  private class Barrier(val future: CompletableDeferred<Unit>) : Message
+
+  init {
+    @Suppress("RAW_SCOPE_CREATION") // DialogAppender is a process-wide root logger handler.
+    val scope = CoroutineScope(SupervisorJob() + DiagnosticDispatchers.Default + CoroutineName("DialogAppender"))
+    scope.launch(DiagnosticDispatchers.Default) {
+      for (item in queue) {
+        when (item) {
+          is Entry -> processEvent(item)
+          is Barrier -> item.future.complete(Unit)
+        }
+      }
+    }
+  }
 
   override fun publish(event: LogRecord) {
     if (event.level.intValue() < Level.SEVERE.intValue() || loggerBroken.get()) return
@@ -47,7 +60,7 @@ class DialogAppender : Handler() {
     synchronized(this) {
       if (LoadingState.APP_READY.isOccurred) {
         processEarlyEventsIfNeeded()
-        queueEvent(entry)
+        queue.trySend(entry)
       }
       else {
         earlyEventCounter++
@@ -64,7 +77,7 @@ class DialogAppender : Handler() {
     while (true) {
       val entry = earlyEvents.poll() ?: break
       earlyEventCounter--
-      queueEvent(entry)
+      queue.trySend(entry)
     }
 
     if (earlyEventCounter > 0) {
@@ -73,15 +86,9 @@ class DialogAppender : Handler() {
     }
   }
 
-  private fun queueEvent(entry: Entry) {
-    coroutineScope.launch {
-      processEvent(entry)
-    }
-  }
-
   private val oomReportsThrottler = Throttler(100, SECONDS)
 
-  private fun processEvent(entry: Entry) {
+  private suspend fun processEvent(entry: Entry) {
     try {
       val app = ApplicationManager.getApplication()
       if (app == null || app.isExitInProgress || app.isDisposed()) return
@@ -102,9 +109,7 @@ class DialogAppender : Handler() {
                       ?: entry.message
         val attachments = withAttachments.asSequence().flatMap { it.attachments.asSequence() }.toList()
         // always add to MessagePool, dialog notification will decide if it shows or not in IdeMessagePanel
-        MessagePool.getInstance().addErrorMessage(
-          LogMessage(throwable, message, attachments, entry.unhandledExceptionKind)
-        )
+        MessagePool.getInstance().addErrorMessage(LogMessage(throwable, message, attachments, entry.unhandledExceptionKind))
       }
     }
     catch (e: Throwable) {
@@ -115,17 +120,18 @@ class DialogAppender : Handler() {
 
   @ApiStatus.Internal
   suspend fun awaitPendingJobs() {
-    val currentPendingJobs = synchronized(this) {
-      if (LoadingState.APP_READY.isOccurred) {
+    if (LoadingState.APP_READY.isOccurred) {
+      synchronized(this) {
         processEarlyEventsIfNeeded()
       }
-      coroutineScope.coroutineContext.job.children.toList()
     }
-    currentPendingJobs.joinAll()
-    MessagePool.getInstance().awaitPendingJobs()
+
+    val future = CompletableDeferred<Unit>()
+    queue.send(Barrier(future))
+    future.await()
   }
 
-  override fun flush() { }
+  override fun flush() {}
 
-  override fun close() { }
+  override fun close() {}
 }

@@ -236,7 +236,7 @@ internal class IdeaFreezeReporter : FreezeListener {
       }
 
       LOG.debug("Reporting freeze to MessagePool")
-      reportToIndicator(loggingEvent) // always put freezes to MessagePool
+      MessagePool.getInstance().addErrorMessage(loggingEvent) // always put freezes to MessagePool
 
       val reason = PluginUtil.getInstance().findPluginId(loggingEvent.throwable)
       if (reason != null) {
@@ -360,10 +360,6 @@ ${if (finished) "" else if (appClosing) "IDE is closing. " else "IDE KILLED! "}S
 
     return LogMessage(Freeze(pluginId, IdeaLogger.ourLastActionId, commonStack), message, attachments + report)
   }
-}
-
-internal fun reportToIndicator(event: LogMessage) {
-  MessagePool.getInstance().addErrorMessage(event)
 }
 
 @ApiStatus.Internal
@@ -608,7 +604,7 @@ internal class UnfinishedFreezeReportService(val coroutineScope: CoroutineScope)
       event.appInfo = appInfo
 
       LOG.info("Reporting deadlock ${dir.name} to user")
-      reportToIndicator(event)
+      MessagePool.getInstance().addErrorMessage(event)
     }
   }
 

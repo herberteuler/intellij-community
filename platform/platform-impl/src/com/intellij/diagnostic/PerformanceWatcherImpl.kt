@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 @file:Suppress("JAVA_MODULE_DOES_NOT_EXPORT_PACKAGE", "UseOptimizedEelFunctions")
 package com.intellij.diagnostic
 
@@ -22,7 +22,6 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.getOrLogException
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.diagnostic.rethrowControlFlowException
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.progress.util.SuvorovProgress
 import com.intellij.openapi.util.SystemInfo
@@ -1023,7 +1022,7 @@ private suspend fun reportCrashesIfAny() {
       val event = LogMessage(JBRCrash(), message, attachments)
       event.appInfo = Files.readString(appInfoFile)
 
-      reportToIndicator(event)
+      MessagePool.getInstance().addErrorMessage(event)
       LifecycleUsageTriggerCollector.onCrashDetected()
     }
   }

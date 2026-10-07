@@ -41,7 +41,6 @@ import com.intellij.openapi.application.ex.ApplicationManagerEx;
 import com.intellij.openapi.application.impl.LaterInvocator;
 import com.intellij.openapi.command.CommandEvent;
 import com.intellij.openapi.command.CommandListener;
-import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorFactory;
@@ -82,6 +81,8 @@ import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectCoreUtil;
+import com.intellij.openapi.project.ProjectManager;
+import com.intellij.openapi.project.ProjectManagerListener;
 import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.roots.AdditionalLibraryRootsListener;
 import com.intellij.openapi.roots.ModuleRootEvent;
@@ -129,7 +130,6 @@ import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -145,7 +145,6 @@ import java.util.function.Supplier;
  * listen for any daemon-related activities and restart the daemon if needed
  */
 public final class DaemonListeners implements Disposable {
-  private static final Logger LOG = Logger.getInstance(DaemonListeners.class);
   private final Project myProject;
   private final DaemonCodeAnalyzerImpl myDaemonCodeAnalyzer;
   private final PsiChangeHandler myPsiChangeHandler;
@@ -166,11 +165,17 @@ public final class DaemonListeners implements Disposable {
       return;
     }
 
-    SimpleMessageBusConnection connection = myProject.getMessageBus().connect(coroutineScope);
+    SimpleMessageBusConnection connection = project.getMessageBus().connect(coroutineScope);
     connection.subscribe(AppLifecycleListener.TOPIC, new AppLifecycleListener() {
       @Override
       public void appClosing() {
         stopDaemon(false, "App closing");
+      }
+    });
+    connection.subscribe(ProjectManager.TOPIC, new ProjectManagerListener() {
+      @Override
+      public void projectClosing(@NotNull Project project) {
+        stopDaemon(false, "Project closing");
       }
     });
 
@@ -329,7 +334,7 @@ public final class DaemonListeners implements Disposable {
       }
     });
     Predicate<Document> isDocumentWorthBothering = document -> worthBothering(document, () -> project);
-    myPsiChangeHandler = new PsiChangeHandler(myProject, daemonCodeAnalyzer.getFileStatusMap(), this, coroutineScope, isDocumentWorthBothering);
+    myPsiChangeHandler = new PsiChangeHandler(project, daemonCodeAnalyzer.getFileStatusMap(), this, coroutineScope, isDocumentWorthBothering);
 
     connection.subscribe(ModuleRootListener.TOPIC, new ModuleRootListener() {
       @Override
@@ -484,7 +489,7 @@ public final class DaemonListeners implements Disposable {
     listenForExtensionChange(LineMarkerProviders.EP_NAME, "line marker providers list changed");
     listenForExtensionChange(ExternalLanguageAnnotators.EP_NAME, "external annotators list changed");
 
-    PsiManager psiManager = PsiManager.getInstance(myProject);
+    PsiManager psiManager = PsiManager.getInstance(project);
     connection.subscribe(DynamicPluginListener.TOPIC, new DynamicPluginListener() {
       @Override
       public void pluginLoaded(@NotNull IdeaPluginDescriptor pluginDescriptor) {
@@ -507,7 +512,7 @@ public final class DaemonListeners implements Disposable {
         stopDaemonAndRestartAllFiles("Plugin unloaded");
       }
     });
-    connection.subscribe(FileHighlightingSettingListener.SETTING_CHANGE, (root, setting) ->
+    connection.subscribe(FileHighlightingSettingListener.SETTING_CHANGE, (root, _) ->
       ApplicationManager.getApplication().runWriteAction(() -> {
         PsiFile psiFile = root.getContainingFile();
         if (psiFile != null) {
@@ -591,7 +596,7 @@ public final class DaemonListeners implements Disposable {
   /**
    * @param projectGuesser a computation that lazily retrieves the project. Can launch a read action
    */
-  private boolean worthBothering(@Nullable Document document, @NotNull Supplier<@Nullable Project> projectGuesser) {
+  private boolean worthBothering(@Nullable Document document, @NotNull Supplier<? extends @Nullable Project> projectGuesser) {
     if (document == null) {
       return true;
     }
@@ -916,7 +921,7 @@ public final class DaemonListeners implements Disposable {
 
     HighlightInfo info = HighlightInfo.fromRangeHighlighter(highlighter);
     if (info != null) {
-      IntentionAction quickFixFromPlugin = info.findRegisteredQuickFix((descriptor, range) -> {
+      IntentionAction quickFixFromPlugin = info.findRegisteredQuickFix((descriptor, _) -> {
           IntentionAction intentionAction = IntentionActionDelegate.unwrap(descriptor.getAction());
           if (intentionAction.getClass().getClassLoader() == pluginClassLoader) {
             return intentionAction;

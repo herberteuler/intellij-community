@@ -488,7 +488,7 @@ public final class QuickFixFactoryImpl extends QuickFixFactory {
 
   @Override
   public @NotNull IntentionAction createCreateFieldFromUsageFix(@NotNull PsiReferenceExpression place) {
-    return new CreateFieldFromUsageFix(place);
+    return new CreateFieldFromUsageFix(place).asIntention();
   }
 
   @Override
@@ -791,7 +791,7 @@ public final class QuickFixFactoryImpl extends QuickFixFactory {
 
   @Override
   public @NotNull IntentionAction createCreateAnnotationMethodFromUsageFix(@NotNull PsiNameValuePair pair) {
-    return new CreateAnnotationMethodFromUsageFix(pair);
+    return new CreateAnnotationMethodFromUsageFix(pair).asIntention();
   }
 
   @Override

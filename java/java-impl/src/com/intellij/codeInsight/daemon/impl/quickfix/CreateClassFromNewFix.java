@@ -293,11 +293,6 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
   }
 
   @Override
-  protected boolean isAllowOuterTargetClass() {
-    return false;
-  }
-
-  @Override
   protected boolean isValidElement(PsiElement element) {
     PsiJavaCodeReferenceElement ref = PsiTreeUtil.getChildOfType(element, PsiJavaCodeReferenceElement.class);
     return ref != null && ref.resolve() != null;
@@ -357,11 +352,6 @@ public class CreateClassFromNewFix extends CreateFromUsageBaseFix implements Int
   @Override
   public @NotNull String getFamilyName() {
     return QuickFixBundle.message("create.class.from.new.family");
-  }
-
-  @Override
-  protected boolean canBeTargetClass(PsiClass psiClass) {
-    return false;
   }
 
   @Override

@@ -215,11 +215,6 @@ public class CreateParameterFromUsageFix extends CreateVarFromUsageFix {
   }
 
   @Override
-  protected boolean isAllowOuterTargetClass() {
-    return false;
-  }
-
-  @Override
   public @NotNull String getFamilyName() {
     return QuickFixBundle.message("create.parameter.from.usage.family");
   }

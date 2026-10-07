@@ -27,6 +27,10 @@
                     interface="com.intellij.java.impl.template.JavaTemplateFormattingSupport" dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.java.templatePresentationSupport"
                     interface="com.intellij.java.impl.template.JavaTemplatePresentationSupport" dynamic="true"/>
+    <extensionPoint qualifiedName="com.intellij.codeInsight.createFieldFromUsageHelper" beanClass="com.intellij.lang.LanguageExtensionPoint"
+                    dynamic="true">
+      <with attribute="implementationClass" implements="com.intellij.codeInsight.daemon.impl.quickfix.CreateFieldFromUsageHelper"/>
+    </extensionPoint>
   </extensionPoints>
   <extensions defaultExtensionNs="com.intellij">
     <defaultLiveTemplates file="liveTemplates/Java"/>
@@ -96,6 +100,8 @@
     <applicationService serviceImplementation="com.intellij.codeInsight.generation.GetterTemplatesManager"/>
     <applicationSettings service="com.intellij.codeInsight.generation.SetterTemplatesManager"/>
     <applicationSettings service="com.intellij.codeInsight.generation.GetterTemplatesManager"/>
+    <codeInsight.createFieldFromUsageHelper language="JAVA"
+                                            implementationClass="com.intellij.codeInsight.daemon.impl.quickfix.JavaCreateFieldFromUsageHelper"/>
 
     <lang.parserDefinition language="SPI" implementationClass="com.intellij.spi.parsing.SPIParserDefinition"/>
   </extensions>

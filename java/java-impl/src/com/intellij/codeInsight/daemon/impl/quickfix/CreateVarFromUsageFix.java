@@ -24,11 +24,6 @@ public abstract class CreateVarFromUsageFix extends CreateFromUsageBaseFix {
   }
 
   @Override
-  protected boolean canBeTargetClass(PsiClass psiClass) {
-    return false;
-  }
-
-  @Override
   protected PsiElement getElement() {
     PsiReferenceExpression element = myReferenceExpression.getElement();
     if (element == null) return null;

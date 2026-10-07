@@ -1,11 +1,12 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.idea.devkit.inspections
 
+import com.intellij.lang.jvm.JvmClass
 import com.intellij.lang.jvm.JvmClassKind
+import com.intellij.lang.jvm.JvmModifier
 import com.intellij.openapi.components.ServiceDescriptor
 import com.intellij.psi.PsiClass
 import com.intellij.psi.util.InheritanceUtil
-import com.intellij.psi.util.PsiUtil
 import com.intellij.util.xml.DomElement
 import com.intellij.util.xml.DomUtil
 import com.intellij.util.xml.GenericDomValue
@@ -17,12 +18,21 @@ import org.jetbrains.idea.devkit.util.locateExtensionsByPsiClass
 object ExtensionUtil {
 
   @JvmStatic
-  fun isExtensionPointImplementationCandidate(psiClass: PsiClass): Boolean {
-    return psiClass.classKind == JvmClassKind.CLASS &&
-           !PsiUtil.isAbstractClass(psiClass) &&
-           !PsiUtil.isInnerClass(psiClass) &&
-           !PsiUtil.isLocalOrAnonymousClass(psiClass)
+  fun isExtensionPointImplementationCandidate(jvmClass: JvmClass): Boolean {
+    return jvmClass.classKind == JvmClassKind.CLASS &&
+      !jvmClass.hasModifier(JvmModifier.ABSTRACT) &&
+      !jvmClass.isInner() &&
+      !jvmClass.isLocalOrAnonymous()
   }
+
+  private fun JvmClass.isInner(): Boolean = !hasModifier(JvmModifier.STATIC) && containingClass != null
+
+  /**
+   * A local class, an anonymous class, and a class nested in one of them have no qualified name.
+   *
+   * @see JvmClass.getQualifiedName
+   */
+  private fun JvmClass.isLocalOrAnonymous(): Boolean = qualifiedName == null
 
   /**
    * Returns `true` if the [extensionClass] is registered as a plugin extension and
@@ -61,8 +71,7 @@ object ExtensionUtil {
     val (elementName, isClassDefinedInTag) = this.getInstantiatedClassElementInfo() ?: return null
     val domValue = if (isClassDefinedInTag) {
       DevKitDomUtil.getTag(this, elementName)
-    }
-    else {
+    } else {
       DevKitDomUtil.getAttribute(this, elementName)
     }
     return domValue?.takeIf { DomUtil.hasXml(it) }
@@ -105,8 +114,7 @@ object ExtensionUtil {
       }
       val elementName = (if (isTagDefined) classNameElement.tag.stringValue else classNameElement.attribute.stringValue) ?: ""
       return Pair(elementName, isTagDefined)
-    }
-    else {
+    } else {
       return Pair(Extension.IMPLEMENTATION_ATTRIBUTE, false)
     }
   }
@@ -119,54 +127,71 @@ object ExtensionUtil {
   // EP qualified names -> instantiated class attribute names
   private val implicitInstantiatedClassAttributes = listOf(
     Pair(
-      listOf("com.intellij.applicationService",
-             "com.intellij.projectService",
-             "com.intellij.moduleService"),
-      listOf("serviceImplementation",
-             "testServiceImplementation",
-             "headlessImplementation")),
+      listOf(
+        "com.intellij.applicationService",
+        "com.intellij.projectService",
+        "com.intellij.moduleService"
+      ),
+      listOf(
+        "serviceImplementation",
+        "testServiceImplementation",
+        "headlessImplementation"
+      )
+    ),
 
     Pair(
       listOf("com.intellij.cacheBuilder"),
-      listOf("wordsScannerClass")),
+      listOf("wordsScannerClass")
+    ),
 
     Pair(
       listOf("com.intellij.moduleBuilder"),
-      listOf("builderClass")),
+      listOf("builderClass")
+    ),
 
     Pair(
       listOf("com.intellij.psi.referenceProvider"),
-      listOf("providerClass")),
+      listOf("providerClass")
+    ),
 
     Pair(
       listOf("com.intellij.codeInsight.linkHandler"),
-      listOf("handlerClass")),
+      listOf("handlerClass")
+    ),
 
     Pair(
       listOf("com.intellij.vcs"),
-      listOf("vcsClass")),
+      listOf("vcsClass")
+    ),
 
     Pair(
       listOf("com.intellij.library.toolWindow"),
-      listOf("librarySearchClass")),
+      listOf("librarySearchClass")
+    ),
 
     Pair(
       listOf("com.intellij.changesViewContent"),
-      listOf("className",
-             "predicateClassName",
-             "preloaderClassName",
-             "displayNameSupplierClassName")),
+      listOf(
+        "className",
+        "predicateClassName",
+        "preloaderClassName",
+        "displayNameSupplierClassName"
+      )
+    ),
 
     Pair(
       listOf("com.intellij.rd.extListener"),
-      listOf("listener")),
+      listOf("listener")
+    ),
 
     Pair(
       listOf("com.intellij.rd.solutionExtListener"),
-      listOf("listener")),
+      listOf("listener")
+    ),
 
     Pair(
       listOf("com.intellij.rd.rootExtListener"),
-      listOf("listener"))
+      listOf("listener")
+    )
   )
 }

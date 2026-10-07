@@ -8,8 +8,6 @@ import org.jetbrains.idea.devkit.kotlin.DevkitKtTestsUtil
 @TestDataPath("\$CONTENT_ROOT/testData/inspections/listenerImplementationMustNotBeDisposable")
 class KtListenerImplementationMustNotBeDisposableInspectionTest : ListenerImplementationMustNotBeDisposableInspectionTestBase() {
 
-    
-
   override fun getBasePath() = DevkitKtTestsUtil.TESTDATA_PATH + "inspections/listenerImplementationMustNotBeDisposable"
 
   override fun getFileExtension(): String = "kt"
@@ -27,6 +25,10 @@ class KtListenerImplementationMustNotBeDisposableInspectionTest : ListenerImplem
   }
 
   fun testDisposableUnregisteredListener() {
+    doTest()
+  }
+
+  fun testDisposableLocalListener() {
     doTest()
   }
 

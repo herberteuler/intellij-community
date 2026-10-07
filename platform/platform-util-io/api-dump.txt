@@ -390,6 +390,9 @@ f:com.intellij.execution.process.ScriptRunnerUtil
 - s:terminateProcessHandler(com.intellij.execution.process.ProcessHandler,J,java.lang.String):V
 f:com.intellij.execution.process.impl.ProcessListUtil
 - s:getProcessList():com.intellij.execution.process.ProcessInfo[]
+f:com.intellij.execution.processTools.ExecutionResult
+- f:getExitCode():I
+- f:getStdOut():B[]
 f:com.intellij.execution.util.ExecUtil
 - sf:INSTANCE:com.intellij.execution.util.ExecUtil
 - sf:createTempExecutableScript(java.lang.String,java.lang.String,java.lang.String):java.io.File

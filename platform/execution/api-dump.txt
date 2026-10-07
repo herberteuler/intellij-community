@@ -718,9 +718,6 @@ a:com.intellij.execution.junit.RuntimeConfigurationProducer
 - p:restoreSourceElement():com.intellij.psi.PsiElement
 - setConfiguration(com.intellij.execution.RunnerAndConfigurationSettings):V
 - p:storeSourceElement(com.intellij.psi.PsiElement):V
-f:com.intellij.execution.processTools.ExecutionResult
-- f:getExitCode():I
-- f:getStdOut():B[]
 a:com.intellij.execution.rmi.RemoteProcessSupport
 - <init>(java.lang.Class):V
 - getActiveConfigurations(java.lang.Object):java.util.List

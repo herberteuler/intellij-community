@@ -423,6 +423,7 @@ class KotlinK2QuickFixRegistrar : KotlinQuickFixRegistrar() {
         registerFactory(ReplaceWithDotCallFixFactory.replaceWithDotCallFactory)
         registerPsiQuickFixes(KaFirDiagnostic.UnnecessaryNotNullAssertion::class, RemoveExclExclCallFix)
         registerPsiQuickFixes(KaFirDiagnostic.UselessElvis::class, RemoveUselessElvisFix)
+        registerPsiQuickFixes(KaFirDiagnostic.UselessElvisLeftIsNull::class, RemoveUselessElvisFix.replaceWithRightFactory)
         registerPsiQuickFixes(KaFirDiagnostic.UselessElvisRightIsNull::class, RemoveUselessElvisFix)
         registerPsiQuickFixes(KaFirDiagnostic.UselessCast::class, RemoveUselessCastFix)
         registerFactory(UselessIsCheckFactories.uselessIsCheckFactory)

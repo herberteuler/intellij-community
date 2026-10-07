@@ -18,24 +18,47 @@ import org.jetbrains.kotlin.idea.codeinsight.api.classic.quickfixes.PsiElementSu
 import org.jetbrains.kotlin.idea.codeinsight.api.classic.quickfixes.QuickFixesPsiBasedFactory
 import org.jetbrains.kotlin.psi.KtBinaryExpression
 
-class RemoveUselessElvisFix(element: KtBinaryExpression) : KotlinPsiUpdateModCommandAction.ElementContextless<KtBinaryExpression>(element),
+class RemoveUselessElvisFix(
+    element: KtBinaryExpression,
+    private val replacementSide: ReplacementSide = ReplacementSide.LEFT,
+) : KotlinPsiUpdateModCommandAction.ElementContextless<KtBinaryExpression>(element),
     CleanupFix.ModCommand {
     override fun getFamilyName(): @IntentionFamilyName String = KotlinBundle.message("remove.redundant.elvis.operator")
 
     override fun invoke(context: ActionContext, element: KtBinaryExpression, updater: ModPsiUpdater) {
-        element.replaced(element.left!!).dropEnclosingParenthesesIfPossible()
+        val replacement = when (replacementSide) {
+            ReplacementSide.LEFT -> element.left
+            ReplacementSide.RIGHT -> element.right
+        } ?: return
+        element.replaced(replacement).dropEnclosingParenthesesIfPossible()
     }
 
     companion object : QuickFixesPsiBasedFactory<PsiElement>(PsiElement::class, PsiElementSuitabilityCheckers.ALWAYS_SUITABLE) {
+        val replaceWithRightFactory: QuickFixesPsiBasedFactory<PsiElement> = object : QuickFixesPsiBasedFactory<PsiElement>(
+            PsiElement::class,
+            PsiElementSuitabilityCheckers.ALWAYS_SUITABLE,
+        ) {
+            override fun doCreateQuickFix(psiElement: PsiElement): List<IntentionAction> = createQuickFix(psiElement, ReplacementSide.RIGHT)
+        }
+
         override fun doCreateQuickFix(psiElement: PsiElement): List<IntentionAction> {
+            return createQuickFix(psiElement, ReplacementSide.LEFT)
+        }
+
+        private fun createQuickFix(psiElement: PsiElement, replacementSide: ReplacementSide): List<IntentionAction> {
             val expression = psiElement as? KtBinaryExpression ?: return emptyList()
             return listOf(
-                RemoveUselessElvisFix(expression).asIntention()
+                RemoveUselessElvisFix(expression, replacementSide).asIntention()
             )
         }
     }
 
     override fun getActionPresentation(context: ActionContext, element: KtBinaryExpression): Presentation {
         return Presentation.of(familyName).withPriority(PriorityAction.Priority.LOW)
+    }
+
+    enum class ReplacementSide {
+        LEFT,
+        RIGHT,
     }
 }

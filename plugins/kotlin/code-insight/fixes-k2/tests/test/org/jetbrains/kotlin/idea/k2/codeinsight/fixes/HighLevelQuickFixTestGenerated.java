@@ -9463,6 +9463,11 @@ public abstract class HighLevelQuickFixTestGenerated extends AbstractHighLevelQu
             runTest("../../../idea/tests/testData/quickfix/expressions/uselessElvisInNestedParens.kt");
         }
 
+        @TestMetadata("uselessElvisLeftIsNull.kt")
+        public void testUselessElvisLeftIsNull() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/expressions/uselessElvisLeftIsNull.kt");
+        }
+
         @TestMetadata("uselessElvisRightIsNull.kt")
         public void testUselessElvisRightIsNull() throws Exception {
             runTest("../../../idea/tests/testData/quickfix/expressions/uselessElvisRightIsNull.kt");

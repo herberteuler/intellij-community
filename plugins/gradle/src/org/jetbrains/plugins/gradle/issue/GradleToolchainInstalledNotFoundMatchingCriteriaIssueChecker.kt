@@ -18,10 +18,15 @@ import java.util.function.Consumer
 @Internal
 class GradleToolchainInstalledNotFoundMatchingCriteriaIssueChecker : GradleIssueChecker {
 
+  private companion object {
+    const val MESSAGE_PREFIX = "Cannot find a Java installation on your machine"
+    const val TOOLCHAIN_REPOSITORY_ERROR = "Toolchain download repositories have not been configured"
+  }
+
   override fun check(issueData: GradleIssueData): BuildIssue? {
     val rootCause = issueData.failure.rootCause
-    val message = rootCause.messageOrDescription
-    if (message?.startsWith("Cannot find a Java installation on your machine") == true) {
+    val message = rootCause.messageOrDescription ?: return null
+    if (message.startsWith(MESSAGE_PREFIX) && !message.contains(TOOLCHAIN_REPOSITORY_ERROR)) {
       return GradleToolchainInstalledNotFoundMatchingCriteriaBuildIssue(message, issueData.projectPath)
     }
     return null

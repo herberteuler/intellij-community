@@ -1,9 +1,12 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.plugins.markdown.breadcrumbs
 
+import com.intellij.codeInsight.breadcrumbs.FileBreadcrumbsCollector
+import com.intellij.openapi.util.TextRange
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.breadcrumbs.Crumb
+import com.intellij.ui.components.breadcrumbs.StickyLineInfo
 import org.intellij.plugins.markdown.lang.psi.impl.MarkdownHeader
 
 class MarkdownBreadcrumbsProviderTest : BasePlatformTestCase() {
@@ -85,5 +88,76 @@ class MarkdownBreadcrumbsProviderTest : BasePlatformTestCase() {
     val provider = MarkdownBreadcrumbsProvider()
     val header = PsiTreeUtil.findChildOfType(myFixture.file, MarkdownHeader::class.java) ?: error("No Markdown header")
     assertFalse(provider.acceptStickyElement(header))
+  }
+
+  fun `test each heading is pinned until the last line of its section`() {
+    val text = "# A\n## B\ntext B\n## C\ntext C"
+
+    assertEquals(listOf("# A" to "text C", "## B" to "text B", "## C" to "text C"), stickyLines(text))
+  }
+
+  fun `test sticky lines at a line are the heading hierarchy without previous siblings`() {
+    val text = """
+      # A
+      ## B1
+      text B1
+      ## B2
+      ### C1
+      text C1
+      ### C2
+      text C2<caret>
+    """.trimIndent()
+
+    assertEquals(
+      listOf("# A" to "text C2", "## B2" to "text C2", "### C2" to "text C2"),
+      stickyLinesAtCaret(text),
+    )
+  }
+
+  fun `test setext heading is pinned by its first line`() {
+    assertEquals(listOf("Title" to "text"), stickyLines("Title\n=====\ntext"))
+  }
+
+  fun `test last section ends before the trailing line break`() {
+    assertEquals(listOf("# A" to "text"), stickyLines("# A\ntext\n"))
+  }
+
+  fun `test heading in a list item owns the rest of the file like the breadcrumbs`() {
+    assertEquals(listOf("# A" to "- item"), stickyLines("- # A\n  text\n- item"))
+  }
+
+  fun `test no sticky lines without headings`() {
+    assertEmpty(stickyLines("text\nmore text"))
+  }
+
+  /** The sticky lines of the whole file. The platform asks the collector once for each line. */
+  private fun stickyLines(text: String): List<Pair<String, String>> {
+    myFixture.configureByText("test.md", text)
+    val document = myFixture.editor.document
+    return (0 until document.lineCount).flatMap { stickyLinesAtLine(it) }.distinct().toPinnedAndScopeEnd()
+  }
+
+  /** The sticky lines that stay pinned while the caret line is on screen. */
+  private fun stickyLinesAtCaret(text: String): List<Pair<String, String>> {
+    myFixture.configureByText("test.md", text)
+    return stickyLinesAtLine(myFixture.editor.document.getLineNumber(myFixture.caretOffset)).toPinnedAndScopeEnd()
+  }
+
+  private fun stickyLinesAtLine(line: Int): List<StickyLineInfo> {
+    val file = myFixture.file.virtualFile
+    val document = myFixture.editor.document
+    val collector = FileBreadcrumbsCollector.findBreadcrumbsCollector(project, file)
+    return collector.computeStickyLineInfos(file, document, document.getLineEndOffset(line))
+  }
+
+  /** Pairs the text of the pinned line with the text of the last line of the scope. */
+  private fun List<StickyLineInfo>.toPinnedAndScopeEnd(): List<Pair<String, String>> {
+    val document = myFixture.editor.document
+    return sortedBy { it.textOffset }.map { info ->
+      val pinnedLine = document.getLineNumber(info.textOffset)
+      val scopeEndLine = document.getLineNumber(info.endOffset)
+      document.getText(TextRange(info.textOffset, document.getLineEndOffset(pinnedLine))) to
+        document.getText(TextRange(document.getLineStartOffset(scopeEndLine), document.getLineEndOffset(scopeEndLine)))
+    }
   }
 }

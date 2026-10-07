@@ -235,6 +235,8 @@
 
     <breadcrumbsInfoProvider id="MarkdownDefaultBreadcrumbs"
                              implementation="org.intellij.plugins.markdown.breadcrumbs.MarkdownBreadcrumbsProvider"/>
+    <fileBreadcrumbsCollector implementation="org.intellij.plugins.markdown.breadcrumbs.MarkdownFileBreadcrumbsCollector"
+                              order="before PsiFileBreadcrumbsCollector"/>
 
     <applicationService serviceInterface="org.intellij.plugins.markdown.extensions.ExtensionsExternalFilesPathManager"
                         serviceImplementation="org.intellij.plugins.markdown.extensions.ExtensionsExternalFilesPathManager$Impl"/>

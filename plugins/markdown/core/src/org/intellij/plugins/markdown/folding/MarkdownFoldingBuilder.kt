@@ -157,7 +157,7 @@ internal class MarkdownFoldingBuilder: CustomFoldingBuilder(), DumbAware {
     }
   }
 
-  private class HeaderRegionsBuildingVisitor(private val regionConsumer: (PsiElement, TextRange) -> Unit): MarkdownRecursiveElementVisitor() {
+  internal class HeaderRegionsBuildingVisitor(private val regionConsumer: (PsiElement, TextRange) -> Unit): MarkdownRecursiveElementVisitor() {
     private var lastProcessedHeader: MarkdownHeader? = null
 
     override fun visitHeader(header: MarkdownHeader) {

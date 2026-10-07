@@ -24,6 +24,7 @@ import com.intellij.openapi.editor.event.EditorMouseListener
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.editor.ex.util.EditorUtil
 import com.intellij.openapi.editor.impl.EditorCssFontResolver
+import com.intellij.openapi.editor.impl.EditorImpl
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.keymap.KeymapManager
 import com.intellij.openapi.keymap.KeymapUtil
@@ -207,6 +208,11 @@ private class HeadingPainter(private val editor: EditorEx, val look: HeadingLook
     val graphics = g.create() as Graphics2D
     try {
       graphics.translate(targetRegion.x, targetRegion.y + paneY(targetRegion.height.toInt()))
+      if (pane.height > editor.lineHeight && (editor as? EditorImpl)?.isStickyLinePainting == true) {
+        // A sticky line shows exactly one line, so the size of the header needs to be adjusted to fit
+        val scale = editor.lineHeight.toDouble() / pane.height
+        graphics.scale(scale, scale)
+      }
       UISettings.setupAntialiasing(graphics)
       pane.paint(graphics)
     }

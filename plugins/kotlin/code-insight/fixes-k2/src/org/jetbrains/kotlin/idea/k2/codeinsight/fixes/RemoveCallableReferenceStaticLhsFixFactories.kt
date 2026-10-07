@@ -33,6 +33,10 @@ internal object RemoveCallableReferenceStaticLhsFixFactories {
         createFixes(diagnostic.psi)
     }
 
+    val unsafeCallableReference = KotlinQuickFixFactory.ModCommandBased { diagnostic: KaFirDiagnostic.UnsafeCallableReference ->
+        createFixes(diagnostic.psi)
+    }
+
     private fun createFixes(psi: PsiElement): List<RemoveCallableReferenceStaticLhsFix> {
         val callableReference = psi.getNonStrictParentOfType<KtCallableReferenceExpression>() ?: return listOfNotNull(
             psi.questionMarkTokenBeforeCallableReference()?.let {

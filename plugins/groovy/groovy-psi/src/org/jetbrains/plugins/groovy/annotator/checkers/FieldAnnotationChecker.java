@@ -34,10 +34,8 @@ public final class FieldAnnotationChecker extends CustomAnnotationChecker {
     if (!(ownerToUse instanceof GrVariableDeclaration declaration)) {
       return false;
     }
-    else {
-      if (declaration.getVariables().length != 1 || !PsiUtil.isLocalVariable(declaration.getVariables()[0])) {
-        return false;
-      }
+    else if (declaration.getVariables().length != 1 || !PsiUtil.isLocalVariable(declaration.getVariables()[0])) {
+      return false;
     }
 
     if (!GrAnnotationImpl.isAnnotationApplicableTo(annotation, GrAnnotation.TargetType.LOCAL_VARIABLE)) {
@@ -53,13 +51,9 @@ public final class FieldAnnotationChecker extends CustomAnnotationChecker {
     final PsiAnnotationOwner owner = annotation.getOwner();
     final GrMember container = PsiTreeUtil.getParentOfType(((PsiElement)owner), GrMember.class);
     if (container != null) {
-      String message;
-      if (container.getContainingClass() instanceof GroovyScriptClass) {
-        message = GroovyBundle.message("annotation.field.can.only.be.used.within.a.script.body");
-      }
-      else {
-        message = GroovyBundle.message("annotation.field.can.only.be.used.within.a.script");
-      }
+      String message = container.getContainingClass() instanceof GroovyScriptClass
+                       ? GroovyBundle.message("annotation.field.can.only.be.used.within.a.script.body")
+                       : GroovyBundle.message("annotation.field.can.only.be.used.within.a.script");
       holder.newAnnotation(HighlightSeverity.ERROR, message).range(annotation).create();
     }
   }

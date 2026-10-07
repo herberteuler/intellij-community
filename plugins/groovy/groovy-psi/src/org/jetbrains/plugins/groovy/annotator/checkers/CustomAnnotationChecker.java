@@ -13,7 +13,6 @@ import com.intellij.psi.PsiArrayType;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifierList;
 import com.intellij.psi.PsiSubstitutor;
@@ -67,8 +66,7 @@ public abstract class CustomAnnotationChecker {
     if (attributes.length > 0) {
       final PsiElement identifier = attributes[0].getNameIdentifierGroovy();
       if (attributes.length == 1 && identifier == null) {
-        Pair.NonNull<PsiElement, String> r =
-          checkAnnotationValue(annotation, attributes[0], "value", usedAttrs, attributes[0].getValue());
+        Pair.NonNull<PsiElement, String> r = checkAnnotationValue(annotation, attributes[0], "value", usedAttrs, attributes[0].getValue());
         if (r != null) return r;
       }
       else {
@@ -85,11 +83,9 @@ public abstract class CustomAnnotationChecker {
     }
 
     List<String> missedAttrs = new ArrayList<>();
-    final PsiMethod[] methods = annotation.getMethods();
-    for (PsiMethod method : methods) {
+    for (PsiMethod method : annotation.getMethods()) {
       final String name = method.getName();
-      if (usedAttrs.contains(name) ||
-          method instanceof PsiAnnotationMethod && ((PsiAnnotationMethod)method).getDefaultValue() != null) {
+      if (usedAttrs.contains(name) || method instanceof PsiAnnotationMethod m && m.getDefaultValue() != null) {
         continue;
       }
       missedAttrs.add(name);
@@ -113,10 +109,9 @@ public abstract class CustomAnnotationChecker {
     final PsiMethod[] methods = annotation.findMethodsByName(name, false);
     if (methods.length == 0) {
       return Pair.createNonNull(identifierToHighlight,
-                                   GroovyBundle.message("at.interface.0.does.not.contain.attribute", annotation.getQualifiedName(), name));
+                                GroovyBundle.message("at.interface.0.does.not.contain.attribute", annotation.getQualifiedName(), name));
     }
-    final PsiMethod method = methods[0];
-    final PsiType ltype = method.getReturnType();
+    final PsiType ltype = methods[0].getReturnType();
     if (ltype != null && value != null) {
       return checkAnnotationValueByType(value, ltype, true);
     }
@@ -124,46 +119,37 @@ public abstract class CustomAnnotationChecker {
   }
 
   public static Pair.NonNull<PsiElement, @InspectionMessage String> checkAnnotationValueByType(@NotNull GrAnnotationMemberValue value,
-                                                                                               @Nullable PsiType ltype,
+                                                                                               @NotNull PsiType ltype,
                                                                                                boolean skipArrays) {
-    final GlobalSearchScope resolveScope = value.getResolveScope();
-    final PsiManager manager = value.getManager();
-
-    if (value instanceof GrExpression) {
-      final PsiType rtype;
-      if (value instanceof GrFunctionalExpression) {
-        rtype = PsiType.getJavaLangClass(manager, resolveScope);
-      }
-      else {
-        rtype = ((GrExpression)value).getType();
-      }
+    if (value instanceof GrExpression expression) {
+      final GlobalSearchScope resolveScope = value.getResolveScope();
+      final PsiType rtype =
+        value instanceof GrFunctionalExpression ? PsiType.getJavaLangClass(value.getManager(), resolveScope) : expression.getType();
 
       if (rtype != null && !isAnnoTypeAssignable(ltype, rtype, value, skipArrays)) {
         return Pair.createNonNull(value, GroovyBundle.message("cannot.assign", rtype.getPresentableText(), ltype.getPresentableText()));
       }
     }
 
-    else if (value instanceof GrAnnotation) {
-      final PsiElement resolved = ((GrAnnotation)value).getClassReference().resolve();
-      if (resolved instanceof PsiClass) {
-        final PsiClassType rtype = JavaPsiFacade.getElementFactory(value.getProject()).createType((PsiClass)resolved, PsiSubstitutor.EMPTY);
+    else if (value instanceof GrAnnotation annotation) {
+      if (annotation.getClassReference().resolve() instanceof PsiClass aClass) {
+        final PsiClassType rtype = JavaPsiFacade.getElementFactory(value.getProject()).createType(aClass, PsiSubstitutor.EMPTY);
         if (!isAnnoTypeAssignable(ltype, rtype, value, skipArrays)) {
           return Pair.createNonNull(value, GroovyBundle.message("cannot.assign", rtype.getPresentableText(), ltype.getPresentableText()));
         }
       }
     }
 
-    else if (value instanceof GrAnnotationArrayInitializer) {
-      if (ltype instanceof PsiArrayType) {
-        final PsiType componentType = ((PsiArrayType)ltype).getComponentType();
-        final GrAnnotationMemberValue[] initializers = ((GrAnnotationArrayInitializer)value).getInitializers();
-        for (GrAnnotationMemberValue initializer : initializers) {
+    else if (value instanceof GrAnnotationArrayInitializer arrayInitializer) {
+      if (ltype instanceof PsiArrayType arrayType) {
+        final PsiType componentType = arrayType.getComponentType();
+        for (GrAnnotationMemberValue initializer : arrayInitializer.getInitializers()) {
           Pair.NonNull<PsiElement, String> r = checkAnnotationValueByType(initializer, componentType, false);
           if (r!=null) return r;
         }
       }
       else {
-        final PsiType rtype = TypesUtil.getTupleByAnnotationArrayInitializer((GrAnnotationArrayInitializer)value);
+        final PsiType rtype = TypesUtil.getTupleByAnnotationArrayInitializer(arrayInitializer);
         if (!isAnnoTypeAssignable(ltype, rtype, value, skipArrays)) {
           return Pair.createNonNull(value, GroovyBundle.message("cannot.assign", rtype.getPresentableText(), ltype.getPresentableText()));
         }
@@ -179,9 +165,9 @@ public abstract class CustomAnnotationChecker {
     rtype = TypesUtil.unboxPrimitiveTypeWrapper(rtype);
     if (TypesUtil.isAssignableByMethodCallConversion(type, rtype, context)) return true;
 
-    if (!(type instanceof PsiArrayType && skipArrays)) return false;
+    if (!(type instanceof PsiArrayType arrayType && skipArrays)) return false;
 
-    final PsiType componentType = ((PsiArrayType)type).getComponentType();
+    final PsiType componentType = arrayType.getComponentType();
     return isAnnoTypeAssignable(componentType, rtype, context, skipArrays);
   }
 }

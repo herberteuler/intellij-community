@@ -263,7 +263,7 @@ public final class GroovyAnnotator extends GroovyElementVisitor {
       for (PsiClassType superType : parameters[i].getExtendsListTypes()) {
         final PsiType substitutedSuper = substitutor.substitute(superType);
         if (substitutedSuper != null && !substitutedSuper.isAssignableFrom(argType)) {
-          String message = GroovyBundle.message("type.argument.0.is.not.in.its.bound.should.extend.1", 
+          String message = GroovyBundle.message("type.argument.0.is.not.in.its.bound.should.extend.1",
                                                 argType.getCanonicalText(), superType.getCanonicalText());
           myHolder.newAnnotation(HighlightSeverity.WARNING, message).range(arguments[i]).create();
           break;
@@ -595,7 +595,7 @@ public final class GroovyAnnotator extends GroovyElementVisitor {
                                                @NotNull PsiClass superClass,
                                                PsiMethod @NotNull[] constructors) {
     PsiMethod defConstructor = getDefaultConstructor(superClass);
-    boolean needExplicitSuperCall = superClass.getConstructors().length != 0 && 
+    boolean needExplicitSuperCall = superClass.getConstructors().length != 0 &&
                                     (defConstructor == null || !PsiUtil.isAccessible(typeDefinition, defConstructor));
     if (!needExplicitSuperCall) return;
     final String qName = superClass.getQualifiedName();
@@ -1574,8 +1574,10 @@ public final class GroovyAnnotator extends GroovyElementVisitor {
     final GrAnnotationMemberValue value = annotationMethod.getDefaultValue();
     if (value == null) return;
 
+    PsiType returnType = annotationMethod.getReturnType();
+    if (returnType == null) return;
     Pair.NonNull<PsiElement, @InspectionMessage String> result =
-      CustomAnnotationChecker.checkAnnotationValueByType(value, annotationMethod.getReturnType(), false);
+      CustomAnnotationChecker.checkAnnotationValueByType(value, returnType, false);
     if (result != null) {
       myHolder.newAnnotation(HighlightSeverity.ERROR, result.getSecond()).range(result.getFirst()).create();
     }

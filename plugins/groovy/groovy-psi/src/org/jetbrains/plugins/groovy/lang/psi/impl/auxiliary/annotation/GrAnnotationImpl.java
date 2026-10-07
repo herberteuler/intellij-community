@@ -13,7 +13,6 @@ import com.intellij.psi.PsiArrayInitializerMemberValue;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiJavaCodeReferenceElement;
-import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifierList;
 import com.intellij.psi.PsiNameValuePair;
 import com.intellij.psi.PsiQualifiedReference;
@@ -101,20 +100,15 @@ public class GrAnnotationImpl extends GrStubElementBase<GrAnnotationStub> implem
       return stub.getPsiElement().getQualifiedName();
     }
 
-    final GrCodeReferenceElement nameRef = getClassReference();
-    final PsiElement resolved = nameRef.resolve();
-    if (resolved instanceof PsiClass) return ((PsiClass)resolved).getQualifiedName();
-    return null;
+    return getClassReference().resolve() instanceof PsiClass aClass ? aClass.getQualifiedName() : null;
   }
 
   @Override
   public @Nullable PsiJavaCodeReferenceElement getNameReferenceElement() {
     final GroovyResolveResult resolveResult = getClassReference().advancedResolve();
+    if (!(resolveResult.getElement() instanceof PsiClass aClass)) return null;
 
-    final PsiElement resolved = resolveResult.getElement();
-    if (!(resolved instanceof PsiClass)) return null;
-
-    return new LightClassReference(getManager(), getClassReference().getText(), (PsiClass)resolved, resolveResult.getSubstitutor());
+    return new LightClassReference(getManager(), getClassReference().getText(), aClass, resolveResult.getSubstitutor());
   }
 
   @Override
@@ -123,7 +117,7 @@ public class GrAnnotationImpl extends GrStubElementBase<GrAnnotationStub> implem
   }
 
   @Override
-  public @Nullable PsiAnnotationMemberValue findDeclaredAttributeValue(final @NonNls String attributeName) {
+  public @Nullable PsiAnnotationMemberValue findDeclaredAttributeValue(@NonNls String attributeName) {
     return PsiImplUtil.findDeclaredAttributeValue(this, attributeName);
   }
 
@@ -136,11 +130,7 @@ public class GrAnnotationImpl extends GrStubElementBase<GrAnnotationStub> implem
   @Override
   public @NotNull GrCodeReferenceElement getClassReference() {
     final GrAnnotationStub stub = getStub();
-    if (stub != null) {
-      return stub.getPsiElement().getClassReference();
-    }
-
-    return findNotNullChildByClass(GrCodeReferenceElement.class);
+    return stub != null ? stub.getPsiElement().getClassReference() : findNotNullChildByClass(GrCodeReferenceElement.class);
   }
 
   @Override
@@ -157,8 +147,7 @@ public class GrAnnotationImpl extends GrStubElementBase<GrAnnotationStub> implem
 
   @Override
   public @Nullable PsiAnnotationOwner getOwner() {
-    PsiElement parent = getParent();
-    return parent instanceof PsiAnnotationOwner ? (PsiAnnotationOwner)parent : null;
+    return getParent() instanceof PsiAnnotationOwner owner ? owner : null;
   }
 
   @Override
@@ -184,25 +173,17 @@ public class GrAnnotationImpl extends GrStubElementBase<GrAnnotationStub> implem
         return addTypeUseIfApplicable(owner, TargetType.TYPE);
       }
     }
-    if (owner instanceof GrMethod) {
-      if (((PsiMethod)owner).isConstructor()) {
-        return addTypeUseIfApplicable(owner, TargetType.CONSTRUCTOR);
-      }
-      else {
-        return addTypeUseIfApplicable(owner, TargetType.METHOD);
-      }
+    if (owner instanceof GrMethod method) {
+      return addTypeUseIfApplicable(owner, method.isConstructor() ? TargetType.CONSTRUCTOR : TargetType.METHOD);
     }
-    if (owner instanceof GrVariableDeclaration) {
-      final GrVariable[] variables = ((GrVariableDeclaration)owner).getVariables();
+    if (owner instanceof GrVariableDeclaration declaration) {
+      final GrVariable[] variables = declaration.getVariables();
       if (variables.length == 0) {
         return TargetType.EMPTY_ARRAY;
       }
-      if (variables[0] instanceof GrField || ResolveUtil.isScriptField(variables[0])) {
-        return addTypeUseIfApplicable(owner, TargetType.FIELD);
-      }
-      else {
-        return addTypeUseIfApplicable(owner, TargetType.LOCAL_VARIABLE);
-      }
+      return variables[0] instanceof GrField || ResolveUtil.isScriptField(variables[0])
+             ? addTypeUseIfApplicable(owner, TargetType.FIELD)
+             : addTypeUseIfApplicable(owner, TargetType.LOCAL_VARIABLE);
     }
     if (owner instanceof GrParameter) {
       return addTypeUseIfApplicable(owner, TargetType.PARAMETER);

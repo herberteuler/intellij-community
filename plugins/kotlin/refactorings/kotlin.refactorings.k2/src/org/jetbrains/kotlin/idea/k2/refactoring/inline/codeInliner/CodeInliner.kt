@@ -10,10 +10,6 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.components.returnType
 import org.jetbrains.kotlin.analysis.api.expressions.expressionType
 import org.jetbrains.kotlin.analysis.api.expressions.isUsedAsExpression
-import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisFromWriteAction
-import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
-import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisFromWriteAction
-import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 import org.jetbrains.kotlin.analysis.api.renderer.render
 import org.jetbrains.kotlin.analysis.api.resolution.KaExplicitReceiverValue
 import org.jetbrains.kotlin.analysis.api.resolution.KaImplicitReceiverValue
@@ -288,18 +284,11 @@ class CodeInliner (
         }
     }
 
-    @OptIn(KaAllowAnalysisOnEdt::class, KaAllowAnalysisFromWriteAction::class)
     private fun expandTypeArgumentsInParameterDefault(
         expression: KtExpression,
     ): KtExpression? {
         if (expression is KtCallExpression && expression.typeArguments.isEmpty() && expression.calleeExpression != null) {
-            val arguments = allowAnalysisFromWriteAction {
-                allowAnalysisOnEdt {
-                    analyze(expression) {
-                        getRenderedTypeArguments(expression)
-                    }
-                }
-            }
+            val arguments = analyze(expression) { getRenderedTypeArguments(expression) }
 
             if (arguments != null) {
                 val ktCallExpression = expression.copied()
@@ -407,8 +396,8 @@ class CodeInliner (
             if (contextParameterUsage != null && oldExpression is KtCallExpression) {
                 val calleeExpression = oldExpression.calleeExpression ?: return@forEach
                 val args = contextParameterUsage.mapNotNull { (calleeName, containerName) ->
-                    getContextParameterExplicitArgument(containerName)?.let {
-                       "${calleeName.asString()} = $it"
+                    explicitContextArguments?.get(containerName)?.let {
+                        "${calleeName.asString()} = $it"
                     }
                 }.joinToString()
                 if (args.isEmpty()) return@forEach
@@ -423,38 +412,36 @@ class CodeInliner (
         return introduceValuesForParameters
     }
 
-    fun getContextParameterExplicitArgument(cp: Name): String? {
-        return explicitContextArguments?.get(cp)
-    }
+    context(_: KaSession)
+    private fun processTypeParameterUsages(originalDeclaration: KtDeclaration) {
+        val typeParameters = (originalDeclaration as? KtConstructor<*>)?.containingClass()?.typeParameters
+            ?: (originalDeclaration as? KtCallableDeclaration)?.typeParameters ?: emptyList()
 
-    private fun <TypeParameter> processTypeParameterUsages(
-        callElement: KtCallElement?,
-        typeParameters: List<TypeParameter>,
-        namer: (TypeParameter) -> Name,
-        typeRetriever: (TypeParameter) -> KaType?,
-        renderType: (KaType) -> String,
-        isArrayType: (KaType) -> Boolean,
-        renderClassifier: (KaType) -> String?
-    ) {
+        val callElement = call as? KtCallElement
         val explicitTypeArgs = callElement?.typeArgumentList?.arguments
         if (explicitTypeArgs != null && explicitTypeArgs.size != typeParameters.size) return
 
+        val functionCall = (call as? KtResolvableCall)?.tryResolveCall()?.single?.function
+
         for ((index, typeParameter) in typeParameters.withIndex()) {
-            val parameterName = namer(typeParameter)
+            val parameterName = typeParameter.nameAsSafeName
             val usages = codeToInline.collectDescendantsOfType<KtExpression> {
                 it.getCopyableUserData(CodeToInline.TYPE_PARAMETER_USAGE_KEY) == parameterName
             }
 
-            val type = typeRetriever(typeParameter) ?: continue
+            val type = functionCall?.typeArgumentsMapping?.entries?.find { entry ->
+                entry.key.psi?.navigationElement == typeParameter
+            }?.value ?: continue
+
             val typeElement = if (explicitTypeArgs != null) { // we use explicit type arguments if available to avoid shortening
                 val explicitArgTypeElement = explicitTypeArgs[index].typeReference?.typeElement ?: continue
                 explicitArgTypeElement.putCopyableUserData(USER_CODE_KEY, Unit)
                 explicitArgTypeElement
             } else {
-                psiFactory.createType(renderType(type)).typeElement ?: continue
+                psiFactory.createType(type.approximateToDenotableSubtypeOrSelf().render(position = Variance.INVARIANT)).typeElement ?: continue
             }
 
-            val typeClassifier = renderClassifier(type)
+            val typeClassifier = (type as? KaClassType)?.classId?.asSingleFqName()?.asString()
 
             for (usage in usages) {
                 val parent = usage.parent
@@ -462,7 +449,7 @@ class CodeInliner (
                     is KtClassLiteralExpression if typeClassifier != null -> {
                         // for class literal ("X::class") we need type arguments only for kotlin.Array
                         val arguments =
-                            if (typeElement is KtUserType && isArrayType(type)) typeElement.typeArgumentList?.text.orEmpty()
+                            if (typeElement is KtUserType && type.arrayElementType != null) typeElement.typeArgumentList?.text.orEmpty()
                             else ""
                         codeToInline.replaceExpression(
                             usage, psiFactory.createExpression(typeClassifier + arguments)
@@ -482,7 +469,6 @@ class CodeInliner (
         }
     }
 
-    @OptIn(KaAllowAnalysisOnEdt::class, KaAllowAnalysisFromWriteAction::class)
     fun wrapCodeForSafeCall(receiver: KtExpression, isReceiverNullable: Boolean?, expressionToBeReplaced: KtExpression) {
         if (codeToInline.statementsBefore.isEmpty()) {
             val qualified = codeToInline.mainExpression as? KtQualifiedExpression
@@ -498,7 +484,7 @@ class CodeInliner (
             }
         }
 
-        if (codeToInline.statementsBefore.isEmpty() || allowAnalysisOnEdt { allowAnalysisFromWriteAction { analyze(expressionToBeReplaced) { expressionToBeReplaced.isUsedAsExpression } } }) {
+        if (codeToInline.statementsBefore.isEmpty() || analyze(expressionToBeReplaced) { expressionToBeReplaced.isUsedAsExpression }) {
             val thisReplaced = codeToInline.collectDescendantsOfType<KtExpression> { it.getCopyableUserData(RECEIVER_VALUE_KEY) != null }
             introduceValueInner(receiver, isReceiverNullable, thisReplaced, expressionToBeReplaced, safeCall = true)
         } else {
@@ -660,35 +646,9 @@ class CodeInliner (
 
         val introduceValueForParameters = processValueParameterUsages(callableForParameters)
 
-        processTypeParameterUsages(
-            callElement = call as? KtCallElement,
-            typeParameters = (originalDeclaration as? KtConstructor<*>)?.containingClass()?.typeParameters
-                ?: (originalDeclaration as? KtCallableDeclaration)?.typeParameters ?: emptyList(),
-            namer = { it.nameAsSafeName },
-            typeRetriever = {
-                analyze(call) {
-                    val functionCall = (call as? KtResolvableCall)?.tryResolveCall()?.single?.function
-                    functionCall?.typeArgumentsMapping?.entries?.find { entry ->
-                        entry.key.psi?.navigationElement == it
-                    }?.value
-                }
-            },
-            renderType = {
-                analyze(call) {
-                    it.approximateToDenotableSubtypeOrSelf().render(position = Variance.INVARIANT)
-                }
-            },
-            isArrayType = {
-                analyze(call) {
-                    it.arrayElementType != null
-                }
-            },
-            renderClassifier = {
-                analyze(call) {
-                    (it as? KaClassType)?.classId?.asSingleFqName()?.asString()
-                }
-            }
-        )
+        analyze(call) {
+          processTypeParameterUsages(originalDeclaration)
+        }
 
         val lexicalScopeElement = call.parentsWithSelf
             .takeWhile { it !is KtBlockExpression && it !is KtFunction && it !is KtClass && !(it is KtCallableDeclaration && it.parent is KtFile) }
@@ -789,18 +749,16 @@ class CodeInliner (
     ) {
         val context = declarations.first()
         val declaration2Name = mutableMapOf<KtNamedDeclaration, String>()
-        analyze(context) {
-            val nameValidator = KotlinDeclarationNameValidator(
-                context,
-                true,
-                KotlinNameSuggestionProvider.ValidatorTarget.VARIABLE
-            )
-            val validator = CollectingNameValidator { nameValidator.validate(it) }
-            for (declaration in declarations) {
-                val oldName = declaration.name
-                if (oldName != null && !names.add(oldName)) {
-                    declaration2Name[declaration] = KotlinNameSuggester.suggestNameByName(oldName, validator)
-                }
+        val nameValidator = KotlinDeclarationNameValidator(
+            context,
+            true,
+            KotlinNameSuggestionProvider.ValidatorTarget.VARIABLE
+        )
+        val validator = CollectingNameValidator { nameValidator.validate(it) }
+        for (declaration in declarations) {
+            val oldName = declaration.name
+            if (oldName != null && !names.add(oldName)) {
+                declaration2Name[declaration] = KotlinNameSuggester.suggestNameByName(oldName, validator)
             }
         }
         declaration2Name.forEach { (declaration, newName) ->

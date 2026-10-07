@@ -229,9 +229,17 @@ class CtrlMouseHandler2(
       field = value
     }
 
+  private var myHandlerJob: Job? = null
+
+  /**
+   * Returns the job of the last [handle] call.
+   * The job can be already completed, because a fast computation can finish before the EDT coroutine suspends.
+   */
   @TestOnly
   fun handlerJob(): Job {
-    return cs.coroutineContext.job.children.single()
+    return checkNotNull(myHandlerJob) {
+      "no handler job was launched"
+    }
   }
 
   override fun dispose() {
@@ -256,7 +264,7 @@ class CtrlMouseHandler2(
   }
 
   private fun handle(request: CtrlMouseRequest) {
-    cs.launch(Dispatchers.EDT, start = CoroutineStart.UNDISPATCHED) {
+    myHandlerJob = cs.launch(Dispatchers.EDT, start = CoroutineStart.UNDISPATCHED) {
       val result = compute(request)
       if (result != null) {
         highlightAndHint(request, result)

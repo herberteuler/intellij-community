@@ -59,6 +59,11 @@ public final class ProblemDescriptorUtil {
     return extractHighlightedText(range, psiElement);
   }
 
+  /**
+   * Replaces every character which XML 1.0 cannot represent with a question mark.
+   *
+   * @return {@code text} itself when it holds no such character, so a caller can detect a replacement by identity
+   */
   public static @NotNull String sanitizeIllegalXmlChars(@NotNull String text) {
     if (Verifier.checkCharacterData(text) == null) return text;
     return text.codePoints().map(cp -> Verifier.isXMLCharacter(cp) ? cp : '?')

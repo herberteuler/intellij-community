@@ -22,7 +22,6 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
 import java.io.BufferedWriter;
 import java.io.Closeable;
 import java.io.IOException;
@@ -63,7 +62,7 @@ public final class InspectionsResultUtil {
     }
 
     try (Writer fw = new OutputStreamWriter(Files.newOutputStream(outputPath), StandardCharsets.UTF_8)) {
-      XMLStreamWriter xmlWriter = XMLOutputFactory.newDefaultFactory().createXMLStreamWriter(fw);
+      SanitizingXmlWriter xmlWriter = new SanitizingXmlWriter(XMLOutputFactory.newDefaultFactory().createXMLStreamWriter(fw));
       xmlWriter.writeStartElement(INSPECTIONS_NODE);
       if (name != null) {
         xmlWriter.writeAttribute(PROFILE, name);
@@ -76,8 +75,9 @@ public final class InspectionsResultUtil {
         xmlWriter.writeAttribute("name", groupName);
         xmlWriter.writeAttribute("path", groupPath);
         for (InspectionToolWrapper<?, ?> toolWrapper : entry.getValue()) {
-          xmlWriter.writeStartElement("inspection");
           final String shortName = toolWrapper.getShortName();
+          xmlWriter.setLoggingContext(shortName);
+          xmlWriter.writeStartElement("inspection");
           xmlWriter.writeAttribute("shortName", shortName);
           xmlWriter.writeAttribute("defaultSeverity", toolWrapper.getDefaultLevel().getSeverity().getName());
           xmlWriter.writeAttribute("displayName", toolWrapper.getDisplayName());
@@ -97,12 +97,13 @@ public final class InspectionsResultUtil {
 
           final String description = toolWrapper.loadDescription();
           if (description != null) {
-            xmlWriter.writeCharacters(ProblemDescriptorUtil.sanitizeIllegalXmlChars(description));
+            xmlWriter.writeCharacters(description);
           }
           else {
-            inspectionsWithoutDescriptions.add(shortName);
+            inspectionsWithoutDescriptions.add(ProblemDescriptorUtil.sanitizeIllegalXmlChars(shortName));
           }
           xmlWriter.writeEndElement();
+          xmlWriter.setLoggingContext(null);
         }
         xmlWriter.writeEndElement();
       }

@@ -5,6 +5,7 @@ import com.intellij.codeInsight.ExpectedTypeInfo;
 import com.intellij.codeInsight.ExpectedTypesProvider;
 import com.intellij.codeInsight.daemon.LightDaemonAnalyzerTestCase;
 import com.intellij.codeInsight.daemon.impl.quickfix.CreateMethodFromMethodReferenceFix;
+import com.intellij.modcommand.ActionContext;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.psi.CommonClassNames;
 import com.intellij.psi.JavaPsiFacade;
@@ -62,7 +63,7 @@ public class Java8ExpressionsCheckTest extends LightDaemonAnalyzerTestCase {
     Editor editor = getEditor();
     PsiElement element = file.findElementAt(editor.getCaretModel().getOffset());
     PsiMethodReferenceExpression methodReference = PsiTreeUtil.getParentOfType(element, PsiMethodReferenceExpression.class);
-    assertTrue(new CreateMethodFromMethodReferenceFix(methodReference).isAvailable(getProject(), editor, file));
+    assertNotNull(new CreateMethodFromMethodReferenceFix(methodReference).getPresentation(ActionContext.from(editor, file)));
   }
 
 

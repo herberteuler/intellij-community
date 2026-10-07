@@ -113,7 +113,7 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
     if (targetClasses.isEmpty()) return;
 
     if (targetClasses.size() == 1 || ApplicationManager.getApplication().isUnitTestMode()) {
-      doInvoke(targetClasses.get(0), createInClass);
+      doInvoke(targetClasses.getFirst(), createInClass);
     } else {
       chooseTargetClass(targetClasses, editor, createInClass);
     }
@@ -144,7 +144,7 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
   protected abstract @Nullable PsiElement getElement();
 
   private void chooseTargetClass(List<PsiClass> classes, final Editor editor, Consumer<? super PsiClass> invokeImpl) {
-    final PsiClass firstClass = classes.get(0);
+    final PsiClass firstClass = classes.getFirst();
     final Project project = firstClass.getProject();
 
     final PsiClass preselection = AnonymousTargetClassPreselectionUtil.getPreselection(classes, firstClass);
@@ -164,7 +164,7 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
     builder.createPopup().showInBestPositionFor(editor);
   }
 
-  protected void setupVisibility(PsiClass parentClass, @NotNull PsiClass targetClass, PsiModifierList list) throws IncorrectOperationException {
+  protected static void setupVisibility(PsiClass parentClass, @NotNull PsiClass targetClass, PsiModifierList list) throws IncorrectOperationException {
     if (targetClass.isInterface() && list.getFirstChild() != null) {
       list.deleteChildRange(list.getFirstChild(), list.getLastChild());
       return;
@@ -182,7 +182,7 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
   }
 
   @PsiModifier.ModifierConstant
-  protected String getVisibility(PsiClass parentClass, @NotNull PsiClass targetClass) {
+  protected static String getVisibility(PsiClass parentClass, @NotNull PsiClass targetClass) {
     if (parentClass != null && (parentClass.equals(targetClass) || PsiTreeUtil.isAncestor(targetClass, parentClass, true))) {
       return PsiModifier.PRIVATE;
     } else {
@@ -193,8 +193,8 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
   public static boolean shouldCreateStaticMember(PsiReferenceExpression ref, PsiClass targetClass) {
 
     PsiExpression qualifierExpression = ref.getQualifierExpression();
-    while (qualifierExpression instanceof PsiParenthesizedExpression) {
-      qualifierExpression = ((PsiParenthesizedExpression) qualifierExpression).getExpression();
+    while (qualifierExpression instanceof PsiParenthesizedExpression expression) {
+      qualifierExpression = expression.getExpression();
     }
 
     if (qualifierExpression instanceof PsiReferenceExpression referenceExpression) {
@@ -230,23 +230,23 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
   }
 
   private static @Nullable PsiExpression getQualifier (PsiElement element) {
-    if (element instanceof PsiNewExpression) {
-      PsiJavaCodeReferenceElement ref = ((PsiNewExpression) element).getClassReference();
-      if (ref instanceof PsiReferenceExpression) {
-        return ((PsiReferenceExpression) ref).getQualifierExpression();
+    if (element instanceof PsiNewExpression newExpression) {
+      PsiJavaCodeReferenceElement ref = newExpression.getClassReference();
+      if (ref instanceof PsiReferenceExpression expression) {
+        return expression.getQualifierExpression();
       }
-    } else if (element instanceof PsiReferenceExpression) {
-      return ((PsiReferenceExpression) element).getQualifierExpression();
-    } else if (element instanceof PsiMethodCallExpression) {
-      return ((PsiMethodCallExpression) element).getMethodExpression().getQualifierExpression();
+    } else if (element instanceof PsiReferenceExpression referenceExpression) {
+      return referenceExpression.getQualifierExpression();
+    } else if (element instanceof PsiMethodCallExpression expression) {
+      return expression.getMethodExpression().getQualifierExpression();
     }
 
     return null;
   }
 
   public static @NotNull PsiSubstitutor getTargetSubstitutor(@Nullable PsiElement element) {
-    if (element instanceof PsiNewExpression) {
-      PsiJavaCodeReferenceElement reference = ((PsiNewExpression)element).getClassOrAnonymousClassReference();
+    if (element instanceof PsiNewExpression expression) {
+      PsiJavaCodeReferenceElement reference = expression.getClassOrAnonymousClassReference();
       JavaResolveResult result = reference == null ? JavaResolveResult.EMPTY : reference.advancedResolve(false);
       return result.getSubstitutor();
     }
@@ -254,8 +254,8 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
     PsiExpression qualifier = getQualifier(element);
     if (qualifier != null) {
       PsiType type = qualifier.getType();
-      if (type instanceof PsiClassType) {
-        return ((PsiClassType)type).resolveGenerics().getSubstitutor();
+      if (type instanceof PsiClassType classType) {
+        return classType.resolveGenerics().getSubstitutor();
       }
     }
 
@@ -292,8 +292,8 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
         }
         else {
           final PsiElement resolve = nameRef.resolve();
-          if (resolve instanceof PsiClass) {
-            return Collections.singletonList((PsiClass)resolve);
+          if (resolve instanceof PsiClass aClass) {
+            return Collections.singletonList(aClass);
           }
           else {
             return Collections.emptyList();
@@ -316,10 +316,10 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
       }
       qualifier = newExpression.getQualifier();
     }
-    else if (element instanceof PsiReferenceExpression) {
-      qualifier = ((PsiReferenceExpression)element).getQualifierExpression();
-      if (qualifier == null && element instanceof PsiMethodReferenceExpression) {
-        final PsiTypeElement qualifierTypeElement = ((PsiMethodReferenceExpression)element).getQualifierType();
+    else if (element instanceof PsiReferenceExpression psiReferenceExpression) {
+      qualifier = psiReferenceExpression.getQualifierExpression();
+      if (qualifier == null && element instanceof PsiMethodReferenceExpression referenceExpression) {
+        final PsiTypeElement qualifierTypeElement = referenceExpression.getQualifierType();
         if (qualifierTypeElement != null) {
           psiClass = PsiUtil.resolveClassInType(qualifierTypeElement.getType());
         }
@@ -336,8 +336,8 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
         }
       }
     }
-    else if (element instanceof PsiMethodCallExpression) {
-      final PsiReferenceExpression methodExpression = ((PsiMethodCallExpression)element).getMethodExpression();
+    else if (element instanceof PsiMethodCallExpression call) {
+      final PsiReferenceExpression methodExpression = call.getMethodExpression();
       qualifier = methodExpression.getQualifierExpression();
       final @NonNls String referenceName = methodExpression.getReferenceName();
       if (referenceName == null) return Collections.emptyList();
@@ -345,14 +345,14 @@ public abstract class CreateFromUsageBaseFix extends BaseIntentionAction {
     boolean allowOuterClasses = false;
     if (qualifier != null) {
       PsiType type = qualifier.getType();
-      if (type instanceof PsiClassType) {
-        psiClass = ((PsiClassType)type).resolve();
+      if (type instanceof PsiClassType classType) {
+        psiClass = classType.resolve();
       }
 
-      if (qualifier instanceof PsiJavaCodeReferenceElement) {
-        final PsiElement resolved = ((PsiJavaCodeReferenceElement)qualifier).resolve();
-        if (resolved instanceof PsiClass) {
-          if (psiClass == null) psiClass = (PsiClass)resolved;
+      if (qualifier instanceof PsiJavaCodeReferenceElement referenceElement) {
+        final PsiElement resolved = referenceElement.resolve();
+        if (resolved instanceof PsiClass aClass) {
+          if (psiClass == null) psiClass = aClass;
         }
       }
     } else if (psiClass == null) {

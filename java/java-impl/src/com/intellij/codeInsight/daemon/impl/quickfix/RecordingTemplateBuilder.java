@@ -112,11 +112,18 @@ final class RecordingTemplateBuilder implements TemplateBuilder {
   }
 
   /**
+   * @return true when the builder has no field
+   */
+  boolean isEmpty() {
+    return myFields.isEmpty();
+  }
+
+  /**
    * Writes the fields into the builder. It skips the field of an element which is not valid anymore.
    *
    * @param builder the builder which gets the fields
    */
-  private void flushTo(@NotNull ModTemplateBuilder builder) {
+  void flushTo(@NotNull ModTemplateBuilder builder) {
     for (Field field : myFields) {
       PsiElement element = field.element().getElement();
       if (element != null) {

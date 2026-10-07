@@ -54,6 +54,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.isDeprecated
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.symbols.symbol
 import org.jetbrains.kotlin.analysis.api.types.KaType
@@ -136,6 +137,7 @@ private class KotlinExtensionLookupItem(
     private val renderedTypeText: String,
     private val couldInsertSemicolon: Boolean,
     private val originalFile: PsiFile,
+    private val deprecated: Boolean,
     private val icon: Icon,
 ) : LookupElement(), TypedLookupItem {
 
@@ -214,6 +216,7 @@ private class KotlinExtensionLookupItem(
         presentation.appendTailText(" ", true)
         presentation.appendTailText(KotlinCompletionImplK2Bundle.message("kotlin.extension.in.java"), true)
         presentation.appendTailText(renderedTail, true)
+        presentation.isStrikeout = deprecated
         presentation.typeText = renderedTypeText
         presentation.icon = icon
     }
@@ -433,6 +436,7 @@ private object KotlinExtensionCompletionProvider : CompletionProvider<Completion
                 val renderedParameters = extension.renderParameters(methodWrapper)
                 val couldInsertSemicolon = JavaFrontendCompletionUtil.insertSemicolon(parent.parent)
 
+                val isDeprecated = extension.isDeprecated || methodWrapper.isDeprecated
                 val element = KotlinExtensionLookupItem(
                     methodWrapper = methodWrapper,
                     containingClass = containingClass,
@@ -442,11 +446,13 @@ private object KotlinExtensionCompletionProvider : CompletionProvider<Completion
                     qualifierInCopy = qualifierInCopy,
                     couldInsertSemicolon = couldInsertSemicolon,
                     originalFile = parameters.originalFile,
+                    deprecated = isDeprecated,
                     icon = extension.getExtensionIcon(),
                 )
 
+                val deprecationPriority = if (isDeprecated) -1 else 0
                 // Add the priority to ensure that extensions are always shown after regular Java methods
-                javaResultWithSorting.addElement(PrioritizedLookupElement.withPriority(element, EXTENSION_PRIORITY))
+                javaResultWithSorting.addElement(PrioritizedLookupElement.withPriority(element, EXTENSION_PRIORITY + deprecationPriority))
             }
         }
     }

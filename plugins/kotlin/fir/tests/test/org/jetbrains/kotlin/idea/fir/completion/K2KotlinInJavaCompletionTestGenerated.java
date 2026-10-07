@@ -187,6 +187,26 @@ public abstract class K2KotlinInJavaCompletionTestGenerated extends AbstractK2Ko
             runTest("../../completion/testData/inJava/extensions/DefaultParameters.java");
         }
 
+        @TestMetadata("DeprecatedFunction.java")
+        public void testDeprecatedFunction() throws Exception {
+            runTest("../../completion/testData/inJava/extensions/DeprecatedFunction.java");
+        }
+
+        @TestMetadata("DeprecatedGetter.java")
+        public void testDeprecatedGetter() throws Exception {
+            runTest("../../completion/testData/inJava/extensions/DeprecatedGetter.java");
+        }
+
+        @TestMetadata("DeprecatedProperty.java")
+        public void testDeprecatedProperty() throws Exception {
+            runTest("../../completion/testData/inJava/extensions/DeprecatedProperty.java");
+        }
+
+        @TestMetadata("DeprecatedSetter.java")
+        public void testDeprecatedSetter() throws Exception {
+            runTest("../../completion/testData/inJava/extensions/DeprecatedSetter.java");
+        }
+
         @TestMetadata("ExtensionOnArray.java")
         public void testExtensionOnArray() throws Exception {
             runTest("../../completion/testData/inJava/extensions/ExtensionOnArray.java");

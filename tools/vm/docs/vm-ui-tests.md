@@ -740,9 +740,13 @@ A trace opens the way Playwright's trace viewer shows a test: the steps on the l
 instructions a failure never reached greyed in place; the Before and After picture of the selected instruction,
 with the click drawn over it, and the video; the Swing tree of that moment, which a hover draws on the picture;
 and the check's expectation, its failure, the bridge calls, the gestures and the `idea.log` lines of that span.
-**Compare with…** lines two runs of one scenario up by step and marks where they part, and **Open in Perfetto**
-hands the timeline to Perfetto. Without the server, drop a zip or a bundle folder on the Runs page, a Bazel
-`test.outputs` folder included: it is read in the browser.
+A failed run opens with its verdict: the failing expectation, its Before, After and Diff pictures, and where it
+parts from the last green run. The timeline is a flame chart with a brush. The Diff tab lays the two pictures
+over each other. **History** lists the runs of the scenario on this machine with Allure's flaky, regressed and
+fixed marks. **Compare with…** lines two runs of one scenario up by step and marks where they part. **Share**
+copies a link to the moment, a Markdown digest for an issue or an agent, and hands the timeline to Perfetto.
+Without the server, drop a zip or a bundle folder on the Runs page, a Bazel `test.outputs` folder included: it is
+read in the browser.
 
 While the server runs, the recorded run also shows where the docs tell the story. A flow walkthrough plays the
 video of the active step. A feature section shows the newest run of its flows, and a spec page lists the runs of the

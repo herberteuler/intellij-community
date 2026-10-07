@@ -747,7 +747,7 @@ fn the_report_path_refuses_a_name_a_shell_would_reinterpret() {
 
 // --- what never decides the verdict ---------------------------------------------------------------------------
 
-/// The traces pair is carried verbatim and decides nothing (flow-trace.spec: a trace never decides a verdict).
+/// The traces pair is carried verbatim and decides nothing (scenario-trace.spec: a trace never decides a verdict).
 #[test]
 fn traces_are_carried_and_never_decide_the_verdict() {
     let passing = input(available(PASSING_XML), Some(summary(1, 0, 0, 0, 0)), vec![]);

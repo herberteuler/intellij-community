@@ -116,13 +116,10 @@ filegroup(
         "AGENTS.md",
         "README.md",
         "provision/README.md",
-    ] + glob(
-        [
-            "docs/**/*.md",
-            "spec/**/*.md",
-        ],
-        allow_empty = True,
-    ),
+    ] + glob([
+        "docs/**/*.md",
+        "spec/**/*.md",
+    ]),
     visibility = ["//visibility:public"],
 )
 

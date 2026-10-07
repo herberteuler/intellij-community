@@ -11,7 +11,7 @@ Date: 2026-09-29
 Accepted. It supersedes the `ffmpeg` half of the "Two levers stay open" consequence of
 [ADR 0184](0184-the-worker-image-is-pulled-by-its-content-tag.md). The GTK half of that consequence stands. The
 recorder is `plugins/air/tests/integration/vm-lane/crates/avl-record`. The operator view of the traces is
-[the VM guide](../vm-ui-tests.md), and the behavior is `plugins/air/spec/docs/flow-trace.spec.md`.
+[the VM guide](../vm-ui-tests.md), and the behavior is [`community/tools/vm/spec/scenario-trace.spec.md`](../../spec/scenario-trace.spec.md).
 
 ## Context
 

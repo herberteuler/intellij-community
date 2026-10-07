@@ -268,7 +268,7 @@ hunks of its default diff. It changed no logic.
 10. **The server answers only what the site reads.** `GET /__air/zip`, the `contentBase64` input and the JSON
     `fileName` of `POST /__air/plan`, and the offset of `bundle-append` are gone. The server test writes
     `crates/avl-trace/testdata/serve-transcript.json` from its own answers, and `src/trace/runJournal.test.ts` of the
-    docs site reads the same file. [The flow-trace spec](../../../../../plugins/air/spec/docs/flow-trace.spec.md) states the contract.
+    docs site reads the same file. [The scenario-trace spec](../../spec/scenario-trace.spec.md) states the contract.
 11. **The workspace follows the shared configuration of `community/build/rust-tools`.**
     - `sync.mjs` writes the lint tables, `rustfmt.toml` and `clippy.toml` of the workspace. The width is 140 columns.
     - A site exception is `#[expect]`, never `#[allow]`.

@@ -92,8 +92,8 @@ one caller.
 
 ## References
 
-- `../../spec/docs/flow-ui-scenarios.spec.md`, the selector and self-lease requirements
-- `../../spec/docs/flow-trace.spec.md`, the planner's commands
+- `../../spec/lane-controller.spec.md`, the selector and self-lease requirements
+- `../../spec/scenario-trace.spec.md`, the planner's commands
 - `../../tests/integration/vm-lane/crates/avl-bt/src/suites.rs`, `../../tests/integration/vm-lane/crates/avl-lane/src/affected.rs`
 - `../../tests/integration/vm-lane/crates/avl-daemon/src/run.rs`, `../../tests/integration/vm-lane/crates/avl-daemon/src/leased.rs`
 - [ADR 0043](../../../../../plugins/air/docs/decisions/0043-managed-agent-chain-is-resolved-not-declared.md)

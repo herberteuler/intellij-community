@@ -8,6 +8,15 @@ Windows host. ADR 0074 records the rework: the crate rule, the closures, the err
 `avl` stands for Air VM Lane; `avl.MODULE.bazel` says why the name is short. An agent that changes this workspace
 follows [`AGENTS.md`](AGENTS.md).
 
+## Documents
+
+- [`docs/`](docs) holds the guide to the UI lanes, `vm-ui-tests.md`, and the notes on the Linux guest, the Windows
+  lane and the open work.
+- [`docs/decisions/`](docs/decisions) holds the ADRs of the controller. Its [`README.md`](docs/decisions/README.md)
+  states how a record takes its number.
+- [`spec/`](spec) holds the specs of the controller and the recorder. Its [`README.md`](spec/README.md) states the
+  path conventions and the gate.
+
 ## Binaries
 
 | wrapper | label | crate | what it is |

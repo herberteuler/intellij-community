@@ -683,8 +683,9 @@ Every UI scenario leaves a **trace bundle**, whichever launcher ran it, in the m
 trace viewer. A bundle holds a video and a lossless picture at every instruction boundary and held check.
 It also holds the Swing tree at each of those moments, the gestures, the bridge calls, the scenario's slice
 of `idea.log`, and the generated program, so the instructions a failure never reached are visible. The
-contract is [`plugins/air/spec/docs/flow-trace.spec.md`](../../../../plugins/air/spec/docs/flow-trace.spec.md), and
-[ADR 0155](../../../../plugins/air/docs/decisions/0155-a-ui-scenario-leaves-a-trace.md) is why it is shaped this way.
+contract is [`community/tools/vm/spec/scenario-trace.spec.md`](../spec/scenario-trace.spec.md). The lane's side is
+[`plugins/air/spec/docs/flow-trace.spec.md`](../../../../plugins/air/spec/docs/flow-trace.spec.md), and
+[ADR 0155](../../../../plugins/air/docs/decisions/0155-a-ui-scenario-leaves-a-trace.md) is why the trace is shaped this way.
 
 The recorder is `air-trace-record`, a binary that the lane JVM starts from its runfiles. The lane tells it
 what happens, one line per event on its standard input. A lane the watchdog kills closes that pipe too, so

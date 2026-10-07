@@ -15,7 +15,7 @@ the command line, the crate rule, the test layout, the lints and the banned meth
 - **Build the Linux guest binaries after a change of code that a guest runs.** Run the two cross builds of the README.
   A Mac compiles no Linux-only code, so only these builds and `:clippy-linux-*` check it.
 - **Run `./community/tools/bt.cmd AirSpecReferencesTest` after a change of a spec or a move of a file.** A spec names
-  its tests by path.
+  its tests by path. A spec of this workspace lives in `spec/`. The same test scans it.
 - **Run `bazel run //:format.check` after a change of a Starlark file.**
 - **Treat a closure change as a choice.** A new crate in a `closure.txt` changes the binary at each change of the
   crate. The recorder runs in every UI-lane target, and each worker installs a changed guest agent again. State the

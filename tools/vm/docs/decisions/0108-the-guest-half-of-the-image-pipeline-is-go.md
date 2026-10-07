@@ -348,4 +348,4 @@ In 0105's idiom: each of these cost a session, and each is commented where it li
   are gone says that and links here.
 - **`stageError` became `verbRefusal` and `exitOnStageError` became `exitOnRefusal`.** The type was never
   staging's — it is what any verb refuses with — and the image verbs are the callers that made the old name
-  wrong. `spec/docs/flow-ui-scenarios.spec.md` carries the closed-status contract.
+  wrong. `community/tools/vm/spec/lane-controller.spec.md` carries the closed-status contract.

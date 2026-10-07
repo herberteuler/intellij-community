@@ -5,19 +5,26 @@
 //! into one log. What is left here is what only this crate can build: a [`Manager`] with the suite's poll bounds.
 //!
 //! A Windows host has the Docker pool only, so the Tart fixtures and the run-process helpers are Unix only.
+//!
+//! On Unix the runner asks [`FakeProcesses`] about each pid of the fake table, and the host about every other pid. A
+//! stand-in run process is a process of the fake table, so a worker reads as running on a loaded host too. A `tart
+//! run` that the fake hypervisor spawns is a real child, and the host answers for it: a start and a stale run need a
+//! real exit and a real zombie.
 
 use std::ops::Deref;
 use std::sync::Arc;
 
 use avl_base::{Backend, Config, GuestArch, GuestOs, SCHEMA_VERSION};
-#[cfg(unix)]
-use avl_host_sys::Ctx;
 use avl_host_sys::Runner;
 use avl_host_sys::guest::BazelHost;
+#[cfg(unix)]
+use avl_host_sys::interrupt::Interrupts;
 use avl_host_sys::lock::LockManager;
 #[cfg(unix)]
-use avl_host_testkit::PinnedBazel;
+use avl_host_sys::{Ctx, ProcessTable};
 use avl_host_testkit::{ChannelFactory, FakeGuests, HostPool, HostPoolBuilder, quiet};
+#[cfg(unix)]
+use avl_host_testkit::{FakeProcesses, PinnedBazel};
 #[cfg(unix)]
 use avl_testkit::tartfake::Answer;
 #[cfg(unix)]
@@ -43,6 +50,9 @@ pub(crate) struct Fixture {
     pool: HostPool,
     pub(crate) manager: Manager,
     pub(crate) guest: Arc<FakeGuests>,
+    /// What the runner of [`Fixture::manager`] probes in place of the host, for the pids of the table.
+    #[cfg(unix)]
+    processes: Arc<FakeProcesses>,
     /// The Bazel that resolves the pinned tools to the fakes, for a fixture built with one.
     #[cfg(unix)]
     pub(crate) bazel: Option<Arc<PinnedBazel>>,
@@ -136,14 +146,22 @@ impl Fixture {
         }
     }
 
-    /// Makes a worker read as running: this test process stands in for its `tart run` process, the one process
-    /// guaranteed to be alive.
-    pub(crate) async fn run_as_this_process(&self, worker: &str) -> ProcessIdentity {
-        let pid = i32::try_from(std::process::id()).expect("a pid fits");
+    /// A runner over the pool's environment whose children register with `interrupts`. Its process probes ask the
+    /// fixture's process table, as the runner of [`Fixture::manager`] does.
+    pub(crate) fn runner_with(&self, interrupts: &Interrupts) -> Runner {
+        Runner::new(self.environment.iter().cloned(), interrupts.clone())
+            .with_process_table(Arc::clone(&self.processes) as Arc<dyn ProcessTable>)
+    }
+
+    /// Makes a worker read as running: a live process of the fake table stands in for its `tart run` process. Nothing
+    /// ends that process, and a `tart stop` does not end it either. Its command is no `tart run`, so no path takes it
+    /// for an orphaned run process.
+    pub(crate) async fn run_as_fake_process(&self, worker: &str) -> ProcessIdentity {
+        let pid = self.processes.start(&format!("stand-in for the run process of {worker}"));
         self.manager
             .write_process_identity(&Ctx::background(), worker, pid)
             .await
-            .expect("this process can be identified")
+            .expect("the fake process can be identified")
     }
 
     /// Makes a worker read as running on a `tart run` of its own whose VM Tart does not list: the fake's `run`,
@@ -235,12 +253,20 @@ impl FixtureBuilder {
         let host = bazel.clone().map(|bazel| bazel as Arc<dyn BazelHost>);
         #[cfg(windows)]
         let host = None;
-        let manager = manager_with_bazel(&pool.settings, pool.runner(), Some(guest.factory()), self.build_boot, host);
+        #[cfg(unix)]
+        let processes = Arc::new(FakeProcesses::beside_the_host());
+        #[cfg(unix)]
+        let runner = pool.runner().with_process_table(Arc::clone(&processes) as Arc<dyn ProcessTable>);
+        #[cfg(windows)]
+        let runner = pool.runner();
+        let manager = manager_with_bazel(&pool.settings, runner, Some(guest.factory()), self.build_boot, host);
         manager.prepare_runtime_dirs().expect("the runtime directories are created");
         Fixture {
             pool,
             manager,
             guest,
+            #[cfg(unix)]
+            processes,
             #[cfg(unix)]
             bazel,
         }
@@ -310,7 +336,7 @@ impl Drop for RunProcessReaper {
             let Some(identity) = read_identity(&self.settings.pid_path(worker)) else {
                 continue;
             };
-            // Never this test process, which a suite records as a stand-in run process.
+            // Never this test process, which a suite of the real `ps` probe can record.
             if u32::try_from(identity.pid).ok() != Some(std::process::id()) {
                 let _ = killpg(Pid::from_raw(identity.pid), Signal::SIGKILL);
             }

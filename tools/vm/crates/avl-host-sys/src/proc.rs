@@ -235,8 +235,8 @@ impl Runner {
         }
     }
 
-    /// A runner whose process probes `table` answers, and not the host. A clone and a runner made
-    /// [`Runner::with_overrides`] keep the table.
+    /// A runner whose process probes ask `table`, and not the host, about each pid that the table holds. A clone and a
+    /// runner made [`Runner::with_overrides`] keep the table.
     #[must_use]
     pub fn with_process_table(mut self, table: Arc<dyn ProcessTable>) -> Self {
         self.process_table = Some(table);

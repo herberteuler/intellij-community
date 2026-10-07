@@ -1,7 +1,7 @@
 //! What the host knows about a process by its pid: the seam behind [`Runner::probe_process`].
 //!
 //! On Unix `/bin/ps` answers. On Windows the process object answers, through `OpenProcess`, so no subprocess runs. A
-//! runner built [`Runner::with_process_table`] asks its [`ProcessTable`] instead, and the host answers nothing.
+//! runner built [`Runner::with_process_table`] asks its [`ProcessTable`] instead about each pid that the table holds.
 
 use avl_base::Refusal;
 
@@ -27,10 +27,13 @@ pub enum PsField {
     State,
 }
 
-/// The processes a runner probes in place of the host's process table: what a hermetic suite gives
-/// [`Runner::with_process_table`], so that no probe answer depends on the processes of the host.
+/// The processes a runner probes in place of the host's process table: what a suite gives
+/// [`Runner::with_process_table`], so that no probe answer about a pid the table holds depends on the host.
 pub trait ProcessTable: Send + Sync {
-    /// One field of the process `pid`, or `None` when the table holds no such process.
+    /// Whether the table answers for `pid`. The host answers every pid that the table does not hold.
+    fn holds(&self, pid: i32) -> bool;
+
+    /// One field of the process `pid` that the table holds, or `None` when there is no such process.
     fn field(&self, pid: i32, field: PsField) -> Option<String>;
 }
 
@@ -52,7 +55,9 @@ impl Runner {
         if pid <= 0 {
             return Ok(None);
         }
-        if let Some(table) = &self.process_table {
+        if let Some(table) = &self.process_table
+            && table.holds(pid)
+        {
             return Ok(table.field(pid, field));
         }
         imp::probe(self, ctx, pid, field).await

@@ -131,7 +131,7 @@ fn a_lease_reads_back_as_it_was_written() {
 async fn the_process_receipt_round_trips_and_is_refused_field_by_field() {
     let fixture = Fixture::linux();
     let worker = fixture.worker(0);
-    let identity = fixture.run_as_this_process(worker).await;
+    let identity = fixture.run_as_fake_process(worker).await;
     assert!(!identity.process_start.is_empty() && !identity.process_command.is_empty());
     let path = fixture.settings.pid_path(worker);
     assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o7777, 0o600);
@@ -427,7 +427,7 @@ async fn require_release_ready_refuses_a_stopped_tart_worker() {
 async fn require_release_ready_refuses_a_guest_that_does_not_answer() {
     let fixture = Fixture::linux();
     let worker = fixture.worker(0);
-    fixture.run_as_this_process(worker).await;
+    fixture.run_as_fake_process(worker).await;
     fixture.guest.fail_everything();
     let refusal = fixture.manager.require_release_ready(&ctx(), worker).await.unwrap_err();
     assert_eq!(refusal.code, "guest_agent_unavailable");
@@ -458,7 +458,7 @@ async fn require_release_ready_resolves_the_host_paths() {
         .env("AIR_VM_HOST_GIT", &git.to_string_lossy())
         .build();
     let worker = fixture.worker(0);
-    fixture.run_as_this_process(worker).await;
+    fixture.run_as_fake_process(worker).await;
     fixture.settings.host_repo().unwrap_err();
 
     fixture.manager.require_release_ready(&ctx(), worker).await.unwrap();
@@ -593,7 +593,7 @@ async fn a_peer_that_is_not_running_has_no_channel() {
     let fixture = Fixture::linux();
     let peer = fixture.settings.workers.last().unwrap().clone();
     assert!(fixture.manager.peer(&ctx(), &peer).await.unwrap().is_none());
-    fixture.run_as_this_process(&peer).await;
+    fixture.run_as_fake_process(&peer).await;
     let channel = fixture.manager.peer(&ctx(), &peer).await.unwrap();
     assert_eq!(channel.map(|channel| channel.worker().to_owned()), Some(peer));
 }
@@ -869,8 +869,8 @@ async fn recycle_that_cannot_stop_the_worker_deletes_nothing() {
     let fixture = Fixture::linux();
     let worker = fixture.worker(0).to_owned();
     fixture.fake.answer(Answer::ListQuiet, format!("{worker}\n"));
-    // A live run process - this test's own - and a `tart` that refuses every verb but the listings.
-    fixture.run_as_this_process(&worker).await;
+    // A live run process of the fake table, and a `tart` that refuses every verb but the listings.
+    fixture.run_as_fake_process(&worker).await;
     fixture.fake.answer(Answer::Exit, "1");
 
     let refusal = fixture
@@ -1052,13 +1052,18 @@ async fn recycle_after_a_missing_vm_release_stops_the_stale_run_process_and_clon
 // --- an interrupt --------------------------------------------------------------------------------------------
 
 /// A manager over the fixture's pool whose children register with `interrupts`, the way `vm` main wires one.
+///
+/// No stop grace runs out in a test. A process of the fake table never exits, so only the interrupt ends the wait of
+/// a stop for it, and a busy host cannot make the wait time out before the interrupt lands.
 fn interruptible(fixture: &Fixture, interrupts: &Interrupts) -> Manager {
-    manager_over(
+    let mut manager = manager_over(
         &fixture.settings,
-        Runner::new(fixture.environment.iter().cloned(), interrupts.clone()),
+        fixture.runner_with(interrupts),
         Some(fixture.guest.factory()),
         builds_nothing(),
-    )
+    );
+    manager.timings.stop_grace = Duration::from_hours(1);
+    manager
 }
 
 /// Delivers the operator's Ctrl-C once `ready` holds.
@@ -1079,9 +1084,9 @@ fn interrupt_when(interrupts: &Interrupts, ready: impl Fn() -> bool + Send + 'st
 async fn an_interrupted_stop_keeps_the_run_process_record() {
     let fixture = Fixture::linux();
     let worker = fixture.worker(0);
-    // This process stands in for the run process, and `tart stop` does not end it: the wait is still polling when
-    // the interrupt lands, or the interrupt reaches `tart stop` itself.
-    let identity = fixture.run_as_this_process(worker).await;
+    // A process of the fake table stands in for the run process, and `tart stop` does not end it: the wait is still
+    // polling when the interrupt lands, or the interrupt reaches `tart stop` itself.
+    let identity = fixture.run_as_fake_process(worker).await;
     let interrupts = Interrupts::detached();
     let manager = interruptible(&fixture, &interrupts);
     let fake = fixture.fake.clone();

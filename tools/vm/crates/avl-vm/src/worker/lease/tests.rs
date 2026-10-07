@@ -453,7 +453,7 @@ async fn a_refused_release_leaves_the_lease_in_place() {
     let held = acquire(&fixture, "agent").await.unwrap();
     // A running worker, so the release takes the guest path - and a guest that does not answer, so the gate refuses
     // before anything is unlinked.
-    fixture.run_as_this_process("air-linux-1").await;
+    fixture.run_as_fake_process("air-linux-1").await;
     fixture.guest.fail_everything();
     assert_eq!(
         code(release(&fixture, &lease_file(&held), &FakeProbe::default()).await),
@@ -528,7 +528,7 @@ fn live_guest(fixture: &Fixture, run_id: &'static str) {
 async fn a_release_succeeds_while_a_warm_daemon_holds_the_slot() {
     let fixture = pool("air-linux-1");
     let held = acquire(&fixture, "agent").await.unwrap();
-    fixture.run_as_this_process("air-linux-1").await;
+    fixture.run_as_fake_process("air-linux-1").await;
     live_guest(&fixture, "run-ui-daemon-1");
 
     let probe = FakeProbe::new(Some("run-ui-daemon-1"), Some("run-ui-daemon-1"));
@@ -554,7 +554,7 @@ async fn a_release_succeeds_while_a_warm_daemon_holds_the_slot() {
 async fn a_release_is_refused_while_an_iteration_is_in_flight() {
     let fixture = pool("air-linux-1");
     let held = acquire(&fixture, "agent").await.unwrap();
-    fixture.run_as_this_process("air-linux-1").await;
+    fixture.run_as_fake_process("air-linux-1").await;
     live_guest(&fixture, "run-ui-daemon-1");
 
     let probe = FakeProbe::new(None, Some("run-ui-daemon-1"));

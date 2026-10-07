@@ -6,6 +6,9 @@
 //! routes with [`avl_wire::daemon::match_route`], so the double cannot agree with the client while disagreeing with
 //! the server. The scripted guest relays each connect to that server over an in-memory stream. Over the hypervisor,
 //! the fake `tart` relays with `nc` to the server's loopback listener.
+//!
+//! The runner probes [`FakeProcesses`] and not the host. So a worker that reads as running does so on a loaded host
+//! too.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::io;
@@ -23,11 +26,12 @@ use avl_base::report::{Buffer, Mode, SinkGuard};
 use avl_base::sync::lock;
 use avl_base::{Backend, FakeClock, GuestOs, Refusal, Reporter, SCHEMA_VERSION};
 use avl_host_sys::lock::LockManager;
-use avl_host_sys::{Ctx, GuestStream, Interrupts, Runner};
+use avl_host_sys::{Ctx, GuestStream, Interrupts, ProcessTable, Runner};
 use avl_host_testkit::agent::{active_reply, agent_reply, argv_value, run_state};
 use avl_host_testkit::answer::base_name;
 use avl_host_testkit::{
-    Answer, ConnectHandler, FakeChannel, FakeGuests, HostPool, PinnedBazel, Verbs, answer_text, failed, handler, said, serve_on_connect,
+    Answer, ConnectHandler, FakeChannel, FakeGuests, FakeProcesses, HostPool, PinnedBazel, Verbs, answer_text, failed, handler, said,
+    serve_on_connect,
 };
 use avl_wire::daemon::{self as wire, Route};
 use avl_wire::progress::{Kind, Record, Verdict};
@@ -654,6 +658,8 @@ pub(crate) struct DaemonFixture {
     verbs: Arc<Verbs>,
     /// `None` over the hypervisor, where the guest is the fake `tart`'s exec.
     guests: Option<Arc<FakeGuests>>,
+    /// What the runner probes in place of the host.
+    processes: Arc<FakeProcesses>,
 }
 
 impl Deref for DaemonFixture {
@@ -724,7 +730,9 @@ impl DaemonFixture {
             guests
         });
         let interrupts = Interrupts::detached();
-        let runner = Runner::new(pool.environment.iter().cloned(), interrupts.clone());
+        let processes = Arc::new(FakeProcesses::default());
+        let runner = Runner::new(pool.environment.iter().cloned(), interrupts.clone())
+            .with_process_table(Arc::clone(&processes) as Arc<dyn ProcessTable>);
         let (reporter, stdout, stderr) = Reporter::in_memory("vm-test");
         reporter.set_mode(Mode::Stream);
         let manager = Arc::new(Manager::with_timings(
@@ -776,6 +784,7 @@ impl DaemonFixture {
             worker,
             verbs,
             guests,
+            processes,
         };
         // No iteration recorded traces unless its test says so, which is what a lane with tracing off leaves. Every
         // other `test` keeps the unrouted default, exit 0.
@@ -943,14 +952,15 @@ impl DaemonFixture {
         docker.start(&ctx, &self.worker).await.expect("the container is started");
     }
 
-    /// Makes one worker read as running, through the pid receipt Tart liveness is: this test process stands in for
-    /// its run process. A release of it then goes through the guest.
+    /// Makes one worker read as running, through the pid receipt Tart liveness is: a live process of the fake table
+    /// stands in for its run process. A release of it then goes through the guest. The command is no `tart run`, so
+    /// no path takes the process for an orphaned run.
     pub(crate) async fn read_as_running(&self, worker: &str) {
-        let pid = i32::try_from(std::process::id()).expect("a pid fits");
+        let pid = self.processes.start(&format!("stand-in for the run process of {worker}"));
         self.manager
             .write_process_identity(&Ctx::background(), worker, pid)
             .await
-            .expect("this process can be identified");
+            .expect("the fake process can be identified");
     }
 
     /// Puts the first worker into the state the readiness gate accepts without booting anything: it reads as

@@ -77,7 +77,7 @@ async fn release_workers_finishes_the_set_and_names_what_stayed_held() {
     // The first worker reads as running - liveness on Tart is the pid receipt - so its release goes through the guest,
     // and this fixture's guest answers nothing the release gate accepts.
     let stuck = held[0].lease.worker.clone();
-    fixture.run_as_this_process(&stuck).await;
+    fixture.run_as_fake_process(&stuck).await;
 
     let results = release_workers(&ctx(), &fixture.manager, &held, &FakeProbe::default()).await;
     assert_eq!(results.len(), 2);

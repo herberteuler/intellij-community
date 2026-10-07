@@ -48,9 +48,10 @@ class IdeLaunchEventTest {
 
     val context = Starter.newContext(testInfo.hyphenateWithClass(), TestCases.IU.withProject(NoProject).useRelease())
 
-    repeat(2) {
+    repeat(2) { launch ->
       context.runIDE(
         runTimeout = 5.seconds,
+        launchName = "launch-$launch",
         expectedKill = true
       )
     }
@@ -88,9 +89,10 @@ class IdeLaunchEventTest {
       TestCase(IdeInfo.IdeaUltimate, LocalProjectInfo(projectDir)).useRelease()
     )
 
-    repeat(2) {
+    repeat(2) { launch ->
       context.runIDE(
         commands = CommandChain().exitApp(),
+        launchName = "launch-$launch",
       )
     }
     runBlocking(Dispatchers.IO) {

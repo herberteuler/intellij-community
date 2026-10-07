@@ -1,6 +1,6 @@
 # EelPath and nio Path
 
-Eel has two path types: `com.intellij.platform.eel.path.EelPath` and `java.nio.file.Path`. This page states when to use each one, how they differ, and how to convert one into the other. [Two File System APIs](../overview/file-systems.md) explains the decision behind the two types.
+Eel has two path types: `com.intellij.platform.eel.path.EelPath` and `java.nio.file.Path`. This page states when to use each one, how they differ, and how to convert one into the other. Both types are a part of the Eel API, and new code uses both. [Two File System APIs](../overview/file-systems.md) explains why NIO is the primary file system API.
 
 ## Which One to Use
 

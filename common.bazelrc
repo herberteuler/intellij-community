@@ -15,6 +15,10 @@ startup --host_jvm_args=-Xmx12g
 # see https://blog.bazel.build/2026/01/20/bazel-9.html
 common --incompatible_autoload_externally=
 
+# MRI-5334: rules_rs must not run `git` to fetch a crate. It downloads a GitHub archive, or it fails.
+# Do not use the `crate.from_cargo` hub fallback `allow_git = "true"` in the monorepo, this is non-hermetic.
+common --repo_env=RULES_RS_ALLOW_GIT=false
+
 # Cache repository rules like JPS project model reading, http_file downloading, toolbox POMs analysis etc
 # Also see MRI-3683
 # https://github.com/bazelbuild/bazel/discussions/27509

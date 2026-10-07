@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInspection.ui;
 
 import com.intellij.openapi.util.NlsContexts.ColumnName;
@@ -13,11 +13,11 @@ import java.util.List;
 
 public class ListWrappingTableModel extends AbstractTableModel implements ItemRemovable {
 
-  private final List<List<String>> list;
-  private final List<String> columnNames = new ArrayList<>();
+  private final @NotNull List<@NotNull List<@NotNull String>> list;
+  private final @NotNull List<@NotNull String> columnNames = new ArrayList<>();
 
-  public ListWrappingTableModel(@NotNull List<List<String>> list,
-                                String @NotNull @ColumnName ... columnNames) {
+  public ListWrappingTableModel(@NotNull List<@NotNull List<@NotNull String>> list,
+                                @NotNull String @NotNull @ColumnName ... columnNames) {
     this.list = list;
     ContainerUtil.addAll(this.columnNames, columnNames);
   }
@@ -28,13 +28,13 @@ public class ListWrappingTableModel extends AbstractTableModel implements ItemRe
    * @param list       the rows of the table
    * @param columnName the name in the column header
    */
-  public ListWrappingTableModel(@NotNull List<String> list, @NotNull @ColumnName String columnName) {
+  public ListWrappingTableModel(@NotNull List<@NotNull String> list, @NotNull @ColumnName String columnName) {
     this.list = new ArrayList<>();
     this.list.add(list);
     columnNames.add(columnName);
   }
 
-  public void addRow(String... values) {
+  public void addRow(@NotNull String @NotNull ... values) {
     if (list.size() < values.length) {
       throw new IllegalArgumentException("number of table columns: " +
                                          list.size() + " does not match number of argument " +
@@ -42,25 +42,25 @@ public class ListWrappingTableModel extends AbstractTableModel implements ItemRe
     }
     int i = 0;
     for (; i < values.length; i++) {
-      final String value = values[i];
+      String value = values[i];
       list.get(i).add(value);
     }
-    for (int max = list.size();i < max; i++) {
+    for (int max = list.size(); i < max; i++) {
       list.get(i).add("");
     }
-    final int index = list.get(0).size() - 1;
+    int index = getRowCount() - 1;
     fireTableRowsInserted(index, index);
   }
 
   public void addRow() {
-    final int columnCount = list.size();
-    final String[] strings = new String[columnCount];
+    int columnCount = list.size();
+    String[] strings = new String[columnCount];
     Arrays.fill(strings, "");
     addRow(strings);
   }
 
   @Override
-  public Class<String> getColumnClass(int columnIndex) {
+  public @NotNull Class<@NotNull String> getColumnClass(int columnIndex) {
     return String.class;
   }
 
@@ -70,28 +70,21 @@ public class ListWrappingTableModel extends AbstractTableModel implements ItemRe
   }
 
   @Override
-  public String getColumnName(int columnIndex) {
-    if (columnIndex < columnNames.size()) {
-      return columnNames.get(columnIndex);
-    }
-    return null;
+  public @NotNull String getColumnName(int columnIndex) {
+    return columnNames.get(columnIndex);
   }
 
   @Override
   public int getRowCount() {
-    final List<String> column0 = list.get(0);
-    if (column0 == null) {
-      return 0;
-    }
-    return column0.size();
+    return list.getFirst().size();
   }
 
   @Override
-  public Object getValueAt(int rowIndex, int columnIndex) {
+  public @NotNull Object getValueAt(int rowIndex, int columnIndex) {
     return list.get(columnIndex).get(rowIndex);
   }
 
-  public int indexOf(String value, int columnIndex) {
+  public int indexOf(@NotNull String value, int columnIndex) {
     return list.get(columnIndex).indexOf(value);
   }
 
@@ -102,7 +95,7 @@ public class ListWrappingTableModel extends AbstractTableModel implements ItemRe
 
   @Override
   public void removeRow(int rowIndex) {
-    for (List<String> column : list) {
+    for (List<@NotNull String> column : list) {
       column.remove(rowIndex);
     }
     fireTableRowsDeleted(rowIndex, rowIndex);
@@ -110,7 +103,7 @@ public class ListWrappingTableModel extends AbstractTableModel implements ItemRe
 
   @Override
   public void setValueAt(Object value, int rowIndex, int columnIndex) {
-    final List<String> strings = list.get(columnIndex);
+    List<@NotNull String> strings = list.get(columnIndex);
     if (rowIndex >= 0 && rowIndex < strings.size()) {
       strings.set(rowIndex, String.valueOf(value));
       fireTableCellUpdated(rowIndex, columnIndex);

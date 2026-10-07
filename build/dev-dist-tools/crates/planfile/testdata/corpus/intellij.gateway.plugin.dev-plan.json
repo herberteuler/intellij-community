@@ -101,6 +101,14 @@
             ],
             "mode": 493,
             "classPath": false
+        },
+        {
+            "destination": "resources/images",
+            "inputs": [
+                "layout-source:platform-resource-generator:0:0"
+            ],
+            "kind": "tree",
+            "classPath": false
         }
     ],
     "operations": [

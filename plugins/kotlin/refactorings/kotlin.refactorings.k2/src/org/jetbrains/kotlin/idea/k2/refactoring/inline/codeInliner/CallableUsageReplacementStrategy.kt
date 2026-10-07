@@ -7,7 +7,6 @@ import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
 import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisFromWriteAction
 import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 import org.jetbrains.kotlin.idea.refactoring.intentions.OperatorToFunctionConverter
-import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.AbstractCodeInliner
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.CodeToInline
 import org.jetbrains.kotlin.idea.refactoring.inline.codeInliner.UsageReplacementStrategy
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -30,7 +29,7 @@ class CallableUsageReplacementStrategy(
 ) : UsageReplacementStrategy {
     @OptIn(KaAllowAnalysisFromWriteAction::class, KaAllowAnalysisOnEdt::class) //under potemkin progress
     override fun createReplacer(usage: KtReferenceExpression): (() -> KtElement?)? {
-        if (!AbstractCodeInliner.canBeReplaced(usage)) return null
+        if (!CodeInliner.canBeReplaced(usage)) return null
 
         return when {
             usage is KtArrayAccessExpression || usage is KtCallExpression -> {

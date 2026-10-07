@@ -28,12 +28,11 @@ import org.jetbrains.annotations.ApiStatus
 private val logger = Logger.getInstance("#com.intellij.ide.lightProducts.LightProductExtensionsCleanup")
 
 /**
- * Unregisters application-level extensions that are not needed in lightweight IDE products
- * (the JetBrains Client frontend and JetBrains Light), and disables tips on startup.
+ * Unregisters application-level extensions that the JetBrains Client light session does not need, and disables tips on startup.
  *
- * Product-specific deregistrations stay in the product configurators,
- * see `com.intellij.platform.frontend.split.baseline.core.ThinClientAppExtensionsConfigurator`
- * and `com.intellij.idea.ultimate.light.customization.IjLightAppExtensionsConfigurator`.
+ * The standalone JetBrains Light product does not call this function. It starts in `ProductMode.LIGHT_MONOLITH`,
+ * and that mode leaves the backend modules out of the plugin set.
+ * Product-specific deregistrations stay in `com.intellij.platform.frontend.split.baseline.core.ThinClientAppExtensionsConfigurator`.
  */
 @ApiStatus.Internal
 fun unregisterExtensionsForLightProduct(checkNotInstantiated: Boolean = false) {
@@ -98,14 +97,8 @@ fun unregisterExtensionsForLightProduct(checkNotInstantiated: Boolean = false) {
   GeneralSettings.getInstance().isShowTipsOnStartup = false
 }
 
-/**
- * The application-level index extension points that [unregisterExtensionsForLightProduct] clears.
- *
- * A light product can restore these points at run time, see the `IjLight.EnableIndexes` action.
- * The removal and the restoration must use this one list.
- */
-@ApiStatus.Internal
-val LIGHT_PRODUCT_INDEX_EXTENSION_POINTS: List<String> = listOf(
+/** The application-level index extension points that [unregisterExtensionsForLightProduct] clears. */
+private val LIGHT_PRODUCT_INDEX_EXTENSION_POINTS: List<String> = listOf(
   FileBasedIndexExtension.EXTENSION_POINT_NAME.name,
   StubIndexExtension.EP_NAME.name,
   IndexableSetContributor.EP_NAME.name,

@@ -2,8 +2,8 @@
 @file:Suppress("UseOptimizedEelFunctions")
 package com.jetbrains.performancePlugin
 
-import com.intellij.diagnostic.AbstractMessage
 import com.intellij.diagnostic.DialogAppender
+import com.intellij.diagnostic.LogMessage
 import com.intellij.diagnostic.MessagePool
 import com.intellij.diagnostic.MessagePoolAdvisor
 import com.intellij.openapi.application.ApplicationNamesInfo
@@ -31,7 +31,7 @@ private const val PRODUCT_INFO_FILE = "product_info.txt"
 internal fun errorReportingDir(): Path = LogDirHandler.currentLogDir().resolve(ERRORS_DIR)
 
 internal val toErrorDirReporter: MessagePoolAdvisor = object : MessagePoolAdvisor {
-  override suspend fun beforeEntryAdded(message: AbstractMessage): Boolean {
+  override suspend fun beforeEntryAdded(message: LogMessage): Boolean {
     reportAndMark(message, errorReportingDir())
     return true
   }
@@ -54,7 +54,7 @@ internal suspend fun sweepExistingErrors() {
   }
 }
 
-private suspend fun reportAndMark(message: AbstractMessage, scriptErrorsDir: Path) {
+private suspend fun reportAndMark(message: LogMessage, scriptErrorsDir: Path) {
   try {
     reportScriptError(message, scriptErrorsDir)
   }
@@ -67,7 +67,7 @@ private suspend fun reportAndMark(message: AbstractMessage, scriptErrorsDir: Pat
 }
 
 @Throws(IOException::class)
-private suspend fun reportScriptError(errorMessage: AbstractMessage, scriptErrorsDir: Path) {
+private suspend fun reportScriptError(errorMessage: LogMessage, scriptErrorsDir: Path) {
   withContext(Dispatchers.IO) {
     val throwable = errorMessage.throwable
     var cause: Throwable? = throwable
@@ -83,7 +83,7 @@ private suspend fun reportScriptError(errorMessage: AbstractMessage, scriptError
     }
     if (causeMessage.isNullOrEmpty()) {
       causeMessage = errorMessage.message
-      if (causeMessage.isNullOrEmpty()) {
+      if (causeMessage.isEmpty()) {
         val throwableMessage = getNonEmptyThrowableMessage(throwable)
         val index = throwableMessage.indexOf("\tat ")
         causeMessage = if (index == -1) throwableMessage else throwableMessage.take(index)

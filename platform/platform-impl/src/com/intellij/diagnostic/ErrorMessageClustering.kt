@@ -36,7 +36,7 @@ internal class ErrorMessageClustering(private val coroutineScope: CoroutineScope
     }
   }
 
-  private suspend fun createCluster(messages: List<AbstractMessage>): ErrorMessageCluster {
+  private suspend fun createCluster(messages: List<LogMessage>): ErrorMessageCluster {
     val first = messages.first()
     val pluginId = PluginUtil.getInstance().findPluginId(first.throwable)
     val plugin = createPluginInfo(pluginId)

@@ -388,7 +388,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
 
   private fun selectedCluster(): ErrorMessageCluster? = myMessageClusters.getOrNull(myIndex)
 
-  private fun selectedMessage(): AbstractMessage? = selectedCluster()?.first
+  private fun selectedMessage(): LogMessage? = selectedCluster()?.first
 
   @OptIn(ExperimentalCoroutinesApi::class)
   private fun updateMessages(defaultMessage: LogMessage?) {
@@ -754,7 +754,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     override fun isEnabled(index: Int): Boolean = myEditable && index > 0
   }
 
-  override suspend fun afterEntryAdded(message: AbstractMessage) {
+  override suspend fun afterEntryAdded(message: LogMessage) {
     updateMessages(defaultMessage = null)
   }
 
@@ -990,7 +990,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     val CURRENT_TRACE_KEY: DataKey<String> = DataKey.create("current_stack_trace_key")
 
     @JvmStatic
-    fun hashMessage(message: AbstractMessage): Long {
+    fun hashMessage(message: LogMessage): Long {
       val digest = CRC32()
       digest.update(ExceptionUtil.getThrowableText(message.throwable).toByteArray(StandardCharsets.UTF_8))
       return digest.value

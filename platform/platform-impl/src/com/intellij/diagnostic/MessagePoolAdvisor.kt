@@ -7,11 +7,11 @@ import java.util.EventListener
 @ApiStatus.Internal
 interface MessagePoolAdvisor : EventListener {
   /** Return `false` to stop processing and do not add the message to the pool */
-  suspend fun beforeEntryAdded(message: AbstractMessage): Boolean = true
+  suspend fun beforeEntryAdded(message: LogMessage): Boolean = true
 
-  suspend fun afterEntryAdded(message: AbstractMessage) {}
+  suspend fun afterEntryAdded(message: LogMessage) {}
 
   fun poolCleared() {}
 
-  fun entryWasRead(message: AbstractMessage) {}
+  fun entryWasRead(message: LogMessage) {}
 }

@@ -11,8 +11,8 @@ private val LOG = Logger.getInstance(IdeMessagePanelReleaseExceptionsFilter::cla
  * Used in releases of IDE products where exception automatic reporting is not supported.
  */
 internal class IdeMessagePanelReleaseExceptionsFilter : MessagePoolAdvisor {
-  override suspend fun beforeEntryAdded(message: AbstractMessage): Boolean {
-    val t = message.getThrowable()
+  override suspend fun beforeEntryAdded(message: LogMessage): Boolean {
+    val t = message.throwable
     val pluginId = PluginUtil.getInstance().findPluginId(t)
     if (pluginId != null) {
       val plugin = findPlugin(pluginId)

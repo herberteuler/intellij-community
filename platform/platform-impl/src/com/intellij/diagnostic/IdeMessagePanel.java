@@ -228,7 +228,7 @@ public final class IdeMessagePanel implements MessagePoolAdvisor, IconLikeCustom
   }
 
   @Override
-  public @Nullable Object afterEntryAdded(@NotNull AbstractMessage message, @NotNull Continuation<? super @NotNull Unit> $completion) {
+  public @Nullable Object afterEntryAdded(@NotNull LogMessage message, @NotNull Continuation<? super @NotNull Unit> $completion) {
     var app = ApplicationManager.getApplication();
     if (app != null && (app.isInternal() || app.isEAP() || NOTIFICATIONS_ENABLED || showPluginError(message))) {
       LOG.debug("Update error indicator");
@@ -262,7 +262,7 @@ public final class IdeMessagePanel implements MessagePoolAdvisor, IconLikeCustom
   }
 
   @Override
-  public void entryWasRead(@NotNull AbstractMessage message) {
+  public void entryWasRead(@NotNull LogMessage message) {
     scheduleUpdateIconAndNotify();
   }
 

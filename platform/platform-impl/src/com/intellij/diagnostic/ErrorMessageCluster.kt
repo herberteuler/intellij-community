@@ -13,7 +13,7 @@ private val LOG = logger<ErrorMessageCluster>()
  * Describes a group of errors with the same stacktrace in [IdeErrorsDialog].
  */
 internal class ErrorMessageCluster(
-  val messages: List<AbstractMessage>,
+  val messages: List<LogMessage>,
   val pluginId: PluginId?,
   val pluginInfo: ProblematicPluginInfo?,
   val submitter: ErrorReportSubmitter?,
@@ -30,7 +30,7 @@ internal class ErrorMessageCluster(
     }
     val userMessage = first.message
     val stacktrace = first.throwableText
-    return if (userMessage.isNullOrBlank()) stacktrace else "${userMessage}\n\n${stacktrace}"
+    return if (userMessage.isBlank()) stacktrace else "${userMessage}\n\n${stacktrace}"
   }
 
   val isUnsent: Boolean get() = !first.isSubmitted && !first.isSubmitting

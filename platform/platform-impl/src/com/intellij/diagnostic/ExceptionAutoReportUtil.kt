@@ -94,11 +94,9 @@ object ExceptionAutoReportUtil {
   /**
    * Checks only [message], not the state of functionality
    */
-  suspend fun isAutoReportableException(message: AbstractMessage): Boolean {
-    return getRelevantData(message) != null
-  }
+  suspend fun isAutoReportableException(message: LogMessage): Boolean = getRelevantData(message) != null
 
-  suspend fun getRelevantData(message: AbstractMessage): Pair<ITNReporter, ProblematicPluginInfo?>? {
+  suspend fun getRelevantData(message: LogMessage): Pair<ITNReporter, ProblematicPluginInfo?>? {
     val throwable = message.throwable
     if (throwable is JBRCrash) return null
 

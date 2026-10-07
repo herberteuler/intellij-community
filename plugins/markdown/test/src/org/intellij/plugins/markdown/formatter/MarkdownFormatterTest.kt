@@ -94,6 +94,8 @@ class MarkdownFormatterTest: LightPlatformCodeInsightTestCase() {
 
   fun `test keep line breaks inside text block`() = doTest(rightMargin = 120, keepLineBreaks = true)
 
+  fun `test keep line breaks before inline elements`() = doTest(rightMargin = 120, keepLineBreaks = true)
+
   fun `test reflow text glued to emphasis`() = doTest()
 
   fun `test reflow text glued to parenthesis`() = doTest(rightMargin = 120)

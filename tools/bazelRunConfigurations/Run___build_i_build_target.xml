@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run //build:i_build_target" type="BazelRunConfigurationType">
-    <bsp-state handler-provider-id="JvmRunHandlerProvider" check-visibility="true">
+    <bsp-state handler-provider-id="IntellijDevLaunchRunHandlerProvider" check-visibility="true">
       <bsp-target>@//build:i_build_target</bsp-target>
       <handler-state />
     </bsp-state>

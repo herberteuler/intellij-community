@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run //build:android_studio" type="BazelRunConfigurationType">
-    <bsp-state handler-provider-id="JvmRunHandlerProvider" check-visibility="true">
+    <bsp-state handler-provider-id="IntellijDevLaunchRunHandlerProvider" check-visibility="true">
       <bsp-target>@//build:android_studio</bsp-target>
       <handler-state />
     </bsp-state>

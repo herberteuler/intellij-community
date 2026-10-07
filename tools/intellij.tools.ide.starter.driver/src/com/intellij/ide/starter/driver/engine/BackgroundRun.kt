@@ -2,6 +2,7 @@ package com.intellij.ide.starter.driver.engine
 
 import com.intellij.driver.client.Driver
 import com.intellij.driver.sdk.waitFor
+import com.intellij.ide.starter.driver.nextRestartLaunchNameOf
 import com.intellij.ide.starter.models.IDEStartResult
 import com.intellij.ide.starter.report.DetailsOnCI
 import com.intellij.ide.starter.runner.IDEHandle
@@ -13,6 +14,7 @@ import com.intellij.tools.ide.util.common.logOutput
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.annotations.ApiStatus
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -23,6 +25,13 @@ open class BackgroundRun(
   val process: IDEHandle,
   internal val runContext: IDERunContext,
 ) {
+
+  /**
+   * Starts a replacement of this run under the given launch name. The function that launched this run sets it,
+   * because only that function knows the whole launch recipe. See [restart].
+   */
+  @ApiStatus.Internal
+  var restarter: ((launchName: String) -> BackgroundRun)? = null
 
   val driver: Driver by lazy {
     if (!driverWithoutAwaitedConnection.isConnected) {
@@ -101,6 +110,19 @@ open class BackgroundRun(
 
   open fun closeIdeAndWait(closeIdeTimeout: Duration = 1.minutes, takeScreenshot: Boolean = true) {
     driver.closeIdeAndWait(closeIdeTimeout, takeScreenshot)
+  }
+
+  /**
+   * Closes this run, waits for its result, and starts a replacement from the same launch recipe.
+   *
+   * The replacement takes [launchName], or else [nextRestartLaunchNameOf] the current one. A failed run fails the
+   * restart. In split mode, this closes and waits for the frontend and the backend.
+   */
+  fun restart(launchName: String? = null): BackgroundRun {
+    val restarter = restarter
+                    ?: error("This ${this::class.simpleName} cannot restart. Only a run that runIdeWithDriver started can restart.")
+    closeIdeAndWait()
+    return restarter(launchName ?: nextRestartLaunchNameOf(runContext.launchName))
   }
 
   protected fun Driver.closeIdeAndWait(closeIdeTimeout: Duration, takeScreenshot: Boolean = true): IDEStartResult {

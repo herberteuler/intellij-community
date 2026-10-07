@@ -40,6 +40,7 @@ internal class DriverWithDetailedLogging(private val driver: Driver, logUiHierar
           logUiHierarchy && !event.runContext.calculateVmOptions().hasHeadlessMode()) {
         withTimeoutOrNull(1.minutes) {
           while (!driver.isConnected) {
+            if (!event.ideProcess.isAlive) return@withTimeoutOrNull
             delay(3.seconds)
           }
           driver.withContext {

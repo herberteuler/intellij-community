@@ -113,6 +113,7 @@ import com.jetbrains.performancePlugin.commands.WaitForInitialRefreshCommand;
 import com.jetbrains.performancePlugin.commands.WaitForProjectViewCommand;
 import com.jetbrains.performancePlugin.commands.WaitForReOpenedFileCommand;
 import com.jetbrains.performancePlugin.commands.WaitForSmartCommand;
+import com.jetbrains.performancePlugin.commands.AssertProductModeCommand;
 import com.jetbrains.performancePlugin.commands.WaitForVfsRefreshSelectedEditorCommand;
 import com.jetbrains.performancePlugin.commands.WaitJpsBuildCommand;
 import org.jetbrains.annotations.NotNull;
@@ -142,6 +143,7 @@ public final class BaseCommandProvider implements CommandProvider {
       Map.entry(ExitAppWithTimeoutCommand.PREFIX, ExitAppWithTimeoutCommand::new),
       Map.entry(OpenFileWithTerminateCommand.PREFIX, OpenFileWithTerminateCommand::new),
       Map.entry(WaitForSmartCommand.PREFIX, WaitForSmartCommand::new),
+      Map.entry(AssertProductModeCommand.PREFIX, AssertProductModeCommand::new),
       Map.entry(WaitForFirstScanningToFinishCommand.PREFIX, WaitForFirstScanningToFinishCommand::new),
       Map.entry(WaitForInitialRefreshCommand.PREFIX, WaitForInitialRefreshCommand::new),
       Map.entry(RefreshFilesInVfsCommand.PREFIX, RefreshFilesInVfsCommand::new),

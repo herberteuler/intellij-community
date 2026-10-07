@@ -33,6 +33,11 @@ fun <T : CommandChain> T.waitForSmartMode(): T = apply {
   addCommand("${CMD_PREFIX}waitForSmart")
 }
 
+/** Fails the script when the product mode of the IDE is not [modeId], a `ProductMode.id` such as `monolith` or `light_monolith`. */
+fun <T : CommandChain> T.assertProductMode(modeId: String): T = apply {
+  addCommand("${CMD_PREFIX}assertProductMode $modeId")
+}
+
 fun <T : CommandChain> T.waitForFirstScanningToFinish(): T = apply {
   addCommand("${CMD_PREFIX}waitForFirstScanningToFinish")
 }

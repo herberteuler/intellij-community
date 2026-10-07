@@ -1,10 +1,12 @@
 package com.intellij.markdown.jcef.preview.impl
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.intellij.serviceContainer.AlreadyDisposedException
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
+import com.intellij.util.IncorrectOperationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.intellij.lang.annotations.Language
 import kotlin.coroutines.resume
@@ -24,20 +26,17 @@ suspend fun JBCefBrowser.executeCancellableJavaScript(@Language("JavaScript") co
 internal suspend fun executeCancellableJsCall(browser: JBCefBrowser, @Language("JavaScript") code: String): String? {
   // Will be disposed on either normal finish, cancellation or related browser disposal
   val disposable = Disposer.newCheckedDisposable()
-  Disposer.register(browser, disposable)
-  if (disposable.isDisposed) {
-    throw AlreadyDisposedException("The related browser is already disposed")
-  }
+  registerOrThrow(browser, disposable)
   try {
     return suspendCancellableCoroutine { continuation ->
-      Disposer.register(disposable) {
+      registerOrThrow(disposable) {
         // Ensures that the current coroutine was not resumed before, which means that there were no any results
         // yielded from our js call, and we are still waiting for it
         if (!continuation.isCompleted) {
           continuation.resumeWithException(AlreadyDisposedException("The related browser was disposed during the call"))
         }
       }
-      val resultQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
+      val resultQuery = createQuery(browser)
       // Handlers should not throw because it won't be possible to catch an exception
       val resultQueryHandler = queryHandler { result ->
         if (!continuation.isCompleted) {
@@ -46,11 +45,11 @@ internal suspend fun executeCancellableJsCall(browser: JBCefBrowser, @Language("
       }
       resultQuery.addHandler(resultQueryHandler)
       // Remove handler first and only then dispose query instance
-      Disposer.register(disposable) {
+      registerOrThrow(disposable) {
         resultQuery.removeHandler(resultQueryHandler)
       }
-      Disposer.register(disposable, resultQuery)
-      val errorQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
+      registerOrThrow(disposable, resultQuery)
+      val errorQuery = createQuery(browser)
       val errorQueryHandler = queryHandler { error ->
         if (!continuation.isCompleted) {
           val message = error ?: "Unknown error"
@@ -58,10 +57,10 @@ internal suspend fun executeCancellableJsCall(browser: JBCefBrowser, @Language("
         }
       }
       errorQuery.addHandler(errorQueryHandler)
-      Disposer.register(disposable) {
+      registerOrThrow(disposable) {
         errorQuery.removeHandler(errorQueryHandler)
       }
-      Disposer.register(disposable, errorQuery)
+      registerOrThrow(disposable, errorQuery)
       continuation.invokeOnCancellation {
         Disposer.dispose(disposable)
       }
@@ -76,6 +75,24 @@ internal suspend fun executeCancellableJsCall(browser: JBCefBrowser, @Language("
   }
   finally {
     Disposer.dispose(disposable)
+  }
+}
+
+private fun createQuery(browser: JBCefBrowser): JBCefJSQuery {
+  try {
+    return JBCefJSQuery.create(browser as JBCefBrowserBase)
+  }
+  catch (e: IncorrectOperationException) {
+    if (browser.isDisposed) {
+      throw AlreadyDisposedException("The related browser is already disposed")
+    }
+    throw e
+  }
+}
+
+private fun registerOrThrow(parent: Disposable, child: Disposable) {
+  if (!Disposer.tryRegister(parent, child)) {
+    throw AlreadyDisposedException("The related browser is already disposed")
   }
 }
 

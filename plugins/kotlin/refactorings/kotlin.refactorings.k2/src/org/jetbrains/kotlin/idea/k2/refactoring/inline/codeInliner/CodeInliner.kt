@@ -246,18 +246,15 @@ class CodeInliner (
         codeToInline.replaceExpression(qualified, callableReference)
     }
 
-    data class TypeDescription(val valueTypePresentation: String?, val isContainingErrors: Boolean, val isMarkedNullable: Boolean)
-
-
     private class IntroduceValueForParameter(
         val parameter: KtParameter,
         val value: KtExpression,
-        val valueType: TypeDescription?
+        val isValueNullable: Boolean?
         )
 
     private class Argument(
         val expression: KtExpression,
-        val expressionType: TypeDescription?,
+        val isExpressionNullable: Boolean?,
         val isNamed: Boolean = false,
         val isDefaultValue: Boolean = false
     )
@@ -274,10 +271,10 @@ class CodeInliner (
             val exprText = contextArguments?.getOrNull(parameter.parameterIndex()) ?: return null
             val resultExpression = KtPsiFactory(call.project).createExpressionCodeFragment(exprText, call).getContentElement() ?: return null
             resultExpression.putCopyableUserData(SIDE_EFFECTS, false)
-            val expressionType = analyze(resultExpression) {
-                createTypeDescription(resultExpression.expressionType)
+            val isExpressionNullable = analyze(resultExpression) {
+                isNullableType(resultExpression.expressionType)
             }
-            return Argument(resultExpression, expressionType, isNamed = false, isDefaultValue = false)
+            return Argument(resultExpression, isExpressionNullable, isNamed = false, isDefaultValue = false)
         }
 
         val argumentExpressionsForParameter = mapping?.entries?.filter { (_, value) ->
@@ -333,28 +330,28 @@ class CodeInliner (
 
     private fun introduceValueInner(
         value: KtExpression,
-        valueType: TypeDescription?,
+        isValueNullable: Boolean?,
         usages: Collection<KtExpression>,
         expressionToBeReplaced: KtExpression,
         nameSuggestion: String? = null,
         safeCall: Boolean = false
     ) {
         analyze(value) {
-            codeToInline.introduceValue(value, valueType, usages, expressionToBeReplaced, nameSuggestion, safeCall)
+            codeToInline.introduceValue(value, isValueNullable, usages, expressionToBeReplaced, nameSuggestion, safeCall)
         }
     }
 
     private fun introduceVariablesForParameters(
         elementToBeReplaced: KtElement,
         receiver: KtExpression?,
-        receiverType: TypeDescription?,
+        isReceiverNullable: Boolean?,
         introduceValuesForParameters: Collection<IntroduceValueForParameter>
     ) {
         if (elementToBeReplaced is KtExpression) {
             if (receiver != null) {
                 val thisReplaced = codeToInline.collectDescendantsOfType<KtExpression> { it.getCopyableUserData(RECEIVER_VALUE_KEY) != null }
                 if (receiver.shouldKeepValue(usageCount = thisReplaced.size)) {
-                    introduceValueInner(receiver, receiverType, thisReplaced, elementToBeReplaced)
+                    introduceValueInner(receiver, isReceiverNullable, thisReplaced, elementToBeReplaced)
                 }
             }
 
@@ -362,7 +359,7 @@ class CodeInliner (
                 val usagesReplaced = codeToInline.collectDescendantsOfType<KtExpression> { it.getCopyableUserData(PARAMETER_VALUE_KEY) == param.parameter.name() }
                 introduceValueInner(
                     param.value,
-                    param.valueType,
+                    param.isValueNullable,
                     usagesReplaced,
                     elementToBeReplaced,
                     nameSuggestion = param.parameter.name().asString()
@@ -400,7 +397,7 @@ class CodeInliner (
             }
 
             if (expression.shouldKeepValue(usageCount = parameterUsages.size)) {
-                introduceValuesForParameters.add(IntroduceValueForParameter(parameter, expression, argument.expressionType))
+                introduceValuesForParameters.add(IntroduceValueForParameter(parameter, expression, argument.isExpressionNullable))
             }
         }
 
@@ -486,7 +483,7 @@ class CodeInliner (
     }
 
     @OptIn(KaAllowAnalysisOnEdt::class, KaAllowAnalysisFromWriteAction::class)
-    fun wrapCodeForSafeCall(receiver: KtExpression, receiverType: TypeDescription?, expressionToBeReplaced: KtExpression) {
+    fun wrapCodeForSafeCall(receiver: KtExpression, isReceiverNullable: Boolean?, expressionToBeReplaced: KtExpression) {
         if (codeToInline.statementsBefore.isEmpty()) {
             val qualified = codeToInline.mainExpression as? KtQualifiedExpression
             if (qualified != null) {
@@ -503,7 +500,7 @@ class CodeInliner (
 
         if (codeToInline.statementsBefore.isEmpty() || allowAnalysisOnEdt { allowAnalysisFromWriteAction { analyze(expressionToBeReplaced) { expressionToBeReplaced.isUsedAsExpression } } }) {
             val thisReplaced = codeToInline.collectDescendantsOfType<KtExpression> { it.getCopyableUserData(RECEIVER_VALUE_KEY) != null }
-            introduceValueInner(receiver, receiverType, thisReplaced, expressionToBeReplaced, safeCall = true)
+            introduceValueInner(receiver, isReceiverNullable, thisReplaced, expressionToBeReplaced, safeCall = true)
         } else {
             codeToInline.mainExpression = psiFactory.buildExpression {
                 appendFixedText("if (")
@@ -602,10 +599,10 @@ class CodeInliner (
         val labelsToAdd = mutableListOf<Pair<KtLambdaExpression, String>>()
         val labelsToReplace = mutableMapOf<String, String>()
 
-        var receiverType =
+        var isReceiverNullable =
             receiver?.let {
                 analyze(it) {
-                    createTypeDescription(it.expressionType)
+                    isNullableType(it.expressionType)
                 }
             }
 
@@ -634,7 +631,7 @@ class CodeInliner (
                     }
                     receiver = psiFactory.createExpression(thisText)
                     val type = receiverValue.type
-                    receiverType = createTypeDescription(type)
+                    isReceiverNullable = isNullableType(type)
                 }
             }
         }
@@ -711,14 +708,14 @@ class CodeInliner (
             importPath to target
         }
 
-        if (elementToBeReplaced is KtSafeQualifiedExpression && receiverType?.isMarkedNullable == true) {
-            wrapCodeForSafeCall(receiver!!, receiverType, elementToBeReplaced)
+        if (elementToBeReplaced is KtSafeQualifiedExpression && isReceiverNullable == true) {
+            wrapCodeForSafeCall(receiver!!, isReceiverNullable, elementToBeReplaced)
         } else if (call is KtBinaryExpression && call.operationToken == KtTokens.IDENTIFIER) {
             keepInfixFormIfPossible(importDeclarations.map { it.second })
         }
 
         codeToInline.convertToCallableReferenceIfNeeded(elementToBeReplaced)
-        introduceVariablesForParameters(elementToBeReplaced, receiver, receiverType, introduceValueForParameters)
+        introduceVariablesForParameters(elementToBeReplaced, receiver, isReceiverNullable, introduceValueForParameters)
 
         codeToInline.extraComments?.restoreComments(elementToBeReplaced)
         findAndMarkNewDeclarations()
@@ -877,7 +874,7 @@ class CodeInliner (
 
         markAsUserCode(resultExpression)
 
-        val expressionType = analyze(resultExpression) { createTypeDescription(resultExpression.expressionType) }
+        val isExpressionNullable = analyze(resultExpression) { isNullableType(resultExpression.expressionType) }
         if (argumentExpressionsForParameter.isEmpty() && callableDeclaration is KtFunction) {
             //encode default value
             val allParameters = callableDeclaration.valueParameters()
@@ -891,7 +888,7 @@ class CodeInliner (
             resultExpression = expandTypeArgumentsInParameterDefault(expression) ?: resultExpression
         }
 
-        return Argument(resultExpression, expressionType, isNamed = isNamed, argumentExpressionsForParameter.isEmpty())
+        return Argument(resultExpression, isExpressionNullable, isNamed = isNamed, argumentExpressionsForParameter.isEmpty())
     }
 
     private fun getDefaultValue(parameter: KtParameter): KtExpression? {
@@ -905,13 +902,9 @@ class CodeInliner (
     }
 
     context(_: KaSession)
-    private fun createTypeDescription(type: KaType?): TypeDescription? {
+    private fun isNullableType(type: KaType?): Boolean? {
         if (type == null) return null
-        return TypeDescription(
-            type.render(position = Variance.INVARIANT),
-            type is KaErrorType,
-            type.isMarkedNullable || type is KaFlexibleType && type.upperBound.isMarkedNullable
-        )
+        return type.isMarkedNullable || type is KaFlexibleType && type.upperBound.isMarkedNullable
     }
 
     private fun argumentForPropertySetter(): Argument? {
@@ -919,7 +912,7 @@ class CodeInliner (
             ?.getQualifiedExpressionForSelectorOrThis()
             ?.getAssignmentByLHS()
             ?.right ?: return null
-        return Argument(expr, analyze(call) { createTypeDescription(expr.expressionType) })
+        return Argument(expr, analyze(call) { isNullableType(expr.expressionType) })
     }
 
     private fun argumentForVarargParameter(argumentExpressionsForParameter: List<KtExpression>, parameter: KtParameter): Argument? {
@@ -928,7 +921,7 @@ class CodeInliner (
             val expression = argumentExpressionsForParameter.first()
             markAsUserCode(expression)
             return analyze(call) {
-                Argument(expression, createTypeDescription(expression.expressionType), isNamed = single.isNamed())
+                Argument(expression, isNullableType(expression.expressionType), isNamed = single.isNamed())
             }
         }
 
@@ -954,7 +947,7 @@ class CodeInliner (
         }
 
         return analyze(expression) {
-            Argument(expression, createTypeDescription(expression.expressionType))
+            Argument(expression, isNullableType(expression.expressionType))
         }
     }
 

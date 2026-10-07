@@ -22,7 +22,8 @@ import git4idea.test.createSubRepository
 import git4idea.test.git
 import git4idea.test.gitSingleRepoContextFixture
 import git4idea.ui.branch.GitBranchManager
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.OS
@@ -35,16 +36,7 @@ internal class GitRepositoriesFrontendHolderTest {
 
   @Test
   fun `test single repository data is available`(): Unit = with(context) {
-    val holder = GitRepositoriesHolder.getInstance(project)
-    assertThat(holder.initialized).isFalse()
-    assertErrorLogged<Throwable> {
-      holder.getAll()
-    }
-
-    runBlocking {
-      holder.awaitInitialization()
-    }
-
+    val holder = GitRepositoriesHolder.getAndInit(project)
     val allReposInHolder = holder.getAll()
     assertThat(allReposInHolder).hasSize(1)
     val singleRepoInHolder = allReposInHolder.single()
@@ -53,6 +45,17 @@ internal class GitRepositoriesFrontendHolderTest {
     assertThat(singleRepoInHolder).isEqualTo(holder.get(repo.repositoryId()))
 
     assertThat(holder.initialized).isTrue()
+  }
+
+  @Test
+  fun `test data access before initialization logs error`(): Unit = with(context) {
+    @Suppress("RAW_SCOPE_CREATION")
+    val cancelledScope = CoroutineScope(Job().apply { cancel() })
+    val holder = GitRepositoriesHolder(project, cancelledScope)
+
+    assertThat(holder.initialized).isFalse()
+    assertErrorLogged<Throwable> { holder.getAll() }
+    assertErrorLogged<Throwable> { holder.get(repo.repositoryId()) }
   }
 
   @Test

@@ -281,9 +281,8 @@ fun checkSplitDistributionsExtend(upstream: DevDistHalf, half: DevDistHalf) {
  * The binder of the closed layout asset sources of a half.
  *
  * A closed source is a [DevPluginLayoutAssetSource] that only a product of one half reads: the debugger egg, the Jupyter
- * frontend, a native dependency archive, the native helper archive and the script SDK archive. The binder binds each
- * one to a raw input of the plan, and it writes the targets that produce the input. A binder that cannot bind a source
- * fails, and the message names the source.
+ * frontend and a native dependency archive. The binder binds each one to a raw input of the plan, and it writes the
+ * targets that produce the input. A binder that cannot bind a source fails, and the message names the source.
  */
 @ApiStatus.Internal
 interface DevDistAssetBinder {

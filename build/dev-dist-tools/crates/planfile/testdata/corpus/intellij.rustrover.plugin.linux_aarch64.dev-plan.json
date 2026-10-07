@@ -205,7 +205,7 @@
             "kind": "layout-assets",
             "inputs": [
                 {
-                    "artifact": "rust-native-helper"
+                    "artifact": "layout-source:resource-generator:1:0"
                 }
             ],
             "output": "layout-assets:resource-generator:1:output",

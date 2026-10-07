@@ -265,9 +265,7 @@ private class DevPluginLayoutAssetSourceResolver(
         is DevPluginLayoutAssetSource.OptionalLocalDirectory -> resolveOptionalLocalDirectory(source)
         is DevPluginLayoutAssetSource.DebuggerEgg,
         is DevPluginLayoutAssetSource.JupyterFrontend,
-        is DevPluginLayoutAssetSource.CidrDependency,
-        is DevPluginLayoutAssetSource.RustNativeHelper,
-        is DevPluginLayoutAssetSource.GdScriptSdk -> resolveBoundSource(source)
+        is DevPluginLayoutAssetSource.CidrDependency -> resolveBoundSource(source)
       }
     }
   }

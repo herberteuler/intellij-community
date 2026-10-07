@@ -80,7 +80,7 @@ class DevDistCaseSafeProductNameTest {
     assertThat(CommunityDevDistHalf.capabilities).isEmpty()
     assertThat(CommunityDevDistHalf.embeddedFrontend).isNull()
     assertThat(CommunityDevDistHalf.platformPatches).isNull()
-    val source = DevPluginLayoutAssetSource.GdScriptSdk(version = "1.0")
+    val source = DevPluginLayoutAssetSource.CidrDependency(name = "cmake", platform = "mac", arch = "aarch64")
     val index = DevDistBazelIndex(
       targets = BazelTargetsInfo.TargetsFile(modules = emptyMap(), projectLibraries = emptyMap(), pluginDistributionTargets = emptyMap()),
       projectRoot = Path.of("/nonexistent"),

@@ -81,26 +81,11 @@ sealed interface DevPluginLayoutAssetSource {
   ) : DevPluginLayoutAssetSource
 
   /**
-   * The RustRover native helper archive. One archive holds the helper of every platform under `<os>/<arch>/`, where
-   * [os] is an `OsFamily.dirName` (`mac`, `linux`, `win`) and [arch] a `JvmArchitecture` name. The generator binds
-   * the source to the `dev_launch_rust_native_helper` repository. An asset selects its platform with an
-   * `archive-tree` mapping whose pattern is the `<os>/<arch>/` prefix followed by a double star.
-   */
-  data class RustNativeHelper(
-    @JvmField val os: String,
-    @JvmField val arch: String,
-  ) : DevPluginLayoutAssetSource
-
-  /**
    * A directory below `out/bundle-plugins` that a local backend build may create. The dev distribution declares its
    * files when present and writes an empty tree when absent. Both states have different action keys.
    */
   data class OptionalLocalDirectory(
     @JvmField val path: String,
-  ) : DevPluginLayoutAssetSource
-
-  data class GdScriptSdk(
-    @JvmField val version: String,
   ) : DevPluginLayoutAssetSource
 }
 

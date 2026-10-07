@@ -7,6 +7,8 @@ package org.jetbrains.java.generate;
 
 import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.java.JavaBundle;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.ScrollType;
@@ -126,8 +128,10 @@ public class GenerateToStringWorker {
     }
     catch (IncorrectOperationException e) {
       logger.info(e);
-      HintManager.getInstance().showErrorHint(editor, JavaBundle
-        .message("hint.text.tostring.method.could.not.be.created.from.template", template.getFileName()));
+      ApplicationManager.getApplication().invokeLater(() -> {
+        HintManager.getInstance().showErrorHint(editor, JavaBundle
+          .message("hint.text.tostring.method.could.not.be.created.from.template", template.getFileName()));
+      }, ModalityState.defaultModalityState());
       return null;
     }
   }
@@ -169,12 +173,32 @@ public class GenerateToStringWorker {
    * @return the policy the user selected (never null)
    */
   protected ConflictResolutionPolicy exitsMethodDialog(TemplateResource template) {
+    return chooseConflictPolicy(findExistingMethodName(template));
+  }
+
+  /**
+   * Looks for an existing {@code toString} method that conflicts with the generated one.
+   * Slow: call it in a read action on a background thread.
+   *
+   * @return the name of the existing method, or null when the user must not be asked
+   */
+  @Nullable String findExistingMethodName(TemplateResource template) {
+    if (config.getReplaceDialogInitialOption() != DuplicationPolicy.ASK) return null;
+    PsiMethod targetMethod = getMethodPrototype(Collections.emptyList(), Collections.emptyMap(), template);
+    if (targetMethod == null || clazz.findMethodBySignature(targetMethod, false) == null) return null;
+    return targetMethod.getName();
+  }
+
+  /**
+   * Must run on the EDT, because it can show a dialog.
+   *
+   * @param existingMethodName the result of {@link #findExistingMethodName}
+   */
+  ConflictResolutionPolicy chooseConflictPolicy(@Nullable String existingMethodName) {
     final DuplicationPolicy dupPolicy = config.getReplaceDialogInitialOption();
     if (dupPolicy == DuplicationPolicy.ASK) {
-      PsiMethod targetMethod = getMethodPrototype(Collections.emptyList(), Collections.emptyMap(), template);
-      PsiMethod existingMethod = targetMethod != null ? clazz.findMethodBySignature(targetMethod, false) : null;
-      if (existingMethod != null) {
-        return MethodExistsDialog.showDialog(targetMethod.getName());
+      if (existingMethodName != null) {
+        return MethodExistsDialog.showDialog(existingMethodName);
       }
     }
     else if (dupPolicy == DuplicationPolicy.REPLACE) {

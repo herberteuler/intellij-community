@@ -24,7 +24,8 @@ import com.intellij.java.JavaBundle;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.application.ReadAction;
-import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.application.ex.ApplicationEx;
+import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.options.Configurable;
@@ -163,16 +164,24 @@ public final class GenerateToStringActionHandlerImpl implements GenerateToString
 
       if (template.isValidTemplate()) {
         final GenerateToStringWorker worker = new GenerateToStringWorker(clazz, editor, chooser.isInsertOverrideAnnotation());
-        // decide what to do if the method already exists
-        ConflictResolutionPolicy resolutionPolicy = worker.exitsMethodDialog(template);
-        try {
-          //noinspection DialogTitleCapitalization
-          WriteCommandAction.runWriteCommandAction(project, JavaBundle.message("command.name.generate.tostring"), null,
-                                                   () -> worker.execute(selectedMembers, template, resolutionPolicy));
-        }
-        catch (Exception e) {
-          GenerationUtil.handleException(project, e);
-        }
+        //noinspection DialogTitleCapitalization
+        String title = JavaBundle.message("command.name.generate.tostring");
+        ReadAction.nonBlocking(() -> worker.findExistingMethodName(template))
+          .expireWhen(() -> !clazz.isValid() || project.isDisposed())
+          .finishOnUiThread(ModalityState.defaultModalityState(), existingMethodName -> {
+            // decide what to do if the method already exists
+            ConflictResolutionPolicy resolutionPolicy = worker.chooseConflictPolicy(existingMethodName);
+            try {
+              CommandProcessor.getInstance().executeCommand(project, () -> {
+                ((ApplicationEx)ApplicationManager.getApplication()).runWriteActionWithNonCancellableProgressInDispatchThread(
+                  title, project, null, indicator -> worker.execute(selectedMembers, template, resolutionPolicy));
+              }, title, null);
+            }
+            catch (Exception e) {
+              GenerationUtil.handleException(project, e);
+            }
+          })
+          .submit(AppExecutorUtil.getAppExecutorService());
       }
       else {
         //noinspection DialogTitleCapitalization

@@ -1763,6 +1763,7 @@ public class NormalCompletionTest extends NormalCompletionTestCase {
     getLookup().setSelectedIndex(1);
     type('\n');
     NonBlockingReadActionImpl.waitForAsyncTaskCompletion();
+    NonBlockingReadActionImpl.waitForAsyncTaskCompletion();
     checkResult();
   }
 

@@ -65,7 +65,7 @@ public final class ToolLanguageUtil {
     return false;
   }
 
-  public static boolean isToolLanguageOneOf(@NotNull Set<String> elementDialectIds, @NotNull String toolLanguageId, boolean applyToDialects) {
+  public static boolean isToolLanguageOneOf(@NotNull @Unmodifiable Set<String> elementDialectIds, @NotNull String toolLanguageId, boolean applyToDialects) {
     if (elementDialectIds.contains(toolLanguageId)) {
       return true;
     }

@@ -12,7 +12,7 @@
 # The image installs no recommended package. The fluxbox overlay below keeps the style from setting a wallpaper, so
 # fluxbox never runs `fbsetbg`, which needs a wallpaper setter (`feh`) and opens an `xmessage` without one. The same
 # line is `FLUXBOX_OVERLAY_CONTENT` in `crates/avl-guest/src/linux.rs`, which `provision-guest` writes on a Tart worker.
-# ADR 0183 (`plugins/air/docs/decisions/`) records why a Linux worker may be a container.
+# ADR 0183 (`community/tools/vm/docs/decisions/`) records why a Linux worker may be a container.
 ARG AIR_BASE_IMAGE
 FROM ${AIR_BASE_IMAGE}
 ARG AIR_GUEST_PACKAGES

@@ -14,7 +14,7 @@ GOTO :CMDSCRIPT
 #    nothing. There is no honest cache key, and the
 #    failure a wrong one produces is this port's worst case: a silently stale controller judging a lane
 #    and reporting a verdict about code it did not run.
-#    `../../plugins/air/docs/decisions/0105-the-ui-lane-controller-is-go.md` (superseded by ADR 0059, the port to Rust)
+#    `vm/docs/decisions/0105-the-ui-lane-controller-is-go.md` (superseded by ADR 0059, the port to Rust)
 #    records the same trap already paid for once - an `lstat`-based freshness check on a `go_cross_binary`
 #    degraded to "always reinstall", passed its whole suite, and failed on hardware. So every invocation runs
 #    `bazel run --script_path`: the build *is* the freshness guarantee.

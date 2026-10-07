@@ -78,7 +78,7 @@ Both `image` commands need a working `./bazel.cmd` in this checkout. The guest h
 Packer its path - `image validate` included, because Packer's `file` provisioner stats its source while
 validating. `AIR_VM_GUEST_AGENT_SOURCE` overrides that build with a hand-built binary. The image itself
 still contains no checkout, no Bazel and no toolchain that builds the guest agent. Why the pipeline took that
-dependency on is `plugins/air/docs/decisions/0108-the-guest-half-of-the-image-pipeline-is-go.md`.
+dependency on is `../docs/decisions/0108-the-guest-half-of-the-image-pipeline-is-go.md`.
 
 `image build` is the only large download. The golden image remains a 50 GB
 local Tart VM. A worker is an APFS copy-on-write clone of it whose sparse root
@@ -94,7 +94,7 @@ Those two directories are all it creates. **A worker has no checkout**: it runs
 Bazel outputs the host built, read through the repository share, and its only
 writable state is the seven directories under `WorkerData` that the VM guide
 lists under *Guest-local writable state*
-(`plugins/air/docs/guides/vm-ui-tests.md`). An older sealed golden still
+(`../docs/vm-ui-tests.md`). An older sealed golden still
 carries a copy of this script that also made `checkout/`, `bazel-output/` and
 `bazel-disk-cache/`; they are inert and nothing reads them, and the next
 `image build` removes them.

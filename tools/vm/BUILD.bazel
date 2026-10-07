@@ -34,7 +34,7 @@
 #
 # These binaries replaced the Go ones in one commit: the wrappers switched and the Go was deleted together, so
 # there was never a period with two *live* implementations.
-# `../../../plugins/air/docs/decisions/0059-the-ui-lane-tooling-is-rust.md` records the port and supersedes ADRs 0105, 0107
+# `docs/decisions/0059-the-ui-lane-tooling-is-rust.md` records the port and supersedes ADRs 0105, 0107
 # and 0108.
 #
 # Every crate is declared by `avl_crate` in `avl.bzl`, a binding of `rust_tool_crate` of
@@ -116,7 +116,13 @@ filegroup(
         "AGENTS.md",
         "README.md",
         "provision/README.md",
-    ],
+    ] + glob(
+        [
+            "docs/**/*.md",
+            "spec/**/*.md",
+        ],
+        allow_empty = True,
+    ),
     visibility = ["//visibility:public"],
 )
 

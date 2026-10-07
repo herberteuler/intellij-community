@@ -36,7 +36,7 @@ variable "node_major" {
 # much as `image build`: Packer's `file` provisioner stats its source during `packer validate`, so no
 # configuration check can skip the binary. `scripts/lib.sh` owns the resolution and states what that costs the
 # operator who has to satisfy it. Why the pipeline took the dependency on, and why the image still contains no
-# Bazel, is ADR 0108 - `plugins/air/docs/decisions/0108-the-guest-half-of-the-image-pipeline-is-go.md`.
+# Bazel, is ADR 0108 - `community/tools/vm/docs/decisions/0108-the-guest-half-of-the-image-pipeline-is-go.md`.
 variable "guest_agent_binary" {
   type = string
 }

@@ -2,7 +2,7 @@
 
 A cargo workspace (`Cargo.toml`, `Cargo.lock`, `rust-toolchain`) that Bazel builds too, through `avl.MODULE.bazel`
 (repository `@avl`) and `avl.bzl`. The workspace is a package of the community module, beside BT. How to operate the
-controller is the `vm-ui-tests` skill; the model behind it is `plugins/air/docs/guides/vm-ui-tests.md`. ADR 0059 records the port from Go, and ADR 0186 records the native
+controller is the `vm-ui-tests` skill; the model behind it is `docs/vm-ui-tests.md`. ADR 0059 records the port from Go, and ADR 0186 records the native
 Windows host. ADR 0074 records the rework: the crate rule, the closures, the error model and the command line.
 
 `avl` stands for Air VM Lane; `avl.MODULE.bazel` says why the name is short. An agent that changes this workspace

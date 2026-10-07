@@ -48,7 +48,7 @@ const LOGIN_WINDOW_DOMAIN: &str = "/Library/Preferences/com.apple.loginwindow";
 const KCPASSWORD_PATH: &str = "/etc/kcpassword";
 
 /// Tools whose *presence* is the defect: "It does not install Bazel/Bazelisk, Peekaboo, a checkout, or cache
-/// contents" (`docs/guides/vm-ui-tests.md`). A worker never builds, so a `bazel` on its PATH is a second toolchain
+/// contents" (`community/tools/vm/docs/vm-ui-tests.md`). A worker never builds, so a `bazel` on its PATH is a second toolchain
 /// nothing gates; Peekaboo works only behind the TCC grants the pre-seal audit rejects.
 const FORBIDDEN_IMAGE_TOOLS: [&str; 3] = ["peekaboo", "bazel", "bazelisk"];
 
@@ -140,7 +140,7 @@ fn combined_output(argv: &[&str], path: &str) -> io::Result<(String, std::proces
     Ok((String::from_utf8_lossy(&output).into_owned(), status))
 }
 
-/// What a passing validation answers: the evidence, not just the verdict. `docs/guides/vm-ui-tests.md` records
+/// What a passing validation answers: the evidence, not just the verdict. `community/tools/vm/docs/vm-ui-tests.md` records
 /// which agent builds a golden contains from it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub(crate) struct ImageReport {

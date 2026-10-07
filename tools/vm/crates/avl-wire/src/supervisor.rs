@@ -531,7 +531,7 @@ pub const USAGE_CODE: &str = "usage";
 /// block and therefore as an agent older than its controller, and that inference is sound only because every
 /// verb failing *inside* the agent answers [`AgentExit::Refused`] instead. A check that runs in the agent says
 /// which check it was in [`EnvelopeError::message`], never in a number of its own; see
-/// `plugins/air/docs/decisions/0108-the-guest-half-of-the-image-pipeline-is-go.md`. A fifth status is a wire
+/// `community/tools/vm/docs/decisions/0108-the-guest-half-of-the-image-pipeline-is-go.md`. A fifth status is a wire
 /// change, not an addition.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(i32)]

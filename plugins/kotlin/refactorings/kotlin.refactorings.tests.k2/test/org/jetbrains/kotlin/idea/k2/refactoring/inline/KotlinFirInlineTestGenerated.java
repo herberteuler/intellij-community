@@ -2194,6 +2194,16 @@ public abstract class KotlinFirInlineTestGenerated extends AbstractKotlinFirInli
                 runTest("testData/inline/namedFunction/extensionFunction2.kt");
             }
 
+            @TestMetadata("functionReferenceBeforeLambdaArgument.kt")
+            public void testFunctionReferenceBeforeLambdaArgument() throws Exception {
+                runTest("testData/inline/namedFunction/functionReferenceBeforeLambdaArgument.kt");
+            }
+
+            @TestMetadata("functionReferenceBeforeTrailingLambda.kt")
+            public void testFunctionReferenceBeforeTrailingLambda() throws Exception {
+                runTest("testData/inline/namedFunction/functionReferenceBeforeTrailingLambda.kt");
+            }
+
             @TestMetadata("functionReferenceOfCompanionObject.kt")
             public void testFunctionReferenceOfCompanionObject() throws Exception {
                 runTest("testData/inline/namedFunction/functionReferenceOfCompanionObject.kt");

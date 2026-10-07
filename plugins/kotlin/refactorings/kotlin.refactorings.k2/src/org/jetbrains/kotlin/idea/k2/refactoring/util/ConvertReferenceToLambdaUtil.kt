@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.createExpressionByPattern
 import org.jetbrains.kotlin.psi.psiUtil.getQualifiedElementSelector
+import org.jetbrains.kotlin.psi.unpackFunctionLiteral
 import org.jetbrains.kotlin.resolution.KtResolvable
 import org.jetbrains.kotlin.resolution.KtResolvableCall
 import org.jetbrains.kotlin.types.Variance
@@ -160,9 +161,11 @@ object ConvertReferenceToLambdaUtil {
         val lambdaExpression = element.replaced(wrappedExpression)
         val pointer = lambdaExpression.createSmartPointer()
         shortenReferences(lambdaExpression)
-        if (callGrandParent == null) return pointer.element
-        val lastLambdaExpression = callGrandParent.getLastLambdaExpression()
-        lastLambdaExpression?.moveFunctionLiteralOutsideParenthesesIfPossible()
-        return callGrandParent.lambdaArguments.lastOrNull()?.getArgumentExpression() ?: lastLambdaExpression ?: pointer.element
+        val pointerElement = pointer.element
+        if (callGrandParent == null) return pointerElement
+        val createdLambdaExpression = pointerElement?.unpackFunctionLiteral() ?: return pointerElement
+        if (createdLambdaExpression != callGrandParent.getLastLambdaExpression()) return pointerElement
+        createdLambdaExpression.moveFunctionLiteralOutsideParenthesesIfPossible()
+        return callGrandParent.lambdaArguments.lastOrNull()?.getArgumentExpression() ?: pointer.element
     }
 }

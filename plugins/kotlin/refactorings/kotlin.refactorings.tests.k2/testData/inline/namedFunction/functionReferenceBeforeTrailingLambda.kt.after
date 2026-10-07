@@ -1,0 +1,12 @@
+fun main() {
+    higherOrder({
+        println("other")
+    }) {
+        println("block")
+    }
+}
+
+fun higherOrder(otherLambda: () -> Unit, block: () -> Unit) {
+    otherLambda()
+    block()
+}

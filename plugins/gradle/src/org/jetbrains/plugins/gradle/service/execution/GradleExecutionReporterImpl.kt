@@ -11,6 +11,9 @@ import com.intellij.openapi.externalSystem.model.task.ExternalSystemTaskNotifica
 import com.intellij.openapi.externalSystem.model.task.event.ExternalSystemBuildEvent
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.registry.Registry
+import com.intellij.platform.eel.fs.getPath
+import com.intellij.platform.eel.provider.asNioPath
+import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.pom.Navigatable
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.jetbrains.annotations.ApiStatus.Internal
@@ -38,7 +41,7 @@ class GradleExecutionReporterImpl(
   var buildEnvironment: BuildEnvironment? = null
 
   private val projectRoot: Path
-    get() = buildEnvironment?.buildIdentifier?.rootDir?.toPath() ?: Path.of(projectPath)
+    get() = buildEnvironment.getProjectRootPath() ?: Path.of(projectPath)
 
   private val hasFailures = AtomicBoolean(false)
 
@@ -144,6 +147,17 @@ class GradleExecutionReporterImpl(
                       .firstOrNull { it.isRegularFile() }
                     ?: return null
     return FileNavigatable(taskId.project, FilePosition(buildFile, 0, 0))
+  }
+
+  private fun BuildEnvironment?.getProjectRootPath(): Path? {
+    if (this == null) {
+      return null
+    }
+    val projectRootPath = buildIdentifier?.rootDir?.path ?: return null
+    return taskId.project
+      .getEelDescriptor()
+      .getPath(projectRootPath)
+      .asNioPath()
   }
 
   private data class MessageKey(

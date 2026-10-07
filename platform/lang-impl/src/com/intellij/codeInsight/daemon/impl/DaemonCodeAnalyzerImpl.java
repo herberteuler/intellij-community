@@ -564,7 +564,7 @@ public final class DaemonCodeAnalyzerImpl extends DaemonCodeAnalyzerEx
 
   @ApiStatus.Internal
   public boolean isUpdateByTimerEnabled() {
-    return myUpdateByTimerEnabled;
+    return myUpdateByTimerEnabled && myDisableCount.get() == 0;
   }
 
   @Override

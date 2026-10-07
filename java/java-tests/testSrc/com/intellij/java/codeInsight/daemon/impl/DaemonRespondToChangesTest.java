@@ -52,6 +52,7 @@ import com.intellij.ide.GeneralSettings;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.idea.IJIgnore;
+import com.intellij.idea.TestFor;
 import com.intellij.javaee.ExternalResourceManagerExBase;
 import com.intellij.lang.LanguageFilter;
 import com.intellij.lang.annotation.AnnotationHolder;
@@ -65,6 +66,7 @@ import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.application.WriteAction;
+import com.intellij.openapi.application.impl.LaterInvocator;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.command.undo.UndoManager;
@@ -2577,6 +2579,33 @@ public class DaemonRespondToChangesTest extends ProductionDaemonAnalyzerTestCase
       backspace();
       PsiDocumentManager.getInstance(getProject()).commitAllDocuments();
     }
+  }
+
+  @TestFor(issues = "IJPL-244762")
+  public void testModalityChangesRespectNestedDaemonSuspensions() {
+    var first = Disposer.newDisposable(getTestRootDisposable());
+    var second = Disposer.newDisposable(getTestRootDisposable());
+    assertTrue(myDaemonCodeAnalyzer.isUpdateByTimerEnabled());
+    myDaemonCodeAnalyzer.disableUpdateByTimer(first);
+    myDaemonCodeAnalyzer.disableUpdateByTimer(second);
+    try {
+      var modalEntity = new Object();
+      LaterInvocator.enterModal(modalEntity);
+      try {
+        assertFalse(myDaemonCodeAnalyzer.isUpdateByTimerEnabled());
+      }
+      finally {
+        LaterInvocator.leaveModal(modalEntity);
+      }
+      assertFalse("Closing a modal dialog must preserve the daemon suspensions", myDaemonCodeAnalyzer.isUpdateByTimerEnabled());
+      Disposer.dispose(first);
+      assertFalse("The remaining suspension must keep the daemon disabled", myDaemonCodeAnalyzer.isUpdateByTimerEnabled());
+    }
+    finally {
+      Disposer.dispose(first);
+      Disposer.dispose(second);
+    }
+    assertTrue("The daemon must resume after the last suspension ends", myDaemonCodeAnalyzer.isUpdateByTimerEnabled());
   }
 
   enum DEvent { STARTED, FINISHED, CANCELED }

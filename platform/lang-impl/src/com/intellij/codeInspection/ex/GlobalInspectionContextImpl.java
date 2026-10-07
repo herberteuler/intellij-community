@@ -837,7 +837,9 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
 
     TraceKt.use(tracer.spanBuilder("globalInspectionsAnalysis"), _ -> {
       for (Tools tools : globalTools) {
+        ProgressManager.checkCanceled();
         for (ScopeToolState state : tools.getTools()) {
+          ProgressManager.checkCanceled();
           if (!state.isEnabled()) continue;
           NamedScope stateScope = state.getScope(getProject());
           if (stateScope == null) continue;

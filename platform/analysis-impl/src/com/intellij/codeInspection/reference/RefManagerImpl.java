@@ -170,14 +170,17 @@ public class RefManagerImpl extends RefManager {
   @Override
   public void iterate(@NotNull RefVisitor visitor) {
     for (RefElement refElement : getSortedElements()) {
+      ProgressManager.checkCanceled();
       refElement.accept(visitor);
     }
     List<RefModule> filteredModules =
       ContainerUtil.filter(myModules.values(), refModule -> ReadAction.computeBlocking(() -> myScope.containsModule(refModule.getModule())));
     for (RefModule refModule : filteredModules) {
+      ProgressManager.checkCanceled();
       refModule.accept(visitor);
     }
     for (RefManagerExtension<?> extension : myExtensions.values()) {
+      ProgressManager.checkCanceled();
       extension.iterate(visitor);
     }
   }
@@ -585,13 +588,18 @@ public class RefManagerImpl extends RefManager {
 
     Map<VirtualFile, List<RefElement>> map = new HashMap<>();
     for (RefElement ref : getElements()) {
+      ProgressManager.checkCanceled();
       map.computeIfAbsent(((RefElementImpl)ref).getVirtualFile(), _ -> new ArrayList<>()).add(ref);
     }
     for (List<RefElement> elementsInFile : map.values()) {
+      ProgressManager.checkCanceled();
       if (elementsInFile.size() > 1) {
         ReadAction.runBlocking(() -> {
           elementsInFile.sort(
-            Comparator.comparing(o -> ObjectUtils.notNull(o.getPointer().getRange(), TextRange.EMPTY_RANGE),
+            Comparator.comparing(o -> {
+                                   ProgressManager.checkCanceled();
+                                   return ObjectUtils.notNull(o.getPointer().getRange(), TextRange.EMPTY_RANGE);
+                                 },
                                  Segment.BY_START_OFFSET_THEN_END_OFFSET));
         });
       }

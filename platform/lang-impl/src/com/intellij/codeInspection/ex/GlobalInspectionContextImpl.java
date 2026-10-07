@@ -870,7 +870,15 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
               }
             };
             if (tool.isReadActionNeeded()) {
-              ReadAction.runBlocking(runnable);
+              if (isOfflineInspections) {
+                ReadAction.runBlocking(runnable);
+              }
+              else {
+                ReadAction.computeCancellableUnsafe(() -> {
+                  runnable.run();
+                  return null;
+                });
+              }
             }
             else {
               runnable.run();
@@ -1039,6 +1047,19 @@ public class GlobalInspectionContextImpl extends GlobalInspectionContextEx {
     ((InspectionManagerEx)InspectionManager.getInstance(getProject())).closeRunningContext(this);
     myPresentationMap.clear();
     super.close(noSuspiciousCodeFound);
+  }
+
+  @Override
+  void resetTools() {
+    for (InspectionToolPresentation presentation : myPresentationMap.values()) {
+      presentation.cleanup();
+    }
+    myPresentationMap.clear();
+    if (runToolsSpan != null) {
+      runToolsSpan.end();
+      runToolsSpan = null;
+    }
+    super.resetTools();
   }
 
   @Override

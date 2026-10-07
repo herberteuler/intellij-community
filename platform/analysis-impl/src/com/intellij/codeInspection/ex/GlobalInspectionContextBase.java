@@ -23,6 +23,7 @@ import com.intellij.codeInspection.reference.RefManager;
 import com.intellij.codeInspection.reference.RefManagerImpl;
 import com.intellij.diagnostic.PluginException;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.progress.EmptyProgressIndicator;
@@ -166,6 +167,10 @@ public class GlobalInspectionContextBase extends UserDataHolderBase implements G
 
   void cleanupTools() {
     myProgressIndicator.cancel();
+    resetTools();
+  }
+
+  void resetTools() {
     for (GlobalInspectionContextExtension<?> extension : myExtensions.values()) {
       extension.cleanup();
     }
@@ -190,10 +195,10 @@ public class GlobalInspectionContextBase extends UserDataHolderBase implements G
     if (myRefManager != null) {
       ((RefManagerImpl)myRefManager).cleanup();
       myRefManager = null;
-      if (myCurrentScope != null){
-        myCurrentScope.invalidate();
-        myCurrentScope = null;
-      }
+    }
+    if (myCurrentScope != null) {
+      myCurrentScope.invalidate();
+      myCurrentScope = null;
     }
     myJobDescriptors.clear();
   }
@@ -312,25 +317,41 @@ public class GlobalInspectionContextBase extends UserDataHolderBase implements G
     });
     PsiManager psiManager = PsiManager.getInstance(myProject);
     //init manager in read action
-    ((RefManagerImpl)getRefManager()).runInsideInspectionReadAction(() ->
-      psiManager.runInBatchFilesMode(() -> {
-        try {
-          getStdJobDescriptors().BUILD_GRAPH.setTotalAmount(scope.getFileCount());
-          getStdJobDescriptors().LOCAL_ANALYSIS.setTotalAmount(scope.getFileCount());
-          getStdJobDescriptors().FIND_EXTERNAL_USAGES.setTotalAmount(0);
+    while (true) {
+      ProgressManager.checkCanceled();
+      try {
+        ((RefManagerImpl)getRefManager()).runInsideInspectionReadAction(() ->
+          psiManager.runInBatchFilesMode(() -> {
+            try {
+              getStdJobDescriptors().BUILD_GRAPH.setTotalAmount(scope.getFileCount());
+              getStdJobDescriptors().LOCAL_ANALYSIS.setTotalAmount(scope.getFileCount());
+              getStdJobDescriptors().FIND_EXTERNAL_USAGES.setTotalAmount(0);
 
-          runTools(scope, runGlobalToolsOnly, isOfflineInspections);
-        }
-        catch (IndexNotReadyException e) {
-          throw e;
-        }
-        catch (Throwable e) {
-          rethrowControlFlowException(e);
-          LOG.error(e);
-        }
-        return  null;
-      })
-    );
+              runTools(scope, runGlobalToolsOnly, isOfflineInspections);
+            }
+            catch (IndexNotReadyException e) {
+              throw e;
+            }
+            catch (Throwable e) {
+              rethrowControlFlowException(e);
+              LOG.error(e);
+            }
+            return null;
+          })
+        );
+        return;
+      }
+      catch (ReadAction.CannotReadException e) {
+        if (isOfflineInspections) throw e;
+        ProgressManager.checkCanceled();
+        ApplicationManager.getApplication().invokeAndWait(() -> {
+          resetTools();
+          myCurrentScope = scope;
+          myProgressIndicator.setFraction(0);
+        });
+        ReadAction.nonBlocking(() -> null).withDocumentsCommitted(myProject).inSmartMode(myProject).executeSynchronously();
+      }
+    }
   }
 
   protected void canceled() {

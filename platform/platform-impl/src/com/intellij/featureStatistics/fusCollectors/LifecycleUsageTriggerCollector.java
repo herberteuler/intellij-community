@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.featureStatistics.fusCollectors;
 
 import com.intellij.diagnostic.VMOptions;
@@ -45,7 +45,7 @@ import static com.intellij.internal.statistic.utils.PluginInfoDetectorKt.getPlug
 public final class LifecycleUsageTriggerCollector extends CounterUsagesCollector {
   private static final Logger LOG = Logger.getInstance(LifecycleUsageTriggerCollector.class);
 
-  private static final EventLogGroup LIFECYCLE = new EventLogGroup("lifecycle", 82);
+  private static final EventLogGroup LIFECYCLE = new EventLogGroup("lifecycle", 83);
 
   private static final AtomicInteger MAX_SIMULTANEOUS_PROJECTS = new AtomicInteger(0);
 
@@ -75,8 +75,7 @@ public final class LifecycleUsageTriggerCollector extends CounterUsagesCollector
     LIFECYCLE.registerVarargEvent("project.opened", EventFields.Projectless, isWelcomeScreenDummyProjectField);
 
   private static final EventId1<Integer> PROJECT_MAX_SIMULTANEOUS =
-    LIFECYCLE.registerEvent("project.max.simultaneous",
-                            EventFields.BoundedInt("count", new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+    LIFECYCLE.registerEvent("project.max.simultaneous", EventFields.BoundedInt("count", new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
 
   private static final EventId PROJECT_CLOSED = LIFECYCLE.registerEvent("project.closed"); // actually called before closed and disposed
 
@@ -143,11 +142,10 @@ public final class LifecycleUsageTriggerCollector extends CounterUsagesCollector
     LIFECYCLE.registerEvent("project.frame.selected", projectOpenModeField);
 
   private static final EventId1<Integer> EARLY_ERRORS =
-    LIFECYCLE.registerEvent("early.errors", EventFields.Int("errors_ignored"));
+    LIFECYCLE.registerEvent("early.errors", EventFields.BoundedInt("errors_ignored", new int[]{1, 10, 100, 1000}));
 
   private static final EventsRateThrottle ourErrorRateThrottle = new EventsRateThrottle(100, 5L * 60 * 1000); // 100 errors per 5 minutes
-  private static final EventsIdentityThrottle ourErrorIdentityThrottle = new EventsIdentityThrottle(50, 60L * 60 * 1000);
-    // 1 unique error per 1 hour
+  private static final EventsIdentityThrottle ourErrorIdentityThrottle = new EventsIdentityThrottle(50, 60L * 60 * 1000); // 1 unique error per 1 hour
 
   private static final EventId1<Boolean> IDE_MEMORY_REPORT_SENT =
     LIFECYCLE.registerEvent("ide.memory.report.send", EventFields.Boolean("automatic"));
@@ -173,7 +171,8 @@ public final class LifecycleUsageTriggerCollector extends CounterUsagesCollector
       commandLineField.with(app.isCommandLine()),
       internalField.with(app.isInternal()),
       headlessField.with(app.isHeadlessEnvironment()),
-      debugAgentField.with(DebugAttachDetector.isDebugEnabled()));
+      debugAgentField.with(DebugAttachDetector.isDebugEnabled())
+    );
   }
 
   public static void onIdeClose(boolean restart) {
@@ -213,7 +212,8 @@ public final class LifecycleUsageTriggerCollector extends CounterUsagesCollector
       projectTotalCloseDurationField.with(totalCloseDurationMs),
       projectSaveDurationField.with(saveSettingsDurationMs),
       projectClosingDurationField.with(closingDurationMs),
-      projectDisposeDurationField.with(disposeDurationMs));
+      projectDisposeDurationField.with(disposeDurationMs)
+    );
   }
 
   public static void onProjectModuleAttached(@NotNull Project project) {
@@ -294,16 +294,15 @@ public final class LifecycleUsageTriggerCollector extends CounterUsagesCollector
   }
 
   public static void onProjectFrameSelected(int option) {
-    ProjectOpenMode optionValue;
-    switch (option) {
-      case GeneralSettings.OPEN_PROJECT_NEW_WINDOW -> optionValue = ProjectOpenMode.New;
-      case GeneralSettings.OPEN_PROJECT_SAME_WINDOW -> optionValue = ProjectOpenMode.Same;
-      case GeneralSettings.OPEN_PROJECT_SAME_WINDOW_ATTACH -> optionValue = ProjectOpenMode.Attach;
-      default -> {
-        return;
-      }
+    var optionValue = switch (option) {
+      case GeneralSettings.OPEN_PROJECT_NEW_WINDOW -> ProjectOpenMode.New;
+      case GeneralSettings.OPEN_PROJECT_SAME_WINDOW -> ProjectOpenMode.Same;
+      case GeneralSettings.OPEN_PROJECT_SAME_WINDOW_ATTACH -> ProjectOpenMode.Attach;
+      default -> null;
+    };
+    if (optionValue != null) {
+      PROJECT_FRAME_SELECTED.log(optionValue);
     }
-    PROJECT_FRAME_SELECTED.log(optionValue);
   }
 
   public static void onEarlyErrorsIgnored(int numErrors) {

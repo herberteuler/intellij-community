@@ -701,10 +701,15 @@ class FileEditorManagerTest {
     openSourceFile("1.txt", focusEditor = false)
     val currentWindow = currentWindow()
     val expectedFile = openSourceFile("2.txt", focusEditor = false)
-    createVerticalSplitter(currentWindow)
+    // the split copies the selected tab into the new window
+    assertThat(currentWindow.selectedFile).isEqualTo(expectedFile)
 
-    val actualFile = assertThatNotNull(manager.getPrevWindow(currentWindow)).selectedFile
-    assertThat(actualFile).isEqualTo(expectedFile)
+    val secondaryWindow = createVerticalSplitter(currentWindow)
+
+    assertThat(manager.windows).containsExactlyInAnyOrder(currentWindow, secondaryWindow)
+    assertThat(secondaryWindow.selectedFile).isEqualTo(expectedFile)
+    assertThat(manager.getPrevWindow(currentWindow)).isSameAs(secondaryWindow)
+    assertThat(manager.getNextWindow(secondaryWindow)).isSameAs(currentWindow)
   }
 
   @ParameterizedTest

@@ -371,6 +371,7 @@ class RefactoringToolsetTest : GeneralMcpToolsetTestBase() {
     val result = callRename(widget) {
       put("symbolName", JsonPrimitive("Widget"))
       put("newName", JsonPrimitive("Gadget"))
+      put("applyAutomaticRenamers", JsonPrimitive(true))
     }
     assertThat(result.error).isNull()
     assertThat(result.applied).isTrue()

@@ -103,7 +103,7 @@ class RefactoringToolset : McpToolset {
     @McpDescription("Optional. Analyze only: report affects and conflicts, and write nothing. The default is false.")
     preview: Boolean = false,
     @McpDescription("Optional. Also rename what the IDE renames along with the symbol. The default is true.")
-    applyAutomaticRenamers: Boolean = true,
+    applyAutomaticRenamers: Boolean = false,
     @McpDescription("Optional. Also rename the name in comments and string literals. The default is false.")
     searchInComments: Boolean = false,
     @McpDescription("Optional. Also rename the name in plain-text occurrences, such as non-code files. The default is false.")

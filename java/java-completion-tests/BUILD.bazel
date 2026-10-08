@@ -19,6 +19,7 @@ jvm_library(
         "//xml/plugin",
         "//aether-dependency-resolver/plugin",
         "//platform/testRunner/plugin",
+        "//java/langInjection",
     ],
 )
 
@@ -45,6 +46,7 @@ jvm_library(
         "//xml/plugin:plugin_test_lib",
         "//aether-dependency-resolver/plugin:plugin_test_lib",
         "//platform/testRunner/plugin:plugin_test_lib",
+        "//java/langInjection:langInjection_test_lib",
         "//platform/platform-impl/internal:internal_test_lib",
         "//platform/ide-core:ide-core_test_lib",
     ],

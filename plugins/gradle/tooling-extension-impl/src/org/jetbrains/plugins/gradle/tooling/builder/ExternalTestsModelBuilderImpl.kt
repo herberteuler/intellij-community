@@ -79,7 +79,7 @@ class ExternalTestsModelBuilderImpl : ModelBuilderService {
     if (test.hasProperty("testClassesDirs")) {
       testClassesDirs.addAll(getPaths(test.testClassesDirs))
     }
-    if (test.hasProperty("testClassesDir")) {
+    else if (test.hasProperty("testClassesDir")) {
       val testClassesDir: File? = test.property("testClassesDir") as? File
       if (testClassesDir != null) {
         testClassesDirs.add(testClassesDir.absolutePath)

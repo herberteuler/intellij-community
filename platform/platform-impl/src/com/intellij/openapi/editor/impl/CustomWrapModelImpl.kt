@@ -10,7 +10,6 @@ import com.intellij.openapi.editor.CustomWrapModel
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.ex.DocumentEx
-import com.intellij.openapi.editor.ex.ElfCandidate
 import com.intellij.openapi.editor.ex.PrioritizedDocumentListener
 import com.intellij.openapi.editor.ex.RangeMarkerEx
 import com.intellij.openapi.editor.ex.RangeMarkers
@@ -22,7 +21,6 @@ import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.TestOnly
 
-@ElfCandidate
 @ApiStatus.Internal
 class CustomWrapModelImpl internal constructor(private val editor: EditorImpl) : CustomWrapModel, CustomWrapModel.Mutator,
                                                                                   PrioritizedDocumentListener, Dumpable, Disposable {

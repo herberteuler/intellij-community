@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.event;
 
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.Document;
-import com.intellij.openapi.editor.elf.ElfDocumentListener;
 import com.intellij.util.ArrayFactory;
 import org.jetbrains.annotations.NotNull;
 
@@ -18,7 +17,7 @@ import java.util.EventListener;
  * @see Document#addDocumentListener(DocumentListener, Disposable)
  * @see EditorEventMulticaster#addDocumentListener(DocumentListener, Disposable)
  */
-public interface DocumentListener extends ElfDocumentListener, EventListener {
+public interface DocumentListener extends EventListener {
   DocumentListener[] EMPTY_ARRAY = new DocumentListener[0];
   ArrayFactory<DocumentListener> ARRAY_FACTORY = count -> count == 0 ? EMPTY_ARRAY : new DocumentListener[count];
 

@@ -2,7 +2,6 @@
 package com.intellij.openapi.editor.event;
 
 import com.intellij.openapi.editor.Document;
-import com.intellij.openapi.editor.elf.BulkAwareElfDocumentListener;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -11,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
  * <br>
  * If possible, this interface should be used in preference to {@link DocumentListener}, to improve performance.
  */
-public interface BulkAwareDocumentListener extends DocumentListener, BulkAwareElfDocumentListener {
+public interface BulkAwareDocumentListener extends DocumentListener {
 
   @Override
   default void beforeDocumentChange(@NotNull DocumentEvent event) {
@@ -37,7 +36,7 @@ public interface BulkAwareDocumentListener extends DocumentListener, BulkAwareEl
    * Simple specialization of {@link BulkAwareDocumentListener} for the case when the listener doesn't need the details of the changes
    * (offsets and changed text), and is fine with receiving only one notification for changes done in bulk mode.
    */
-  interface Simple extends BulkAwareDocumentListener, BulkAwareElfDocumentListener.Simple {
+  interface Simple extends BulkAwareDocumentListener {
     @Override
     default void beforeDocumentChangeNonBulk(@NotNull DocumentEvent event) {
       beforeDocumentChange(event.getDocument());

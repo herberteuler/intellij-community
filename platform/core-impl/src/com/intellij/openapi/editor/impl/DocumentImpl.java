@@ -81,9 +81,7 @@ public final class DocumentImpl extends VersionedUserDataHolderBase implements D
   }
 
   public DocumentImpl(@NotNull CharSequence chars, boolean acceptSlashR, boolean forUseInNonAWTThread) {
-    this(forUseInNonAWTThread
-         ? DocumentCoreImpl.createCore(chars, acceptSlashR, true)
-         : DocumentMagicCoreImpl.createCore(chars, acceptSlashR, false));
+    this(DocumentCoreImpl.createCore(chars, acceptSlashR, forUseInNonAWTThread));
   }
 
   private DocumentImpl(@NotNull DocumentCore impl) {

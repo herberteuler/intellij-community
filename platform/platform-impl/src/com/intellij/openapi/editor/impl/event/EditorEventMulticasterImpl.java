@@ -25,7 +25,6 @@ import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.util.EventDispatcher;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
 
 import java.beans.PropertyChangeListener;
@@ -75,26 +74,6 @@ public final class EditorEventMulticasterImpl implements EditorEventMulticasterE
       @Override
       public void bulkUpdateFinished(@NotNull Document document) {
         DOCUMENT_EP.forEachExtensionSafe(it -> it.bulkUpdateFinished(document));
-      }
-
-      @Override
-      public void beforeElfDocumentChange(@NotNull DocumentEvent event, @Nullable DocumentEvent revertingEvent) {
-        DOCUMENT_EP.forEachExtensionSafe(it -> it.beforeElfDocumentChange(event, revertingEvent));
-      }
-
-      @Override
-      public void elfDocumentChanged(@NotNull DocumentEvent event, @Nullable DocumentEvent revertedEvent) {
-        DOCUMENT_EP.forEachExtensionSafe(it -> it.elfDocumentChanged(event, revertedEvent));
-      }
-
-      @Override
-      public void bulkElfUpdateStarting(@NotNull Document document) {
-        DOCUMENT_EP.forEachExtensionSafe(it -> it.bulkElfUpdateStarting(document));
-      }
-
-      @Override
-      public void bulkElfUpdateFinished(@NotNull Document document) {
-        DOCUMENT_EP.forEachExtensionSafe(it -> it.bulkElfUpdateFinished(document));
       }
     });
     document.addDocumentListener(myPrioritizedDocumentMulticaster.getMulticaster());

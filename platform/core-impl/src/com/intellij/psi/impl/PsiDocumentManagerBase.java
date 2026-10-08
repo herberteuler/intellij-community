@@ -27,7 +27,6 @@ import com.intellij.openapi.diagnostic.ControlFlowExceptionKt;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.diagnostic.RuntimeExceptionWithAttachments;
 import com.intellij.openapi.editor.Document;
-import com.intellij.openapi.editor.elf.Elf;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.editor.ex.DocumentEx;
@@ -39,7 +38,6 @@ import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileDocumentManagerListener;
 import com.intellij.openapi.fileEditor.impl.FileDocumentManagerBase;
 import com.intellij.openapi.progress.EmptyProgressIndicator;
-import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressIndicatorProvider;
 import com.intellij.openapi.progress.ProgressManager;
@@ -1263,27 +1261,6 @@ public abstract class PsiDocumentManagerBase extends PsiDocumentManagerEx implem
         clearUncommittedDocuments();
       }
     }
-  }
-
-  @Override
-  @ApiStatus.Internal
-  public void beforeElfDocumentChange(@NotNull DocumentEvent event, @Nullable DocumentEvent revertingEvent) {
-    if (!Elf.getElf().isInElfScope()) {
-      return;
-    }
-    Document document = event.getDocument();
-    if (document instanceof DocumentImpl) {
-      myUncommittedState.startBaselineIfAbsent((DocumentImpl)document);
-    }
-  }
-
-  @Override
-  @ApiStatus.Internal
-  public void elfDocumentChanged(@NotNull DocumentEvent event, @Nullable DocumentEvent revertingEvent) {
-    if (!Elf.getElf().isInElfScope()) {
-      return;
-    }
-    myUncommittedState.appendEvent(event);
   }
 
   @Override

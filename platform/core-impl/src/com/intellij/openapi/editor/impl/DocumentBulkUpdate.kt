@@ -96,18 +96,6 @@ internal sealed class DocumentBulkUpdate(
     return listeners.getArray()
   }
 
-  class Elf(
-    settings: DocumentSettings,
-    listeners: LockFreeCOWSortedArray<DocumentListener>,
-  ) : DocumentBulkUpdate(settings, listeners) {
-    override fun bulkUpdateStarting(hostDocument: Document, listener: DocumentListener) {
-      listener.bulkElfUpdateStarting(hostDocument)
-    }
-    override fun bulkUpdateFinished(hostDocument: Document, listener: DocumentListener) {
-      listener.bulkElfUpdateFinished(hostDocument)
-    }
-  }
-
   class Real(
     settings: DocumentSettings,
     listeners: LockFreeCOWSortedArray<DocumentListener>,
@@ -117,20 +105,6 @@ internal sealed class DocumentBulkUpdate(
     }
     override fun bulkUpdateFinished(hostDocument: Document, listener: DocumentListener) {
       listener.bulkUpdateFinished(hostDocument)
-    }
-  }
-
-  class Both(
-    settings: DocumentSettings,
-    listeners: LockFreeCOWSortedArray<DocumentListener>,
-  ) : DocumentBulkUpdate(settings, listeners) {
-    override fun bulkUpdateStarting(hostDocument: Document, listener: DocumentListener) {
-      listener.bulkUpdateStarting(hostDocument)
-      listener.bulkElfUpdateStarting(hostDocument)
-    }
-    override fun bulkUpdateFinished(hostDocument: Document, listener: DocumentListener) {
-      listener.bulkUpdateFinished(hostDocument)
-      listener.bulkElfUpdateFinished(hostDocument)
     }
   }
 }

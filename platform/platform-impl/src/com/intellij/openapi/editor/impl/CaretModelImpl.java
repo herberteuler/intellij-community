@@ -20,7 +20,6 @@ import com.intellij.openapi.editor.event.CaretListener;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.event.SelectionEvent;
 import com.intellij.openapi.editor.ex.DocumentEx;
-import com.intellij.openapi.editor.ex.ElfCandidate;
 import com.intellij.openapi.editor.ex.PrioritizedDocumentListener;
 import com.intellij.openapi.editor.ex.RangeMarkers;
 import com.intellij.openapi.editor.ex.util.EditorUtil;
@@ -50,7 +49,6 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Objects;
 
-@ElfCandidate
 public final class CaretModelImpl implements CaretModel, PrioritizedDocumentListener, Disposable, Dumpable, InlayModel.Listener {
   private static final RegistryValue MAX_CARET_COUNT = Registry.get("editor.max.caret.count");
   private static final RegistryValue PRIMARY_SELECTION_CARET_UPDATE = Registry.get("editor.caret.update.primary.selection");

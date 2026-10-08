@@ -1,10 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.marker
 
-import com.intellij.openapi.editor.elf.Elf
 import com.intellij.openapi.editor.ex.DocumentOp
-import com.intellij.openapi.editor.ex.DocumentSnapshot
 import com.intellij.openapi.editor.ex.DocumentPatch
+import com.intellij.openapi.editor.ex.DocumentSnapshot
 import com.intellij.openapi.editor.ex.RangeMarkerEx
 import com.intellij.openapi.editor.impl.DocumentImpl
 import com.intellij.openapi.util.Key
@@ -1361,15 +1360,5 @@ class SnapshotMarkerEngineImplTest {
         )
       )
     }
-  }
-
-  @Test
-  fun `test document views share snapshot marker root store`() {
-    val document = DocumentImpl("abc")
-    val elfDocument = Elf.getElf().getElfDocument(document) as DocumentImpl
-    val realDocument = Elf.getElf().getRealDocument(document) as DocumentImpl
-
-    assertSame(document.rangeMarkers.rootStore(), elfDocument.rangeMarkers.rootStore())
-    assertSame(document.rangeMarkers.rootStore(), realDocument.rangeMarkers.rootStore())
   }
 }

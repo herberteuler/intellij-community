@@ -292,7 +292,7 @@ internal abstract class DocumentMutatorImpl(
     return snapshotAfter
   }
 
-  protected open fun changeText(
+  private fun changeText(
     snapshotBefore: DocumentSnapshot,
     changeEvent: DocumentEvent,
     patch: DocumentPatch,
@@ -320,7 +320,7 @@ internal abstract class DocumentMutatorImpl(
    *
    * @see DocumentSnapshot.withMetadata
    */
-  protected fun mergeAndPatch(
+  private fun mergeAndPatch(
     snapshotBefore: DocumentSnapshot,
     latest: DocumentSnapshot,
     patch: DocumentPatch,

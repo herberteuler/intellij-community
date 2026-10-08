@@ -15,7 +15,6 @@ import com.intellij.openapi.editor.InlayProperties;
 import com.intellij.openapi.editor.VisualPosition;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.ex.DocumentEx;
-import com.intellij.openapi.editor.ex.ElfCandidate;
 import com.intellij.openapi.editor.ex.InlayModelEx;
 import com.intellij.openapi.editor.ex.PrioritizedDocumentListener;
 import com.intellij.openapi.editor.ex.RangeMarkers;
@@ -53,7 +52,6 @@ import static com.intellij.openapi.editor.impl.InlayKeys.OFFSET_BEFORE_DISPOSAL;
 
 //@ApiStatus.Internal
 @SuppressWarnings("SuspiciousPackagePrivateAccess")
-@ElfCandidate
 public final class InlayModelImpl implements InlayModel, InlayModelEx, PrioritizedDocumentListener, Disposable, Dumpable {
   private static final Logger LOG = Logger.getInstance(InlayModelImpl.class);
 

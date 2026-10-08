@@ -8,7 +8,6 @@ import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.ex.DocumentEx;
 import com.intellij.openapi.editor.ex.DocumentText;
 import com.intellij.openapi.editor.ex.PrioritizedDocumentListener;
-import com.intellij.openapi.editor.ex.ElfCandidate;
 import com.intellij.openapi.editor.impl.EditorDocumentPriorities;
 import kotlinx.collections.immutable.ExtensionsKt;
 import org.jetbrains.annotations.ApiStatus;
@@ -22,7 +21,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * Requests for conversion can be made without read action, document changes and cache invalidation should be done in EDT.
  */
 @ApiStatus.Internal
-@ElfCandidate
 public final class LogicalPositionCache implements PrioritizedDocumentListener, Disposable, Dumpable {
   private static final AtomicReferenceFieldUpdater<LogicalPositionCache, LogicalLines> SNAPSHOT_UPDATER =
     AtomicReferenceFieldUpdater.newUpdater(LogicalPositionCache.class, LogicalLines.class, "snapshot");

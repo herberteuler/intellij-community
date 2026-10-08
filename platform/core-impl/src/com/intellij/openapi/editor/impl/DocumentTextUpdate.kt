@@ -5,7 +5,6 @@ import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.editor.ex.DocumentSettings
 import com.intellij.openapi.progress.Cancellation
-import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.util.ShutDownTracker
 import kotlin.concurrent.Volatile
 
@@ -87,26 +86,6 @@ internal sealed class DocumentTextUpdate(
     return listeners.getArray()
   }
 
-  class Elf(
-    settings: DocumentSettings,
-    listeners: LockFreeCOWSortedArray<DocumentListener>,
-  ) : DocumentTextUpdate(settings, listeners) {
-    override fun beforeDocumentChange(
-      listener: DocumentListener,
-      changeEvent: DocumentEvent,
-      revertingEvent: DocumentEvent?,
-    ) {
-      listener.beforeElfDocumentChange(changeEvent, revertingEvent)
-    }
-    override fun documentChanged(
-      listener: DocumentListener,
-      changeEvent: DocumentEvent,
-      revertedEvent: DocumentEvent?,
-    ) {
-      listener.elfDocumentChanged(changeEvent, revertedEvent)
-    }
-  }
-
   class Real(
     settings: DocumentSettings,
     listeners: LockFreeCOWSortedArray<DocumentListener>,
@@ -123,28 +102,6 @@ internal sealed class DocumentTextUpdate(
       changeEvent: DocumentEvent,
       revertedEvent: DocumentEvent?,
     ) {
-      listener.documentChanged(changeEvent)
-    }
-  }
-
-  class Both(
-    settings: DocumentSettings,
-    listeners: LockFreeCOWSortedArray<DocumentListener>,
-  ) : DocumentTextUpdate(settings, listeners) {
-    override fun beforeDocumentChange(
-      listener: DocumentListener,
-      changeEvent: DocumentEvent,
-      revertingEvent: DocumentEvent?,
-    ) {
-      listener.beforeDocumentChange(changeEvent)
-      listener.beforeElfDocumentChange(changeEvent, revertingEvent)
-    }
-    override fun documentChanged(
-      listener: DocumentListener,
-      changeEvent: DocumentEvent,
-      revertedEvent: DocumentEvent?,
-    ) {
-      listener.elfDocumentChanged(changeEvent, revertedEvent)
       listener.documentChanged(changeEvent)
     }
   }

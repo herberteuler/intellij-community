@@ -7,7 +7,6 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.ex.PrioritizedDocumentListener;
-import com.intellij.openapi.editor.ex.ElfCandidate;
 import com.intellij.openapi.editor.impl.EditorDocumentPriorities;
 import com.intellij.util.text.CharArrayUtil;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -25,7 +24,6 @@ import java.util.function.Consumer;
  *
  * @see LineLayout
  */
-@ElfCandidate
 final class TextLayoutCache implements PrioritizedDocumentListener, Disposable {
   private static final Logger LOG = Logger.getInstance(TextLayoutCache.class);
 

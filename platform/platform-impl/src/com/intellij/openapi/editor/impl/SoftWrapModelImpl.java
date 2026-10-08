@@ -23,7 +23,6 @@ import com.intellij.openapi.editor.VisualPosition;
 import com.intellij.openapi.editor.colors.impl.FontPreferencesImpl;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.ex.DocumentEx;
-import com.intellij.openapi.editor.ex.ElfCandidate;
 import com.intellij.openapi.editor.ex.FoldingListener;
 import com.intellij.openapi.editor.ex.PrioritizedDocumentListener;
 import com.intellij.openapi.editor.ex.SoftWrapChangeListener;
@@ -70,7 +69,6 @@ import java.util.List;
  * Not thread-safe.
  */
 //@ApiStatus.Internal
-@ElfCandidate
 public final class SoftWrapModelImpl extends InlayModel.SimpleAdapter
   implements SoftWrapModelEx, PrioritizedDocumentListener, FoldingListener,
              PropertyChangeListener, Dumpable, Disposable, CustomWrapModel.Listener {

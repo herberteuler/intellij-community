@@ -2,7 +2,6 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.DocBranch
 import com.intellij.openapi.editor.ex.experimental.DocMerge
@@ -69,7 +68,7 @@ internal class DocMergeImplTest {
         }
         val start = CountDownLatch(1)
         val results = (0 until THREADS).map {
-          pool.submit<List<DocumentTextOp>> {
+          pool.submit<List<DocumentOp.Text>> {
             start.await()
             merge.ops()
           }

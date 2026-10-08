@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -117,7 +116,7 @@ class DocBranchGossipFuzzTest {
    * press the Delete key at the caret. The rest jump anywhere, as [randomJump] describes. A
    * merge can shorten the text, so the caret is clamped first.
    */
-  private fun randomOp(random: Random, length: Int, caret: Int): DocumentTextOp {
+  private fun randomOp(random: Random, length: Int, caret: Int): DocumentOp.Text {
     val at = minOf(caret, length)
     val roll = random.nextInt(10)
     if (roll < 4) {
@@ -148,7 +147,7 @@ class DocBranchGossipFuzzTest {
   /**
    * An edit anywhere in the text: a keystroke or a paste, a small delete or a wipe.
    */
-  private fun randomJump(random: Random, length: Int): DocumentTextOp {
+  private fun randomJump(random: Random, length: Int): DocumentOp.Text {
     if (length == 0 || random.nextInt(10) < 6) {
       // A mix of single keystrokes and big pastes.
       val fragmentLength = if (random.nextInt(5) == 0) 1 + random.nextInt(12) else 1 + random.nextInt(2)

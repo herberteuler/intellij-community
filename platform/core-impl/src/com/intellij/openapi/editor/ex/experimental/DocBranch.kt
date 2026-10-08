@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.impl.experimental.DocBranchImpl
 
 /**

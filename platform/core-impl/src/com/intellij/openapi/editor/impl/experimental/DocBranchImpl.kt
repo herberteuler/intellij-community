@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.DocBranch
 import com.intellij.openapi.editor.ex.experimental.DocMerge
@@ -23,7 +22,7 @@ import java.util.Collections
  *
  * A merge with concurrent history replays only the region above the common ancestor, which is the
  * partial replay of the paper. One placeholder item stands in for the older document, and it splits
- * only where an op needs it. The new units apply to [docText] as ordinary [DocumentTextOp]s. Those
+ * only where an op needs it. The new units apply to [docText] as ordinary [DocumentOp.Text]s. Those
  * ops are the op stream of [mergeWithOps]. The merge cost depends on the size of the change and of
  * the concurrent region, not on the size of either history.
  *
@@ -124,7 +123,7 @@ internal class DocBranchImpl private constructor(
    * never saw, for example from a descendant of it. A seq kept beside the graph would then name a
    * unit that already exists.
    */
-  private fun appendLocal(op: DocumentTextOp): EventGraphImpl {
+  private fun appendLocal(op: DocumentOp.Text): EventGraphImpl {
     return graph.appendAtVersion(EventImpl(agent, graph.nextSeqFor(agent), op))
   }
 
@@ -149,7 +148,7 @@ internal class DocBranchImpl private constructor(
   private fun opsOfFastForward(
     merged: EventGraphImpl,
     expected: DocumentText,
-  ): List<DocumentTextOp> {
+  ): List<DocumentOp.Text> {
     val sink = replayOnto(merged, DocumentText.createText(docText.chars()))
     checkFoldsInto(sink.result(), expected)
     return sink.ops()

@@ -2,16 +2,15 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.Event
 import com.intellij.openapi.editor.impl.DeleteOpImpl
 import com.intellij.openapi.editor.impl.InsertOpImpl
 
 internal class EventImpl(
-  private val agent: Agent,
-  private val seq: Int,
-  private val op: DocumentTextOp,
+    private val agent: Agent,
+    private val seq: Int,
+    private val op: DocumentOp.Text,
 ) : Event {
 
   init {
@@ -28,7 +27,7 @@ internal class EventImpl(
 
   override fun agent(): Agent = agent
   override fun seq(): Int = seq
-  override fun op(): DocumentTextOp = op
+  override fun op(): DocumentOp.Text = op
   override fun length(): Int = op.length()
 
   override fun offsetOfUnit(index: Int): Int {
@@ -50,7 +49,7 @@ internal class EventImpl(
   /**
    * The part of [op] from the unit [units] onward. A delete keeps its offset; see [offsetOfUnit].
    */
-  private fun suffixOp(units: Int): DocumentTextOp {
+  private fun suffixOp(units: Int): DocumentOp.Text {
     return when (op) {
       is DocumentOp.Insert -> {
         val fragment = op.fragment()
@@ -89,7 +88,7 @@ internal class EventImpl(
   }
 }
 
-private fun checkKnownOp(op: DocumentTextOp) {
+private fun checkKnownOp(op: DocumentOp.Text) {
   require(op is InsertOpImpl || op is DeleteOpImpl) {
     "Foreign DocumentTextOp implementation: ${op.javaClass.name}. An event keeps its op forever, " +
     "so the op must come from DocumentOp.insertOp or DocumentOp.deleteOp."

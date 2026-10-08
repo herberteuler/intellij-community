@@ -2,7 +2,6 @@
 package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.DocBranch
 import com.intellij.openapi.editor.ex.experimental.Event
@@ -127,7 +126,7 @@ internal class EventGraphInvariantFuzzTest {
     }
   }
 
-  private fun randomOp(random: Random, length: Int, caret: Int): DocumentTextOp {
+  private fun randomOp(random: Random, length: Int, caret: Int): DocumentOp.Text {
     val at = if (random.nextInt(4) == 0) random.nextInt(length + 1) else caret.coerceIn(0, length)
     if (length > 0 && random.nextInt(3) == 0) {
       val offset = at.coerceAtMost(length - 1)

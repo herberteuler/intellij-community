@@ -9,7 +9,6 @@ import com.intellij.diff.comparison.iterables.DiffIterableUtil
 import com.intellij.diff.util.Range
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.util.text.CharSequenceSubSequence
 import org.jetbrains.annotations.ApiStatus
 
@@ -17,7 +16,7 @@ import org.jetbrains.annotations.ApiStatus
  * Recovers an edit script from two states of one document.
  *
  * The caller knows the base text and the target text. The caller does not know the edits that
- * produced the target. [diff] returns a list of [DocumentTextOp] that reproduces the target from
+ * produced the target. [diff] returns a list of [DocumentOp.Text] that reproduces the target from
  * the base.
  *
  * The returned script is not the real history. The text cannot record the real history. A user who
@@ -60,7 +59,7 @@ object DocTextDiff {
     base: DocumentText,
     target: DocumentText,
     indicator: CancellationChecker,
-  ): List<DocumentTextOp> {
+  ): List<DocumentOp.Text> {
     // Every phase reads one character at a time. On an ImmutableText that costs a leaf lookup and a
     // virtual call, which measures about twice a String read. cachedChars() hands back the String
     // when the document already holds one, and the rope when it does not, so this never costs more.
@@ -167,8 +166,8 @@ object DocTextDiff {
    * The right to left order keeps every offset valid without any arithmetic. When an op runs, the
    * document still holds the base text at and before that offset. Only the part to the right changed.
    */
-  private fun ops(targetChars: CharSequence, fragments: List<Range>): List<DocumentTextOp> {
-    val ops = ArrayList<DocumentTextOp>(2 * fragments.size)
+  private fun ops(targetChars: CharSequence, fragments: List<Range>): List<DocumentOp.Text> {
+    val ops = ArrayList<DocumentOp.Text>(2 * fragments.size)
     for (index in fragments.indices.reversed()) {
       val fragment = fragments[index]
       if (fragment.start1 < fragment.end1) {

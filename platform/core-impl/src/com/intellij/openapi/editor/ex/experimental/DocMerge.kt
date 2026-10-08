@@ -1,7 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
-import com.intellij.openapi.editor.ex.DocumentTextOp
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.impl.experimental.DocMergeImpl
 
 /**
@@ -36,14 +36,14 @@ interface DocMerge {
    * document. The compare makes sure that the ops build the text of [branch]. It fails only when the
    * two branches broke the agent contract, in a way that the id check of the merge did not sample.
    */
-  fun ops(): List<DocumentTextOp>
+  fun ops(): List<DocumentOp.Text>
 
   companion object {
     /**
      * A merge with [ops] ready. The list must not change after this call.
      */
     @JvmStatic
-    fun ready(branch: DocBranch, ops: List<DocumentTextOp>): DocMerge {
+    fun ready(branch: DocBranch, ops: List<DocumentOp.Text>): DocMerge {
       return DocMergeImpl(branch, lazyOf(ops))
     }
 
@@ -51,7 +51,7 @@ interface DocMerge {
      * A merge whose ops [lazyOps] makes on the first call of [ops]. [lazyOps] must return a list that cannot change.
      */
     @JvmStatic
-    fun deferred(branch: DocBranch, lazyOps: () -> List<DocumentTextOp>): DocMerge {
+    fun deferred(branch: DocBranch, lazyOps: () -> List<DocumentOp.Text>): DocMerge {
       return DocMergeImpl(branch, lazy(LazyThreadSafetyMode.PUBLICATION, lazyOps))
     }
   }

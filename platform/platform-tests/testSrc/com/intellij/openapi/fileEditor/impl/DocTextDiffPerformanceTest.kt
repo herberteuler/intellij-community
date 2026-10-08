@@ -5,7 +5,6 @@ import com.intellij.diff.comparison.CancellationChecker
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.benchmarkSubtest
 import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
@@ -115,7 +114,7 @@ class DocTextDiffPerformanceTest {
     }
   }
 
-  private fun applied(base: DocumentText, ops: List<DocumentTextOp>): DocumentText {
+  private fun applied(base: DocumentText, ops: List<DocumentOp.Text>): DocumentText {
     var result = base
     for (op in ops) {
       result = result.applyOp(op)
@@ -130,7 +129,7 @@ class DocTextDiffPerformanceTest {
   /**
    * The number of characters that [ops] insert or delete. One character is one unit of the graph.
    */
-  private fun units(ops: List<DocumentTextOp>): Int {
+  private fun units(ops: List<DocumentOp.Text>): Int {
     var count = 0
     for (op in ops) {
       count += when (op) {

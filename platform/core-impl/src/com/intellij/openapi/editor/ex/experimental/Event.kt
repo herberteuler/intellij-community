@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.impl.experimental.EventImpl
 
 /**
@@ -14,7 +13,7 @@ import com.intellij.openapi.editor.impl.experimental.EventImpl
  * change that the identity names. The identity is ([agent], [seq]) to ([agent], `seq + length - 1`),
  * and the change is [op].
  *
- * An event is NOT a [DocumentTextOp], so [DocumentText.applyOp] will not take one. The offset of
+ * An event is NOT a [DocumentOp.Text], so [DocumentText.applyOp] will not take one. The offset of
  * [op] indexes the document as it was in the PARENT VERSION. An old event applied to a document at
  * another version means nothing.
  *
@@ -35,7 +34,7 @@ interface Event {
   /**
    * The change this event records, against the document of its parent version.
    */
-  fun op(): DocumentTextOp
+  fun op(): DocumentOp.Text
 
   /**
    * The number of units in this run. At least 1.
@@ -67,7 +66,7 @@ interface Event {
      * change, and an event lives in the graph forever.
      */
     @JvmStatic
-    fun create(agent: Agent, seq: Int, op: DocumentTextOp): Event {
+    fun create(agent: Agent, seq: Int, op: DocumentOp.Text): Event {
       return EventImpl(agent, seq, op)
     }
 

@@ -7,26 +7,25 @@ import com.intellij.openapi.editor.impl.ModStampOpImpl
 import com.intellij.openapi.editor.impl.UnmodifiedLinesOpImpl
 import org.jetbrains.annotations.ApiStatus
 
-/**
- * An op that changes the text: [DocumentOp.Insert] or [DocumentOp.Delete].
- */
-@ApiStatus.Internal
-sealed interface DocumentTextOp : DocumentOp {
-  /**
-   * The position in the document that this op changes.
-   */
-  fun offset(): Int
-
-  /**
-   * The number of characters that this op inserts or deletes.
-   */
-  fun length(): Int
-}
-
 @ApiStatus.Internal
 sealed interface DocumentOp {
 
-  interface Insert : DocumentTextOp, DocumentOp {
+  /**
+   * An op that changes the text: [DocumentOp.Insert] or [DocumentOp.Delete].
+   */
+  sealed interface Text : DocumentOp {
+    /**
+     * The position in the document that this op changes.
+     */
+    fun offset(): Int
+
+    /**
+     * The number of characters that this op inserts or deletes.
+     */
+    fun length(): Int
+  }
+
+  interface Insert : Text {
     /**
      * The fragment of text that this op inserts.
      */
@@ -36,7 +35,7 @@ sealed interface DocumentOp {
   /**
    * A delete carries no content, so [offset] and [length] describe it in full.
    */
-  interface Delete : DocumentTextOp, DocumentOp
+  interface Delete : Text
 
   interface ModStamp : DocumentOp {
     fun modStamp(): Long

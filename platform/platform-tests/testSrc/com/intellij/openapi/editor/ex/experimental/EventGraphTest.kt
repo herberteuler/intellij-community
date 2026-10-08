@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -199,7 +198,7 @@ class EventGraphTest {
 
   /**
    * An event keeps the exact op it records. The other half of the claim is a compile-time
-   * one that no assert can state: an event is not a [DocumentTextOp], so it cannot reach
+   * one that no assert can state: an event is not a [Text], so it cannot reach
    * [DocumentText.applyOp] at all.
    */
   @Test
@@ -679,7 +678,7 @@ class EventGraphTest {
     assertNotEquals(DocumentOp.insertOp(2, "ab"), DocumentOp.insertOp(3, "ab"))
     assertNotEquals(DocumentOp.insertOp(2, "ab"), DocumentOp.insertOp(2, "ac"))
     assertNotEquals(DocumentOp.deleteOp(1, 3), DocumentOp.deleteOp(1, 2))
-    val delete: DocumentTextOp = DocumentOp.deleteOp(0, 1)
+    val delete: DocumentOp.Text = DocumentOp.deleteOp(0, 1)
     assertNotEquals(delete, DocumentOp.insertOp(0, "a"))
   }
 

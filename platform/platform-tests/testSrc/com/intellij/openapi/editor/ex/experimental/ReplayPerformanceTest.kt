@@ -2,7 +2,6 @@
 package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -120,7 +119,7 @@ class ReplayPerformanceTest {
   }
 
   /**
-   * A merge of two concurrent pastes. This is the [DocumentTextOp] path through the batching sink, and
+   * A merge of two concurrent pastes. This is the [DocumentOp.Text] path through the batching sink, and
    * not the `StringBuilder` path, so it reports one op however many calls it takes to build.
    */
   @Test

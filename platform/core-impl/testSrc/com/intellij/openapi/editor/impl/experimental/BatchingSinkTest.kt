@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -176,7 +175,7 @@ internal class BatchingSinkTest {
     assertThrows(IllegalArgumentException::class.java) { sink.insert(0, "") }
     assertThrows(IllegalArgumentException::class.java) { sink.delete(0, 0) }
     assertThrows(IllegalArgumentException::class.java) { sink.delete(0, -1) }
-    assertEquals(emptyList<DocumentTextOp>(), sink.ops())
+    assertEquals(emptyList<DocumentOp.Text>(), sink.ops())
   }
 
   @Test
@@ -184,7 +183,7 @@ internal class BatchingSinkTest {
     val sink = BatchingSink(DocumentText.createText("abc"))
     sink.insert(0, "x")
     @Suppress("UNCHECKED_CAST")
-    val ops = sink.ops() as MutableList<DocumentTextOp>
+    val ops = sink.ops() as MutableList<DocumentOp.Text>
     assertThrows(UnsupportedOperationException::class.java) { ops.add(DocumentOp.deleteOp(0, 1)) }
     assertThrows(UnsupportedOperationException::class.java) { ops.clear() }
   }

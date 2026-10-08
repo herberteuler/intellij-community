@@ -2,8 +2,8 @@
 package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.application.PathManager
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.util.TextRange
 import com.intellij.testFramework.PerformanceUnitTest
 import com.intellij.testFramework.junit5.StressTestApplication
@@ -74,7 +74,7 @@ class DocBranchPerformanceTest {
   fun `a single user edits EditorImpl`() {
     val text = Files.readString(hugeTextPath())
     val random = Random(20260827)
-    val recorded = ArrayList<DocumentTextOp>()
+    val recorded = ArrayList<DocumentOp.Text>()
     val batchEnds = IntArray(SINGLE_USER_BATCHES)
     val user = User(DocBranch.createBranch(text, agent("user")))
     user.recorder = recorded
@@ -141,10 +141,10 @@ class DocBranchPerformanceTest {
    * [branch] with the ops `[from, until)` of [ops] applied.
    */
   private fun applied(
-    branch: DocBranch,
-    ops: List<DocumentTextOp>,
-    from: Int,
-    until: Int,
+      branch: DocBranch,
+      ops: List<DocumentOp.Text>,
+      from: Int,
+      until: Int,
   ): DocBranch {
     var result = branch
     for (i in from until until) {
@@ -153,7 +153,7 @@ class DocBranchPerformanceTest {
     return result
   }
 
-  private fun applied(text: DocumentText, ops: List<DocumentTextOp>): DocumentText {
+  private fun applied(text: DocumentText, ops: List<DocumentOp.Text>): DocumentText {
     var result = text
     for (op in ops) {
       result = result.applyOp(op)
@@ -165,9 +165,9 @@ class DocBranchPerformanceTest {
 
   private class User(var branch: DocBranch) {
     var caret = 0
-    var recorder: ArrayList<DocumentTextOp>? = null
+    var recorder: ArrayList<DocumentOp.Text>? = null
 
-    fun apply(op: DocumentTextOp) {
+    fun apply(op: DocumentOp.Text) {
       branch = branch.applyOp(op)
       recorder?.add(op)
     }

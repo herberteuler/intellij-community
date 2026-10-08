@@ -1,8 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.util.Random
@@ -84,7 +84,7 @@ class DocBranchFuzzTest {
     return text.toString()
   }
 
-  private fun randomOp(random: Random, length: Int): DocumentTextOp {
+  private fun randomOp(random: Random, length: Int): DocumentOp.Text {
     if (length == 0 || random.nextBoolean()) {
       val offset = random.nextInt(length + 1)
       val fragment = StringBuilder()

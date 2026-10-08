@@ -5,7 +5,6 @@ import com.intellij.diff.comparison.CancellationChecker
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.assertSameText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -373,10 +372,10 @@ class DocTextDiffTest {
    * [script] is a text block. The helper trims its indent. Use `""` for an empty script.
    */
   private fun assertDiff(
-    base: String,
-    ops: List<DocumentTextOp>,
-    version1: String,
-    script: String,
+      base: String,
+      ops: List<DocumentOp.Text>,
+      version1: String,
+      script: String,
   ) {
     val baseText = DocumentText.createText(base)
     val expected = applyOps(baseText, ops)
@@ -390,7 +389,7 @@ class DocTextDiffTest {
     assertSameText(expected, actual)
   }
 
-  private fun applyOps(base: DocumentText, ops: List<DocumentTextOp>): DocumentText {
+  private fun applyOps(base: DocumentText, ops: List<DocumentOp.Text>): DocumentText {
     var text = base
     for (op in ops) {
       text = text.applyOp(op)
@@ -401,7 +400,7 @@ class DocTextDiffTest {
   /**
    * The number of characters that [ops] insert or delete. A small number means a small event graph.
    */
-  private fun touchedChars(ops: List<DocumentTextOp>): Int {
+  private fun touchedChars(ops: List<DocumentOp.Text>): Int {
     var count = 0
     for (op in ops) {
       count += when (op) {
@@ -436,8 +435,8 @@ class DocTextDiffTest {
     return text.toString()
   }
 
-  private fun randomOps(random: Random, base: DocumentText): List<DocumentTextOp> {
-    val ops = ArrayList<DocumentTextOp>()
+  private fun randomOps(random: Random, base: DocumentText): List<DocumentOp.Text> {
+    val ops = ArrayList<DocumentOp.Text>()
     var text = base
     repeat(1 + random.nextInt(8)) {
       val op = randomOp(random, text.length())
@@ -447,7 +446,7 @@ class DocTextDiffTest {
     return ops
   }
 
-  private fun randomOp(random: Random, length: Int): DocumentTextOp {
+  private fun randomOp(random: Random, length: Int): DocumentOp.Text {
     if (length == 0 || random.nextBoolean()) {
       val offset = random.nextInt(length + 1)
       val fragment = StringBuilder()
@@ -497,7 +496,7 @@ class DocTextDiffTest {
  * Every offset indexes the base, because a script runs from the last changed region to the first.
  * So a delete can show the text that it removes.
  */
-internal fun formatOps(base: String, ops: List<DocumentTextOp>): String {
+internal fun formatOps(base: String, ops: List<DocumentOp.Text>): String {
   return ops.joinToString("\n") { op ->
     when (op) {
       is DocumentOp.Insert -> "ins ${op.offset()} ${quote(op.fragment().toString())}"
@@ -526,26 +525,26 @@ internal fun document(block: String): String = block.trimIndent() + "\n"
 /**
  * An insert of [fragment] right before the first [anchor] of [base].
  */
-internal fun insertBefore(base: String, anchor: String, fragment: String): DocumentTextOp {
+internal fun insertBefore(base: String, anchor: String, fragment: String): DocumentOp.Text {
   return DocumentOp.insertOp(offsetOf(base, anchor), fragment)
 }
 
 /**
  * An insert of [fragment] at the end of [base].
  */
-internal fun append(base: String, fragment: String): DocumentTextOp = DocumentOp.insertOp(base.length, fragment)
+internal fun append(base: String, fragment: String): DocumentOp.Text = DocumentOp.insertOp(base.length, fragment)
 
 /**
  * A delete of the first [fragment] of [base].
  */
-internal fun delete(base: String, fragment: String): DocumentTextOp {
+internal fun delete(base: String, fragment: String): DocumentOp.Text {
   return DocumentOp.deleteOp(offsetOf(base, fragment), fragment.length)
 }
 
 /**
  * A delete of the whole [base].
  */
-internal fun deleteAll(base: String): DocumentTextOp = DocumentOp.deleteOp(0, base.length)
+internal fun deleteAll(base: String): DocumentOp.Text = DocumentOp.deleteOp(0, base.length)
 
 private fun offsetOf(base: String, fragment: String): Int {
   val offset = base.indexOf(fragment)

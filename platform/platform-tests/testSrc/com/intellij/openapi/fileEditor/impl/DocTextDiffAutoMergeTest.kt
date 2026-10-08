@@ -2,8 +2,8 @@
 package com.intellij.openapi.fileEditor.impl
 
 import com.intellij.diff.comparison.CancellationChecker
+import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.DocBranch
 import com.intellij.openapi.editor.ex.experimental.agent
 import com.intellij.openapi.editor.ex.experimental.string
@@ -331,11 +331,11 @@ class DocTextDiffAutoMergeTest {
    * it. The merge of the two branches must give [merged], in either order.
    */
   private fun assertAutoMerge(
-      saved: String,
-      userOps: List<DocumentTextOp>,
-      userText: String,
-      diskText: String,
-      merged: String,
+    saved: String,
+    userOps: List<DocumentOp.Text>,
+    userText: String,
+    diskText: String,
+    merged: String,
   ) {
     // 1. The saved document. The file on disk holds the same text.
     val savedBranch = DocBranch.createBranch(saved, agent("saved"))

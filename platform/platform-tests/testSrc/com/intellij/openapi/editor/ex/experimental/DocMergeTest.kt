@@ -2,7 +2,6 @@
 package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -29,7 +28,7 @@ class DocMergeTest {
     for ((receiver, other) in listOf(base to base, a to base, merged to b, merged to a)) {
       val merge = receiver.mergeWithOps(other)
       assertSame(receiver, merge.branch())
-      assertEquals(emptyList<DocumentTextOp>(), merge.ops())
+      assertEquals(emptyList<DocumentOp.Text>(), merge.ops())
     }
   }
 
@@ -40,7 +39,7 @@ class DocMergeTest {
     val a = base.fork(agent("a")).applyOp(deleteOp(1, 1))
     val b = base.fork(agent("b")).applyOp(deleteOp(1, 1))
     val merge = a.mergeWithOps(b)
-    assertEquals(emptyList<DocumentTextOp>(), merge.ops())
+    assertEquals(emptyList<DocumentOp.Text>(), merge.ops())
     assertSame(a.text(), merge.branch().text())
     assertEquals(a.graph().size() + 1, merge.branch().graph().size())
   }
@@ -61,7 +60,7 @@ class DocMergeTest {
     val empty = DocBranch.createBranch("", agent("a"))
     val typed = empty.fork(agent("b")).applyOp(insertOp(0, "xy")).applyOp(insertOp(2, "z"))
     assertEquals(listOf(DocumentOp.insertOp(0, "xyz")), empty.mergeWithOps(typed).ops())
-    assertEquals(emptyList<DocumentTextOp>(), typed.mergeWithOps(empty).ops())
+    assertEquals(emptyList<DocumentOp.Text>(), typed.mergeWithOps(empty).ops())
   }
 
   @Test
@@ -98,9 +97,9 @@ class DocMergeTest {
       b = b.applyOp(deleteOp(offset, 1))
     }
     val merge = a.mergeWithOps(b)
-    assertEquals(emptyList<DocumentTextOp>(), merge.ops())
+    assertEquals(emptyList<DocumentOp.Text>(), merge.ops())
     assertEquals("1ab", merge.branch().string())
-    assertEquals(emptyList<DocumentTextOp>(), base.mergeWithOps(b).ops())
+    assertEquals(emptyList<DocumentOp.Text>(), base.mergeWithOps(b).ops())
   }
 
   @Test
@@ -203,7 +202,7 @@ class DocMergeTest {
     // A partial replay, a fast-forward, and a merge that brings nothing.
     for (merge in listOf(a.mergeWithOps(b), base.mergeWithOps(b), a.mergeWithOps(base))) {
       @Suppress("UNCHECKED_CAST")
-      val ops = merge.ops() as MutableList<DocumentTextOp>
+      val ops = merge.ops() as MutableList<DocumentOp.Text>
       assertThrows(UnsupportedOperationException::class.java) { ops.add(DocumentOp.insertOp(0, "x")) }
       assertSame(merge.ops(), merge.ops())
     }
@@ -233,7 +232,7 @@ class DocMergeTest {
         val merge = base.mergeWithOps(descendant)
         val start = CountDownLatch(1)
         val results = (0 until THREADS).map {
-          pool.submit<List<DocumentTextOp>> {
+          pool.submit<List<DocumentOp.Text>> {
             start.await()
             val ops = merge.ops()
             assertEquals(descendant.string(), base.text().afterOps(ops).string())

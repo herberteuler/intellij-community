@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.ex.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.util.TextRange
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -743,7 +742,7 @@ internal fun fuzzRound(seed: Long, round: Int, body: (Random) -> Unit) {
 /**
  * This text with [ops] applied one after another, as [DocMerge.ops] says an editor applies them.
  */
-internal fun DocumentText.afterOps(ops: List<DocumentTextOp>): DocumentText = ops.fold(this) { text, op -> text.applyOp(op) }
+internal fun DocumentText.afterOps(ops: List<DocumentOp.Text>): DocumentText = ops.fold(this) { text, op -> text.applyOp(op) }
 
 internal fun assertSameText(expected: DocumentText, actual: DocumentText) {
   assertEquals(expected.string(), actual.string())

@@ -3,7 +3,6 @@ package com.intellij.openapi.editor.impl.experimental
 
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
-import com.intellij.openapi.editor.ex.DocumentTextOp
 import com.intellij.openapi.editor.ex.experimental.DocMerge
 import java.util.Collections
 
@@ -33,7 +32,7 @@ internal class BatchingSink(
   private var startEffectPos: Int = 0
   private val pendingFragment = StringBuilder()
   private var deleteCount: Int = 0
-  private val applied = ArrayList<DocumentTextOp>()
+  private val applied = ArrayList<DocumentOp.Text>()
   private var finished = false
 
   override fun insert(effectPos: Int, fragment: CharSequence) {
@@ -79,7 +78,7 @@ internal class BatchingSink(
   /**
    * The ops that [result] applied to the text, in order. This finishes the sink.
    */
-  fun ops(): List<DocumentTextOp> {
+  fun ops(): List<DocumentOp.Text> {
     finish()
     return Collections.unmodifiableList(applied)
   }

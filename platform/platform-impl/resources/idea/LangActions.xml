@@ -254,9 +254,7 @@
           </group>
         </group>
 
-        <group id="AnalyzePlatformMenu">
-          <reference ref="Unscramble"/>
-        </group>
+        <group id="AnalyzePlatformMenu"/>
       </group>
 
       <separator/>
@@ -408,9 +406,8 @@
     <reference ref="Scratch.ShowFilesPopup"/>
     <reference ref="Scratch.ExportToScratch"/>
 
-    <reference ref="ExternalToolsGroup">
-      <add-to-group group-id="ToolsMenu" anchor="last"/>
-    </reference>
+    <!-- A place where actions for external tools will be added if intellij.platform.execution module is loaded -->
+    <group id="ExternalToolsGroupPlaceholder"/>
 
     <group id="NewGroup" popup="true" searchable="false">
       <reference ref="NewFile"/>
@@ -433,8 +430,6 @@
 
     <group id="NavBarToolBarOthers"/>
     <group id="NavBarToolBar">
-      <reference ref="ToolbarRunGroup"/>
-      <separator/>
       <reference ref="NavBarVcsGroup"/>
       <separator/>
       <reference ref="NavBarToolBarOthers"/>
@@ -447,11 +442,9 @@
       <group id="LeftToolbarSideGroup">
         <reference ref="Back"/>
         <reference ref="Forward"/>
-        <reference ref="SegmentedVcsControlAction"/>
         <reference ref="SearchEverywhereNewToolbarAction"/>
       </group>
       <group id="RightToolbarSideGroup">
-        <reference ref="RunToolbarWidgetAction"/>
         <reference ref="SettingsEntryPoint"/>
       </group>
     </group>
@@ -492,7 +485,6 @@
       <separator/>
       <reference ref="ProjectViewPopupMenuModifyGroup"/>
       <separator/>
-      <reference ref="ProjectViewPopupMenuRunGroup"/>
       <reference ref="SplitRevealGroup"/>
       <separator/>
       <reference ref="VersionControlsGroup"/>
@@ -504,7 +496,7 @@
       <reference ref="CompareTwoFiles"/>
       <reference ref="CompareFileWithEditor"/>
       <separator/>
-      <reference ref="ExternalToolsGroup"/>
+      <reference ref="ExternalToolsGroupPlaceholder"/>
       <separator/>
       <reference ref="ProjectViewPopupMenuSettingsGroup"/>
     </group>
@@ -539,13 +531,12 @@
       <separator/>
       <reference ref="ProjectViewPopupMenuModifyGroup"/>
       <separator/>
-      <reference ref="ProjectViewPopupMenuRunGroup"/>
       <reference ref="SplitRevealGroup"/>
       <separator/>
       <reference ref="VersionControlsGroup"/>
       <reference ref="SynchronizeCurrentFile"/>
       <separator/>
-      <reference ref="ExternalToolsGroup"/>
+      <reference ref="ExternalToolsGroupPlaceholder"/>
       <separator/>
       <reference ref="ProjectViewPopupMenuSettingsGroup"/>
     </group>
@@ -592,7 +583,7 @@
       <separator/>
       <reference ref="VersionControlsGroup"/>
       <separator/>
-      <reference ref="ExternalToolsGroup"/>
+      <reference ref="ExternalToolsGroupPlaceholder"/>
 
       <add-to-group group-id="EditorPopupMenu" relative-to-action="CompareClipboardWithSelection" anchor="before"/>
     </group>
@@ -608,7 +599,7 @@
       <separator/>
       <reference ref="VersionControlsGroup"/>
       <separator/>
-      <reference ref="ExternalToolsGroup"/>
+      <reference ref="ExternalToolsGroupPlaceholder"/>
 
       <add-to-group group-id="EditorTabPopupMenu" anchor="last"/>
     </group>
@@ -643,12 +634,6 @@
       <add-to-group group-id="MethodHierarchyPopupMenu"/>
       <add-to-group group-id="CallHierarchyPopupMenu"/>
     </reference>
-
-    <group id="ConsoleView.PopupMenu">
-      <reference ref="ConsoleEditorPopupMenu"/>
-      <separator/>
-      <reference ref="ConsoleView.ClearAll"/>
-    </group>
 
     <reference ref="JumpToColorsAndFonts"/>
 
@@ -690,9 +675,6 @@
     </group>
     <reference ref="RenameFile">
       <add-to-group group-id="EditorTabPopupMenuEx" anchor="last"/>
-    </reference>
-    <reference ref="UpdateRunningApplication">
-      <add-to-group group-id="DebugReloadGroup" anchor="last"/>
     </reference>
 
     <!--region TouchBar-->

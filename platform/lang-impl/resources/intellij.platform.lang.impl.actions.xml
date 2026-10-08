@@ -557,7 +557,7 @@
       <separator/>
       <reference ref="VersionControlsGroup"/>
       <separator/>
-      <group id="ExternalToolsGroupInHierarchyPopupMenu"/>
+      <reference ref="ExternalToolsGroupPlaceholder"/>
       <separator/>
       <reference ref="CompareTwoFiles"/>
       <reference ref="CompareFileWithEditor"/>

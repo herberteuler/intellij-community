@@ -55,7 +55,7 @@
       <separator/>
       <reference ref="UsageView.ShowRecentFindUsages"/>
       <separator/>
-      <reference ref="RunContextGroup"/>
+      <reference ref="RunContextPopupGroup"/>
       <separator/>
       <reference ref="ExportToTextFile"/>
     </group>

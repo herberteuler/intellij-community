@@ -145,8 +145,6 @@
 
     <reference ref="SpeedSearch"/>
 
-    <reference ref="RunAnything"/>
-
     <reference ref="SmartSelect"/>
     <reference ref="SmartUnSelect"/>
 
@@ -873,7 +871,6 @@
       <reference ref="CompareClipboardWithSelection"/>
       <reference ref="$SearchWeb"/>
       <reference ref="CopyUrl"/>
-      <reference ref="PauseOutput"/>
     </group>
 
     <group id="EditorTabPopupMenu">
@@ -1257,8 +1254,6 @@
 
     <group id="UpdateEntryPointGroup"/>
     <group id="SettingsEntryPointGroup">
-      <reference ref="RunAnything"/>
-      <separator/>
       <reference ref="ShowSettings"/>
       <reference ref="ShowPlugins"/>
       <separator/>

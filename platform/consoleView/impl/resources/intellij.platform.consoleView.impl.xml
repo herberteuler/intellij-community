@@ -35,4 +35,11 @@
     <editorActionHandler action="EditorPaste" implementationClass="com.intellij.execution.impl.ConsoleViewImpl$PasteHandler"
                          order="first" id="console.view.impl.paste"/>
   </extensions>
+  <actions>
+    <group id="ConsoleView.PopupMenu">
+      <reference ref="ConsoleEditorPopupMenu"/>
+      <separator/>
+      <action id="ConsoleView.ClearAll" class="com.intellij.execution.actions.ClearConsoleAction"/>
+    </group>
+  </actions>
 </idea-plugin>

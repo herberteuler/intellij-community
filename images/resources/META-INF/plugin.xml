@@ -230,7 +230,7 @@
       <separator/>
       <reference ref="Images.EditExternally"/>
       <reference ref="Images.EditExternalEditorPath"/>
-      <reference ref="ExternalToolsGroup"/>
+      <reference ref="ExternalToolsGroupPlaceholder"/>
     </group>
   </actions>
 </idea-plugin>

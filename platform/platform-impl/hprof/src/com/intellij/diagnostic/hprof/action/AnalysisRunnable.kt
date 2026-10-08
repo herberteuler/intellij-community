@@ -16,7 +16,6 @@
 package com.intellij.diagnostic.hprof.action
 
 import com.intellij.diagnostic.DiagnosticBundle
-import com.intellij.diagnostic.DiagnosticDispatchers
 import com.intellij.diagnostic.ExceptionAutoReportUtil
 import com.intellij.diagnostic.HeapDumpAnalysisSupport
 import com.intellij.diagnostic.hprof.analysis.HProfAnalysis
@@ -267,7 +266,7 @@ class SystemTempFilenameSupplier : HProfAnalysis.TempFilenameSupplier {
 @Service
 internal class SubmitHeapAnalysisService(val coroutineScope: CoroutineScope) {
   fun submit(reportText: String, heapProperties: HeapReportProperties, parentComponent: JFrame) {
-    coroutineScope.launch(DiagnosticDispatchers.Default) {
+    coroutineScope.launch(Dispatchers.IO) {
       if (ExceptionAutoReportUtil.isAutoReportEnabled()) {
         thisLogger().info("Reporting memory leak report automatically")
 

@@ -509,7 +509,7 @@ internal class UnfinishedFreezeReportService(val coroutineScope: CoroutineScope)
     if (DEBUG
         || (!PluginManagerCore.isRunningFromSources() && !AppMode.isRunningFromDevBuild())
         || ApplicationManagerEx.isInIntegrationTest()) {
-      coroutineScope.launch(DiagnosticDispatchers.Default) {
+      coroutineScope.launch(Dispatchers.IO) {
         reportUnfinishedFreezes()
       }
     }

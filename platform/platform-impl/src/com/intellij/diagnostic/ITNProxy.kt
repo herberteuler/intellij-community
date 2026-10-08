@@ -55,8 +55,7 @@ import javax.net.ssl.X509TrustManager
 import kotlin.io.path.Path
 import kotlin.io.path.bufferedReader
 
-@ApiStatus.Internal
-object DiagnosticDispatchers {
+internal object DiagnosticDispatchers {
   @JvmField
   val Default: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(2)
 }

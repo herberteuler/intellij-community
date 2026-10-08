@@ -311,6 +311,8 @@ object CoreModuleSets {
     module("intellij.platform.ide.colorPicker")
     // intellij.platform.ide.impl captures and analyzes heap dumps through the service of this module
     module("intellij.platform.ide.hprof")
+    // owns MaintenanceGroup of the Tools | Internal Actions menu; registry.ui, ide.scripting, ide.internal and plugins add actions to it
+    module("intellij.platform.ide.maintenance")
     // intellij.platform.execution.impl creates the error tree view through the service of this module
     module("intellij.platform.ide.errorTreeView")
     // keeps the Learn tab in every product with ide.impl

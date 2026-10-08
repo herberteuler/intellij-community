@@ -316,6 +316,7 @@
     <module name="intellij.platform.ide.remote"/>
     <module name="intellij.platform.ide.colorPicker"/>
     <module name="intellij.platform.ide.hprof"/>
+    <module name="intellij.platform.ide.maintenance"/>
     <module name="intellij.platform.ide.errorTreeView"/>
     <module name="intellij.platform.ide.learnIde"/>
     <module name="intellij.platform.ide.playback"/>

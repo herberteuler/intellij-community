@@ -650,10 +650,6 @@
       <reference ref="ConsoleView.ClearAll"/>
     </group>
 
-    <reference ref="DumpLookupElementWeights">
-      <add-to-group group-id="MaintenanceGroup" anchor="last"/>
-    </reference>
-
     <reference ref="JumpToColorsAndFonts"/>
 
     <reference ref="ArrangementRulesGroup">

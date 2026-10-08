@@ -1,0 +1,20 @@
+<idea-plugin visibility="internal">
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.lang.impl"/>
+  </dependencies>
+  <!-- endregion -->
+  <actions>
+    <group id="MaintenanceGroup"/>
+    <!-- Internal is registered only in internal mode, so the link to it must be internal too -->
+    <group id="Internal.Maintenance" internal="true">
+      <reference ref="MaintenanceGroup"/>
+      <add-to-group group-id="Internal" anchor="last"/>
+    </group>
+
+    <reference ref="DumpLookupElementWeights">
+      <add-to-group group-id="MaintenanceGroup" anchor="last"/>
+    </reference>
+  </actions>
+</idea-plugin>

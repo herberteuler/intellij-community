@@ -78,6 +78,7 @@ jvm_library(
         "//platform/locking-impl",
         "//platform/lang-impl",
         "//platform/execution-impl",
+        "//platform/platform-impl/maintenance",
     ],
 )
 
@@ -147,6 +148,7 @@ jvm_library(
         "//platform/locking-impl:locking-impl_test_lib",
         "//platform/lang-impl:lang-impl_test_lib",
         "//platform/execution-impl:execution-impl_test_lib",
+        "//platform/platform-impl/maintenance:maintenance_test_lib",
     ],
 )
 ### auto-generated section `build intellij.platform.ide.internal` end

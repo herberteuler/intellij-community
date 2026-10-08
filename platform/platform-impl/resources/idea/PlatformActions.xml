@@ -1056,8 +1056,6 @@
       <reference ref="ChangeIdeScale"/>
     </group>
 
-    <group id="MaintenanceGroup"/>
-
     <reference ref="Console.Open"/>
     <reference ref="Console.Execute"/>
     <reference ref="Console.Execute.Multiline"/>
@@ -1109,7 +1107,6 @@
       </group>
       <reference ref="DataSharingOptions"/>
       <separator/>
-      <reference ref="MaintenanceGroup"/>
 
       <add-to-group group-id="ToolsMenu" anchor="last"/>
     </group>

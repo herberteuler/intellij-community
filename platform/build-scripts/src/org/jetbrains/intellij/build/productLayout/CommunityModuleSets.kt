@@ -221,6 +221,7 @@ object CommunityModuleSets {
    * The module registers the platform implementations of `StatisticsNotificationManager` and `LatencyRecorder`.
    *
    * [essential] nests this set. A lean product can leave the set out. The platform callers of these services are null-safe.
+   * The internal actions join `MaintenanceGroup`, which `intellij.platform.ide.maintenance` of [CoreModuleSets.coreLang] owns.
    */
   fun ideInternal(): ModuleSet = moduleSet("ide.internal") {
     module("intellij.platform.ide.internal")
@@ -485,6 +486,7 @@ object CommunityModuleSets {
     module("intellij.platform.langInjection")
     module("intellij.platform.langInjection.backend")
     module("intellij.platform.versionDownloadManager")
+    module("intellij.platform.registry.ui") // the Registry dialog; Find Action opens it, Tools | Internal Actions lists it in internal mode
 
     moduleSet(vcs())
     moduleSet(lsp())

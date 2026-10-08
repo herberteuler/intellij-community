@@ -1690,6 +1690,7 @@
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/internal/ide.internal.backend/intellij.platform.ide.internal.backend.iml" filepath="$PROJECT_DIR$/platform/platform-impl/internal/ide.internal.backend/intellij.platform.ide.internal.backend.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/json/intellij.platform.ide.json.iml" filepath="$PROJECT_DIR$/platform/platform-impl/json/intellij.platform.ide.json.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/learn-ide/intellij.platform.ide.learnIde.iml" filepath="$PROJECT_DIR$/platform/platform-impl/learn-ide/intellij.platform.ide.learnIde.iml" />
+      <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/maintenance/intellij.platform.ide.maintenance.iml" filepath="$PROJECT_DIR$/platform/platform-impl/maintenance/intellij.platform.ide.maintenance.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/mig-layout/intellij.platform.ide.migLayout.iml" filepath="$PROJECT_DIR$/platform/platform-impl/mig-layout/intellij.platform.ide.migLayout.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/new-ui-onboarding/intellij.platform.ide.newUiOnboarding.iml" filepath="$PROJECT_DIR$/platform/new-ui-onboarding/intellij.platform.ide.newUiOnboarding.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/new-ui-onboarding/jcef/intellij.platform.ide.newUiOnboarding.jcef.iml" filepath="$PROJECT_DIR$/platform/new-ui-onboarding/jcef/intellij.platform.ide.newUiOnboarding.jcef.iml" />
@@ -1873,6 +1874,7 @@
       <module fileurl="file://$PROJECT_DIR$/platform/recentFiles/plugin/intellij.platform.recentFiles.plugin.iml" filepath="$PROJECT_DIR$/platform/recentFiles/plugin/intellij.platform.recentFiles.plugin.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/recentFiles/tests/intellij.platform.recentFiles.tests.iml" filepath="$PROJECT_DIR$/platform/recentFiles/tests/intellij.platform.recentFiles.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/refactoring/intellij.platform.refactoring.iml" filepath="$PROJECT_DIR$/platform/refactoring/intellij.platform.refactoring.iml" />
+      <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/registry-ui/intellij.platform.registry.ui.iml" filepath="$PROJECT_DIR$/platform/platform-impl/registry-ui/intellij.platform.registry.ui.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/remote-core/intellij.platform.remote.core.iml" filepath="$PROJECT_DIR$/platform/remote-core/intellij.platform.remote.core.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/remote-servers/api/intellij.platform.remoteServers.iml" filepath="$PROJECT_DIR$/platform/remote-servers/api/intellij.platform.remoteServers.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/remote-servers/agent-rt/intellij.platform.remoteServers.agent.rt.iml" filepath="$PROJECT_DIR$/platform/remote-servers/agent-rt/intellij.platform.remoteServers.agent.rt.iml" />

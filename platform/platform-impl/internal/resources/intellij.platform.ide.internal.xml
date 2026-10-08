@@ -29,6 +29,7 @@
     <module name="intellij.platform.ide.core"/>
     <module name="intellij.platform.ide.core.impl"/>
     <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.ide.maintenance"/>
     <module name="intellij.platform.ide.playback"/>
     <module name="intellij.platform.ide.progress"/>
     <module name="intellij.platform.ide.rpc"/>
@@ -152,9 +153,6 @@
 
     <action id="HidpiInfo" class="com.intellij.internal.HidpiInfo"/>
 
-    <action id="ShowRegistry" class="com.intellij.internal.registry.ShowRegistryAction">
-      <add-to-group group-id="MaintenanceGroup" anchor="first"/>
-    </action>
     <action id="ShowExperiments" class="com.intellij.internal.experiments.ShowExperimentsAction">
       <add-to-group group-id="MaintenanceGroup" relative-to-action="ShowRegistry" anchor="after"/>
     </action>

@@ -4,8 +4,8 @@ package com.intellij.openapi.application
 import org.jetbrains.annotations.ApiStatus
 
 /**
- * - `false` means that [backgroundWriteAction] will perform write actions from a non-modal context on a background thread
- * - `true` means that [backgroundWriteAction] will perform write actions in and old way (on EDT)
+ * - `true` means that [backgroundWriteAction] will perform write actions from a non-modal context on a background thread
+ * - `false` means that [backgroundWriteAction] will perform write actions in and old way (on EDT)
  */
 @ApiStatus.Internal
 val useBackgroundWriteAction: Boolean = System.getProperty("idea.background.write.action.enabled", "true").toBoolean()

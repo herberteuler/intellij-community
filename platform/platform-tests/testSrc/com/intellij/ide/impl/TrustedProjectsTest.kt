@@ -7,6 +7,9 @@ import com.intellij.ide.trustedProjects.impl.TrustedProjectStartupDialog
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ex.ProjectManagerEx
+import com.intellij.projectImport.ProjectAttachProcessor
+import com.intellij.projectImport.ProjectOpenedCallback
+import com.intellij.testFramework.ExtensionTestUtil
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.closeProjectAsync
 import com.intellij.testFramework.junit5.SystemProperty
@@ -23,6 +26,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.EnumSource
 import java.nio.file.Path
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.cancellation.CancellationException
 
 @TestApplication
@@ -188,18 +192,63 @@ class TrustedProjectsTest {
     Assertions.assertEquals(ThreeState.YES, TrustedProjects.getProjectTrustedState(projectRoot))
   }
 
-  private suspend fun withProjectToClose(mode: OpenMode, action: suspend (projectToClose: Project?) -> Unit) {
-    if (mode == OpenMode.NO_OPEN_PROJECT) {
-      action(null)
-      return
+  @ParameterizedTest
+  @CsvSource(
+    "TRUST_AND_OPEN, true, YES",
+    "OPEN_IN_SAFE_MODE, true, NO",
+    "CANCEL, false, UNSURE",
+  )
+  fun `trust dialog choice controls the attach to the current project`(
+    openChoice: OpenUntrustedProjectChoice,
+    expectedAttached: Boolean,
+    expectedTrustedState: ThreeState,
+  ): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    TrustedProjectStartupDialog.setDialogChoiceInTests(openChoice, asDisposable())
+    val attachProcessor = RecordingAttachProcessor()
+    ExtensionTestUtil.maskExtensions(ProjectAttachProcessor.EP_NAME, listOf(attachProcessor), asDisposable())
+
+    withProjectToClose(GeneralSettings.OPEN_PROJECT_SAME_WINDOW_ATTACH) { projectToClose ->
+      val project = ProjectManagerEx.getInstanceEx().openProjectAsync(projectRoot, OpenProjectTask {
+        this.projectName = "project"
+        this.projectToClose = projectToClose
+      })
+      Assertions.assertNull(project)
+      Assertions.assertTrue(ProjectManagerEx.getInstanceEx().isProjectOpened(projectToClose))
     }
 
+    Assertions.assertEquals(if (expectedAttached) listOf(projectRoot) else emptyList<Path>(), attachProcessor.attachedDirs)
+    Assertions.assertEquals(expectedTrustedState, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  private class RecordingAttachProcessor : ProjectAttachProcessor() {
+    val attachedDirs: MutableList<Path> = CopyOnWriteArrayList()
+
+    override suspend fun attachToProjectAsync(
+      project: Project,
+      projectDir: Path,
+      callback: ProjectOpenedCallback?,
+      beforeOpen: (suspend (Project) -> Boolean)?,
+    ): Boolean {
+      attachedDirs.add(projectDir)
+      return true
+    }
+  }
+
+  private suspend fun withProjectToClose(mode: OpenMode, action: suspend (projectToClose: Project?) -> Unit) {
+    when (mode) {
+      OpenMode.NO_OPEN_PROJECT -> action(null)
+      OpenMode.SAME_WINDOW -> withProjectToClose(GeneralSettings.OPEN_PROJECT_SAME_WINDOW, action)
+      OpenMode.NEW_WINDOW -> withProjectToClose(GeneralSettings.OPEN_PROJECT_NEW_WINDOW, action)
+      OpenMode.FORCE_NEW_FRAME, OpenMode.FORCE_REUSE_FRAME -> withProjectToClose(confirmOpenNewProject = null, action)
+    }
+  }
+
+  private suspend fun withProjectToClose(confirmOpenNewProject: Int?, action: suspend (projectToClose: Project) -> Unit) {
     val generalSettings = GeneralSettings.getInstance()
     val oldConfirmOpenNewProject = generalSettings.confirmOpenNewProject
-    when (mode) {
-      OpenMode.SAME_WINDOW -> generalSettings.confirmOpenNewProject = GeneralSettings.OPEN_PROJECT_SAME_WINDOW
-      OpenMode.NEW_WINDOW -> generalSettings.confirmOpenNewProject = GeneralSettings.OPEN_PROJECT_NEW_WINDOW
-      else -> Unit
+    if (confirmOpenNewProject != null) {
+      generalSettings.confirmOpenNewProject = confirmOpenNewProject
     }
 
     val projectToCloseRoot = testRoot.resolve("projectToClose")

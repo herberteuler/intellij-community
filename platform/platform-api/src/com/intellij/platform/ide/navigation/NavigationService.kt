@@ -43,6 +43,15 @@ interface NavigationService {
    *
    * The resolved requests are navigated as one batch: serialized as a whole, at most one
    * back-history entry, and a single split when [NavigationOptions.openInRightSplit] is enabled.
+   * 
+   * **Cancellation**
+   * 
+   * Navigation can be canceled due to variety of reasons.
+   * It is guaranteed that [kotlinx.coroutines.CancellationException] will only ever be thrown
+   * in the case of a normal coroutine cancellation: for example, if the caller is a part of some service,
+   * and the service is disposed, or the specific job performing the navigation is canceled explicitly.
+   * In all other cases, when the navigation is canceled externally, either because of a newer navigation request,
+   * or because the user explicitly canceled the progress, no exception is thrown and `false` is returned.
    *
    * @param options Contains configuration settings and parameters that influence the navigation behavior.
    * @param supplier providing [NavigationRequest]s; an empty result means no navigation happens.

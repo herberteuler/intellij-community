@@ -140,33 +140,41 @@ internal class IdeNavigationService(private val project: Project) : NavigationSe
     }
 
     return taskCoordinator.runWithTracking {
-      withContext(isInNavigation.asContextElement(true)) {
-        twoPhaseExecutor.submit(
-          prepare = {
-            val currentPreparation = this
-            prepareWithProgressIfNeeded(options) {
-              // keep the visible progress as one task
-              reportSequentialProgress { reporter ->
-                val requests = reporter.indeterminateStep {
-                  limitRequestsToNavigate(action())
-                }.takeIf { it.isNotEmpty() }
-                requests?.let {
-                  if (!currentPreparation.registerTargetKey(it, options)) {
-                    return@reportSequentialProgress null
-                  }
-                  it to reporter.indeterminateStep {
-                    preloadTargetDocuments(it)
+      @Suppress("IncorrectCancellationExceptionHandling")
+      try {
+        withContext(isInNavigation.asContextElement(true)) {
+          twoPhaseExecutor.submit(
+            prepare = {
+              val currentPreparation = this
+              prepareWithProgressIfNeeded(options) {
+                // keep the visible progress as one task
+                reportSequentialProgress { reporter ->
+                  val requests = reporter.indeterminateStep {
+                    limitRequestsToNavigate(action())
+                  }.takeIf { it.isNotEmpty() }
+                  requests?.let {
+                    if (!currentPreparation.registerTargetKey(it, options)) {
+                      return@reportSequentialProgress null
+                    }
+                    it to reporter.indeterminateStep {
+                      preloadTargetDocuments(it)
+                    }
                   }
                 }
               }
             }
+          ) { requests ->
+            withHistoryIfNeeded(options) {
+              navigate(project = project, requests = requests.first, options = options)
+            }.takeIf { it }
           }
-        ) { requests ->
-          withHistoryIfNeeded(options) {
-            navigate(project = project, requests = requests.first, options = options)
-          }.takeIf { it }
-        }
-      } ?: false
+        } ?: false
+      }
+      catch (_: CancellationException) {
+        currentCoroutineContext().ensureActive()
+        // a newer navigation or the user canceled this one, but the caller is still active
+        false
+      }
     }
   }
 

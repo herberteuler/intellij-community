@@ -251,6 +251,14 @@ interface WorkspaceFileSetRegistrar {
   fun registerExcludedRoot(excludedRoot: VirtualFileUrl, excludedFrom: WorkspaceFileKind, entity: WorkspaceEntity)
 
   /**
+   * Excludes [excludedRoot] and all files under it from the workspace, as the overload without [directoryOnly] does.
+   * With [directoryOnly] the exclusion applies only while [excludedRoot] is a directory.
+   * @param entity the first parameter of [WorkspaceFileIndexContributor.registerFileSets] must be passed here
+   */
+  @ApiStatus.Internal
+  fun registerExcludedRoot(excludedRoot: VirtualFileUrl, directoryOnly: Boolean, entity: WorkspaceEntity)
+
+  /**
    * Excludes all files and directories under [root] which names match to one of [patterns] (`*` and `?` wildcards are supported) from the
    * workspace.
    * Note that you might want to register this pattern for each ContentRootEntity too, not only for the project root.
@@ -279,6 +287,8 @@ interface WorkspaceFileSetRegistrar {
   /**
    * Excludes every file and directory under [root] which satisfies [condition] from the workspace, also inside a file set nested below
    * [root]. [registerExclusionCondition] stops at such a nested file set; this call does not.
+   * Inside a nested file set, the call checks only the root of that file set and the path below it. So a file set below a matching
+   * directory includes its files again. A file set at the matching directory itself does not.
    * @param condition may access the passed file and its parents and children only
    * @param entity the first parameter of [WorkspaceFileIndexContributor.registerFileSets] must be passed here
    */
@@ -288,15 +298,6 @@ interface WorkspaceFileSetRegistrar {
     condition: WorkspaceFileSetExclusionCondition,
     entity: WorkspaceEntity,
   )
-
-  /**
-   * Excludes [excludedRoot] and every file below it from the workspace, also inside a file set nested below it.
-   * [registerExcludedRoot] lets a nested file set include the files again; this API does not.
-   * With [directoryOnly] the exclusion applies only while [excludedRoot] is a directory.
-   * @param entity the first parameter of [WorkspaceFileIndexContributor.registerFileSets] must be passed here
-   */
-  @ApiStatus.Internal
-  fun registerUnscopedExcludedRoot(excludedRoot: VirtualFileUrl, directoryOnly: Boolean, entity: WorkspaceEntity)
 
   /**
    * Includes [file] to the workspace. Note, that unlike the default [registerFileSet], files under [file] won't be included.

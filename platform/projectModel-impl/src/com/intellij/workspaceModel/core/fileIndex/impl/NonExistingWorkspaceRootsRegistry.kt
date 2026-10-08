@@ -293,11 +293,10 @@ sealed interface NonExistingWorkspaceExclude : NonExistingFileSetData, Workspace
     @MagicConstant(flagsFromClass = WorkspaceFileKindMask::class) override val mask: Int,
   ) : NonExistingWorkspaceExclude, WorkspaceExcludeFileSet.ByFileKind
 
-  data class UnscopedRoot(
+  data class DirectoryRoot(
     override val reference: EntityPointer<WorkspaceEntity>,
     override val storageKind: EntityStorageKind,
-    override val directoryOnly: Boolean,
-  ) : NonExistingWorkspaceExclude, WorkspaceExcludeFileSet.UnscopedRoot
+  ) : NonExistingWorkspaceExclude, WorkspaceExcludeFileSet.DirectoryRoot
 
   data class ByPattern(
     override val reference: EntityPointer<WorkspaceEntity>,
@@ -332,7 +331,7 @@ sealed interface NonExistingWorkspaceExclude : NonExistingFileSetData, Workspace
 internal fun NonExistingWorkspaceExclude.excludesFromContent(): Boolean {
   return when (this) {
     is NonExistingWorkspaceExclude.ByFileKind -> mask and (WorkspaceFileKindMask.CONTENT or WorkspaceFileKindMask.CONTENT_NON_INDEXABLE) != 0
-    is NonExistingWorkspaceExclude.UnscopedRoot -> true
+    is NonExistingWorkspaceExclude.DirectoryRoot -> true
     is NonExistingWorkspaceExclude.ByPattern,
     is NonExistingWorkspaceExclude.ByCondition,
     is NonExistingWorkspaceExclude.ByUnscopedCondition -> false

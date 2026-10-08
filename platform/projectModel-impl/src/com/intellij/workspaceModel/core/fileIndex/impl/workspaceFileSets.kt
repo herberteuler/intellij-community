@@ -381,8 +381,9 @@ internal object WorkspaceFileKindMask {
  * Inclusion rules can be registered below [root], inside the scope of an exclusion rule.
  * The exclusion type determines whether it also applies to files covered by a nested inclusion rule:
  *
- * * [ByFileKind], [ByPattern], and [ByCondition] allow a nested inclusion rule to include excluded files again.
- * * [ByUnscopedCondition] and [UnscopedRoot] continue to exclude matching files even inside a nested inclusion rule.
+ * * [ByFileKind], [DirectoryRoot], [ByPattern], and [ByCondition] allow a nested inclusion rule to include excluded files again.
+ * * [ByUnscopedCondition] continues to apply inside a nested inclusion rule. There it checks only the path from the file up to the root
+ *   of that rule.
  *
  * [WorkspaceFileIndexEx.getFileInfo] applies exclusion rules when `honorExclusion` is `true`.
  */
@@ -433,37 +434,33 @@ internal sealed interface ExcludedFileSet : StoredFileSet, WorkspaceExcludeFileS
   }
 
   /**
-   * Excludes [root] and its descendants from all kinds.
-   * The exclusion continues to apply inside a nested inclusion rule, as [ByUnscopedCondition] does.
-   * With [directoryOnly] it applies only while [root] is a directory.
+   * Excludes [root] and its descendants from all kinds while [root] is a directory. Such a [root] is left as it is while it is a file.
+   * A nested inclusion rule can include files again.
    */
-  class UnscopedRoot(override val root: VirtualFile, override val directoryOnly: Boolean,
-                     override val entityPointer: EntityPointer<WorkspaceEntity>,
-                     override val entityStorageKind: EntityStorageKind) : ExcludedFileSet, WorkspaceExcludeFileSet.UnscopedRoot {
+  class DirectoryRoot(override val root: VirtualFile,
+                      override val entityPointer: EntityPointer<WorkspaceEntity>,
+                      override val entityStorageKind: EntityStorageKind) : ExcludedFileSet, WorkspaceExcludeFileSet.DirectoryRoot {
     override fun computeMasks(currentMasks: Int, project: Project, honorExclusion: Boolean, file: VirtualFile): Int {
-      val excludes = honorExclusion && (!directoryOnly || root.isDirectory)
-      val withExclusion = if (excludes) currentMasks.unsetAcceptedKinds(WorkspaceFileKindMask.ALL) else currentMasks
+      val withExclusion = if (honorExclusion && root.isDirectory) currentMasks.unsetAcceptedKinds(WorkspaceFileKindMask.ALL) else currentMasks
       return withExclusion or StoredFileSetKindMask.IRRELEVANT_FILE_SET
     }
 
     override fun hasSameProperties(other: StoredFileSet): Boolean {
-      if (other !is UnscopedRoot) return false
+      if (other !is DirectoryRoot) return false
       return root == other.root &&
-             directoryOnly == other.directoryOnly &&
              entityStorageKind == other.entityStorageKind &&
              entityPointer.isPointerToEntityOfSameTypeAs(other.entityPointer)
     }
 
     override fun hashcodeOfProperties(): Int {
       var result = root.hashCode()
-      result = 31 * result + directoryOnly.hashCode()
       result = 31 * result + entityPointer.classHashcode()
       result = 31 * result + entityStorageKind.hashCode()
       return result
     }
 
     override fun toString(): String {
-      return "ExcludedFileSet.UnscopedRoot{root=$root, directoryOnly=$directoryOnly}"
+      return "ExcludedFileSet.DirectoryRoot{root=$root}"
     }
   }
 
@@ -572,12 +569,32 @@ internal sealed interface ExcludedFileSet : StoredFileSet, WorkspaceExcludeFileS
 
   /**
    * Uses the same condition check as [ByCondition].
-   * The exclusion continues to apply inside nested inclusion rules.
+   * The exclusion continues to apply inside a nested inclusion rule, but only to the path below the root of that rule.
+   * See [excludesUpTo].
    */
   class ByUnscopedCondition(override val root: VirtualFile, override val condition: WorkspaceFileSetExclusionCondition,
                             override val entityPointer: EntityPointer<WorkspaceEntity>,
                             override val entityStorageKind: EntityStorageKind)
     : ExcludedFileSet, WorkspaceExcludeFileSet.ByUnscopedCondition {
+    /**
+     * Returns `true` if [condition] matches [file] or a parent of it up to [nestedRoot], with [nestedRoot] included.
+     * [nestedRoot] is the root of the nearest inclusion rule of [file] below [root].
+     * A match above [nestedRoot] does not count, so that inclusion rule includes the files again.
+     */
+    fun excludesUpTo(file: VirtualFile, nestedRoot: VirtualFile): Boolean {
+      var current: VirtualFile? = file
+      while (current != null) {
+        if (condition.shouldExclude(current)) {
+          return true
+        }
+        if (current == nestedRoot) {
+          return false
+        }
+        current = current.parent
+      }
+      return false
+    }
+
     private fun isExcluded(file: VirtualFile): Boolean {
       var current = file
       while (current != root) {

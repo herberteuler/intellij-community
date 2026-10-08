@@ -26,7 +26,7 @@ internal class AnalysisIgnoreWorkspaceFileIndexContributor : WorkspaceFileIndexC
 
     val registration = splitForRegistration(baseDir, patterns)
     for ((url, pattern) in registration.roots) {
-      registrar.registerUnscopedExcludedRoot(url, pattern.directoryOnly, entity)
+      registrar.registerExcludedRoot(url, directoryOnly = pattern.directoryOnly, entity = entity)
     }
     if (registration.conditionPatterns.isNotEmpty()) {
       val matcher = AnalysisIgnoreMatcher(baseDir.url, baseDirFile, registration.conditionPatterns, caseSensitive)

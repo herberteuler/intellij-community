@@ -35,15 +35,12 @@ sealed interface WorkspaceExcludeFileSet {
   }
 
   /**
-   * Excludes the root and its descendants from all kinds.
-   * With [directoryOnly], the rule excludes only directories.
-   * The exclusion also applies inside a nested file set.
+   * Excludes the root and its descendants from all kinds while the root is a directory.
+   * A nested file set can include files again.
    */
-  interface UnscopedRoot : WorkspaceExcludeFileSet {
-    val directoryOnly: Boolean
-
+  interface DirectoryRoot : WorkspaceExcludeFileSet {
     override fun inPlaceComputeMasks(file: VirtualFile, mask: Int): Int {
-      return if (!directoryOnly || file.isDirectory) mask.unsetKinds(WorkspaceFileKindMask.ALL) else mask
+      return if (file.isDirectory) mask.unsetKinds(WorkspaceFileKindMask.ALL) else mask
     }
   }
 
@@ -73,7 +70,7 @@ sealed interface WorkspaceExcludeFileSet {
 
   /**
    * Uses the same condition check as [ByCondition].
-   * The exclusion also applies inside a nested file set.
+   * The exclusion also applies inside a nested file set, to the root of that file set and the files below it.
    */
   interface ByUnscopedCondition : WorkspaceExcludeFileSet {
     val condition: WorkspaceFileSetExclusionCondition

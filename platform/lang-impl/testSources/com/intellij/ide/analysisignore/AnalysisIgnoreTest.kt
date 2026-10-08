@@ -195,18 +195,21 @@ class AnalysisIgnoreTest {
 
   @Test
   @RegistryKey(key = ENABLED, value = "true")
-  fun `a content root nested under an excluded directory is excluded as well`() = runBlocking {
+  fun `a content root nested under an excluded directory includes its files again`() = runBlocking {
     val fooDir = dir("projectRoot/foo")
     val barDir = dir("projectRoot/foo/bar")
-    val excludeFile = writeAnalysisIgnoreFile("projectRoot", "foo")
+    val logsDir = dir("projectRoot/foo/bar/logs")
+    val excludeFile = writeAnalysisIgnoreFile("projectRoot", "foo", "logs")
     PsiTestUtil.addContentRoot(module, barDir)
 
     discover(excludeFile)
 
     // The patterns of the file sit on the project root. The walk of getFileInfo stops at the content root 'bar' and then asks the project
-    // root about the file. The match covers the whole path from the file up to the project root, and 'foo' is on that path.
+    // root about the file. That question checks only the path from the file up to 'bar', and 'foo' is above it.
     assertFalse(isInContent(fooDir))
-    assertFalse(isInContent(barDir))
+    assertTrue(isInContent(barDir))
+    // A match below 'bar' still excludes.
+    assertFalse(isInContent(logsDir))
   }
 
   @Test
@@ -218,9 +221,30 @@ class AnalysisIgnoreTest {
 
     discover(excludeFile)
 
-    // The condition sits on the project root. The walk of getFileInfo stops at the content root 'foo' and then asks the project root, and the
-    // path 'foo' matches.
+    // '/foo' names one path, and thus it becomes an excluded root at 'foo'. The content root shares that directory, and the index applies
+    // the exclusion of a directory before its file sets.
     assertFalse(isInContent(fooDir))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  fun `a content root below a pattern of a path includes its files again`() = runBlocking {
+    val fooDir = dir("projectRoot/foo")
+    val barDir = dir("projectRoot/foo/bar")
+    val outDir = dir("projectRoot/out")
+    val nestedOutDir = dir("projectRoot/out/nested")
+    PsiTestUtil.addContentRoot(module, barDir)
+    PsiTestUtil.addContentRoot(module, nestedOutDir)
+    val excludeFile = writeAnalysisIgnoreFile("projectRoot", "/foo", "/out/")
+
+    discover(excludeFile)
+
+    // '/foo' and '/out/' name one path each, and thus they become excluded roots by URL. A content root below such a root includes its
+    // files again, as it does below the matching directory of a condition.
+    assertFalse(isInContent(fooDir))
+    assertTrue(isInContent(barDir))
+    assertFalse(isInContent(outDir))
+    assertTrue(isInContent(nestedOutDir))
   }
 
   @Test
@@ -388,32 +412,32 @@ class AnalysisIgnoreTest {
 
   @Test
   @RegistryKey(key = ENABLED, value = "true")
-  fun `a content root under an excluded directory stays excluded when it goes away`() = runBlocking {
+  fun `a content root under an excluded directory is excluded once it goes away`() = runBlocking {
     val fooDir = dir("projectRoot/foo")
     val barDir = dir("projectRoot/foo/bar")
     PsiTestUtil.addContentRoot(module, barDir)
     val excludeFile = writeAnalysisIgnoreFile("projectRoot", "foo")
 
     discover(excludeFile)
-    // The nested content root is the nearest file set of this directory. The condition on the project root still finds 'foo' on the path.
-    assertFalse(isInContent(barDir))
+    // The nested content root is the nearest file set of this directory. 'foo' is above it, and thus the root includes the directory.
+    assertTrue(isInContent(barDir))
 
     PsiTestUtil.removeContentEntry(module, barDir)
 
-    // Without that root the nearest file set is the project root, and the condition finds 'foo' the same way.
+    // Without that root the nearest file set is the project root, and the condition finds 'foo' on the path.
     assertFalse(isInContent(barDir))
   }
 
   @Test
   @RegistryKey(key = ENABLED, value = "true")
-  fun `a source root under an excluded directory stays excluded when it goes away`() = runBlocking {
+  fun `a source root under an excluded directory is excluded once it goes away`() = runBlocking {
     val fooDir = dir("projectRoot/foo")
     val barDir = dir("projectRoot/foo/bar")
     PsiTestUtil.addSourceRoot(module, barDir)
     val excludeFile = writeAnalysisIgnoreFile("projectRoot", "foo")
 
     discover(excludeFile)
-    assertFalse(isInContent(barDir))
+    assertTrue(isInContent(barDir))
 
     PsiTestUtil.removeSourceRoot(module, barDir)
 
@@ -657,7 +681,7 @@ class AnalysisIgnoreTest {
 
   @Test
   @RegistryKey(key = ENABLED, value = "true")
-  fun `a content root under an excluded directory is excluded with everything inside`() = runBlocking {
+  fun `a content root under an excluded directory keeps the file inside it`() = runBlocking {
     val fooDir = dir("projectRoot/foo")
     val barDir = dir("projectRoot/foo/bar")
     val goneDir = dir("projectRoot/foo/bar/gone")
@@ -667,9 +691,10 @@ class AnalysisIgnoreTest {
 
     discover(rootFile, innerFile)
 
-    // 'foo' on the project root excludes the whole directory, as git does. The file in the content root inside it changes nothing more.
+    // 'foo' on the project root excludes the directory. The content root inside it includes its files again, and the file in that root
+    // excludes 'gone'.
     assertFalse(isInContent(fooDir))
-    assertFalse(isInContent(barDir))
+    assertTrue(isInContent(barDir))
     assertFalse(isInContent(goneDir))
   }
 

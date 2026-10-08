@@ -164,7 +164,7 @@ final class ExcludeRootsCache {
     }
 
     @Override
-    public void registerUnscopedExcludedRoot(@NotNull VirtualFileUrl excludedRoot, boolean directoryOnly, @NotNull WorkspaceEntity entity) {
+    public void registerExcludedRoot(@NotNull VirtualFileUrl excludedRoot, boolean directoryOnly, @NotNull WorkspaceEntity entity) {
       if (directoryOnly) {
         VirtualFile file = VirtualFileUrls.getVirtualFile(excludedRoot);
         // A directory-only rule leaves a file at its path in the project

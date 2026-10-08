@@ -182,16 +182,11 @@ public final class ResizeableMappedFile implements Forceable, Closeable {
     Path lengthFile = deriveLengthFile();
     try {
       FileUtilRt.doIOOperation(lastAttempt -> {
-        try (DataOutputStream stream = new DataOutputStream(Files.newOutputStream(lengthFile))) {
+        try (DataOutputStream stream = openLengthFile(lengthFile)) {
           stream.writeLong(logicalSize);
           return Boolean.TRUE;//useless, but can't return null -- null is interpreted as 'need retry'
         }
         catch (IOException ex) {
-          //noinspection InstanceofCatchParameter
-          if (ex instanceof NoSuchFileException) {
-            ensureParentDirectoryExists();
-          }
-
           if (lastAttempt) {
             throw ex;
           }
@@ -202,6 +197,16 @@ public final class ResizeableMappedFile implements Forceable, Closeable {
     }
     catch (IOException e) {
       LOG.error("Can't write logical size to [" + lengthFile.toAbsolutePath() + "]", e);
+    }
+  }
+
+  private DataOutputStream openLengthFile(@NotNull Path lengthFile) throws IOException {
+    try {
+      return new DataOutputStream(Files.newOutputStream(lengthFile));
+    }
+    catch (NoSuchFileException e) {
+      ensureParentDirectoryExists();
+      return new DataOutputStream(Files.newOutputStream(lengthFile));
     }
   }
 

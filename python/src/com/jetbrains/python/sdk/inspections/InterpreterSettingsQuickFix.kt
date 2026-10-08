@@ -6,9 +6,7 @@ import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.ide.DataManager
 import com.intellij.ide.actions.ShowSettingsUtilImpl
-import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.DataContext
-import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.diagnostic.trace
 import com.intellij.openapi.module.Module
@@ -46,7 +44,7 @@ import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.errorProcessing.emit
 import com.jetbrains.python.impl.getRootModuleOrNull
 import com.jetbrains.python.sdk.ModuleOrProject
-import com.jetbrains.python.sdk.collectAddInterpreterActions
+import com.jetbrains.python.sdk.createAddInterpreterActionGroup
 import com.jetbrains.python.sdk.configuration.CreateInterpreterInfo
 import com.jetbrains.python.sdk.configuration.CreateSdkInfoWithTool
 import com.jetbrains.python.sdk.configuration.getInterpreterCreator
@@ -168,14 +166,9 @@ private class ConfigureInterpreterFix : InterpreterFix {
 
   companion object {
     fun createAddInterpreterPopup(module: Module, context: DataContext): JBPopup {
-      val group = DefaultActionGroup()
-      group.addAll(collectAddInterpreterActions(ModuleOrProject.ModuleAndProject(module)) { })
-      ActionManager.getInstance().getAction("Python.NewInterpreter.Extra")?.let {
-        group.add(it)
-      }
       return JBPopupFactory.getInstance().createActionGroupPopup(
         null,
-        group,
+        createAddInterpreterActionGroup(ModuleOrProject.ModuleAndProject(module)) { },
         context,
         JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
         false,

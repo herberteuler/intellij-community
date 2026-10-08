@@ -11,10 +11,13 @@ import com.intellij.execution.target.TargetEnvironmentType
 import com.intellij.execution.target.TargetEnvironmentWizard
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -44,6 +47,7 @@ import com.jetbrains.python.run.PythonInterpreterTargetEnvironmentFactory
 import com.jetbrains.python.run.allowCreationTargetOfThisType
 import com.jetbrains.python.sdk.ModuleOrProject.ModuleAndProject
 import com.jetbrains.python.sdk.ModuleOrProject.ProjectOnly
+import com.intellij.python.community.common.promotion.PyAddInterpreterPopupPromo
 import com.jetbrains.python.sdk.add.collector.PythonNewInterpreterAddedCollector
 import com.jetbrains.python.sdk.add.v2.PythonAddLocalInterpreterDialog
 import com.jetbrains.python.sdk.add.v2.PythonAddLocalInterpreterPresenter
@@ -85,6 +89,15 @@ abstract class DialogAction(
     createDialog()?.show()
   }
 }
+
+internal fun createAddInterpreterActionGroup(moduleOrProject: ModuleOrProject, onSdkCreated: Consumer<Sdk>): DefaultActionGroup =
+  DefaultActionGroup(collectAddInterpreterActions(moduleOrProject, onSdkCreated)).apply {
+    ActionManager.getInstance().getAction("Python.NewInterpreter.Extra")?.let { add(it) }
+    templatePresentation.putClientProperty(
+      ActionUtil.POPUP_AD_TEXT,
+      PyAddInterpreterPopupPromo.EP_NAME.computeSafeIfAny { it.getPopupFooterText() },
+    )
+  }
 
 @ApiStatus.Internal
 fun collectAddInterpreterActions(moduleOrProject: ModuleOrProject, onSdkCreated: Consumer<Sdk>): List<DialogAction> {

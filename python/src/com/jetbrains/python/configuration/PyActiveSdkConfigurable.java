@@ -7,7 +7,6 @@ import com.intellij.ide.DataManager;
 import com.intellij.ide.HelpTooltipKt;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.DataContext;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.options.UnnamedConfigurable;
@@ -34,7 +33,6 @@ import com.jetbrains.python.packaging.PyPackageManagers;
 import com.jetbrains.python.packaging.PyPackagesNotificationPanel;
 import com.jetbrains.python.packaging.ui.PyInstalledPackagesPanel;
 import com.jetbrains.python.sdk.AddInterpreterActions;
-import com.jetbrains.python.sdk.DialogAction;
 import com.jetbrains.python.sdk.ModuleOrProject;
 import com.jetbrains.python.sdk.ProjectExtKt;
 import com.jetbrains.python.sdk.PyCustomSdkUiProvider;
@@ -345,10 +343,9 @@ public class PyActiveSdkConfigurable implements UnnamedConfigurable {
                                                              @NotNull Consumer<Sdk> onSdkCreated) {
     DataContext dataContext = DataManager.getInstance().getDataContext(dataContextComponent);
     var moduleOrProject = (module != null) ? new ModuleOrProject.ModuleAndProject(module) : new ModuleOrProject.ProjectOnly(project);
-    List<DialogAction> actions = AddInterpreterActions.collectAddInterpreterActions(moduleOrProject, onSdkCreated);
     return JBPopupFactory.getInstance().createActionGroupPopup(
       null,
-      new DefaultActionGroup(actions),
+      AddInterpreterActions.createAddInterpreterActionGroup(moduleOrProject, onSdkCreated),
       dataContext,
       JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
       false,

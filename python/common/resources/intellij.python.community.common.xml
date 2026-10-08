@@ -29,4 +29,7 @@
                  restartRequired="false"
                  description="Python tool windows are available at startup"/>
   </extensions>
+  <actions>
+    <group id="Python.NewInterpreter.Extra" popup="false"/>
+  </actions>
 </idea-plugin>

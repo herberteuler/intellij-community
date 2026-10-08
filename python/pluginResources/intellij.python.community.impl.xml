@@ -1415,7 +1415,6 @@
               text="Set PropertiesComponent Value" description="Set value in application-level PropertiesComponent"/>
       <add-to-group group-id="Internal"/>
     </group>
-    <group id="Python.NewInterpreter.Extra" popup="false"/>
   </actions>
 
   <actions>

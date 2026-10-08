@@ -4,12 +4,13 @@ package com.jetbrains.python.sdk
 import com.intellij.python.sdk.backend.findSdk
 import com.intellij.ide.DataManager
 import com.intellij.ide.ui.icons.icon
-import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.actionSystem.impl.PresentationFactory
 import com.intellij.openapi.actionSystem.impl.Utils
 import com.intellij.openapi.application.EDT
@@ -103,6 +104,9 @@ class PySdkPopupFactory(val module: Module) {
       override fun isSelectable(value: PopupFactoryImpl.ActionItem): Boolean =
         if (value.action === content.second) !module.project.isSdkConfigurationInProgress.value
         else super.isSelectable(value)
+
+      override fun getAdText(): String? =
+        (content.second as? ActionGroup)?.templatePresentation?.getClientProperty(ActionUtil.POPUP_AD_TEXT)
     }
     val popup = ListPopupImpl(module.project, null, step, null).apply { setHandleAutoSelectionBeforeShow(true) }
 
@@ -140,9 +144,10 @@ class PySdkPopupFactory(val module: Module) {
     val group = DefaultActionGroup()
     addSwitchInterpreterActions(group, interpreters)
 
-    val addInterpreterGroup = DefaultActionGroup(PyBundle.message("python.sdk.action.add.new.interpreter.text"), true)
-    addInterpreterGroup.addAll(collectAddInterpreterActions(module.asModuleOrProject) { })
-    ActionManager.getInstance().getAction("Python.NewInterpreter.Extra")?.let { addInterpreterGroup.add(it) }
+    val addInterpreterGroup = createAddInterpreterActionGroup(module.asModuleOrProject) { }.apply {
+      templatePresentation.text = PyBundle.message("python.sdk.action.add.new.interpreter.text")
+      isPopup = true
+    }
     group.add(addInterpreterGroup)
 
     group.addSeparator()

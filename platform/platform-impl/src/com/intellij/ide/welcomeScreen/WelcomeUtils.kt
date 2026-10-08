@@ -85,6 +85,14 @@ object WelcomeUtils {
     return null
   }
 
+  fun hideRunWidgetForWelcomeProject(project: Project): Boolean {
+    if (isWelcomeProject(project)) {
+      val provider = getWelcomeScreenProjectProvider() ?: return true
+      return !provider.showRunWidget()
+    }
+    return false
+  }
+
   @JvmStatic
   fun isWelcomeProject(project: Project): Boolean {
     @Suppress("DEPRECATION")

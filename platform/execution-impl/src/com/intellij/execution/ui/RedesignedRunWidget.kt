@@ -173,7 +173,7 @@ internal class RedesignedRunToolbarWrapper : WindowHeaderPlaceholder() {
   override fun update(e: AnActionEvent) {
     super.update(e)
     val project = e.project
-    if (project != null && WelcomeUtils.isWelcomeProject(project)) {
+    if (project != null && WelcomeUtils.hideRunWidgetForWelcomeProject(project)) {
       e.presentation.isEnabledAndVisible = false
       return
     }

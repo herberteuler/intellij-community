@@ -31,6 +31,7 @@ import org.gradle.tooling.internal.consumer.connection.ParameterValidatingConsum
 import org.gradle.tooling.internal.consumer.loader.CachingToolingImplementationLoader
 import org.gradle.tooling.internal.consumer.loader.SynchronizedToolingImplementationLoader
 import org.gradle.tooling.internal.consumer.loader.ToolingImplementationLoader
+import org.gradle.util.GradleVersion
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 import java.io.ByteArrayInputStream
@@ -250,27 +251,35 @@ private fun obtainDaemonClientFactory(connection: ConsumerConnection?): Any? {
   return null
 }
 
-/**
- * Obtains the provider-side `org.gradle.tooling.internal.provider.ProviderConnection` from the
- * `org.gradle.tooling.internal.provider.DefaultConnection` instance.
- *
- * Gradle 9.4 and older keep it in the `connection` field. Since Gradle 9.5 it is looked up from the
- * `clientServices` service registry, which is created lazily on the first (non-embedded) operation.
- */
-@Throws(Exception::class)
 private fun obtainProviderConnection(connectionVersion4: Any): Any? {
-  val defaultConnectionClass = connectionVersion4.javaClass
-  val providerConnectionField = defaultConnectionClass.declaredFields.find { it.name == "connection" }
+  val gradleVersion = getGradleVersionFromDaemonSideClass(connectionVersion4) ?: GradleVersion.current()
+  return if (GradleVersionUtil.isGradleOlderThan(gradleVersion, "9.5")) {
+    obtainProviderConnection94(connectionVersion4)
+  }
+  else {
+    obtainProviderConnectionAfter94(connectionVersion4)
+  }
+}
+
+private fun obtainProviderConnection94(connectionVersion4: Any): Any? {
+  val providerConnectionField = connectionVersion4.javaClass.declaredFields.find { it.name == "connection" }
   if (providerConnectionField != null) {
     providerConnectionField.isAccessible = true
-    return getFieldValue<Any?>(providerConnectionField, connectionVersion4)
+    return getFieldValue(providerConnectionField, connectionVersion4)
   }
+  return null
+}
 
-  val clientServicesField = defaultConnectionClass.getDeclaredField("clientServices")
+/**
+ * Since Gradle 9.5 it is looked up from the
+ * `clientServices` service registry, which is created lazily on the first (non-embedded) operation.
+ */
+private fun obtainProviderConnectionAfter94(connectionVersion4: Any): Any? {
+  val clientServicesField = connectionVersion4.javaClass.getDeclaredField("clientServices")
   clientServicesField.isAccessible = true
   val clientServices = getFieldValue<Any?>(clientServicesField, connectionVersion4) ?: return null
 
-  val classLoader = defaultConnectionClass.classLoader
+  val classLoader = connectionVersion4.javaClass.classLoader
   val serviceRegistryClass = classLoader.loadClass("org.gradle.internal.service.ServiceRegistry")
   val providerConnectionClass = classLoader.loadClass("org.gradle.tooling.internal.provider.ProviderConnection")
   return serviceRegistryClass.getMethod("get", Class::class.java).invoke(clientServices, providerConnectionClass)
@@ -293,4 +302,30 @@ private fun findKnownGradleUserHomes(): Set<String> {
 
   // add "" to always search for Gradle connections in the default Gradle user home
   return (gradleUserHomes + "").toSet()
+}
+
+private fun getGradleVersionFromDaemonSideClass(classFromDaemonSide: Any): GradleVersion? {
+  val toolingImplementationLoader = classFromDaemonSide.javaClass.classLoader
+  try {
+    val gradleVersionClass = toolingImplementationLoader.loadClass("org.gradle.util.GradleVersion")
+    val currentVersionHandle = gradleVersionClass.getDeclaredMethod("current")
+    val currentGradleVersion = currentVersionHandle(gradleVersionClass)
+
+    // it's impossible to cast a class from the daemon side to the class loaded by the current classloader
+    // we have to go through version.toString() chain just to get rid of inter-classloader value
+    return gradleVersionClass.run {
+      declaredFields.find { it.name == "version" }?.let {
+        it.isAccessible = true
+        val version = it.get(currentGradleVersion) as String
+        return@let GradleVersion.version(version)
+      }
+      ?: declaredMethods.find { it.name == "getVersion" }?.let {
+        val version = it(currentGradleVersion) as String
+        return@let GradleVersion.version(version)
+      }
+    }
+  }
+  catch (__: Exception) {
+    return null
+  }
 }

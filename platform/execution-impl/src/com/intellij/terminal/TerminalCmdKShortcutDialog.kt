@@ -96,7 +96,7 @@ object TerminalCmdKShortcutDialog {
     val clearTerminalActionText = clearTerminalAction.templatePresentation.text ?: IdeBundle.message("terminal.action.ClearBuffer.text")
     val choice = Messages.showDialog(
       project,
-      ExecutionBundle.message("terminal.cmd.k.shortcut.dialog.message", checkinActionText, clearTerminalActionText),
+      ExecutionBundle.message("terminal.cmd.k.shortcut.dialog.message"),
       ExecutionBundle.message("terminal.cmd.k.shortcut.dialog.title"),
       arrayOf(checkinActionText, clearTerminalActionText),
       COMMIT_OPTION,

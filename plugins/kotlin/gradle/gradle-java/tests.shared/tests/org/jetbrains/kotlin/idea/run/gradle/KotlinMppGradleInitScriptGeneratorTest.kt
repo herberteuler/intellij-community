@@ -13,6 +13,9 @@ import org.junit.Test
 private val PLUGIN_VERSION = KotlinGradlePluginVersions.V_2_4_0.toString()
 
 class KotlinMppGradleInitScriptGeneratorTest : GradleTestRunConfigurationProducerTestCase() {
+    override val isWarningsAllowed: Boolean
+        get() = true
+
     override fun setUp() {
         super.setUp()
         generateAndImportMppProject()

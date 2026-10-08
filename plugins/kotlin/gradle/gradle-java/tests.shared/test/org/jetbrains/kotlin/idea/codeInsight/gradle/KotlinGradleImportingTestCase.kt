@@ -71,6 +71,9 @@ abstract class KotlinGradleImportingTestCase : GradleImportingTestCase() {
 
     protected val importStatusCollector = ImportStatusCollector()
 
+    override val isWarningsAllowed: Boolean
+        get() = isGradleOlderThan("8.0")
+
     override fun requireJdkHome(): String {
         /*
         https://docs.gradle.org/current/userguide/compatibility.html

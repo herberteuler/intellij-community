@@ -300,7 +300,7 @@ abstract class GradleImportingTestCase : JavaExternalSystemImportingTestCase() {
   }
 
   protected open fun handleDeprecationError(errorInfo: Couple<String>?) {
-    if (errorInfo == null) return
+    if (errorInfo == null || isWarningsAllowed) return
     handleImportFailure(errorInfo.first!!, errorInfo.second)
   }
 

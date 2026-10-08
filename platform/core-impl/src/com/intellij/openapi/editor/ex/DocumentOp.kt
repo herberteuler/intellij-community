@@ -23,6 +23,16 @@ sealed interface DocumentOp {
      * The number of characters that this op inserts or deletes.
      */
     fun length(): Int
+
+    /**
+     * The offset of the other half when this op is half of a text move, as
+     * [com.intellij.openapi.editor.event.DocumentEvent.getMoveOffset] defines it. An insert names its
+     * source in the text after the insert. A delete names its copy in the text before the delete. An op
+     * that moves nothing returns [offset].
+     */
+    fun moveOffset(): Int {
+      return offset()
+    }
   }
 
   interface Insert : Text {
@@ -59,7 +69,16 @@ sealed interface DocumentOp {
      */
     @JvmStatic
     fun insertOp(offset: Int, fragment: CharSequence): Insert {
-      return InsertOpImpl(offset, fragment)
+      return InsertOpImpl(offset, fragment, offset)
+    }
+
+    /**
+     * An insert of [fragment] at [offset] that is the first half of a text move from [moveOffset]. See
+     * [Text.moveOffset]. The op checks neither the bounds nor the move offset.
+     */
+    @JvmStatic
+    fun insertOp(offset: Int, fragment: CharSequence, moveOffset: Int): Insert {
+      return InsertOpImpl(offset, fragment, moveOffset)
     }
 
     /**
@@ -67,7 +86,16 @@ sealed interface DocumentOp {
      */
     @JvmStatic
     fun deleteOp(offset: Int, length: Int): Delete {
-      return DeleteOpImpl(offset, length)
+      return DeleteOpImpl(offset, length, offset)
+    }
+
+    /**
+     * A delete of [length] characters at [offset] that is the second half of a text move to [moveOffset].
+     * See [Text.moveOffset]. The op checks neither the bounds nor the move offset.
+     */
+    @JvmStatic
+    fun deleteOp(offset: Int, length: Int, moveOffset: Int): Delete {
+      return DeleteOpImpl(offset, length, moveOffset)
     }
 
     @JvmStatic

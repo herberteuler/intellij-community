@@ -5,6 +5,11 @@ import org.jetbrains.annotations.TestOnly
 import java.util.BitSet
 
 /**
+ * No move: the step is not a whole move, or its moved text is not intact.
+ */
+private const val NO_MOVE = -1
+
+/**
  * The engine behind [EgWalkerReplay]: the reference implementation's `EditContext`, plus the
  * walk that drives it. See [EgWalkerReplay] for the algorithm and the port conventions.
  *
@@ -143,10 +148,11 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       retreatRanges(diff.aOnly)
       advanceRanges(diff.bOnly)
     }
+    val moveOffset = moveOffsetOf(run, lv, count)
     if (run.isDelete()) {
-      applyDelete(lv, count, run.offsetAt(lv))
+      applyDelete(lv, count, run.offsetAt(lv), moveOffset)
     } else {
-      applyInsert(run, lv, count, run.offsetAt(lv))
+      applyInsert(run, lv, count, run.offsetAt(lv), moveOffset)
     }
     setCurVersion(lv + count - 1)
   }
@@ -267,8 +273,16 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * prepare position. When the item at the cursor has no prepare width, the tree finds the next one
    * that has it. The items of no prepare width stay as they are, as in the reference, which steps
    * over them one by one.
+   *
+   * [moveOffset] is the copy of a move delete, or [NO_MOVE].
    */
-  private fun applyDelete(lv: LV, count: Int, offset: Int) {
+  private fun applyDelete(
+    lv: LV,
+    count: Int,
+    offset: Int,
+    moveOffset: Int,
+  ) {
+    val copyEffectPos = copyEffectPosOf(offset, count, moveOffset)
     var cursor = findByCurPos(offset)
     var done = 0
     while (done < count) {
@@ -283,7 +297,7 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
       // A concurrent delete may have removed the characters from the effect version.
       if (item.inEffect) {
         // Every unit of the run removes at the same position, so one call carries them all.
-        sink?.delete(cursor.effectPos, taken)
+        reportDelete(cursor.effectPos, taken, copyEffectPos)
       }
       items.deleteHere(item)
       delTargets.add(lv + done, item.firstUnit, taken)
@@ -323,12 +337,15 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
    * one before it, because its left origin is that unit. No other item can name it yet, because the
    * walk visits the units in one go, with no retreat or advance between them. So the span carries
    * the origins of its first unit.
+   *
+   * [moveOffset] is the source of a move insert, or [NO_MOVE].
    */
   private fun applyInsert(
     run: StoredRun,
     lv: LV,
     count: Int,
     offset: Int,
+    moveOffset: Int,
   ) {
     val cursor = findByCurPos(offset)
     val left = leftNeighbourOf(cursor)
@@ -346,7 +363,11 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     items.add(cursor.itemIndex, newItem)
     // The span sits inside one run, so one slice of its fragment covers it. A silent phase
     // skips the slice, which is the only work the report costs.
-    sink?.insert(cursor.effectPos, run.fragmentFrom(lv, count))
+    val reportTo = sink
+    if (reportTo != null) {
+      val fragment = run.fragmentFrom(lv, count)
+      reportInsert(reportTo, cursor.effectPos, fragment, moveOffset)
+    }
     cursor.advanceOver(newItem)
     cacheCursor(cursor)
   }
@@ -383,6 +404,88 @@ internal class ReplayWalker(private val graph: EventGraphImpl, placeholderCount:
     } else {
       NO_UNIT
     }
+  }
+
+  // ----------------------------------------------------------------------------------- the moves
+
+  /**
+   * The move offset of the op that a step of [count] units of [run] from [lv] applies, or [NO_MOVE].
+   * Only a reporting phase needs it, and only a whole run is a move.
+   */
+  private fun moveOffsetOf(run: StoredRun, lv: LV, count: Int): Int {
+    if (sink == null || !run.isMove() || !run.isWholeRun(lv, count)) {
+      return NO_MOVE
+    }
+    return run.moveOffset()
+  }
+
+  /**
+   * Reports an insert at [effectPos], as the first half of a move when the source at [moveOffset]
+   * is intact. The insert is applied, so [moveOffset] indexes the prepare version as it is.
+   */
+  private fun reportInsert(
+    reportTo: EgWalkerReplay.Sink,
+    effectPos: Int,
+    fragment: CharSequence,
+    moveOffset: Int,
+  ) {
+    val sourceEffectPos = intactEffectStart(moveOffset, fragment.length)
+    if (sourceEffectPos == NO_MOVE) {
+      reportTo.insert(effectPos, fragment)
+    } else {
+      reportTo.moveInsert(effectPos, fragment, sourceEffectPos)
+    }
+  }
+
+  /**
+   * Reports a delete at [effectPos], as a piece of a move when [copyEffectPos] names its copy.
+   */
+  private fun reportDelete(effectPos: Int, count: Int, copyEffectPos: Int) {
+    val reportTo = sink ?: return
+    if (copyEffectPos == NO_MOVE) {
+      reportTo.delete(effectPos, count)
+    } else {
+      reportTo.moveDelete(effectPos, count, copyEffectPos)
+    }
+  }
+
+  /**
+   * The effect position of the copy of a move delete, or [NO_MOVE] unless both the source at
+   * [offset] and the copy at [moveOffset] are intact. The delete is not applied yet.
+   */
+  private fun copyEffectPosOf(offset: Int, count: Int, moveOffset: Int): Int {
+    if (moveOffset == NO_MOVE || intactEffectStart(offset, count) == NO_MOVE) {
+      return NO_MOVE
+    }
+    return intactEffectStart(moveOffset, count)
+  }
+
+  /**
+   * The effect position of the [length] characters at [preparePos], or [NO_MOVE] when they are not
+   * intact. They are intact when the effect version holds exactly them, with nothing between them.
+   */
+  private fun intactEffectStart(preparePos: Int, length: Int): Int {
+    if (preparePos < 0 || length > items.prepareWidth() - preparePos) {
+      return NO_MOVE
+    }
+    val cursor = items.cursorBefore(preparePos)
+    val first = items.get(cursor.itemIndex)
+    if (!first.inEffect) {
+      return NO_MOVE
+    }
+    val unitsBefore = preparePos - cursor.preparePos
+    var remaining = length - (first.length - unitsBefore)
+    var index = cursor.itemIndex
+    while (remaining > 0) {
+      index++
+      val item = items.get(index)
+      // An item in one version only is a concurrent insert or a concurrent delete.
+      if (item.inPrepare != item.inEffect) {
+        return NO_MOVE
+      }
+      remaining -= item.prepareWidth
+    }
+    return cursor.effectPos + unitsBefore
   }
 
   // ------------------------------------------------------------------------------------ the scan

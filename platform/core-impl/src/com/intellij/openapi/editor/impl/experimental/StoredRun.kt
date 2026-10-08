@@ -5,6 +5,7 @@ import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.Event
 import com.intellij.openapi.editor.ex.experimental.EventGraph
+import com.intellij.openapi.editor.impl.isMove
 
 /**
  * One stored run: an [Event] plus its links into the graph. The run covers the lvs
@@ -74,6 +75,36 @@ internal class StoredRun(
    */
   fun isDelete(): Boolean {
     return event.op() is DocumentOp.Delete
+  }
+
+  /**
+   * Whether the op of this run is half of a text move.
+   */
+  fun isMove(): Boolean {
+    return event.op().isMove()
+  }
+
+  /**
+   * The move offset of the op of this run. See [DocumentOp.Text.moveOffset].
+   */
+  fun moveOffset(): Int {
+    return event.op().moveOffset()
+  }
+
+  /**
+   * The distance from the offset of the op of this run to its move offset. It is 0 for an op that
+   * moves nothing, wherever the run starts.
+   */
+  fun moveDistance(): Int {
+    val op = event.op()
+    return op.moveOffset() - op.offset()
+  }
+
+  /**
+   * Whether the [count] units from [lv] are the whole run.
+   */
+  fun isWholeRun(lv: LV, count: Int): Boolean {
+    return lv == lvStart && count == event.length()
   }
 
   /**
@@ -148,6 +179,10 @@ internal class StoredRun(
       return null
     }
     val nextOp = next.op()
+    // A half of a move keeps a run of its own, because a joined op would lose the move offset.
+    if (isMove() || nextOp.isMove()) {
+      return null
+    }
     val joined = when (val op = event.op()) {
       is DocumentOp.Insert -> {
         if (nextOp !is DocumentOp.Insert || !continuesInsert(op, nextOp)) {

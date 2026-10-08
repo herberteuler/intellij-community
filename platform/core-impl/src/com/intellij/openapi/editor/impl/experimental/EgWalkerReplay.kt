@@ -32,9 +32,13 @@ package com.intellij.openapi.editor.impl.experimental
 internal object EgWalkerReplay {
 
   /**
-   * Where the walk reports its effects. Both methods take a whole span, because the walk is
+   * Where the walk reports its effects. Every report takes a whole span, because the walk is
    * run-length encoded on both sides and a span never crosses a run. A report always covers at
    * least one character, at a position of the effect version.
+   *
+   * A move arrives as one [moveInsert], then one [moveDelete] per piece of the source, with no other
+   * report between them. A sink can still get one half alone, and it must take that half as a
+   * plain report.
    */
   interface Sink {
     /**
@@ -46,6 +50,23 @@ internal object EgWalkerReplay {
      * Removes [count] characters at [effectPos].
      */
     fun delete(effectPos: Int, count: Int)
+
+    /**
+     * Inserts [fragment] at [effectPos] as the first half of a move. [sourceEffectPos] is the
+     * source in the effect version after the insert. A sink that tracks no moves takes a plain insert.
+     */
+    fun moveInsert(effectPos: Int, fragment: CharSequence, sourceEffectPos: Int) {
+      insert(effectPos, fragment)
+    }
+
+    /**
+     * Removes [count] characters at [effectPos] as the second half of a move, or as one piece of it.
+     * [copyEffectPos] is the copy in the effect version before the delete. A sink that tracks no
+     * moves takes a plain delete.
+     */
+    fun moveDelete(effectPos: Int, count: Int, copyEffectPos: Int) {
+      delete(effectPos, count)
+    }
   }
 
   /**

@@ -53,7 +53,8 @@ interface Event {
   /**
    * The part of this run from the unit [units] onward, as an event of its own. A merge
    * needs it when the other replica holds only the leading units of the run. [units] must be
-   * in `[0, length)`, and a zero [units] returns this event.
+   * in `[0, length)`, and a zero [units] returns this event. A part of a move moves nothing, so
+   * the suffix of a move is a plain op.
    */
   fun suffixFrom(units: Int): Event
 

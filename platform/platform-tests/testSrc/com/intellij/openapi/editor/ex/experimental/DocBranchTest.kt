@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Random
+import kotlin.test.fail
 
 class DocBranchTest {
 
@@ -728,6 +729,51 @@ internal fun insertOp(offset: Int, fragment: CharSequence): DocumentOp.Insert = 
 internal fun deleteOp(offset: Int, length: Int): DocumentOp.Delete = DocumentOp.deleteOp(offset, length)
 
 /**
+ * The ops of a text move in [text], as `DocumentEx.moveText` makes them: an insert of the copy at
+ * [dst], then a delete of the source.
+ */
+internal fun moveOps(text: CharSequence, srcStart: Int, srcEnd: Int, dst: Int): List<DocumentOp.Text> {
+  val fragment = text.subSequence(srcStart, srcEnd).toString()
+  var sourceStart = srcStart
+  if (dst < srcStart) {
+    // The copy lands before the source and shifts it.
+    sourceStart += fragment.length
+  }
+  val copy = DocumentOp.insertOp(dst, fragment, sourceStart)
+  val removal = DocumentOp.deleteOp(sourceStart, fragment.length, dst)
+  return listOf(copy, removal)
+}
+
+internal fun DocBranch.moveText(srcStart: Int, srcEnd: Int, dst: Int): DocBranch {
+  val ops = moveOps(text().chars(), srcStart, srcEnd, dst)
+  return ops.fold(this) { branch, op -> branch.applyOp(op) }
+}
+
+/**
+ * The ops of a move of up to three characters of [text] to a random offset outside them. The list is
+ * empty when no such offset exists.
+ */
+internal fun randomMoveOps(random: Random, text: CharSequence): List<DocumentOp.Text> {
+  val length = text.length
+  if (length == 0) {
+    return emptyList()
+  }
+  val srcStart = random.nextInt(length)
+  val srcEnd = srcStart + 1 + random.nextInt(minOf(3, length - srcStart))
+  val outside = srcStart + (length - srcEnd)
+  if (outside == 0) {
+    return emptyList()
+  }
+  // The offsets before the source come first, then the offsets after it.
+  val pick = random.nextInt(outside)
+  var dst = pick
+  if (pick >= srcStart) {
+    dst = srcEnd + 1 + (pick - srcStart)
+  }
+  return moveOps(text, srcStart, srcEnd, dst)
+}
+
+/**
  * Runs one round of a fuzz test with a [Random] of its own [seed], so a failing round
  * replays alone. A failure names the seed and the round.
  */
@@ -743,6 +789,43 @@ internal fun fuzzRound(seed: Long, round: Int, body: (Random) -> Unit) {
  * This text with [ops] applied one after another, as [DocMerge.ops] says an editor applies them.
  */
 internal fun DocumentText.afterOps(ops: List<DocumentOp.Text>): DocumentText = ops.fold(this) { text, op -> text.applyOp(op) }
+
+/**
+ * Fails unless every op of [ops] with a move offset is half of a pair that meets the contract of
+ * `DocumentEvent.getMoveOffset`, when the ops apply to [start] one after another.
+ */
+internal fun assertMovePairs(start: DocumentText, ops: List<DocumentOp.Text>) {
+  var text = start
+  var pairedDelete: DocumentOp.Delete? = null
+  for (op in ops) {
+    val expectedDelete = pairedDelete
+    pairedDelete = null
+    text = text.applyOp(op)
+    if (expectedDelete != null) {
+      assertEquals(expectedDelete, op) { "the delete of a move" }
+    } else if (op.moveOffset() != op.offset()) {
+      pairedDelete = pairedDeleteOf(op, text)
+    }
+  }
+  assertEquals(null, pairedDelete) { "a move insert without its delete" }
+}
+
+/**
+ * The delete that must follow the move op [op]. [after] is the text after [op], and the source there
+ * must hold the fragment. A move delete that no insert opened fails.
+ */
+private fun pairedDeleteOf(op: DocumentOp.Text, after: DocumentText): DocumentOp.Delete {
+  return when (op) {
+    is DocumentOp.Insert -> {
+      val sourceStart = op.moveOffset()
+      val source = TextRange(sourceStart, sourceStart + op.length())
+      val fragment = op.fragment().toString()
+      assertEquals(fragment, after.string(source)) { "the source of $op" }
+      DocumentOp.deleteOp(op.moveOffset(), op.length(), op.offset())
+    }
+    is DocumentOp.Delete -> fail("a move delete without its insert: $op")
+  }
+}
 
 internal fun assertSameText(expected: DocumentText, actual: DocumentText) {
   assertEquals(expected.string(), actual.string())

@@ -15,8 +15,9 @@ import com.intellij.openapi.editor.ex.experimental.EventIdClashException
  *
  * Both graphs hold the seqs `[0, endSeq)` of an agent. So the shared range of an agent runs from 0
  * to the smaller of the two end seqs. The check SAMPLES the two ends of that range. At each end it
- * compares the kind, the offset, the character, and the parents. So it costs a few lookups per
- * shared agent and nothing per run. It does not see a difference strictly inside the shared range.
+ * compares the kind, the offset, the move offset, the character, and the parents. So it costs a few
+ * lookups per shared agent and nothing per run. It does not see a difference strictly inside the
+ * shared range.
  * A full compare would make every merge cost the whole shared history, and a merge must cost the
  * size of the change.
  */
@@ -52,6 +53,7 @@ internal class SharedIdCheck(private val graph: EventGraphImpl, private val othe
     val otherRun = other.runAt(otherLv)
     checkNoClash(run.isDelete() == otherRun.isDelete(), agent, seq, "the operation kind")
     checkNoClash(run.offsetAt(lv) == otherRun.offsetAt(otherLv), agent, seq, "the offset")
+    checkNoClash(run.moveDistance() == otherRun.moveDistance(), agent, seq, "the move offset")
     // The kind check passed, so a run that is not a delete is an insert in both graphs.
     if (!run.isDelete()) {
       checkNoClash(run.charAt(lv) == otherRun.charAt(otherLv), agent, seq, "the inserted character")

@@ -11,9 +11,9 @@ import java.util.Random
 /**
  * A gossip fuzz: replicas edit and pull from each other in a random order, so the merge
  * base moves in every direction. [DocBranchFuzzTest] keeps a fork-then-sync shape with
- * small ops. This test adds the shapes that shape misses: many pulls in any direction,
- * whole-document deletes, pastes of up to 12 characters, and a replica with no common history.
- * Long runs and many agents are the job of [EgWalkerConformanceTest].
+ * small ops. This test adds the shapes that shape misses. They are many pulls in any direction,
+ * whole-document deletes, pastes of up to 12 characters, text moves, and a replica with no common
+ * history. Long runs and many agents are the job of [EgWalkerConformanceTest].
  *
  * Each replica also has a caret, and most edits type or delete at it. Those edits extend the
  * newest run. So a pull often lands in the middle of a run, and two replicas often cut the
@@ -22,6 +22,7 @@ import java.util.Random
  * These invariants hold after every merge:
  * - the branch text equals a from-scratch replay of the merged graph;
  * - the ops of the merge fold the text of the receiver into the merged text;
+ * - every op with a move offset is half of a valid move pair;
  * - a full sync brings every replica to one text.
  *
  * After the sync, a past version of a replica replays to the text it held, in another replica too.
@@ -64,6 +65,9 @@ class DocBranchGossipFuzzTest {
               checkOps(replicas[i], merge) { "round $round, step $step, the ops of merge $i <- $j" }
               replicas[i] = merged
             }
+          } else if (random.nextInt(8) == 0) {
+            val move = randomMoveOps(random, replicas[i].text().chars())
+            replicas[i] = move.fold(replicas[i]) { branch, op -> branch.applyOp(op) }
           } else {
             val op = randomOp(random, replicas[i].length(), carets[i])
             replicas[i] = replicas[i].applyOp(op)
@@ -133,8 +137,9 @@ class DocBranchGossipFuzzTest {
   }
 
   /**
-   * Fails unless the ops of [merge] fold the text of [receiver] into the merged text, and none of
-   * them is empty. A fold through an op outside its text throws on its own.
+   * Fails unless the ops of [merge] fold the text of [receiver] into the merged text, none of them is
+   * empty, and every move pair among them is valid. A fold through an op outside its text throws on
+   * its own.
    */
   private fun checkOps(receiver: DocBranch, merge: DocMerge, where: () -> String) {
     val ops = merge.ops()
@@ -142,6 +147,7 @@ class DocBranchGossipFuzzTest {
       assertTrue(op.length() > 0, where)
     }
     assertEquals(merge.branch().string(), receiver.text().afterOps(ops).string(), where)
+    assertMovePairs(receiver.text(), ops)
   }
 
   /**

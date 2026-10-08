@@ -58,12 +58,17 @@ internal class DocumentPatchImpl(
     val newFragment = patch.newFragment()
     val newModStamp = patch.newModStamp()
     val clearLineFlags = patch.clearLineFlags()
+    var moveOffset = patch.moveOffset()
+    if (endOffset > startOffset && newFragment.isNotEmpty()) {
+      // A replace is not half of a move. A whole-text replace keeps the move offset of its narrowed event.
+      moveOffset = startOffset
+    }
     val ops = ArrayList<DocumentOp>(4)
     if (endOffset > startOffset) {
-      ops.add(DocumentOp.deleteOp(startOffset, endOffset - startOffset))
+      ops.add(DocumentOp.deleteOp(startOffset, endOffset - startOffset, moveOffset))
     }
     if (newFragment.isNotEmpty()) {
-      ops.add(DocumentOp.insertOp(startOffset, newFragment))
+      ops.add(DocumentOp.insertOp(startOffset, newFragment, moveOffset))
     }
     ops.add(DocumentOp.modStampOp(newModStamp, false))
     if (clearLineFlags) {

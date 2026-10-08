@@ -6,6 +6,8 @@ import com.intellij.openapi.editor.ex.experimental.Agent
 import com.intellij.openapi.editor.ex.experimental.Event
 import com.intellij.openapi.editor.impl.DeleteOpImpl
 import com.intellij.openapi.editor.impl.InsertOpImpl
+import com.intellij.openapi.editor.impl.isMove
+import com.intellij.openapi.editor.impl.isMovedTextApart
 
 internal class EventImpl(
     private val agent: Agent,
@@ -23,6 +25,7 @@ internal class EventImpl(
     checkLength(length)
     checkIdSpace(seq, length)
     checkOffsetSpace(offset, length)
+    checkMove(op)
   }
 
   override fun agent(): Agent = agent
@@ -48,6 +51,7 @@ internal class EventImpl(
 
   /**
    * The part of [op] from the unit [units] onward. A delete keeps its offset; see [offsetOfUnit].
+   * A part of a move moves nothing, so the suffix is a plain op.
    */
   private fun suffixOp(units: Int): DocumentOp.Text {
     return when (op) {
@@ -122,5 +126,23 @@ private fun checkIdSpace(seq: Int, length: Int) {
 private fun checkOffsetSpace(offset: Int, length: Int) {
   require(length <= Int.MAX_VALUE - offset) {
     "The offset space overflows: offset $offset + length $length"
+  }
+}
+
+/**
+ * Fails unless the moved text of a move op lies apart from the text that the op changes. The event
+ * cannot see the document, so the content is the job of the caller.
+ */
+private fun checkMove(op: DocumentOp.Text) {
+  if (!op.isMove()) {
+    return
+  }
+  val moveOffset = op.moveOffset()
+  require(moveOffset >= 0) {
+    "Negative move offset: $moveOffset"
+  }
+  checkOffsetSpace(moveOffset, op.length())
+  require(op.isMovedTextApart()) {
+    "The moved text at $moveOffset overlaps the text that $op changes"
   }
 }

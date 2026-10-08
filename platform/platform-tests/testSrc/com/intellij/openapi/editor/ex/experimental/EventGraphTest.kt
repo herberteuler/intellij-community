@@ -683,6 +683,74 @@ class EventGraphTest {
   }
 
   @Test
+  fun `ops with move offsets compare the move offset`() {
+    val moveInsert = DocumentOp.insertOp(4, "01", 0)
+    val sameMoveInsert = DocumentOp.insertOp(4, StringBuilder("01"), 0)
+    assertEquals(moveInsert, sameMoveInsert)
+    assertEquals(moveInsert.hashCode(), sameMoveInsert.hashCode())
+    assertNotEquals(moveInsert, DocumentOp.insertOp(4, "01"))
+    assertNotEquals(moveInsert, DocumentOp.insertOp(4, "01", 1))
+    val moveDelete = DocumentOp.deleteOp(0, 2, 4)
+    val sameMoveDelete = DocumentOp.deleteOp(0, 2, 4)
+    assertEquals(moveDelete, sameMoveDelete)
+    assertEquals(moveDelete.hashCode(), sameMoveDelete.hashCode())
+    assertNotEquals(moveDelete, DocumentOp.deleteOp(0, 2))
+    assertNotEquals(moveDelete, DocumentOp.deleteOp(0, 2, 5))
+    // A move offset at the offset itself moves nothing.
+    assertEquals(DocumentOp.insertOp(4, "01"), DocumentOp.insertOp(4, "01", 4))
+    assertEquals(DocumentOp.deleteOp(0, 2), DocumentOp.deleteOp(0, 2, 0))
+  }
+
+  @Test
+  fun `an op prints its move offset only when it moves`() {
+    assertEquals("ins(4, \"01\", move=0)", DocumentOp.insertOp(4, "01", 0).toString())
+    assertEquals("del(0, len=2, move=4)", DocumentOp.deleteOp(0, 2, 4).toString())
+    assertEquals("ins(4, \"01\")", DocumentOp.insertOp(4, "01", 4).toString())
+    assertEquals("del(0, len=2)", DocumentOp.deleteOp(0, 2, 0).toString())
+  }
+
+  @Test
+  fun `an op that names no move offset moves nothing`() {
+    val foreign = object : DocumentOp.Delete {
+      override fun offset(): Int = 3
+      override fun length(): Int = 1
+    }
+    assertEquals(3, foreign.moveOffset())
+  }
+
+  @Test
+  fun `an event rejects a move that is not apart from its own text`() {
+    val u = agent("u")
+    // The source overlaps the copy, and the copy overlaps the deleted text.
+    assertThrows(IllegalArgumentException::class.java) {
+      Event.create(u, 0, DocumentOp.insertOp(2, "abc", 4))
+    }
+    assertThrows(IllegalArgumentException::class.java) {
+      Event.create(u, 0, DocumentOp.deleteOp(2, 3, 0))
+    }
+    assertThrows(IllegalArgumentException::class.java) {
+      Event.create(u, 0, DocumentOp.insertOp(2, "ab", -1))
+    }
+    assertThrows(IllegalArgumentException::class.java) {
+      Event.create(u, 0, DocumentOp.deleteOp(0, 2, Int.MAX_VALUE - 1))
+    }
+    // The moved text may touch the changed text at either end.
+    val sourceAfterCopy = Event.create(u, 0, DocumentOp.insertOp(2, "abc", 5))
+    assertEquals(5, sourceAfterCopy.op().moveOffset())
+    val copyBeforeDeleted = Event.create(u, 0, DocumentOp.deleteOp(3, 3, 0))
+    assertEquals(0, copyBeforeDeleted.op().moveOffset())
+  }
+
+  @Test
+  fun `a suffix of a move moves nothing`() {
+    val insert = Event.create(agent("u"), 0, DocumentOp.insertOp(4, "01", 0))
+    assertSame(insert, insert.suffixFrom(0))
+    assertEquals(DocumentOp.insertOp(5, "1"), insert.suffixFrom(1).op())
+    val delete = Event.create(agent("u"), 2, DocumentOp.deleteOp(0, 2, 4))
+    assertEquals(DocumentOp.deleteOp(0, 1), delete.suffixFrom(1).op())
+  }
+
+  @Test
   fun `an append past the unit space is rejected`() {
     // A delete holds no content, so one run can take almost the whole unit space for free.
     val huge = EventGraph.createGraph().append(Event.createDelete(agent("u"), 0, 0, Int.MAX_VALUE - 1), Version.root())
@@ -744,6 +812,25 @@ class EventGraphTest {
     val clash = assertThrows(EventIdClashException::class.java) { one.mergeFrom(clashing) }
     assertEquals(w, clash.agent())
     assertThrows(EventIdClashException::class.java) { clashing.mergeFrom(one) }
+  }
+
+  @Test
+  fun `a shared id with another move offset is a clash`() {
+    // Both graphs gave (v, 0) the same insert, but only one of them as half of a move.
+    val u = agent("u")
+    val v = agent("v")
+    val text = Event.createInsert(u, 0, 0, "abcd")
+    val base = EventGraph.createGraph().append(text, Version.root())
+    val moveInsert = Event.create(v, 0, DocumentOp.insertOp(4, "ab", 0))
+    val plainInsert = Event.create(v, 0, DocumentOp.insertOp(4, "ab"))
+    val moved = base.append(moveInsert, base.version())
+    val sameMove = base.append(moveInsert, base.version())
+    val typed = base.append(plainInsert, base.version())
+    val merged = moved.mergeFrom(sameMove)
+    assertEquals("abcdab", merged.replay().string())
+    val clash = assertThrows(EventIdClashException::class.java) { moved.mergeFrom(typed) }
+    assertTrue(clash.message.orEmpty().contains("the move offset"), clash.message)
+    assertThrows(EventIdClashException::class.java) { typed.mergeFrom(moved) }
   }
 
   @Test

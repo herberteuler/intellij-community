@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentOp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -75,6 +76,44 @@ class TipCoalescingTest {
     history.delete(U, 2, 1).insert(U, 2, "d")
     assertEquals(3, history.graph().runCount())
     history.assertReplays("abd")
+  }
+
+  @Test
+  fun `a half of a move never extends a run`() {
+    // The move insert starts at the end of the typed run.
+    val inserts = History()
+      .insert(V, 0, "xy")
+      .type(U, 2, "ab")
+      .move(U, 0, 2, 4)
+    assertEquals(4, inserts.graph().runCount())
+    inserts.assertReplays("abxy")
+    // The move delete starts at the offset of the delete run.
+    val moveDelete = DocumentOp.deleteOp(0, 2, 2)
+    val deletes = History()
+      .insert(V, 0, "xabab")
+      .delete(U, 0, 1)
+      .apply(U, moveDelete)
+    assertEquals(3, deletes.graph().runCount())
+    deletes.assertReplays("ab")
+  }
+
+  @Test
+  fun `nothing extends a half of a move`() {
+    // A keystroke at the end of a move insert.
+    val moveInsert = DocumentOp.insertOp(2, "ab", 0)
+    val inserts = History()
+      .insert(V, 0, "ab")
+      .apply(U, moveInsert)
+      .insert(U, 4, "c")
+    assertEquals(3, inserts.graph().runCount())
+    inserts.assertReplays("ababc")
+    // A Delete key press at the offset of a move delete.
+    val deletes = History()
+      .insert(V, 0, "abcd")
+      .move(U, 0, 2, 4)
+      .delete(U, 0, 1)
+    assertEquals(4, deletes.graph().runCount())
+    deletes.assertReplays("dab")
   }
 
   @Test
@@ -379,17 +418,30 @@ class TipCoalescingTest {
     }
 
     fun insert(agent: Agent, offset: Int, fragment: String): History {
-      val event = Event.createInsert(agent, takeSeqs(agent, fragment.length), offset, fragment)
-      graph = graph.append(event, graph.version())
-      text.insert(offset, fragment)
-      past.add(graph.version() to text.toString())
-      return this
+      return apply(agent, DocumentOp.insertOp(offset, fragment))
     }
 
     fun delete(agent: Agent, offset: Int, length: Int): History {
-      val event = Event.createDelete(agent, takeSeqs(agent, length), offset, length)
+      return apply(agent, DocumentOp.deleteOp(offset, length))
+    }
+
+    /**
+     * A text move, with the ops of [moveOps].
+     */
+    fun move(agent: Agent, srcStart: Int, srcEnd: Int, dst: Int): History {
+      for (op in moveOps(text, srcStart, srcEnd, dst)) {
+        apply(agent, op)
+      }
+      return this
+    }
+
+    fun apply(agent: Agent, op: DocumentOp.Text): History {
+      val event = Event.create(agent, takeSeqs(agent, op.length()), op)
       graph = graph.append(event, graph.version())
-      text.delete(offset, offset + length)
+      when (op) {
+        is DocumentOp.Insert -> text.insert(op.offset(), op.fragment())
+        is DocumentOp.Delete -> text.delete(op.offset(), op.offset() + op.length())
+      }
       past.add(graph.version() to text.toString())
       return this
     }

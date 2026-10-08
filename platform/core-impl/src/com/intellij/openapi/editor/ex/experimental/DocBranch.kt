@@ -40,6 +40,10 @@ interface DocBranch {
 
   /**
    * A branch with [op] applied at this branch's version: the same edit as [DocumentText.applyOp].
+   *
+   * An op with a move offset records half of a text move. The op records as a plain one unless the
+   * text at its move offset is the moved text. The moved text must also lie apart from the text that
+   * the op changes. A half without its other half merges as a plain op.
    */
   fun applyOp(op: DocumentOp): DocBranch
 

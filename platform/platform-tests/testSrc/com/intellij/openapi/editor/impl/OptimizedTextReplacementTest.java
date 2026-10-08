@@ -1,10 +1,13 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl;
 
+import com.intellij.openapi.editor.ex.DocumentOp;
 import com.intellij.openapi.editor.ex.DocumentPatch;
 import com.intellij.util.text.CharArrayUtil;
 import com.intellij.util.text.ImmutableCharSequence;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -45,6 +48,17 @@ public class OptimizedTextReplacementTest {
     assertEquals(3, replacement.getStartOffset());
     assertEquals(6, replacement.getEndOffset());
     assertEquals(3, patch.moveOffset());
+  }
+
+  @Test
+  public void wholeTextReplacementOpsCarryNoMoveOffset() {
+    // The patch keeps the move offset of the narrowed event, but a replace is not half of a move.
+    ImmutableCharSequence fragment = CharArrayUtil.createImmutableCharSequence("abcNEWxyz");
+    OptimizedTextReplacement replacement = replacement("abcOLDxyz", 0, 9, fragment, true, false);
+    assertFalse(replacement.perform());
+    List<DocumentOp> ops = replacement.getPatch().ops();
+    assertEquals(DocumentOp.deleteOp(0, 9), ops.get(0));
+    assertEquals(DocumentOp.insertOp(0, fragment), ops.get(1));
   }
 
   @Test

@@ -9,6 +9,8 @@ import com.intellij.openapi.editor.ex.experimental.DocMerge
 import com.intellij.openapi.editor.ex.experimental.EventGraph
 import com.intellij.openapi.editor.ex.experimental.Version
 import com.intellij.openapi.editor.impl.DocumentTextImpl
+import com.intellij.openapi.editor.impl.isMove
+import com.intellij.openapi.editor.impl.isMovedTextApart
 import java.util.Collections
 
 /**
@@ -104,7 +106,8 @@ internal class DocBranchImpl private constructor(
     }
     // The inner text validates the offset before the graph changes.
     val newDocText = docText.applyOp(op)
-    return DocBranchImpl(newDocText, agent, appendLocal(op))
+    val recorded = recordedInsert(op, newDocText)
+    return DocBranchImpl(newDocText, agent, appendLocal(recorded))
   }
 
   private fun applyDelete(op: DocumentOp.Delete): DocBranch {
@@ -113,7 +116,51 @@ internal class DocBranchImpl private constructor(
       return this
     }
     val newDocText = docText.applyOp(op)
-    return DocBranchImpl(newDocText, agent, appendLocal(op))
+    val recorded = recordedDelete(op)
+    return DocBranchImpl(newDocText, agent, appendLocal(recorded))
+  }
+
+  /**
+   * [op] as the graph records it. A move insert whose move offset does not name its source records as
+   * a plain insert. The source sits in [newDocText], the text after the insert.
+   */
+  private fun recordedInsert(op: DocumentOp.Insert, newDocText: DocumentText): DocumentOp.Insert {
+    val fragment = op.fragment()
+    if (!op.isMove() || isValidMove(op, newDocText, fragment)) {
+      return op
+    }
+    return DocumentOp.insertOp(op.offset(), fragment)
+  }
+
+  /**
+   * [op] as the graph records it. A move delete whose move offset does not name its copy records as a
+   * plain delete. The copy sits in the text before the delete.
+   */
+  private fun recordedDelete(op: DocumentOp.Delete): DocumentOp.Delete {
+    if (!op.isMove()) {
+      return op
+    }
+    val start = op.offset()
+    val end = start + op.length()
+    val deleted = docText.chars().subSequence(start, end)
+    if (isValidMove(op, docText, deleted)) {
+      return op
+    }
+    return DocumentOp.deleteOp(start, op.length())
+  }
+
+  /**
+   * Whether [text] holds [moved] at the move offset of [op], apart from the text that [op] changes. A
+   * wrong move offset would move markers onto other text in every branch that merges the op.
+   */
+  private fun isValidMove(op: DocumentOp.Text, text: DocumentText, moved: CharSequence): Boolean {
+    val moveOffset = op.moveOffset()
+    val fitsText = moveOffset >= 0 && moved.length <= text.length() - moveOffset
+    if (!fitsText || !op.isMovedTextApart()) {
+      return false
+    }
+    val atMoveOffset = text.chars().subSequence(moveOffset, moveOffset + moved.length)
+    return atMoveOffset.contentEquals(moved)
   }
 
   /**

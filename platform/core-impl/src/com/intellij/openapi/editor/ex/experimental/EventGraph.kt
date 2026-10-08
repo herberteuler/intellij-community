@@ -50,7 +50,8 @@ interface EventGraph {
    * - the op has the same kind, and it starts where the run would edit next. That is the end of an
    *   insert, or the offset of a delete;
    * - an insert run stays within [MAX_COALESCED_INSERT] characters;
-   * - a delete run stays within the offset space, so its offset plus its length fits an `Int`.
+   * - a delete run stays within the offset space, so its offset plus its length fits an `Int`;
+   * - neither op is half of a text move.
    *
    * The units, their ids, and their parents are the same either way, so only [runCount] shows
    * the difference. A backspace does not continue a delete run, because its units walk

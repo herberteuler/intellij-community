@@ -8,6 +8,7 @@ import com.intellij.util.text.ImmutableCharSequence
 internal class InsertOpImpl(
   private val offset: Int,
   fragment: CharSequence,
+  private val moveOffset: Int,
 ) : DocumentOp.Insert {
   /**
    * A copy detaches the op from a mutable CharSequence the caller may keep.
@@ -18,42 +19,74 @@ internal class InsertOpImpl(
   override fun offset(): Int = offset
   override fun length(): Int = fragment.length
   override fun fragment(): CharSequence = fragment
+  override fun moveOffset(): Int = moveOffset
 
   override fun equals(other: Any?): Boolean {
     return other is InsertOpImpl &&
            offset == other.offset &&
+           moveOffset == other.moveOffset &&
            fragment.contentEquals(other.fragment)
   }
 
   override fun hashCode(): Int {
-    return 31 * offset + StringUtil.stringHashCode(fragment)
+    val offsetsHash = 31 * offset + moveOffset
+    return 31 * offsetsHash + StringUtil.stringHashCode(fragment)
   }
 
   override fun toString(): String {
-    return "ins($offset, ${fragment.quotedForMessage()})"
+    return "ins($offset, ${fragment.quotedForMessage()}${moveSuffix(this)})"
   }
 }
 
 internal class DeleteOpImpl(
   private val offset: Int,
   private val length: Int,
+  private val moveOffset: Int,
 ) : DocumentOp.Delete {
   override fun offset(): Int = offset
   override fun length(): Int = length
+  override fun moveOffset(): Int = moveOffset
 
   override fun equals(other: Any?): Boolean {
     return other is DeleteOpImpl &&
            offset == other.offset &&
-           length == other.length
+           length == other.length &&
+           moveOffset == other.moveOffset
   }
 
   override fun hashCode(): Int {
-    return 31 * offset + length
+    val offsetsHash = 31 * offset + moveOffset
+    return 31 * offsetsHash + length
   }
 
   override fun toString(): String {
-    return "del($offset, len=$length)"
+    return "del($offset, len=$length${moveSuffix(this)})"
   }
+}
+
+/**
+ * Whether this op is half of a text move. See [DocumentOp.Text.moveOffset].
+ */
+internal fun DocumentOp.Text.isMove(): Boolean {
+  return moveOffset() != offset()
+}
+
+/**
+ * Whether the moved text at [DocumentOp.Text.moveOffset] lies apart from the text that this op
+ * changes. Both offsets must not be negative.
+ */
+internal fun DocumentOp.Text.isMovedTextApart(): Boolean {
+  val length = length()
+  val endsBefore = moveOffset() <= offset() - length
+  val startsAfter = moveOffset() - length >= offset()
+  return endsBefore || startsAfter
+}
+
+private fun moveSuffix(op: DocumentOp.Text): String {
+  if (op.isMove()) {
+    return ", move=${op.moveOffset()}"
+  }
+  return ""
 }
 
 internal class ModStampOpImpl(

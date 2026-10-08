@@ -31,6 +31,10 @@ interface DocMerge {
    * because the other side can insert text and delete it later, and only neighbouring ops join.
    * The list cannot change, and every call returns the same list.
    *
+   * A move arrives as an insert and a delete with move offsets, as `DocumentEvent.getMoveOffset` gives
+   * them. This holds when the moved text is intact at the place of the move in the op stream.
+   * Otherwise the move arrives as plain ops.
+   *
    * A fast-forward needs no replay to build its text, so it builds its ops only on the first call.
    * That call costs a replay of the change and one compare of the text, and not a replay of the
    * document. The compare makes sure that the ops build the text of [branch]. It fails only when the

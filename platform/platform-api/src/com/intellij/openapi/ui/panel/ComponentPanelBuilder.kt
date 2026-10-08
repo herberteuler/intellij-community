@@ -37,7 +37,6 @@ import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
 import java.util.function.Consumer
 import java.util.function.Supplier
-import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.Icon
 import javax.swing.JButton
@@ -57,6 +56,7 @@ import javax.swing.plaf.LabelUI
 @Deprecated(
   """Provides incorrect spacing between components and out-dated. The functionality is covered by Kotlin UI DSL,
   which should be used instead. ComponentPanelBuilder will be removed after moving Kotlin UI DSL into platform API package""")
+@ApiStatus.ScheduledForRemoval
 open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagPanelBuilder {
 
   private var myLabelText: @NlsContexts.Label String? = null
@@ -69,7 +69,6 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
   private var myHTDescription: @NlsContexts.Tooltip String? = null
   private var myHTLinkText: @NlsContexts.LinkLabel String? = null
   private var myHTAction: Runnable? = null
-  private var myTopRightComponent: JComponent? = null
   private var myAnchor = UI.Anchor.Center
   private var myResizeY = false
   private var myResizeX = true
@@ -108,6 +107,7 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
    * @return `this`
    */
   @Deprecated("Use Kotlin UI DSL")
+  @ApiStatus.ScheduledForRemoval
   open fun withLabel(labelText: @NlsContexts.Label String): ComponentPanelBuilder {
     myLabelText = labelText
     return this
@@ -133,10 +133,8 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
     return this
   }
 
-  /**
-   * @param comment help context styled text written below the owner component.
-   * @return `this`
-   */
+  @Deprecated("Use Kotlin UI DSL")
+  @ApiStatus.ScheduledForRemoval
   open fun withComment(@NlsContexts.DetailedDescription comment: @NlsContexts.DetailedDescription String): ComponentPanelBuilder {
     return withComment(comment, true)
   }
@@ -172,23 +170,6 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
   @ApiStatus.ScheduledForRemoval
   open fun withCommentHyperlinkListener(listener: HyperlinkListener): ComponentPanelBuilder {
     myHyperlinkListener = listener
-    return this
-  }
-
-  /**
-   * Adds a custom (one line) component to the top right location of the main component.
-   * Useful for adding control like [com.intellij.ui.components.labels.LinkLabel] or
-   * [com.intellij.ui.components.DropDownLink]
-   * 
-   * @param topRightComponent the component to be added
-   * @return `this`
-   */
-  @ApiStatus.Internal
-  @Deprecated("Use Kotlin UI DSL")
-  @ApiStatus.ScheduledForRemoval
-  fun withTopRightComponent(topRightComponent: JComponent): ComponentPanelBuilder {
-    myTopRightComponent = topRightComponent
-    valid = StringUtil.isEmpty(myCommentText) || StringUtil.isEmpty(myHTDescription)
     return this
   }
 
@@ -339,22 +320,13 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
       gc.anchor = GridBagConstraints.LINE_START
 
       if (StringUtil.isNotEmpty(myLabelText)) {
-        if (myLabelOnTop || myTopRightComponent != null) {
+        if (myLabelOnTop) {
           gc.insets = JBUI.insetsBottom(4)
           gc.gridx = 1
 
           val topPanel = JPanel()
           topPanel.setLayout(BoxLayout(topPanel, BoxLayout.X_AXIS))
-          if (myLabelOnTop) {
-            topPanel.add(label)
-          }
-
-          if (myTopRightComponent != null) {
-            topPanel.add(Box.Filler(JBUI.size(UIUtil.DEFAULT_HGAP, 0),
-                                    JBUI.size(UIUtil.DEFAULT_HGAP, 0),
-                                    JBUI.size(Int.MAX_VALUE)))
-            topPanel.add(myTopRightComponent)
-          }
+          topPanel.add(label)
 
           panel.add(topPanel, gc)
           gc.gridy++
@@ -510,6 +482,8 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
     @ApiStatus.ScheduledForRemoval
     const val MAX_COMMENT_WIDTH: Int = 70
 
+    @Deprecated("Use Kotlin UI DSL")
+    @ApiStatus.ScheduledForRemoval
     @JvmStatic
     fun computeCommentInsets(component: JComponent, commentBelow: Boolean): Insets {
       val isMacDefault = UIUtil.isUnderDefaultMacTheme()
@@ -561,6 +535,8 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
       }
     }
 
+    @Deprecated("Use Kotlin UI DSL")
+    @ApiStatus.ScheduledForRemoval
     @JvmStatic
     fun createCommentComponent(
       commentText: @NlsContexts.DetailedDescription String?,
@@ -580,6 +556,8 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
       return createCommentComponent(commentText, isCommentBelow, maxLineLength, true)
     }
 
+    @Deprecated("Use Kotlin UI DSL")
+    @ApiStatus.ScheduledForRemoval
     @JvmStatic
     fun createCommentComponent(
       commentText: @NlsContexts.DetailedDescription String?,
@@ -613,11 +591,15 @@ open class ComponentPanelBuilder(private val myComponent: JComponent) : GridBagP
       return component
     }
 
+    @Deprecated("Use Kotlin UI DSL")
+    @ApiStatus.ScheduledForRemoval
     @JvmStatic
     fun createNonWrappingCommentComponent(@NlsContexts.DetailedDescription commentText: @NlsContexts.DetailedDescription String): JLabel {
       return CommentLabel(commentText)
     }
 
+    @Deprecated("Use Kotlin UI DSL")
+    @ApiStatus.ScheduledForRemoval
     @JvmStatic
     fun getCommentFont(font: Font?): Font {
       if (isNewUI()) {

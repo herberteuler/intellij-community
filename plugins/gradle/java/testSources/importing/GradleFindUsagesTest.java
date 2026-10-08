@@ -248,7 +248,7 @@ public class GradleFindUsagesTest extends GradleImportingTestCase {
 
     // included build
     createProjectSubFile("gradle-plugin/settings.gradle", "");
-    createProjectSubFile("gradle-plugin/build.gradle", "group 'my.included'\n" +
+    createProjectSubFile("gradle-plugin/build.gradle", "group = 'my.included'\n" +
                                                        "apply plugin: 'java'\n" +
                                                        "def foo = new " + classPackage + ".IncludedBuildSrcClass()");
     createProjectSubFile("gradle-plugin/buildSrc/src/main/groovy/" + classPackage + "/IncludedBuildSrcClass.groovy",

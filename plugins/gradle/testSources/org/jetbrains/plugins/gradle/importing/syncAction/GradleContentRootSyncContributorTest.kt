@@ -556,6 +556,7 @@ class GradleContentRootSyncContributorTest : GradlePhasedSyncTestCase() {
       createSettingsFile {
         setProjectName("project")
       }
+      createSettingsFile("buildSrc") {}
       createBuildFile("buildSrc") {
         withPlugin("groovy")
         addImplementationDependency(code("gradleApi()"))

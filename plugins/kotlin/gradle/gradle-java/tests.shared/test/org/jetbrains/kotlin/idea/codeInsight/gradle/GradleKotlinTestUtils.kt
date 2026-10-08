@@ -29,7 +29,7 @@ object GradleKotlinTestUtils {
             VersionMatcher(gradleVersion).isVersionMatch(version, true)
 
         fun MutableList<String>.addUrl(url: String) {
-            this += if (useKts) "maven(\"$url\")" else "maven { url '$url' }"
+            this += if (useKts) "maven(\"$url\")" else "maven { url = '$url' }"
         }
 
         val repositories = mutableListOf<String>()

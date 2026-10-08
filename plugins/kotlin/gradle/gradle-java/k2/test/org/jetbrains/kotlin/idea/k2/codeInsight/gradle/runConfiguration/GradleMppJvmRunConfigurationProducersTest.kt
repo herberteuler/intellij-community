@@ -139,7 +139,6 @@ class GradleMppJvmRunConfigurationProducersTest4 : GradleTestRunConfigurationPro
                                 }
                             }
                         }
-                        withJava()
                         testRuns["test"].executionTask.configure {
                             useJUnitPlatform()
                         }

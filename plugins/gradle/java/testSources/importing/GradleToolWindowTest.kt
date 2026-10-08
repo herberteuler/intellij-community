@@ -68,18 +68,18 @@ include ':child2'
 """.trimIndent())
 
     createProjectSubFile("build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child1/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child2/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     doTest()
@@ -95,22 +95,22 @@ include ':child2:dot.child'
 """.trimIndent())
 
     createProjectSubFile("build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child1/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
     createProjectSubFile("child2/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child2/dot.child/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     doTest()
@@ -124,13 +124,13 @@ include ':child1'
 """.trimIndent())
 
     createProjectSubFile("build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child1/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 def foo = new testBuildSrcClassesUsages.BuildSrcClass().sayHello()
 """.trimIndent())
 
@@ -154,17 +154,17 @@ include ':child2'
 """.trimIndent())
 
     createProjectSubFile("build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child1/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
     createProjectSubFile("child2/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
     view.groupModules = false
     doTest()
@@ -182,17 +182,17 @@ include ':child2'
 """.trimIndent())
 
     createProjectSubFile("build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child1/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
     createProjectSubFile("child2/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
     isPreview = true
     importProject()
@@ -213,18 +213,18 @@ include ':child2'
 """.trimIndent())
 
     createProjectSubFile("build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child1/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     createProjectSubFile("child2/build.gradle", """
-group 'test'
-version '1.0-SNAPSHOT'
+group = 'test'
+version = '1.0-SNAPSHOT'
 """.trimIndent())
 
     doTest()
@@ -255,8 +255,8 @@ includeBuild '../my-utils'
       plugins {
         id 'java'
       }
-group 'org.sample'
-version '1.0'
+group = 'org.sample'
+version = '1.0'
 
 dependencies {
   implementation 'org.sample:number-utils:1.0'
@@ -276,8 +276,8 @@ include 'number-utils', 'string-utils'
       plugins {
         id 'java-library'
       }
-  group 'org.sample'
-  version '1.0'
+  group = 'org.sample'
+  version = '1.0'
   dependencies {
     api 'org.apache.commons:commons-lang3:3.4'
   }
@@ -287,8 +287,8 @@ include 'number-utils', 'string-utils'
       plugins {
         id 'java'
       }
-  group 'org.sample'
-  version '1.0'
+  group = 'org.sample'
+  version = '1.0'
     """.trimIndent())
 
     doTest()

@@ -287,9 +287,9 @@ public class GradleDependenciesImportingTest extends GradleImportingTestCase {
         .project(":project2", it -> {
           it.addPostfix("""
                             dependencies.ext.strict = { projectPath ->
-                            dependencies.compile dependencies.project(path: projectPath, transitive: false)
-                            dependencies.runtime dependencies.project(path: projectPath, transitive: true)
-                            dependencies.testRuntime dependencies.project(path: projectPath, transitive: true)
+                            dependencies.implementation dependencies.project(path: projectPath, transitive: false)
+                            dependencies.runtimeOnly dependencies.project(path: projectPath, transitive: true)
+                            dependencies.testRuntimeOnly dependencies.project(path: projectPath, transitive: true)
                           }
                           
                           dependencies {

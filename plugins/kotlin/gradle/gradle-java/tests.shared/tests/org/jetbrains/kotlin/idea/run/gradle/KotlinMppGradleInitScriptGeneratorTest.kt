@@ -51,7 +51,6 @@ class KotlinMppGradleInitScriptGeneratorTest : GradleTestRunConfigurationProduce
                         compilations.all {
                             kotlinOptions.jvmTarget = '17'
                         }
-                        withJava()
                         testRuns["test"].executionTask.configure {
                             useJUnitPlatform()
                         }

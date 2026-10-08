@@ -2,7 +2,7 @@
 package com.intellij.python.junit5Tests.framework.env
 
 import com.intellij.openapi.project.Project
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.python.test.env.common.PredefinedPyEnvironments
 import com.intellij.python.test.env.core.PyEnvironment
 import com.intellij.python.test.env.core.PyEnvironmentSpec
@@ -74,7 +74,7 @@ private suspend fun TestFixtureInitializer.R<PyInterpreterFixture<PyEnvironment>
 ): TestFixtureInitializer.InitializedTestFixture<PyInterpreterFixture<PyEnvironment>> {
   val interpreter = env.prepareSdk(pyProject)
   return initialized(PyInterpreterFixture(interpreter, env, pyProject.project)) {
-    PythonInterpreterProjectRegistry.getInstance(pyProject.project).removePythonInterpreter(pyProject, interpreter)
+    PythonInterpreterRegistry.getInstance(pyProject.project).removePythonInterpreter(pyProject, interpreter)
     env.close()
   }
 }
@@ -85,7 +85,7 @@ private suspend fun TestFixtureInitializer.R<PyInterpreterFixture<PyEnvironment>
 ): TestFixtureInitializer.InitializedTestFixture<PyInterpreterFixture<PyEnvironment>> {
   val interpreter = env.prepareSharedSdk(project)
   return initialized(PyInterpreterFixture(interpreter, env, project)) {
-    PythonInterpreterProjectRegistry.getInstance(project).removeSharedPythonInterpreter(interpreter)
+    PythonInterpreterRegistry.getInstance(project).removePythonInterpreterWithoutPyProject(interpreter)
     env.close()
   }
 }

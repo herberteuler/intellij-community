@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.community.plugin.java.facet;
 
+import com.intellij.python.sdk.backend.PyInterpreterRefsKt;
+import com.intellij.python.sdk.common.PyInterpreterRef;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.projectRoots.ProjectJdkTable;
@@ -10,7 +12,6 @@ import com.intellij.ui.ComboboxWithBrowseButton;
 import com.intellij.python.sdk.backend.PythonInterpreterExtKt;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.python.sdk.common.PyInterpreterItem;
-import com.intellij.python.sdk.common.PyInterpreterRef;
 import com.jetbrains.python.sdk.PySdkListCellRenderer;
 import com.jetbrains.python.sdk.PySdkRenderingKt;
 import com.jetbrains.python.sdk.PythonSdkType;
@@ -70,7 +71,8 @@ final class PythonSdkComboBox extends ComboboxWithBrowseButton {
   /** The row that stands for {@code sdk}, or null when the list holds none for it. */
   private static PyInterpreterItem itemFor(List<PyInterpreterItem> items, Sdk sdk) {
     if (sdk == null) return null;
-    PyInterpreterRef ref = PythonInterpreterExtKt.asInterpreterRef(sdk);
+    PyInterpreterRef ref = PyInterpreterRefsKt.interpreterRefOf(sdk);
+    if (ref == null) return null;
     return ContainerUtil.find(items, item -> ref.equals(item.getRef()));
   }
 }

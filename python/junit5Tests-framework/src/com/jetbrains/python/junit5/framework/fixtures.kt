@@ -9,7 +9,7 @@ import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.python.pyproject.model.internal.platformBridge.rebuildPyProjectModelForTest
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.testFramework.TestApplicationManager
 import com.intellij.testFramework.TestDataProvider
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
@@ -30,7 +30,7 @@ fun TestFixture<Project>.pyMockInterpreterFixture(pyProject: TestFixture<PyProje
   TestFixture<PythonInterpreter> = testFixture {
   val project = this@pyMockInterpreterFixture.init()
   val pyProject = pyProject.init()
-  val registry = PythonInterpreterProjectRegistry.getInstance(project)
+  val registry = PythonInterpreterRegistry.getInstance(project)
   val interpreter = registry.addMockPythonInterpreter(pyProject, sdkProvider())
   // setPythonInterpreter waits for the snapshot, so a test that highlights next is not cancelled by its restart.
   pyProject.setPythonInterpreter(interpreter)

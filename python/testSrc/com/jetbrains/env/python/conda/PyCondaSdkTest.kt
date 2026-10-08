@@ -109,7 +109,6 @@ internal class PyCondaSdkTest {
       val condaSdk = condaRule.condaCommand.createCondaSdkFromExistingEnvironment(
         moduleOrProject = ModuleOrProject.ProjectOnly(projectRule.project),
         condaIdentity = condaEnv.envIdentity,
-        existingSdks = emptyList(),
         workingDirectory = projectRule.project.basePath?.toNioPathOrNull()!!,
       ).getOrThrow().getSdkAPI()
       val request = LocalTargetEnvironmentRequest()
@@ -140,7 +139,6 @@ internal class PyCondaSdkTest {
     val sdk = condaRule.condaCommand.createCondaSdkFromExistingEnvironment(
       moduleOrProject = ModuleOrProject.ProjectOnly(projectRule.project),
       condaIdentity = condaEnv.envIdentity,
-      existingSdks = emptyList(),
       workingDirectory = projectRule.project.basePath?.toNioPathOrNull()!!,
     ).getOrThrow().getSdkAPI()
     val request = LocalTargetEnvironmentRequest()
@@ -157,7 +155,6 @@ internal class PyCondaSdkTest {
     val sdk = condaRule.condaCommand.createCondaSdkAlongWithNewEnv(
       ModuleOrProject.ProjectOnly(projectRule.project),
       newCondaInfo,
-      emptyList(),
       projectRule.project.basePath?.toNioPathOrNull()!!,
     ).getOrThrow().getSdkAPI()
     val env = (sdk.pySdkAdditionalData.flavorAndData.data as PyCondaFlavorData).env
@@ -172,7 +169,6 @@ internal class PyCondaSdkTest {
     val sdk = condaRule.condaCommand.createCondaSdkFromExistingEnvironment(
       moduleOrProject = ModuleOrProject.ProjectOnly(projectRule.project),
       condaIdentity = env.envIdentity,
-      existingSdks = emptyList(),
       workingDirectory = projectRule.project.basePath?.toNioPathOrNull()!!,
     ).getOrThrow().getSdkAPI()
 

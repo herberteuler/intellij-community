@@ -58,7 +58,7 @@ suspend fun <P : PathHolder, T> FileSystem<P>.runTool(
   transformer: ProcessOutputTransformer<T>,
 ): PyResult<T> {
   val resolved = resolveExecutable(executable, pathFromSdk)
-                 ?: return PyResult.localizedError(PySdkBundle.message("cannot.find.executable", executable.fusId, userReadableName))
+                 ?: return PyResult.localizedError(PySdkBundle.message("cannot.find.executable", executable.fusId.value, userReadableName))
   return runExecutableWithProgress(
     binaryToExec = getBinaryToExec(resolved, dirPath),
     timeout = 10.minutes,

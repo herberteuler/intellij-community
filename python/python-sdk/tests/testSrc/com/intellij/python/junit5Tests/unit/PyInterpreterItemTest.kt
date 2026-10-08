@@ -1,9 +1,11 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit
 
+import com.intellij.python.sdk.common.PyEnvRef
+import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.pytools.common.FusId
 import com.intellij.ide.ui.icons.rpcId
 import com.intellij.python.sdk.common.PyInterpreterItem
-import com.intellij.python.sdk.common.PyInterpreterRef
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.DisplayName
@@ -37,7 +39,7 @@ class PyInterpreterItemTest {
   }
 
   private fun item(sdkName: String, label: String) = PyInterpreterItem(
-    ref = PyInterpreterRef.ExistingSdk(sdkName),
+    ref = PyInterpreterRef.native(FusId("pip"), PyEnvRef(sdkName)),
     name = label,
     suffix = null,
     description = "/envs/$sdkName/bin/python",

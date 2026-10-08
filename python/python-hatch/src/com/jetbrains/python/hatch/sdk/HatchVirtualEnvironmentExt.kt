@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.hatch.sdk
 
+import com.jetbrains.python.sdk.PythonSdkAdditionalData
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.python.hatch.BasePythonExecutableNotFoundHatchError
@@ -35,21 +36,7 @@ suspend fun <P : PathHolder> HatchVirtualEnvironment<P>.createSdk(
   fileSystem: FileSystem<P>,
   targetPanelExtension: TargetPanelExtension? = null,
 ): PyResult<PythonInterpreter> {
-  val existingVirtualEnvironment = when (val virtualEnvironment = pythonVirtualEnvironment) {
-    is PythonVirtualEnvironment.Existing -> virtualEnvironment
-    is PythonVirtualEnvironment.NotExisting -> {
-      return Result.failure(BasePythonExecutableNotFoundHatchError(virtualEnvironment.pythonHomePath.toStringForExecution()))
-    }
-    null -> return Result.failure(BasePythonExecutableNotFoundHatchError(pathString = null))
-  }
-  val pythonHomePath = existingVirtualEnvironment.pythonHomePath
-  val pythonBinary = withContext(Dispatchers.IO) { fileSystem.resolvePythonBinary(pythonHomePath) }
-                     ?: return Result.failure(BasePythonExecutableNotFoundHatchError(pythonHomePath.toStringForExecution()))
-
-  val hatchSdkAdditionalData = HatchSdkAdditionalData(
-    hatchWorkingDirectory = workingDirectoryPath,
-    hatchEnvironmentName = this.hatchEnvironment.name,
-  )
+  val (pythonBinary, hatchSdkAdditionalData) = sdkDataOf(workingDirectoryPath, fileSystem).getOr { return it }
   val sdk = fileSystem.setupSdk(
     moduleOrProject = moduleOrProject,
     pythonBinaryPath = pythonBinary,
@@ -60,4 +47,24 @@ suspend fun <P : PathHolder> HatchVirtualEnvironment<P>.createSdk(
 
 
   return Result.success(sdk)
+}
+
+/** The Python binary and the SDK data of this existing environment, for the hatch project in [workingDirectoryPath]. */
+@ApiStatus.Internal
+suspend fun <P : PathHolder> HatchVirtualEnvironment<P>.sdkDataOf(
+  workingDirectoryPath: Path,
+  fileSystem: FileSystem<P>,
+): PyResult<Pair<P, PythonSdkAdditionalData>> {
+  val existingVirtualEnvironment = when (val virtualEnvironment = pythonVirtualEnvironment) {
+    is PythonVirtualEnvironment.Existing -> virtualEnvironment
+    is PythonVirtualEnvironment.NotExisting -> {
+      return Result.failure(BasePythonExecutableNotFoundHatchError(virtualEnvironment.pythonHomePath.toStringForExecution()))
+    }
+    null -> return Result.failure(BasePythonExecutableNotFoundHatchError(pathString = null))
+  }
+  val pythonHomePath = existingVirtualEnvironment.pythonHomePath
+  val pythonBinary = withContext(Dispatchers.IO) { fileSystem.resolvePythonBinary(pythonHomePath) }
+                     ?: return Result.failure(BasePythonExecutableNotFoundHatchError(pythonHomePath.toStringForExecution()))
+  val data = HatchSdkAdditionalData(hatchWorkingDirectory = workingDirectoryPath, hatchEnvironmentName = hatchEnvironment.name)
+  return Result.success(pythonBinary to data)
 }

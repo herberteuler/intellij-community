@@ -1,6 +1,13 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk
 
+import com.intellij.python.sdk.backend.PythonInterpreter
+import com.jetbrains.python.project.PyProject.Companion.getPyProjects
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
+import com.jetbrains.python.project.PyProject
+import com.intellij.python.sdk.backend.getSdkAPI
+import com.intellij.python.sdk.backend.asItem
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.ide.ui.icons.icon
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.module.Module
@@ -93,6 +100,47 @@ fun List<Sdk>.interpreterItemsUnderProgress(owner: JComponent): List<PyInterpret
 fun List<Sdk>.interpreterItemsUnderProgress(project: Project): List<PyInterpreterItem> =
   runWithModalProgressBlocking(ModalTaskOwner.project(project), PyBundle.message("python.interpreters.reading.interpreters.progress")) {
     pyInterpreterItems()
+  }
+
+/**
+ * The interpreters of the [PyProject] of [module], or of every [PyProject] of [project] when [module] is `null`. A run
+ * configuration offers them before the user picks its module.
+ */
+private suspend fun pyProjectInterpreters(project: Project, module: Module?): List<PythonInterpreter> {
+  val registry = PythonInterpreterRegistry.getInstance(project)
+  val pyProjects = if (module != null) listOfNotNull(module.asPyProject()) else project.getPyProjects()
+  return pyProjects.flatMap { registry.interpreters(it) }.distinct()
+}
+
+/**
+ * The interpreters of [module] as a UI list holds them, read under a progress over [owner], for a Java caller that
+ * cannot suspend. See [pyProjectInterpreters].
+ */
+@ApiStatus.Internal
+@RequiresEdt(generateAssertion = false /* IJPL-115548 */)
+fun pyProjectInterpreterItemsUnderProgress(project: Project, module: Module?, owner: JComponent): List<PyInterpreterItem> =
+  runWithModalProgressBlocking(ModalTaskOwner.component(owner), PyBundle.message("python.interpreters.reading.interpreters.progress")) {
+    pyProjectInterpreters(project, module).map { it.asItem() }
+  }
+
+/** The same, for a caller that has no component to hang the progress on yet, such as a form constructor. */
+@ApiStatus.Internal
+@RequiresEdt(generateAssertion = false /* IJPL-115548 */)
+fun pyProjectInterpreterItemsUnderProgress(project: Project, module: Module?): List<PyInterpreterItem> =
+  runWithModalProgressBlocking(ModalTaskOwner.project(project), PyBundle.message("python.interpreters.reading.interpreters.progress")) {
+    pyProjectInterpreters(project, module).map { it.asItem() }
+  }
+
+/**
+ * The SDKs of the interpreters of [module] under a progress, for a Java caller that lines them up with
+ * [interpreterItemsUnderProgress]. See [pyProjectInterpreters].
+ */
+@ApiStatus.Internal
+@RequiresEdt(generateAssertion = false /* IJPL-115548 */)
+fun pyProjectPythonSdksUnderProgress(project: Project, module: Module?): List<Sdk> =
+  runWithModalProgressBlocking(ModalTaskOwner.project(project), PyBundle.message("python.interpreters.reading.interpreters.progress")) {
+    @Suppress("DEPRECATION") // A Java caller still holds SDKs.
+    pyProjectInterpreters(project, module).map { it.getSdkAPI() }
   }
 
 /**

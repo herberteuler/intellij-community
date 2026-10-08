@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.pytools.backend.services
 
+import com.intellij.python.pytools.common.FusId
 import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.intellij.platform.eel.EelDescriptor
@@ -31,7 +32,7 @@ import kotlin.io.path.isExecutable
  * that was gone (PY-91882). So every answer is checked against the file system before it is handed out.
  */
 internal class PyExecutableCacheImpl(private val coroutineScope: CoroutineScope) : PyExecutableCache {
-  private data class Key(val machineInternalName: String, val fusId: String)
+  private data class Key(val machineInternalName: String, val fusId: FusId)
 
   private val detectionCache: AsyncCache<Key, Optional<Path>> = Caffeine.newBuilder()
     .expireAfterWrite(10, TimeUnit.MINUTES)

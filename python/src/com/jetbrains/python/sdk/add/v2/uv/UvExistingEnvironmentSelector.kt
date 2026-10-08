@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2.uv
 
+import com.jetbrains.python.sdk.add.v2.addInterpreterByBinary
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.observable.properties.ObservableProperty
 import com.intellij.openapi.ui.validation.DialogValidationRequestor
@@ -51,6 +52,8 @@ internal class UvExistingEnvironmentSelector<P : PathHolder>(model: PythonMutabl
     val uvPath = toolExecutable.get()!!.pathHolder.getOr { return it }
     val mode = model.uvViewModel.mode
     initUvProjectIfNeeded(uvPath, workingDir, model.fileSystem, mode).getOr { return it }
+    val uv = UvPyTool.getInstance()
+    (selectedInterpreterPath as? PathHolder.Eel)?.let { model.fileSystem.addInterpreterByBinary(moduleOrProject, uv, it.path) }?.let { return it }
     return setupExistingEnvAndSdk(
       moduleOrProject = moduleOrProject,
       pythonBinary = selectedInterpreterPath,

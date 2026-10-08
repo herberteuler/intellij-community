@@ -54,7 +54,6 @@ import com.jetbrains.python.sdk.flavors.conda.NewCondaEnvRequest
 import com.jetbrains.python.sdk.flavors.conda.PyCondaCommand
 import com.jetbrains.python.sdk.flavors.conda.PyCondaEnv
 import com.jetbrains.python.sdk.flavors.conda.PyCondaEnvIdentity
-import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
@@ -174,7 +173,6 @@ internal class PyEnvironmentYmlSdkConfiguration : PyProjectSdkConfigurationExten
     return PyCondaCommand(condaExecutable.path.pathString, null).createCondaSdkFromExistingEnvironment(
       ModuleOrProject.ModuleAndProject(pyProject),
       condaIdentity,
-      PythonSdkUtil.getAllSdks(pyProject),
       workingDirectory,
     )
   }
@@ -205,11 +203,10 @@ internal class PyEnvironmentYmlSdkConfiguration : PyProjectSdkConfigurationExten
     val binaryToExec = BinOnEel(condaExecutable.path)
     val existingEnvs = PyCondaEnv.getEnvs(binaryToExec, forceRefresh = true).getOrNull() ?: emptyList()
 
-    val existingSdks = PythonSdkUtil.getAllSdks(project)
     val newCondaEnvInfo = NewCondaEnvRequest.LocalEnvByLocalEnvironmentFile(environmentYml.toNioPath(), existingEnvs)
     val workingDirectory = pyProject.baseDir
     val pythonInterpreter = PyCondaCommand(condaExecutable.path.pathString, null)
-      .createCondaSdkAlongWithNewEnv(ModuleOrProject.ModuleAndProject(pyProject), newCondaEnvInfo, existingSdks.toList(), workingDirectory).getOr {
+      .createCondaSdkAlongWithNewEnv(ModuleOrProject.ModuleAndProject(pyProject), newCondaEnvInfo, workingDirectory).getOr {
         PySdkConfigurationCollector.logCondaEnv(project, CondaEnvResult.CREATION_FAILURE)
         thisLogger().warn("Exception during creating conda environment $it")
         return it

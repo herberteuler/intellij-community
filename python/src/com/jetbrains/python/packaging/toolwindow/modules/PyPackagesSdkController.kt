@@ -1,6 +1,7 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.packaging.toolwindow.modules
 
+import com.intellij.python.sdk.backend.ref
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
 import com.intellij.util.concurrency.annotations.RequiresEdt
@@ -22,7 +23,6 @@ import com.jetbrains.python.packaging.utils.PyPackageCoroutine
 import com.intellij.python.pyproject.model.evolution.findPythonInterpreter
 import com.intellij.python.pyproject.model.evolution.pythonInterpreters
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.asInterpreterRef
 import com.intellij.python.sdk.backend.asItem
 import com.intellij.python.sdk.common.PyInterpreterItem
 import com.intellij.ide.ui.icons.icon
@@ -139,7 +139,7 @@ internal class PyPackagesSdkController(private val project: Project) : Disposabl
 
   /** Where [interpreter] sits in the list, or -1 when the list does not hold it. Matched by the row's own ref. */
   private fun JBList<PyInterpreterItem>.indexOfInterpreter(interpreter: PythonInterpreter): Int {
-    val ref = interpreter.asInterpreterRef()
+    val ref = interpreter.ref
     return (0 until model.size).firstOrNull { model.getElementAt(it).ref == ref } ?: -1
   }
 

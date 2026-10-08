@@ -1,28 +1,27 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.pycharm.community.ide.impl;
 
+import com.intellij.python.sdk.backend.PyInterpreterRefsKt;
+import com.intellij.python.sdk.common.PyInterpreterRef;
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.projectRoots.ProjectJdkTable;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.CollectionComboBoxModel;
 import com.intellij.util.PathMappingSettings;
-import com.intellij.util.messages.MessageBusConnection;
 import com.jetbrains.python.PyBundle;
 import com.jetbrains.python.run.AbstractPyCommonOptionsForm;
 import com.jetbrains.python.run.PyCommonOptionsFormData;
 import com.intellij.python.sdk.backend.PythonInterpreterExtKt;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.python.sdk.common.PyInterpreterItem;
-import com.intellij.python.sdk.common.PyInterpreterRef;
-import com.jetbrains.python.sdk.ModuleOrProject;
 import com.jetbrains.python.sdk.PySdkListCellRenderer;
 import com.jetbrains.python.sdk.PySdkRenderingKt;
 import com.jetbrains.python.sdk.legacy.PythonSdkUtil;
@@ -58,7 +57,7 @@ public class PyIdeCommonOptionsForm implements AbstractPyCommonOptionsForm {
 
   public PyIdeCommonOptionsForm(PyCommonOptionsFormData data) {
     myProject = data.getProject();
-    myInterpreterItems = PySdkRenderingKt.interpreterItemsUnderProgress(PythonSdkUtil.getAllSdks(myProject), myProject);
+    myInterpreterItems = PySdkRenderingKt.pyProjectInterpreterItemsUnderProgress(myProject, null);
     List<PyInterpreterItem> rows = new ArrayList<>(myInterpreterItems);
     rows.addFirst(null);
     Module[] modules = ModuleManager.getInstance(data.getProject()).getModules();
@@ -78,6 +77,7 @@ public class PyIdeCommonOptionsForm implements AbstractPyCommonOptionsForm {
         @Override
         public void actionPerformed(ActionEvent e) {
           updateDefaultInterpreter(content.moduleCombo.getSelectedModule());
+          updateSdkList(true);
         }
       });
       updateDefaultInterpreter(content.moduleCombo.getSelectedModule());
@@ -103,19 +103,9 @@ public class PyIdeCommonOptionsForm implements AbstractPyCommonOptionsForm {
 
   @Override
   public void subscribe(@NotNull Disposable parentDisposable) {
-    // Refresh the interpreter combo from the live SDK table whenever it changes. The connection is tied to
-    // `parentDisposable`, so the listener does not outlive the owning UI.
-    MessageBusConnection connection = myProject.getMessageBus().connect(parentDisposable);
-    connection.subscribe(ProjectJdkTable.JDK_TABLE_TOPIC, new ProjectJdkTable.Listener() {
-      @Override
-      public void jdkAdded(@NotNull Sdk jdk) { updateSdkList(true); }
-
-      @Override
-      public void jdkRemoved(@NotNull Sdk jdk) { updateSdkList(true); }
-
-      @Override
-      public void jdkNameChanged(@NotNull Sdk jdk, @NotNull String previousName) { updateSdkList(true); }
-    });
+    // Refresh the interpreter combo whenever an interpreter is added or removed. The listener is tied to
+    // `parentDisposable`, so it does not outlive the owning UI.
+    PythonInterpreterRegistry.Companion.getInstance(myProject).addTableChangeListener(parentDisposable, () -> updateSdkList(true));
     updateSdkList(true);
   }
 
@@ -223,9 +213,7 @@ public class PyIdeCommonOptionsForm implements AbstractPyCommonOptionsForm {
   }
 
   public void updateSdkList(boolean preserveSelection) {
-    var module = getModule();
-    var mOrP = module != null ? new ModuleOrProject.ModuleAndProject(module) : new ModuleOrProject.ProjectOnly(myProject);
-    myInterpreterItems = PySdkRenderingKt.interpreterItemsUnderProgress(PythonSdkUtil.getAllSdks(mOrP), content.panel);
+    myInterpreterItems = PySdkRenderingKt.pyProjectInterpreterItemsUnderProgress(myProject, getModule(), content.panel);
     PyInterpreterItem selection =
       preserveSelection && content.interpreterComboBox.getSelectedItem() instanceof PyInterpreterItem item ? item : null;
     if (!myInterpreterItems.contains(selection)) {
@@ -260,7 +248,8 @@ public class PyIdeCommonOptionsForm implements AbstractPyCommonOptionsForm {
   /** The combo row that stands for {@code sdk}, or null when the combo holds no row for it. */
   private @Nullable PyInterpreterItem itemFor(@Nullable Sdk sdk) {
     if (sdk == null) return null;
-    PyInterpreterRef ref = PythonInterpreterExtKt.asInterpreterRef(sdk);
+    PyInterpreterRef ref = PyInterpreterRefsKt.interpreterRefOf(sdk);
+    if (ref == null) return null;
     return ContainerUtil.find(myInterpreterItems, item -> ref.equals(item.getRef()));
   }
 

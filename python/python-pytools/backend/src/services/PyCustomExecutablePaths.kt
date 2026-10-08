@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.pytools.backend.services
 
+import com.intellij.python.pytools.common.FusId
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.RoamingType
@@ -19,7 +20,7 @@ import java.nio.file.Path
 /**
  * Application-level, **per-Eel-machine** store of user-chosen executable paths for Python tools. Keyed
  * by [com.intellij.platform.eel.EelMachine.internalName] (e.g. `"Local"`, `"WSL-Ubuntu"`, `"SSH …"`)
- * and then by tool id (the tool's package name — `"uv"`, `"poetry"`, `"hatch"`, `"ruff"`, …), so each
+ * and then by the [FusId] of the executable (the tool's package name — `"uv"`, `"poetry"`, `"hatch"`, `"ruff"`, …), so each
  * tool remembers its own path independently on every machine a project might run on.
  *
  * Module-private: read by [PyExecutableCache] and written through `PyExecutable.setCustomExecutablePath`
@@ -71,19 +72,20 @@ internal class PyCustomExecutablePaths : PersistentStateComponent<PyCustomExecut
     PyExecutableCache.getInstance().invalidate(eelDescriptor, executable)
   }
 
+  /** The stored state keeps the [FusId] as its string value, so the file format does not depend on the [FusId] type. */
   @Synchronized
-  private fun getPath(machineInternalName: String, toolId: String): Path? =
-    state.machines[machineInternalName]?.tools?.get(toolId)?.let { Path.of(it) }
+  private fun getPath(machineInternalName: String, fusId: FusId): Path? =
+    state.machines[machineInternalName]?.tools?.get(fusId.value)?.let { Path.of(it) }
 
   @Synchronized
-  private fun setPath(machineInternalName: String, toolId: String, path: Path?) {
+  private fun setPath(machineInternalName: String, fusId: FusId, path: Path?) {
     if (path == null) {
       val machine = state.machines[machineInternalName] ?: return
-      machine.tools.remove(toolId)
+      machine.tools.remove(fusId.value)
       if (machine.tools.isEmpty()) state.machines.remove(machineInternalName)
     }
     else {
-      state.machines.getOrPut(machineInternalName) { MachinePaths() }.tools[toolId] = path.toString()
+      state.machines.getOrPut(machineInternalName) { MachinePaths() }.tools[fusId.value] = path.toString()
     }
   }
 
@@ -95,9 +97,9 @@ internal class PyCustomExecutablePaths : PersistentStateComponent<PyCustomExecut
   override fun noStateLoaded() {
     val props = PropertiesComponent.getInstance()
     val local = LocalEelMachine.internalName
-    for ((legacyKey, toolId) in LEGACY_LOCAL_PATH_KEYS) {
+    for ((legacyKey, fusId) in LEGACY_LOCAL_PATH_KEYS) {
       val value = props.getValue(legacyKey)?.takeIf { it.isNotBlank() } ?: continue
-      setPath(local, toolId, Path.of(value))
+      setPath(local, fusId, Path.of(value))
       props.unsetValue(legacyKey)
     }
   }
@@ -105,13 +107,13 @@ internal class PyCustomExecutablePaths : PersistentStateComponent<PyCustomExecut
   companion object {
     fun getInstance(): PyCustomExecutablePaths = service()
 
-    /** Legacy app-level path settings (key → tool id), migrated once into the local machine entry. */
-    private val LEGACY_LOCAL_PATH_KEYS: List<Pair<String, String>> = listOf(
-      "PyCharm.Uv.Path" to "uv",
-      "PyCharm.Poetry.Path" to "poetry",
-      "PyCharm.Pipenv.Path" to "pipenv",
-      "PyCharm.Hatch.Local.Executable.Path" to "hatch",
-      "PYCHARM_CONDA_FULL_LOCAL_PATH" to "conda",
+    /** Legacy app-level path settings (key → [FusId]), migrated once into the local machine entry. */
+    private val LEGACY_LOCAL_PATH_KEYS: List<Pair<String, FusId>> = listOf(
+      "PyCharm.Uv.Path" to FusId("uv"),
+      "PyCharm.Poetry.Path" to FusId("poetry"),
+      "PyCharm.Pipenv.Path" to FusId("pipenv"),
+      "PyCharm.Hatch.Local.Executable.Path" to FusId("hatch"),
+      "PYCHARM_CONDA_FULL_LOCAL_PATH" to FusId("conda"),
     )
   }
 }

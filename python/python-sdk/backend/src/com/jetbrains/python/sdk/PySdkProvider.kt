@@ -2,11 +2,9 @@
 package com.jetbrains.python.sdk
 
 import com.intellij.openapi.extensions.ExtensionPointName
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.projectRoots.SdkAdditionalData
 import org.jdom.Element
 import org.jetbrains.annotations.ApiStatus
-import javax.swing.Icon
 
 /**
  * This API is subject to change in version 2020.3, please avoid using it. If you have to, your plugin has to set compatibility to 2020.2.2.
@@ -18,9 +16,6 @@ interface PySdkProvider {
    * Try to load additional data for your SDK. Check for attributes, specific to your SDK before loading it. Return null if there is none.
    */
   fun loadAdditionalDataForSdk(element: Element): SdkAdditionalData? = null
-
-  // Inspections
-
 
   companion object {
     @JvmField

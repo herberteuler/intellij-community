@@ -1,12 +1,16 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit
 
+import com.intellij.testFramework.junit5.fixture.projectFixture
+import com.intellij.python.junit5Tests.framework.pyProjectFixture
+import com.jetbrains.python.packaging.PyPackageName
+import com.intellij.python.pytools.backend.PyTool
 import com.intellij.icons.AllIcons
 import com.intellij.python.community.common.tools.ToolId
 import com.intellij.python.sdk.backend.evolution.DiscoveredVenv
 import com.intellij.python.sdk.backend.evolution.PyEvoEnvironmentProvider
 import com.intellij.python.sdk.backend.evolution.toInProjectAndOtherSections
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.common.EvoRowAction
 import com.intellij.python.sdk.backend.evolution.EvoToolContext
 import com.intellij.python.sdk.common.evolution.EvoLoadResultDto
 import com.intellij.python.sdk.common.evolution.EvoSectionDto
@@ -25,13 +29,17 @@ import javax.swing.Icon
  */
 @TestApplication
 class PyEvoInProjectSectionsTest {
-  private val baseDir: Path = Path.of("/home/me/PycharmProjects/FastAPIProject23")
+  private val pyProject by projectFixture().pyProjectFixture()
+  private val baseDir: Path get() = pyProject.baseDir
 
   /**
-   * A provider that is nothing but the three members [toInProjectAndOtherSections] reads off one: its id, which says
+   * A provider that is nothing but the members [toInProjectAndOtherSections] reads off one: its tool, which names each row, its id, which says
    * whether another tool made an environment, and its name and icon, which every row it owns wears.
    */
   private val owner = object : PyEvoEnvironmentProvider {
+    override val tool: PyTool = object : PyTool {
+      override val packageName: PyPackageName = PyPackageName.from("uv")
+    }
     override val toolId: ToolId = ToolId("uv")
     override val label: String = "uv"
     override val icon: Icon = AllIcons.Language.Python
@@ -46,7 +54,7 @@ class PyEvoInProjectSectionsTest {
     DiscoveredVenv(pythonBinary = Path.of(root).resolve("bin/python"), config = emptyMap(), version = "3.14.0")
 
   private fun sections(vararg roots: String): List<EvoSectionDto> =
-    roots.map { venv(it) }.toInProjectAndOtherSections(owner, baseDir, AllIcons.Language.Python, "In-project")
+    roots.map { venv(it) }.toInProjectAndOtherSections(owner, pyProject, AllIcons.Language.Python, "In-project")
 
   /** Row titles of each section, with its heading. */
   private fun shape(sections: List<EvoSectionDto>): List<Pair<String?, List<String>>> =
@@ -74,14 +82,14 @@ class PyEvoInProjectSectionsTest {
     val sections = sections("$baseDir/.venv1")
     assertEquals(listOf<Pair<String?, List<String>>>("In-project" to listOf(".venv", ".venv1")), shape(sections))
     // The leading row creates the environment; only the second one points at an interpreter that exists.
-    val refs = sections.single().leaves.map { it.ref }
-    assertEquals(true, refs[0] is PyInterpreterRef.CreateEnv, "expected a create row for the absent .venv, got ${refs[0]}")
-    assertEquals(true, refs[1] is PyInterpreterRef.DetectedPath, "expected .venv1 to be selectable, got ${refs[1]}")
+    val refs = sections.single().leaves.map { it.action }
+    assertEquals(true, refs[0] is EvoRowAction.CreateEnv, "expected a create row for the absent .venv, got ${refs[0]}")
+    assertEquals(true, refs[1] is EvoRowAction.Select, "expected .venv1 to be selectable, got ${refs[1]}")
   }
 
   @Test
   fun `an environment outside the project keeps its own folder heading`() {
-    val shape = shape(sections("$baseDir/.venv", "/home/me/envs/other"))
+    val shape = shape(sections("$baseDir/.venv", "${baseDir.resolveSibling("envs")}/other"))
     assertEquals("In-project" to listOf(".venv"), shape.first())
     assertEquals(2, shape.size)
     assertEquals(listOf("other"), shape[1].second)

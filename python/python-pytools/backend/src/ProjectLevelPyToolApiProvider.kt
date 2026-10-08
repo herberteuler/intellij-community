@@ -28,7 +28,7 @@ private object ProjectLevelPyToolApiImpl : ProjectLevelPyToolApi {
   override suspend fun initializeState(projectId: ProjectId) {
     val project = projectId.findProject()
     val entries = ProjectLevelPyTool.extensions
-      .map { PyToolEnabledStateDto(FusId(it.fusId), it.migrateLegacyState(project).enabled) }
+      .map { PyToolEnabledStateDto(it.fusId, it.migrateLegacyState(project).enabled) }
       .toList()
     PyToolsState.getInstance(project).initialize(entries)
   }
@@ -60,7 +60,7 @@ private object ProjectLevelPyToolApiImpl : ProjectLevelPyToolApi {
  * [PyTool.findExecutable] resolves the same request by.
  */
 private fun projectLevelTool(request: PyToolRequest): ProjectLevelPyTool<*>? =
-  ProjectLevelPyTool.extensions.firstOrNull { it.fusId == request.fusId.value }
+  ProjectLevelPyTool.extensions.firstOrNull { it.fusId == request.fusId }
 
 /**
  * Applies [state] only when it is the DTO type this tool declares.

@@ -1,6 +1,9 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.flavors.conda
 
+import com.jetbrains.python.sdk.add.v2.PathHolder
+import com.intellij.python.community.impl.conda.CondaPyTool
+import com.intellij.python.pytools.common.FusId
 import com.intellij.execution.target.TargetEnvironmentConfiguration
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.projectRoots.Sdk
@@ -21,6 +24,14 @@ internal object CondaEnvSdkFlavor : CPythonSdkFlavor<PyCondaFlavorData>() {
   override fun getIcon(): Icon = PythonCommunityImplCondaCommonIcons.Anaconda
 
   override fun getFlavorDataClass(): Class<PyCondaFlavorData> = PyCondaFlavorData::class.java
+
+  override fun getManager(): FusId = CondaPyTool.getInstance().fusId
+
+  /**
+   * Conda names an environment by its name, or by its directory when it has no name: the readable name of its
+   * identity. That is what a conda command addresses the environment by.
+   */
+  override fun toolEnvRefOf(pythonBinary: PathHolder, data: PyCondaFlavorData): String = data.env.envIdentity.userReadableName
 
   @RequiresBackgroundThread(generateAssertion = false)
   override fun suggestLocalHomePathsImpl(module: Module?, context: UserDataHolder?): MutableCollection<Path> {

@@ -1,6 +1,7 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.pytools.backend
 
+import com.intellij.python.pytools.common.FusId
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.util.Version
 import com.jetbrains.python.packaging.PyPackageName
@@ -19,8 +20,8 @@ interface PyTool : PyExecutable {
   /** The normalized Python package that installs this tool. */
   val packageName: PyPackageName
 
-  /** The package identifier used for feature usage statistics. */
-  override val fusId: String get() = packageName.name
+  /** The id of this tool: its normalized package name. Feature usage statistics report it, and an interpreter ref names its manager by it. */
+  override val fusId: FusId get() = FusId(packageName.name)
 
   /**
    * All executable commands that this tool provides.
@@ -54,7 +55,7 @@ interface PyTool : PyExecutable {
 
     /** Finds a primary or secondary executable command by its identifier. */
     fun findExecutable(name: String): PyExecutable? =
-      EP_NAME.extensionList.firstNotNullOfOrNull { tool -> tool.executables.firstOrNull { it.fusId == name } }
+      EP_NAME.extensionList.firstNotNullOfOrNull { tool -> tool.executables.firstOrNull { it.fusId.value == name } }
   }
 }
 

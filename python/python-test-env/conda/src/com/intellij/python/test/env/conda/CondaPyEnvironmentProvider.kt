@@ -338,7 +338,7 @@ class CondaPyEnvironment(
     return PyCondaEnv(
       envIdentity = PyCondaEnvIdentity.UnnamedEnv(envPath.pathString, isBase = true),
       fullCondaPathOnTarget = condaExecutable.toString(),
-    ).createSdkFromThisEnv(project, null, emptyList(), envPath).getOrThrow()
+    ).createSdkFromThisEnv(project, null, envPath).getOrThrow()
   }
 
   // The old fixtures have no project. The SDK table is global, so the default project adds the SDK.

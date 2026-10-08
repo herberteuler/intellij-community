@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2
 
+import com.intellij.python.venv.PipPyTool
 import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
@@ -223,6 +224,8 @@ internal suspend fun <P : PathHolder> InterpreterWithPath<P>.setupSdk(
     is DetectedSelectableInterpreter, is ManuallyAddedSelectableInterpreter -> Unit
   }
 
+  // A plain venv or a system Python: the pip node builds it, as it does for the widget.
+  (homePath as? PathHolder.Eel)?.let { fileSystem.addInterpreterByBinary(moduleOrProject, PipPyTool.getInstance(), it.path) }?.let { return it }
   // Do our best to guess the flavor
   return createSdkGuessingTypeByPath(homePath, fileSystem, moduleOrProject, targetPanelExtension)
 }

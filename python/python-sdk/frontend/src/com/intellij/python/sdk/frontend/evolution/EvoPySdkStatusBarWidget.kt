@@ -488,7 +488,7 @@ private class EvoPySdkStatusBarWidget(project: Project, scope: CoroutineScope) :
         cache[dataKey] = base.copy(shortcuts = shortcuts, shortcutsAt = System.currentTimeMillis())
         // Compare by what a row says and what it does: an IconId is not guaranteed to be equal across fetches, so the
         // DTOs themselves cannot answer this.
-        if (base.shortcuts.map { it.title to it.ref } == shortcuts.map { it.title to it.ref }) return@launch
+        if (base.shortcuts.map { it.title to it.action } == shortcuts.map { it.title to it.action }) return@launch
         dropPopupTreeBuiltFrom(dataKey)
         update()
       }
@@ -627,4 +627,4 @@ fun interpreterRowsChanged(shown: List<PyInterpreterDto>, fresh: List<PyInterpre
 
 /** Everything [PyInterpreterDto] renders, less the icon. See [interpreterRowsChanged]. */
 private fun PyInterpreterDto.rowIdentity(): List<Any?> =
-  listOf(ref, title, description, dependencyFileUrl, activeNodeId)
+  listOf(action, title, description, dependencyFileUrl, activeNodeId)

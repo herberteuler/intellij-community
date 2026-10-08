@@ -1,6 +1,7 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.pycharm.community.ide.impl.configuration
 
+import com.intellij.python.sdk.backend.interpreterItem
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -26,8 +27,6 @@ import com.jetbrains.python.sdk.PySdkPopupFactory
 import com.intellij.util.IconUtil
 import com.intellij.ide.ui.icons.icon
 import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.python.sdk.backend.asItem
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.intellij.python.sdk.common.PyInterpreterItem
 import com.jetbrains.python.sdk.noInterpreterMarker
 import kotlinx.coroutines.CoroutineScope
@@ -100,7 +99,8 @@ private class PySdkStatusBar(project: Project, scope: CoroutineScope) : EditorBa
     val item = lastRead?.takeIf { it.first == sdk }?.second
     if (item == null) {
       scope.launch {
-        lastRead = sdk to sdk.pythonInterpreterAsync().asItem()
+        val read = sdk.interpreterItem() ?: return@launch
+        lastRead = sdk to read
         update()
       }
       return WidgetState(PyBundle.message("current.interpreter", sdk.homePath.orEmpty()), sdk.name, true)

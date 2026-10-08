@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.pytools.backend
 
+import com.intellij.python.pytools.common.FusId
 import com.intellij.execution.Platform
 
 /**
@@ -15,7 +16,7 @@ interface PyExecutable {
    * [PyTool] this is its package name; it must equal the command name in [toolCommandSpec] so custom
    * paths and detection resolve to the same store entry.
    */
-  val fusId: String
+  val fusId: FusId
 
   /**
    * How to auto-detect this executable: its command name ([fusId]) plus the directories to search
@@ -40,12 +41,16 @@ private val KNOWN_SEARCH_PATHS: List<ToolSearchPath> = listOf(
 fun pyExecutableSpec(name: String, extraPaths: List<ToolSearchPath> = emptyList()): ToolCommandSpec =
   ToolCommandSpec(name, KNOWN_SEARCH_PATHS + extraPaths)
 
+/** [pyExecutableSpec] for the command of the executable whose id is [fusId]. */
+fun pyExecutableSpec(fusId: FusId, extraPaths: List<ToolSearchPath> = emptyList()): ToolCommandSpec =
+  pyExecutableSpec(fusId.value, extraPaths)
+
 /**
  * A plain [PyExecutable] identified only by its command [fusId] — for a [PyTool]'s secondary entry
  * points that ship with it (e.g. uv also provides `uvx`), declared via [PyTool.executables]. The tool
  * that owns it keeps the naming; the module owning that tool calls this rather than pytools defining a
  * type per executable.
  */
-fun pyExecutable(fusId: String): PyExecutable = NamedPyExecutable(fusId)
+fun pyExecutable(fusId: String): PyExecutable = NamedPyExecutable(FusId(fusId))
 
-private data class NamedPyExecutable(override val fusId: String) : PyExecutable
+private data class NamedPyExecutable(override val fusId: FusId) : PyExecutable

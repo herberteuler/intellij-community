@@ -21,7 +21,6 @@ import com.intellij.python.sdk.backend.impl.associationProblem
 import com.intellij.python.sdk.backend.impl.buildItem
 import com.intellij.python.sdk.backend.impl.recordedPythonInfo
 import com.intellij.python.sdk.common.PyInterpreterItem
-import com.intellij.python.sdk.common.PyInterpreterRef
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import com.intellij.util.concurrency.annotations.RequiresBlockingContext
 import com.jetbrains.python.PyNames
@@ -114,8 +113,14 @@ fun PythonInterpreter.asItem(customName: String? = null): PyInterpreterItem = bu
  * This is how a list of interpreters is built. The work is detecting each environment, which is local file reads that
  * [Sdk.pythonInterpreterAsync] caches per SDK — so the first list pays for it and later ones do not.
  */
-suspend fun Iterable<Sdk>.pyInterpreterItems(): List<PyInterpreterItem> =
-  map { it.pythonInterpreterAsync().asItem() }
+suspend fun Iterable<Sdk>.pyInterpreterItems(): List<PyInterpreterItem> = mapNotNull { it.interpreterItem() }
+
+/**
+ * This SDK as a UI list holds it, or `null` for a broken SDK that has no ref: no row stands for it. For a caller
+ * that the platform hands an [Sdk], such as the status bar or a run configuration.
+ */
+suspend fun Sdk.interpreterItem(): PyInterpreterItem? =
+  if (interpreterRefOf(this) == null) null else pythonInterpreterAsync().asItem()
 
 /**
  * Whether this SDK's interpreter can be used, for a Java caller that cannot suspend.
@@ -128,22 +133,17 @@ fun Sdk.isInterpreterUsable(): Boolean =
   runBlockingMaybeCancellable { pythonInterpreterAsync().getPythonInfo() } is Result.Success
 
 /**
- * The registered SDK this item names, or `null` when no SDK carries that name any more.
+ * The SDK this item names, or `null` when no SDK has its key any more.
  *
- * A list is built once and applied later, so the interpreter it named can be renamed or removed in between. `null` is
- * that case, and the caller decides what to tell the user.
+ * A list is built once and applied later, so the interpreter it named can be removed in between. `null` is that case,
+ * and the caller decides what to tell the user. It does not wait: it reads the SDK table, because a Java combo box
+ * calls it on the EDT.
  */
-fun PyInterpreterItem.findSdk(): Sdk? {
-  val ref = ref as? PyInterpreterRef.ExistingSdk ?: return null
-  return PythonSdkUtil.findSdkByKey(ref.sdkName)
-}
+fun PyInterpreterItem.findSdk(): Sdk? = PythonSdkUtil.getAllSdks().firstOrNull { interpreterRefOf(it) == ref }
 
 /** The flavor this interpreter was set up with. */
 val PythonInterpreter.flavor: PythonSdkFlavor<*>
   get() = sdk.pySdkAdditionalData.flavor
-
-/** The ref an interpreter list row carries for this interpreter. See [Sdk.asInterpreterRef]. */
-fun PythonInterpreter.asInterpreterRef(): PyInterpreterRef = sdk.asInterpreterRef()
 
 /** The target data of this interpreter, or `null` for an interpreter that runs on no target. */
 val PythonInterpreter.targetAdditionalData: PyTargetAwareAdditionalData?
@@ -172,14 +172,6 @@ val PythonInterpreter.associatedModuleDir: VirtualFile?
  * names.
  */
 fun PythonInterpreter.isFor(sdk: Sdk): Boolean = this.sdk == sdk
-
-/**
- * The ref an interpreter list row carries for this SDK.
- *
- * Use it to find the row that stands for an SDK, instead of resolving every row back to its SDK. A row compares by
- * its ref alone, so the comparison needs no SDK at all.
- */
-fun Sdk.asInterpreterRef(): PyInterpreterRef = PyInterpreterRef.ExistingSdk(name)
 
 /**
  * The Python `lib/` directory backing this SDK, or `null` when it cannot be located.

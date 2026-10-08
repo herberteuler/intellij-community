@@ -1,7 +1,10 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk
 
-import com.jetbrains.python.project.PyProject.Companion.asPyProject
+import com.intellij.python.sdk.backend.interpreterRefOf
+import com.intellij.python.sdk.backend.registerTarget
+import com.intellij.python.sdk.common.PyInterpreterRef
+import java.nio.file.Path
 import com.intellij.execution.target.FullPathOnTarget
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.SdkAdditionalData
@@ -10,7 +13,7 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.platform.eel.provider.toEelApi
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.jetbrains.python.sdk.legacy.PythonSdkUtil
@@ -26,7 +29,6 @@ import com.jetbrains.python.sdk.flavors.CPythonSdkFlavor
 import com.jetbrains.python.sdk.flavors.PyFlavorAndData
 import com.jetbrains.python.sdk.flavors.PyFlavorData
 import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
-import com.jetbrains.python.sdk.flavors.UnixPythonSdkFlavor
 import com.jetbrains.python.target.PyTargetAwareAdditionalData
 import com.jetbrains.python.target.ui.TargetPanelExtension
 import com.jetbrains.python.project.PyProject
@@ -63,17 +65,13 @@ internal sealed interface SdkCreationRequest<P, D : SdkAdditionalData> {
  *
  * [setupPaths] means "to calculate various SDK paths", call SDK updater and so on.
  *
- * [associate]: `true` associates a local SDK with its working directory, `false` makes it shared, and `null` lets its
- * environment decide. See [PythonInterpreterProjectRegistry.addPythonInterpreter].
- *
  * [persist] `false` creates an SDK outside the SDK table. Only the old test venv fixture uses it. Remove it when that
- * fixture is gone, because [PythonInterpreterProjectRegistry] adds every SDK to the table.
+ * fixture is gone, because [PythonInterpreterRegistry] adds every SDK to the table.
  */
 @ApiStatus.Internal
 data class SdkCreationAdvancedOpts(
   internal val persist: Boolean = true,
   val setupPaths: Boolean = true,
-  val associate: Boolean? = null,
 ) {
   companion object {
     val DEFAULT: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts()
@@ -91,7 +89,7 @@ suspend fun createSdk(
   sdkAdditionalData: PythonSdkAdditionalData,
   suggestedSdkName: String? = null,
   advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
-): Result<PythonInterpreter, MessageError> =
+): PyResult<PythonInterpreter> =
   createSdkImpl(pyProject, SdkCreationRequest.EelSdk(pythonBinaryPath.path, sdkAdditionalData), suggestedSdkName, advancedOpts)
 
 /**
@@ -105,37 +103,41 @@ suspend fun createSdk(
   sdkAdditionalData: PyTargetAwareAdditionalData,
   suggestedSdkName: String? = null,
   advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
-): Result<PythonInterpreter, MessageError> =
+): PyResult<PythonInterpreter> =
   createSdkImpl(pyProject, SdkCreationRequest.TargetSdk(pythonBinaryPath.pathString, sdkAdditionalData), suggestedSdkName, advancedOpts)
 
 /**
- * [createSdk] for a shared interpreter, or for a caller that has no [PyProject] yet. Prefer the [PyProject] overload.
+ * [createSdk] for a caller that has no [PyProject] yet. Prefer the [PyProject] overload. See
+ * [PythonInterpreterRegistry.addPythonInterpreterWithoutPyProject].
  */
 @ApiStatus.Internal
+@ApiStatus.Obsolete
 suspend fun createSdk(
   project: Project,
   pythonBinaryPath: PathHolder.Eel,
   sdkAdditionalData: PythonSdkAdditionalData,
   suggestedSdkName: String? = null,
   advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
-): Result<PythonInterpreter, MessageError> =
+): PyResult<PythonInterpreter> =
   createSdkImpl(project, SdkCreationRequest.EelSdk(pythonBinaryPath.path, sdkAdditionalData), suggestedSdkName, advancedOpts)
 
 /**
- * [createSdk] for a shared interpreter, or for a caller that has no [PyProject] yet. Prefer the [PyProject] overload.
+ * [createSdk] for a caller that has no [PyProject] yet. Prefer the [PyProject] overload. See
+ * [PythonInterpreterRegistry.addPythonInterpreterWithoutPyProject].
  */
 @ApiStatus.Internal
+@ApiStatus.Obsolete
 suspend fun createSdk(
   project: Project,
   pythonBinaryPath: PathHolder.Target,
   sdkAdditionalData: PyTargetAwareAdditionalData,
   suggestedSdkName: String? = null,
   advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
-): Result<PythonInterpreter, MessageError> =
+): PyResult<PythonInterpreter> =
   createSdkImpl(project, SdkCreationRequest.TargetSdk(pythonBinaryPath.pathString, sdkAdditionalData), suggestedSdkName, advancedOpts)
 
 /**
- * [createSdk] for the [PyProject] of [moduleOrProject], or a shared interpreter when it has none.
+ * [createSdk] for the [PyProject] of [moduleOrProject], or an interpreter without a [PyProject] when it has none.
  */
 @ApiStatus.Internal
 suspend fun createSdk(
@@ -144,14 +146,14 @@ suspend fun createSdk(
   sdkAdditionalData: PythonSdkAdditionalData,
   suggestedSdkName: String? = null,
   advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
-): Result<PythonInterpreter, MessageError> {
+): PyResult<PythonInterpreter> {
   val pyProject = moduleOrProject.findPyProject()
   return if (pyProject != null) createSdk(pyProject, pythonBinaryPath, sdkAdditionalData, suggestedSdkName, advancedOpts)
   else createSdk(moduleOrProject.project, pythonBinaryPath, sdkAdditionalData, suggestedSdkName, advancedOpts)
 }
 
 /**
- * [createSdk] for the [PyProject] of [moduleOrProject], or a shared interpreter when it has none.
+ * [createSdk] for the [PyProject] of [moduleOrProject], or an interpreter without a [PyProject] when it has none.
  */
 @ApiStatus.Internal
 suspend fun createSdk(
@@ -160,17 +162,12 @@ suspend fun createSdk(
   sdkAdditionalData: PyTargetAwareAdditionalData,
   suggestedSdkName: String? = null,
   advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
-): Result<PythonInterpreter, MessageError> {
+): PyResult<PythonInterpreter> {
   val pyProject = moduleOrProject.findPyProject()
   return if (pyProject != null) createSdk(pyProject, pythonBinaryPath, sdkAdditionalData, suggestedSdkName, advancedOpts)
   else createSdk(moduleOrProject.project, pythonBinaryPath, sdkAdditionalData, suggestedSdkName, advancedOpts)
 }
 
-/** The [PyProject] that a new interpreter of this [ModuleOrProject] belongs to, or `null` for a shared one. */
-private suspend fun ModuleOrProject.findPyProject(): PyProject? = when (this) {
-  is ModuleOrProject.ModuleAndProject -> pyProject ?: module.asPyProject()
-  is ModuleOrProject.ProjectOnly -> null
-}
 
 /**
  * Please use [com.jetbrains.python.sdk.add.v2.FileSystem.setupSdk] instead
@@ -179,7 +176,7 @@ internal suspend fun SdkCreationRequest<*, *>.createSdk(
   moduleOrProject: ModuleOrProject,
   suggestedSdkName: String? = null,
   advancedOpts: SdkCreationAdvancedOpts = SdkCreationAdvancedOpts.DEFAULT,
-): Result<PythonInterpreter, MessageError> {
+): PyResult<PythonInterpreter> {
   val pyProject = moduleOrProject.findPyProject()
   return if (pyProject != null) createSdkImpl(pyProject, this, suggestedSdkName, advancedOpts)
   else createSdkImpl(moduleOrProject.project, this, suggestedSdkName, advancedOpts)
@@ -213,22 +210,7 @@ internal suspend fun <P : PathHolder> createSdkGuessingTypeByPath(
   targetPanelExtension: TargetPanelExtension?,
   suggestedSdkName: String? = null,
 ): PyResult<PythonInterpreter> {
-  val flavorAndData = when (homePath) {
-    is PathHolder.Eel -> withContext(Dispatchers.IO) {
-      val detectedFlavor = PythonSdkFlavor.tryDetectFlavorByLocalPath(homePath.path)
-      // We only support flavours without data (i.e. we can't detect conda as we have no conda path)
-      val flavor = if (detectedFlavor != null && detectedFlavor.flavorDataClass.isInstance(PyFlavorData.Empty)) {
-        @Suppress("UNCHECKED_CAST") // Checked a line above
-        detectedFlavor as CPythonSdkFlavor<PyFlavorData.Empty>
-      }
-      else {
-        PythonSdkFlavor.UnknownFlavor.INSTANCE
-      }
-      PyFlavorAndData(PyFlavorData.Empty, flavor)
-    }
-    // Target is always UNIX
-    is PathHolder.Target -> PyFlavorAndData(PyFlavorData.Empty, UnixPythonSdkFlavor.getInstance())
-  }
+  val flavorAndData = fileSystem.flavorAndDataOf(homePath)
 
   val workingDirectory = moduleOrProject.workingDirectory
                          ?: return PyResult.localizedError(PyBundle.message("python.sdk.project.working.directory.not.found"))
@@ -249,17 +231,31 @@ internal suspend fun <P : PathHolder> createSdkGuessingTypeByPath(
   return PyResult.success(newPythonInterpreter)
 }
 
+/**
+ * An interpreter is added by its ref: the provider whose node owns [SdkCreationRequest.data] names the environment,
+ * and then builds the SDK data itself, see [PythonInterpreterRegistry.addPythonInterpreter]. So the data and the
+ * name the caller built are not stored. A target is registered in the project first, so the ref can name it.
+ */
 private suspend fun createSdkImpl(
   pyProject: PyProject,
   request: SdkCreationRequest<*, *>,
   suggestedSdkName: String?,
   advancedOpts: SdkCreationAdvancedOpts,
-): Result<PythonInterpreter, MessageError> {
-  val homePath = request.homePath().getOr { return it }
-  if (!advancedOpts.persist) return Result.success(createSdkOutsideTable(homePath, request.data, suggestedSdkName, advancedOpts))
-  val interpreter = PythonInterpreterProjectRegistry.getInstance(pyProject.project)
-    .addPythonInterpreter(pyProject, homePath, request.pythonData, suggestedSdkName, advancedOpts.setupPaths, advancedOpts.associate)
-  return Result.success(interpreter)
+): PyResult<PythonInterpreter> {
+  if (!advancedOpts.persist) {
+    val homePath = request.homePath().getOr { return it }
+    return Result.success(createSdkOutsideTable(homePath, request.data, suggestedSdkName, advancedOpts))
+  }
+  val ref = when (request) {
+    is SdkCreationRequest.EelSdk -> interpreterRefOf(PathHolder.Eel(request.path), request.data, PyInterpreterRef.Mode.Native)
+    is SdkCreationRequest.TargetSdk -> {
+      val target = request.data.targetEnvironmentConfiguration
+                   ?: return PyResult.localizedError(PyBundle.message("python.sdk.python.executable.not.found", request.path))
+      registerTarget(pyProject.project, target)
+      interpreterRefOf(PathHolder.Target(request.path), request.data, PyInterpreterRef.Mode.Target(target.uuid))
+    }
+  }
+  return PythonInterpreterRegistry.getInstance(pyProject.project).addPythonInterpreter(pyProject, ref)
 }
 
 private suspend fun createSdkImpl(
@@ -267,11 +263,11 @@ private suspend fun createSdkImpl(
   request: SdkCreationRequest<*, *>,
   suggestedSdkName: String?,
   advancedOpts: SdkCreationAdvancedOpts,
-): Result<PythonInterpreter, MessageError> {
+): PyResult<PythonInterpreter> {
   val homePath = request.homePath().getOr { return it }
   if (!advancedOpts.persist) return Result.success(createSdkOutsideTable(homePath, request.data, suggestedSdkName, advancedOpts))
-  val interpreter = PythonInterpreterProjectRegistry.getInstance(project)
-    .addSharedPythonInterpreter(homePath, request.pythonData, suggestedSdkName, advancedOpts.setupPaths, advancedOpts.associate)
+  val interpreter = PythonInterpreterRegistry.getInstance(project)
+    .addPythonInterpreterWithoutPyProject(homePath, request.pythonData, suggestedSdkName, advancedOpts.setupPaths)
   return Result.success(interpreter)
 }
 
@@ -308,4 +304,20 @@ private suspend fun createSdkOutsideTable(
   val sdk = SdkConfigurationUtil.createSdk(PythonSdkUtil.getAllSdks(), homePath, sdkType, data, suggestedSdkName)
   if (advancedOpts.setupPaths) sdkType.setupSdkPaths(sdk)
   return sdk.pythonInterpreterAsync()
+}
+
+/**
+ * The flavor of the local interpreter at [pythonBinary], guessed from its path. Only a flavor without data can be
+ * guessed: a conda env, for example, needs the path to conda.
+ */
+internal suspend fun guessLocalFlavorAndData(pythonBinary: Path): PyFlavorAndData<PyFlavorData.Empty, *> = withContext(Dispatchers.IO) {
+  val detectedFlavor = PythonSdkFlavor.tryDetectFlavorByLocalPath(pythonBinary)
+  val flavor = if (detectedFlavor != null && detectedFlavor.flavorDataClass.isInstance(PyFlavorData.Empty)) {
+    @Suppress("UNCHECKED_CAST") // Checked a line above
+    detectedFlavor as CPythonSdkFlavor<PyFlavorData.Empty>
+  }
+  else {
+    PythonSdkFlavor.UnknownFlavor.INSTANCE
+  }
+  PyFlavorAndData(PyFlavorData.Empty, flavor)
 }

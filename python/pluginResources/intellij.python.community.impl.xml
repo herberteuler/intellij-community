@@ -1133,9 +1133,6 @@
     <evoEnvironmentProvider id="PipEvoProvider"
                             order="after CondaEvoProvider"
                             implementation="com.jetbrains.python.venv.sdk.evolution.VenvEvoEnvironmentProvider"/>
-    <evoEnvironmentProvider id="AdvancedEvoProvider"
-                            order="last"
-                            implementation="com.jetbrains.python.sdk.evolution.AdvancedEvoEnvironmentProvider"/>
 
     <pyReferenceCustomTargetChecker implementation="com.jetbrains.python.testing.pyTestFixtures.PyTestFixtureTargetChecker"/>
 
@@ -1202,6 +1199,7 @@
 
     <!-- Experimental packaging extensions-->
     <pySdkProvider implementation="com.jetbrains.python.sdk.pipenv.PyPipEnvSdkProvider"/>
+    <pySdkDataProvider implementation="com.jetbrains.python.sdk.pipenv.PyPipEnvSdkDataProvider"/>
 
 
     <pythonSdkReadOnlyProvider implementation="com.jetbrains.python.sdk.readOnly.PythonSystemSdkReadOnlyProvider"/>
@@ -1209,6 +1207,9 @@
     <pythonPackageManagerProvider implementation="com.jetbrains.python.sdk.poetry.PoetryPackageManagerProvider"/>
 
     <pySdkProvider implementation="com.jetbrains.python.sdk.uv.UvSdkProvider"/>
+    <pySdkDataProvider implementation="com.jetbrains.python.sdk.uv.UvSdkDataProvider"/>
+    <pySdkDataProvider implementation="com.jetbrains.python.venv.sdk.VenvSdkDataProvider"/>
+    <pySdkDataProvider implementation="com.jetbrains.python.sdk.conda.CondaSdkDataProvider"/>
     <pythonPackageManagerProvider implementation="com.jetbrains.python.sdk.uv.UvPackageManagerProvider"/>
 
     <pythonPackageManagerProvider implementation="com.jetbrains.python.packaging.pip.PipPackageManagerProvider" order="last"/>

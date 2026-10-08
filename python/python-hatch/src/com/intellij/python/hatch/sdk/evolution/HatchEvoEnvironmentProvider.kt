@@ -1,9 +1,20 @@
 package com.intellij.python.hatch.sdk.evolution
 
-import com.jetbrains.python.project.project
+import kotlin.io.path.isRegularFile
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import com.intellij.python.sdk.backend.evolution.envNotFound
+import com.intellij.python.hatch.PythonVirtualEnvironment
+import com.intellij.python.hatch.HATCH_TOML
+import com.intellij.python.pyproject.PY_PROJECT_TOML
+import com.intellij.python.community.execService.UploadConfig
+import com.intellij.python.sdk.common.PyEnvRef
+import com.jetbrains.python.project.PyProject
+import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.backend.evolution.interpreterRefOf
+import com.intellij.python.sdk.backend.evolution.PyEvoEnvironmentProvider
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.Mutex
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.util.io.toNioPathOrNull
 import com.intellij.python.community.common.tools.ToolId
 import com.intellij.python.hatch.HatchPyTool
@@ -13,15 +24,12 @@ import com.intellij.python.hatch.PyHatchBundle
 import com.intellij.python.hatch.cli.HatchEnv
 import com.intellij.python.hatch.getHatchService
 import com.intellij.python.hatch.impl.HATCH_TOOL_ID
-import com.intellij.python.hatch.resolveHatchWorkingDirectory
 import com.intellij.python.hatch.common.icons.PythonHatchCommonIcons
 import com.intellij.python.pytools.backend.PyTool
 import com.intellij.python.sdk.backend.evolution.DiscoveredVenv
-import com.intellij.python.sdk.backend.evolution.EvoPyProject
 import com.intellij.python.sdk.backend.evolution.EvoRecreateSpec
 import com.intellij.python.sdk.backend.evolution.EvoToolContext
 import com.intellij.python.sdk.backend.evolution.NO_VERSION
-import com.intellij.python.sdk.backend.evolution.PyToolEvoEnvironmentProvider
 import com.intellij.python.sdk.backend.evolution.evoCreateEnvLeaf
 import com.intellij.python.sdk.backend.evolution.evoEnvLeaf
 import com.intellij.python.sdk.backend.evolution.evoWarning
@@ -29,7 +37,7 @@ import com.intellij.python.sdk.common.evolution.EvoLeafDto
 import com.intellij.python.sdk.common.evolution.EvoLoadResultDto
 import com.intellij.python.sdk.common.evolution.EvoRecreateDto
 import com.intellij.python.sdk.common.evolution.EvoSectionDto
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.common.EvoRowAction
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.getOrNull
 import com.jetbrains.python.hatch.sdk.createSdk
@@ -38,22 +46,17 @@ import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.intellij.python.sdk.backend.PySdkBundle
 import com.intellij.python.sdk.backend.resolvePythonBinary
 import java.nio.file.Path
-import com.intellij.python.hatch.impl.sdk.HatchSdkFlavor
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
 
 
 /** How long hatch's environment listing stands before hatch is asked again — see `listEnvironments`. */
 private const val ENVS_TTL_MS: Long = 30_000
 
-internal class HatchEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
+internal class HatchEvoEnvironmentProvider : PyEvoEnvironmentProvider {
   override val tool: PyTool get() = HatchPyTool.getInstance()
   override val label: String get() = PySdkBundle.message("evolution.node.label.hatch")
   override val icon get() = PythonHatchCommonIcons.Logo
   override val toolId: ToolId get() = HATCH_TOOL_ID
-
-  /** An interpreter of this node's environments carries this flavor, which is what names this node as the active one. */
-  override val sdkFlavor: Class<out PythonSdkFlavor<*>> get() = HatchSdkFlavor::class.java
 
   override val stepDescription: String get() = PySdkBundle.message("evolution.node.step.hatch")
 
@@ -65,23 +68,29 @@ internal class HatchEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
       val binary = env.pythonVirtualEnvironment?.pythonHomePath?.path?.resolvePythonBinary()
       // Materialized env → select it; a declared-but-not-created env → create it on click (token = env name).
       // A not-created env carries its declared `python` option, which [decorate] turns into the version picker.
-      if (binary != null) evoEnvLeaf(title = env.hatchEnvironment.name, pythonBinary = binary, icon = icon)
+      if (binary != null) evoEnvLeaf(title = env.hatchEnvironment.name, pythonBinary = binary, envRef = PyEnvRef(env.hatchEnvironment.name))
       else evoCreateEnvLeaf(title = env.hatchEnvironment.name, token = env.hatchEnvironment.name, icon = icon,
                             name = env.hatchEnvironment.pythonSpec?.versionSpecifiers)
     }
     return EvoLoadResultDto.Ok(listOf(EvoSectionDto(label = null, leaves = leaves)))
   }
 
-  /** Adopts an existing hatch env as a hatch-typed SDK, matched to the declared env whose interpreter is [homePath]. */
-  override suspend fun createSdkForExistingEnv(context: EvoToolContext, homePath: Path): PyResult<PythonInterpreter> {
-    val module = context.pyProject.pyProject.residesOnModule
-    val hatchService = module.getHatchService(context.fileSystem).getOr { return it }
-    val env = hatchService.findVirtualEnvironments().getOr { return it }.firstOrNull { candidate ->
-      candidate.pythonVirtualEnvironment?.pythonHomePath?.path?.resolvePythonBinary()?.toString() == homePath.toString()
-    } ?: return PyResult.localizedError(PySdkBundle.message("evolution.error.env.not.found", homePath.toString()))
-    // A missing working directory is not fatal: hatch is driven from the module's base dir in that case, as before.
-    val workingDir = resolveHatchWorkingDirectory(context.pyProject.pyProject.project, module).getOrNull() ?: context.workspace.baseDir
-    return env.createSdk(context.workspace.moduleOrProject, workingDir, context.fileSystem, null)
+  /**
+   * The interpreter of the declared env at [envRef], which is its name, or a failure when hatch has not created it.
+   * hatch runs on the machine of [fileSystem]; on a remote one the hatch files of the project are uploaded first.
+   */
+  override suspend fun <P : PathHolder> pythonBinaryOf(pyProject: PyProject, envRef: PyEnvRef, fileSystem: FileSystem<P>): PyResult<P> {
+    val baseDir = pyProject.baseDir
+    val uploadConfig = if (fileSystem.isLocal) null
+    else withContext(Dispatchers.IO) { UploadConfig(relativePaths = listOf(PY_PROJECT_TOML, HATCH_TOML).filter { baseDir.resolve(it).isRegularFile() }) }
+    val hatchService = baseDir.getHatchService(fileSystem, uploadBeforeExecution = uploadConfig).getOr { return it }
+    val env = hatchService.findVirtualEnvironments().getOr { return it }.firstOrNull { it.hatchEnvironment.name == envRef.value }
+              ?: return envNotFound(envRef)
+    val home = when (val venv = env.pythonVirtualEnvironment) {
+      is PythonVirtualEnvironment.Existing -> venv.pythonHomePath
+      is PythonVirtualEnvironment.NotExisting, null -> return envNotFound(envRef)
+    }
+    return withContext(Dispatchers.IO) { fileSystem.resolvePythonBinary(home) }?.let { PyResult.success(it) } ?: envNotFound(envRef)
   }
 
   /**
@@ -91,7 +100,7 @@ internal class HatchEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
    * name in `folder` and the chosen base Python in `token`, while a row with no picker carries only the env name in
    * `token` and falls back to whichever system Python is found first.
    */
-  override suspend fun createSdkForNewEnv(context: EvoToolContext, ref: PyInterpreterRef.CreateEnv): PyResult<PythonInterpreter> {
+  override suspend fun createSdkForNewEnv(context: EvoToolContext, ref: EvoRowAction.CreateEnv): PyResult<PythonInterpreter> {
     val envName = ref.folder ?: ref.token
     val hatchService = context.pyProject.pyProject.residesOnModule.getHatchService(context.fileSystem).getOr { return it }
     val hatchEnv = hatchService.findVirtualEnvironments().getOr { return it }
@@ -124,8 +133,7 @@ internal class HatchEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
    * cache so one node load makes one hatch call.
    */
   override suspend fun recreateSpecFor(context: EvoToolContext, leaf: EvoLeafDto): EvoRecreateDto? {
-    val homePath = (leaf.ref as? PyInterpreterRef.DetectedPath)?.homePath ?: return null
-    val env = envFor(context, homePath) ?: return null
+    val env = envFor(context, interpreterRefOf(leaf.action)?.envRef?.value ?: return null) ?: return null
     val options = context.systemPythonOptions(env.hatchEnvironment.pythonSpec?.versionSpecifiers).takeIf { it.isNotEmpty() }
                   ?: return null
     return EvoRecreateDto(options = options, canSyncPackages = true)
@@ -141,10 +149,10 @@ internal class HatchEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
    * with a message instead of building over an environment that is still there. The other two non-removals mean the env
    * was already gone, which is exactly the state the create step wants.
    */
-  override suspend fun recreateEnv(context: EvoToolContext, homePath: Path, spec: EvoRecreateSpec): PyResult<PythonInterpreter> {
+  override suspend fun recreateEnv(context: EvoToolContext, ref: PyInterpreterRef, spec: EvoRecreateSpec): PyResult<PythonInterpreter> {
     val hatchService = context.pyProject.pyProject.residesOnModule.getHatchService(context.fileSystem).getOr { return it }
-    val env = envFor(context, homePath.toString())
-              ?: return PyResult.localizedError(PySdkBundle.message("evolution.error.env.not.found", homePath.toString()))
+    val env = envFor(context, ref.envRef.value)
+              ?: return PyResult.localizedError(PySdkBundle.message("evolution.error.env.not.found", ref.envRef))
     val envName = env.hatchEnvironment.name
     when (hatchService.removeVirtualEnvironment(envName).getOr { return it }) {
       HatchEnv.RemoveResult.CantRemoveActiveEnvironment ->
@@ -160,11 +168,13 @@ internal class HatchEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
       .createSdk(context.workspace.moduleOrProject, hatchService.getWorkingDirectoryPath(), context.fileSystem, null)
   }
 
-  /** The declared env whose interpreter is [homePath], or null when none is — the lookup [createSdkForExistingEnv] does. */
-  private suspend fun envFor(context: EvoToolContext, homePath: String): HatchVirtualEnvironment<PathHolder.Eel>? {
-    val hatchService = context.pyProject.pyProject.residesOnModule.getHatchService(context.fileSystem).getOrNull() ?: return null
-    return hatchService.listEnvironments()
-      .firstOrNull { it.pythonVirtualEnvironment?.pythonHomePath?.path?.resolvePythonBinary()?.toString() == homePath }
+  /** The declared env named [envName], or null when none is. */
+  private suspend fun envFor(context: EvoToolContext, envName: String): HatchVirtualEnvironment<PathHolder.Eel>? =
+    envFor(context.pyProject.pyProject, context.fileSystem, envName)
+
+  private suspend fun envFor(pyProject: PyProject, fileSystem: FileSystem<PathHolder.Eel>, envName: String): HatchVirtualEnvironment<PathHolder.Eel>? {
+    val hatchService = pyProject.residesOnModule.getHatchService(fileSystem).getOrNull() ?: return null
+    return hatchService.listEnvironments().firstOrNull { it.hatchEnvironment.name == envName }
   }
 
   /**
@@ -227,7 +237,7 @@ internal class HatchEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
    * [com.intellij.python.hatch.cli.HatchPythonSpec.versionSpecifiers] for the options that constrain no version.
    */
   private suspend fun EvoLeafDto.withBasePythonPicker(context: EvoToolContext): EvoLeafDto {
-    val create = ref as? PyInterpreterRef.CreateEnv ?: return this
+    val create = action as? EvoRowAction.CreateEnv ?: return this
     // `name` holds the env's declared version specifier — this provider put it there in loadSections.
     val options = context.systemPythonOptions(create.name)
     // Declared in pyproject.toml but nothing on the machine to build it from: creating it would fail, so the row says

@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.io.path.pathString
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.testFramework.junit5.fixture.TestFixture
 import com.intellij.testFramework.junit5.fixture.testFixture
 import com.jetbrains.python.sdk.PythonSdkAdditionalData
@@ -34,13 +34,13 @@ class PyInterpreterFixture<ENV : Any>(val interpreter: PythonInterpreter, val en
 
 /**
  * Creates a mock interpreter of this [PyProject]: not a real python, but with [homePath]. It is added through
- * [PythonInterpreterProjectRegistry]. The SDK has [PythonSdkAdditionalData], because the product treats a Python SDK
+ * [PythonInterpreterRegistry]. The SDK has [PythonSdkAdditionalData], because the product treats a Python SDK
  * without it as broken.
  */
 @JvmName("pyProjectMockInterpreterFixture")
 fun TestFixture<PyProject>.pyMockInterpreterFixture(homePath: TestFixture<Path>): TestFixture<PythonInterpreter> = testFixture {
   val pyProject = this@pyMockInterpreterFixture.init()
-  val registry = PythonInterpreterProjectRegistry.getInstance(pyProject.project)
+  val registry = PythonInterpreterRegistry.getInstance(pyProject.project)
   val interpreter = registry.addMockPythonInterpreter(pyProject, createMockSdk(pyProject.project, homePath.init()))
   initialized(interpreter) {
     registry.removePythonInterpreter(pyProject, interpreter)
@@ -52,10 +52,10 @@ fun TestFixture<PyProject>.pyMockInterpreterFixture(homePath: TestFixture<Path>)
  */
 fun TestFixture<Project>.pyMockInterpreterFixture(homePath: TestFixture<Path>): TestFixture<PythonInterpreter> = testFixture {
   val project = this@pyMockInterpreterFixture.init()
-  val registry = PythonInterpreterProjectRegistry.getInstance(project)
-  val interpreter = registry.addSharedMockPythonInterpreter(createMockSdk(project, homePath.init()))
+  val registry = PythonInterpreterRegistry.getInstance(project)
+  val interpreter = registry.addMockPythonInterpreterWithoutPyProject(createMockSdk(project, homePath.init()))
   initialized(interpreter) {
-    registry.removeSharedPythonInterpreter(interpreter)
+    registry.removePythonInterpreterWithoutPyProject(interpreter)
   }
 }
 

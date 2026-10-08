@@ -1,11 +1,14 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.pyproject.model.evolution
 
+import com.jetbrains.python.sdk.add.v2.FileSystemWithEel
+import com.jetbrains.python.errorProcessing.ErrorSink
+import com.intellij.python.sdk.common.evolution.EvoAddNewOptionDto
+import com.intellij.python.sdk.backend.evolution.EvoToolContext
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
+import com.intellij.platform.util.coroutines.flow.zipWithNext
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.readAction
-import com.intellij.openapi.projectRoots.ProjectJdkTable
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -20,10 +23,6 @@ import com.intellij.python.externalIndex.PyExternalFilesIndexService
 import com.intellij.util.concurrency.annotations.RequiresReadLock
 import com.intellij.openapi.project.Project
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.isFor
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
-import com.jetbrains.python.sdk.PythonSdkAdditionalData
-import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.platform.backend.workspace.WorkspaceModel
 import com.intellij.platform.workspace.jps.entities.ContentRootEntity
@@ -46,11 +45,9 @@ import com.intellij.workspaceModel.ide.legacyBridge.findModuleEntity
 import com.jetbrains.python.project.project
 import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -230,7 +227,7 @@ class EvoPyProjectModel(private val project: Project, scope: CoroutineScope) {
       // recomputation reads the whole model from scratch, so an intermediate generation is worth nothing.
       merge(
         WorkspaceModel.getInstance(project).eventLog.filter { it.affectsPyProjects() }.map { },
-        sdkTableChanges(),
+        interpreterChanges(),
       )
         .onStart { emit(Unit) }
         .conflate()
@@ -301,29 +298,25 @@ class EvoPyProjectModel(private val project: Project, scope: CoroutineScope) {
   private fun selectedFile(): VirtualFile? = FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
 
   /**
-   * An event for each SDK table change of an SDK in [Snapshot.sdkReferences].
-   * The project event log does not report the SDK table. A change before the first snapshot is ignored.
+   * An event for each change of [PythonInterpreterRegistry] that adds, removes or renames an SDK named in
+   * [Snapshot.sdkReferences]. The project event log does not report interpreters. A change before the first snapshot is
+   * ignored.
    */
-  /** The Python SDK named [name] in the SDK table, or `null`. A broken SDK without Python data gets `null` too. */
-  private fun findPythonSdk(name: String): Sdk? =
-    ProjectJdkTable.getInstance().findJdk(name)?.takeIf { PythonSdkUtil.isPythonSdk(it) && it.sdkAdditionalData is PythonSdkAdditionalData }
+  private fun interpreterChanges(): Flow<Unit> =
+    PythonInterpreterRegistry.getInstance(project).moduleSdkNamesFlow
+      .zipWithNext()
+      .filter { (before, after) ->
+        val references = state.value?.sdkReferences ?: return@filter false
+        references.any { name -> (name in before) != (name in after) }
+      }
+      .map { }
 
-  private fun sdkTableChanges(): Flow<Unit> = callbackFlow {
-    fun onChange(vararg names: String) {
-      val references = state.value?.sdkReferences ?: return
-      if (names.any { it in references }) trySend(Unit)
-    }
-
-    val connection = ApplicationManager.getApplication().messageBus.connect(this)
-    connection.subscribe(ProjectJdkTable.JDK_TABLE_TOPIC, object : ProjectJdkTable.Listener {
-      override fun jdkAdded(jdk: Sdk) = onChange(jdk.name)
-
-      override fun jdkRemoved(jdk: Sdk) = onChange(jdk.name)
-
-      override fun jdkNameChanged(jdk: Sdk, previousName: String) = onChange(jdk.name, previousName)
-    })
-    awaitClose { connection.disconnect() }
-  }
+  /**
+   * The interpreter whose SDK a module names [name], or `null`. The module stores the interpreter of its [PyProject], so
+   * the reference alone decides. A member of a tool workspace names the interpreter of the workspace root.
+   */
+  private suspend fun findPythonInterpreter(name: String): PythonInterpreter? =
+    PythonInterpreterRegistry.getInstance(project).findByModuleSdkName(name)
 
   private suspend fun computeSnapshot(): Snapshot {
     // Read all module data from this one storage. It does not change, so a module removal cannot break the pass.
@@ -332,7 +325,7 @@ class EvoPyProjectModel(private val project: Project, scope: CoroutineScope) {
     val references = sources.associate { pyProject ->
       pyProject.residesOnModule to pyProject.residesOnModule.findModuleEntity(storage)?.let { sdkReferenceOf(it, storage) }
     }
-    val interpreters = references.mapValues { (_, name) -> name?.let(::findPythonSdk)?.pythonInterpreterAsync() }
+    val interpreters = references.mapValues { (_, name) -> name?.let { findPythonInterpreter(it) } }
     val sdkReferences = references.values.filterNotNullTo(mutableSetOf())
 
     // Every project first, indexed by its module: a project states nothing about a workspace, and a workspace is built
@@ -381,17 +374,14 @@ class EvoPyProjectModel(private val project: Project, scope: CoroutineScope) {
    * error, so a snapshot that never agrees cannot block the caller forever.
    */
   suspend fun awaitInterpreterOf(pyProjects: Collection<PyProject>) {
-    // The SDK each module refers to now, read the same way as the snapshot reads it.
+    // The interpreter each module refers to now, read the same way as the snapshot reads it.
     val (_, storage) = project.getPyProjectsWithStorage()
     val expected = pyProjects.associateWith { pyProject ->
-      pyProject.residesOnModule.findModuleEntity(storage)?.let { sdkReferenceOf(it, storage) }?.let(::findPythonSdk)
+      pyProject.residesOnModule.findModuleEntity(storage)?.let { sdkReferenceOf(it, storage) }?.let { findPythonInterpreter(it) }
     }
     val agreed = withTimeoutOrNull(AWAIT_INTERPRETER_TIMEOUT) {
       snapshotFlow().first { snapshot ->
-        expected.all { (pyProject, sdk) ->
-          val interpreter = snapshot.forPyProject(pyProject)?.interpreter
-          if (sdk == null) interpreter == null else interpreter?.isFor(sdk) == true
-        }
+        expected.all { (pyProject, interpreter) -> snapshot.forPyProject(pyProject)?.interpreter == interpreter }
       }
     }
     if (agreed == null) {
@@ -509,3 +499,22 @@ suspend fun Project.findPythonInterpreter(file: VirtualFile, mainForOrphans: Boo
 @ApiStatus.Internal
 suspend fun PyProject.getInterpreter(): PythonInterpreter? =
   EvoPyProjectModel.getInstance(project).snapshot().forPyProject(this)?.interpreter
+
+/**
+ * The context a tool-owned operation on this project runs in: the entry of this project and its workspace, from the
+ * current [EvoPyProjectModel.Snapshot], on [fileSystem]. `null` when the snapshot does not hold this project.
+ *
+ * The widget and the Add dialog build their context here, so a tool acts on one workspace whichever surface asks.
+ * [systemPythons] lists the Pythons a new environment can be built on, see [EvoToolContext.systemPythonOptions].
+ */
+@ApiStatus.Internal
+suspend fun PyProject.evoToolContext(
+  fileSystem: FileSystemWithEel,
+  errorSink: ErrorSink = ErrorSink(),
+  systemPythons: suspend (String?) -> List<EvoAddNewOptionDto>,
+): EvoToolContext? {
+  val snapshot = EvoPyProjectModel.getInstance(project).snapshot()
+  val evoPyProject = snapshot.forPyProject(this) ?: return null
+  val workspace = snapshot.workspaces.firstOrNull { w -> w.members.any { it === evoPyProject } } ?: return null
+  return EvoToolContext(workspace, evoPyProject, fileSystem, errorSink, systemPythons)
+}

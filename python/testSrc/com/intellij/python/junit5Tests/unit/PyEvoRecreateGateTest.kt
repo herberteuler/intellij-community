@@ -1,8 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit
 
-import com.intellij.python.sdk.backend.evolution.ownedEnvBinaryIn
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.backend.evolution.ownedEnvDirIn
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -17,44 +16,41 @@ import java.nio.file.Path
 class PyEvoRecreateGateTest {
   private val baseDir: Path = Path.of("/home/me/project")
 
-  private fun detected(path: String): PyInterpreterRef = PyInterpreterRef.DetectedPath(path)
+  private fun owned(dir: String?): Path? = ownedEnvDirIn(dir?.let { Path.of(it) }, baseDir)
 
   @Test
   fun `an environment inside the project is the project's own`() {
-    val binary = "/home/me/project/.venv/bin/python"
-    assertEquals(Path.of(binary), detected(binary).ownedEnvBinaryIn(baseDir))
+    val dir = "/home/me/project/.venv"
+    assertEquals(Path.of(dir), owned(dir))
   }
 
   @Test
   fun `an environment outside the project is not`() {
     // A system interpreter, a pyenv install, a named conda env and a poetry cache env all land here. Another project
     // may be using any of them, so none is ours to delete.
-    assertNull(detected("/usr/bin/python3").ownedEnvBinaryIn(baseDir))
-    assertNull(detected("/home/me/.pyenv/versions/3.13/bin/python").ownedEnvBinaryIn(baseDir))
-    assertNull(detected("/home/me/.conda/envs/project/bin/python").ownedEnvBinaryIn(baseDir))
+    assertNull(owned("/usr"))
+    assertNull(owned("/home/me/.pyenv/versions/3.13"))
+    assertNull(owned("/home/me/.conda/envs/project"))
   }
 
   @Test
   fun `a sibling directory whose name starts with the project's is not inside it`() {
     // Guards the reading of "inside": as plain text, `/home/me/project2` starts with `/home/me/project`.
-    assertNull(detected("/home/me/project2/.venv/bin/python").ownedEnvBinaryIn(baseDir))
+    assertNull(owned("/home/me/project2/.venv"))
   }
 
   @Test
   fun `a path escaping the project through its parent is not inside it`() {
-    assertNull(detected("/home/me/project/../other/.venv/bin/python").ownedEnvBinaryIn(baseDir))
+    assertNull(owned("/home/me/project/../other/.venv"))
   }
 
   @Test
   fun `the project directory itself is not an environment`() {
-    assertNull(detected(baseDir.toString()).ownedEnvBinaryIn(baseDir))
+    assertNull(owned(baseDir.toString()))
   }
 
   @Test
-  fun `only an environment that exists has anything to destroy`() {
-    assertNull(PyInterpreterRef.CreateEnv("3.13").ownedEnvBinaryIn(baseDir))
-    assertNull(PyInterpreterRef.ExistingSdk("Python 3.13").ownedEnvBinaryIn(baseDir))
-    assertNull(PyInterpreterRef.Autoconfigure("Venv").ownedEnvBinaryIn(baseDir))
-    assertNull(null.ownedEnvBinaryIn(baseDir))
+  fun `an environment whose directory is unknown has nothing to destroy`() {
+    assertNull(owned(null))
   }
 }

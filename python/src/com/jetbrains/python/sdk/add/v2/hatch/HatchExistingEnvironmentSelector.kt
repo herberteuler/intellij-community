@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2.hatch
 
+import com.intellij.python.sdk.common.PyEnvRef
+import com.jetbrains.python.sdk.add.v2.addInterpreterByEnvRef
 import com.intellij.openapi.observable.properties.ObservableProperty
 import com.intellij.openapi.ui.validation.DialogValidationRequestor
 import com.intellij.platform.util.progress.withProgressText
@@ -8,7 +10,6 @@ import com.intellij.python.hatch.HatchPyTool
 import com.intellij.python.hatch.PythonVirtualEnvironment
 import com.intellij.python.hatch.resolveHatchWorkingDirectory
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.intellij.ui.dsl.builder.Panel
 import com.jetbrains.python.PyBundle.message
 import com.jetbrains.python.Result
@@ -24,7 +25,6 @@ import com.jetbrains.python.sdk.add.v2.PythonMutableTargetAddInterpreterModel
 import com.jetbrains.python.sdk.add.v2.ValidatedPath
 import com.jetbrains.python.sdk.add.v2.toStatisticsField
 import com.jetbrains.python.sdk.destructured
-import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import com.jetbrains.python.statistics.InterpreterCreationMode
 import com.jetbrains.python.statistics.InterpreterType
 import kotlinx.coroutines.CoroutineScope
@@ -61,30 +61,23 @@ internal class HatchExistingEnvironmentSelector<P : PathHolder>(
       is PythonVirtualEnvironment.NotExisting, null -> return Result.failure(HatchUIError.HatchEnvironmentIsNotSelected())
     }
 
-    val venvPythonBinaryPathString = withContext(Dispatchers.IO) {
-      model.fileSystem.resolvePythonBinary(existingHatchVenv.pythonHomePath)?.takeIf { model.fileSystem.validateExecutable(it).isSuccess }
-        ?.toStringForUI()
+    withContext(Dispatchers.IO) {
+      model.fileSystem.resolvePythonBinary(existingHatchVenv.pythonHomePath)
+        ?.takeIf { model.fileSystem.validateExecutable(it).isSuccess }
     } ?: return Result.failure(HatchUIError.HatchEnvironmentIsNotSelected())
 
-    // Look in the full SDK table, not only in the SDKs for this module: a new SDK with the same home is a duplicate.
-    val existingInterpreter = PythonSdkUtil.getAllSdks().find { it.homePath == venvPythonBinaryPathString }?.pythonInterpreterAsync()
-    val result = when {
-      existingInterpreter != null -> Result.success(existingInterpreter)
-      else -> {
-        val (project, module) = moduleOrProject.destructured
-        val workingDirectory = resolveHatchWorkingDirectory(project, module).getOr { return it }
-        withProgressText(message("python.sdk.progress.hatch.configuring")) {
-          environment.createSdk(
-            moduleOrProject = moduleOrProject,
-            workingDirectoryPath = workingDirectory,
-            fileSystem = model.fileSystem,
-            targetPanelExtension = model.state.targetPanelExtension.get(),
-          )
-        }
-      }
+    model.fileSystem.addInterpreterByEnvRef(moduleOrProject, HatchPyTool.getInstance(), PyEnvRef(environment.hatchEnvironment.name))?.let { return it }
+    // A target, or no PyProject yet: build the SDK here.
+    val (project, module) = moduleOrProject.destructured
+    val workingDirectory = resolveHatchWorkingDirectory(project, module).getOr { return it }
+    return withProgressText(message("python.sdk.progress.hatch.configuring")) {
+      environment.createSdk(
+        moduleOrProject = moduleOrProject,
+        workingDirectoryPath = workingDirectory,
+        fileSystem = model.fileSystem,
+        targetPanelExtension = model.state.targetPanelExtension.get(),
+      )
     }
-
-    return result
   }
 
   override fun createStatisticsInfo(target: PythonInterpreterCreationTargets): InterpreterStatisticsInfo {

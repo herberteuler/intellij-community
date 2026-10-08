@@ -28,7 +28,7 @@ import com.jetbrains.python.project.PyProject
 import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.intellij.python.junit5Tests.framework.env.PyInterpreterFixture
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 
 /**
  * Create virtual env in [where]. If [addToSdkTable] then also added to the project jdk table
@@ -56,7 +56,7 @@ fun TestFixture<SdkFixture<PyEnvironment>>.pyVenvFixture(
       project,
       PathHolder.Eel(venvPython),
       additionalData,
-      advancedOpts = SdkCreationAdvancedOpts(persist = addToSdkTable, associate = if (module == null) false else null),
+      advancedOpts = SdkCreationAdvancedOpts(persist = addToSdkTable),
     ).orThrow()
     val sdk = interpreter.getSdkAPI()
     if (addToSdkTable) {
@@ -89,9 +89,8 @@ fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyVenvFixture(
   val venvPython = withContext(Dispatchers.EDT) { createVenv(interpreterFixture.env.pythonPath, venvDir).getOrThrow() }
   // With a Python project the venv belongs to it, so its SDK is associated with the project at creation.
   val additionalData = if (pyProject != null) createVenvAdditionalData(pyProject.residesOnModule).getOrThrow() else createVenvAdditionalData(workingDirectory)
-  // With no Python project this fixture stands for a *shared* venv, so its SDK gets no association:
-  // sortForExistingEnvironment only treats an unassociated SDK as SHARED_VENVS.
-  val opts = SdkCreationAdvancedOpts(associate = if (pyProject == null) false else null)
+  // With no Python project the SDK gets no association. It belongs to the Python project at its working directory.
+  val opts = SdkCreationAdvancedOpts()
   val interpreter = if (pyProject != null) {
     createSdk(pyProject, PathHolder.Eel(venvPython), additionalData, advancedOpts = opts).orThrow()
   }
@@ -100,13 +99,13 @@ fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyVenvFixture(
   }
   pyProject?.setPythonInterpreter(interpreter)
   initialized(interpreter) {
-    val registry = PythonInterpreterProjectRegistry.getInstance(project)
+    val registry = PythonInterpreterRegistry.getInstance(project)
     if (pyProject != null) {
       pyProject.setPythonInterpreter(null)
       registry.removePythonInterpreter(pyProject, interpreter)
     }
     else {
-      registry.removeSharedPythonInterpreter(interpreter)
+      registry.removePythonInterpreterWithoutPyProject(interpreter)
     }
   }
 }

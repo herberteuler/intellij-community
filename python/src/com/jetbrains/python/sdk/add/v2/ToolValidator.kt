@@ -34,11 +34,11 @@ class ToolValidator<P : PathHolder>(
   val tool: PyTool,
   override val backProperty: ObservableMutableProperty<ValidatedPath.Executable<P>?>,
   propertyGraph: PropertyGraph,
-  val toolValidator: suspend (P) -> PyResult<Version> = { fileSystem.getBinaryToExec(it).getToolVersion(tool.fusId) },
+  val toolValidator: suspend (P) -> PyResult<Version> = { fileSystem.getBinaryToExec(it).getToolVersion(tool.fusId.value) },
 ) : PathValidator<Version, P, ValidatedPath.Executable<P>> {
   // Everything the validator needs is derived from the tool: its version prefix, detection spec, and the
   // default (auto-detected) executable path.
-  val toolVersionPrefix: String get() = tool.fusId
+  val toolVersionPrefix: String get() = tool.fusId.value
   val toolCommandSpec: ToolCommandSpec get() = tool.toolCommandSpec
   val defaultPathSupplier: suspend () -> P? = { tool.resolveExecutable(fileSystem) }
   override val isDirtyValue: ObservableMutableProperty<Boolean> = propertyGraph.property(false)

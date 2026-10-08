@@ -1,6 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.projectCreation
 
+import com.jetbrains.python.sdk.add.v2.addInterpreterByBinary
+import com.jetbrains.python.sdk.add.v2.toEelFileSystem
+import com.intellij.python.venv.PipPyTool
 import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.module.Module
@@ -23,7 +26,6 @@ import com.intellij.python.community.services.systemPython.SystemPythonService
 import com.intellij.python.community.services.systemPython.createVenvFromSystemPython
 import com.intellij.python.community.services.systemPython.findMatchingPython
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.intellij.python.venv.createVenv
 import com.intellij.python.venv.createVenvAdditionalData
 import com.jetbrains.python.PyBundle
@@ -41,7 +43,6 @@ import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.jetbrains.python.project.PyProject.Companion.asPyProject
 import com.jetbrains.python.sdk.createSdk
 import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
-import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import com.jetbrains.python.sdk.moduleIfExists
 import com.jetbrains.python.venvReader.VirtualEnvReader
 import kotlinx.coroutines.Dispatchers
@@ -202,9 +203,8 @@ private suspend fun ensureModuleHasRoot(module: Module, root: VirtualFile): Unit
 
 private suspend fun getSdk(pythonPath: PythonBinary, module: Module): PyResult<PythonInterpreter> =
   withProgressText(ProjectBundle.message("progress.text.configuring.sdk")) {
-    val allJdks = PythonSdkUtil.getAllSdks(module).toTypedArray()
-    val currentSdk = allJdks.firstOrNull { sdk -> sdk.homeDirectory?.toNioPath() == pythonPath }
-    if (currentSdk != null) return@withProgressText PyResult.success(currentSdk.pythonInterpreterAsync())
+    pythonPath.toEelFileSystem().addInterpreterByBinary(ModuleOrProject.ModuleAndProject(module), PipPyTool.getInstance(), pythonPath)
+      ?.let { return@withProgressText it }
 
     val additionalData = createVenvAdditionalData(module).getOr { return@withProgressText it }
     return@withProgressText createSdk(module.project, PathHolder.Eel(pythonPath), additionalData)

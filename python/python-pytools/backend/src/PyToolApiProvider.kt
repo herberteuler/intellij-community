@@ -68,7 +68,7 @@ private object PyToolApiImpl : PyToolApi {
           val custom = executable.getCustomExecutablePath(descriptor)
           val path = custom ?: PyExecutableCache.getInstance().get(descriptor, executable)
           PyToolPathStateDto(
-            fusId = FusId(executable.fusId),
+            fusId = executable.fusId,
             path = when {
               custom != null -> PyToolPathDto(custom.toString(), PyToolPathKind.CUSTOM)
               path != null -> PyToolPathDto(path.toString(), PyToolPathKind.DETECTED)

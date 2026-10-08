@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2.poetry
 
+import com.jetbrains.python.sdk.add.v2.addInterpreterByBinary
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.observable.properties.ObservableProperty
 import com.intellij.python.community.execService.python.validatePythonAndGetInfo
@@ -9,7 +10,6 @@ import com.intellij.python.community.impl.poetry.common.POETRY_UI_INFO
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.jetbrains.python.PyBundle
-import com.jetbrains.python.Result
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.sdk.add.v2.CustomExistingEnvironmentSelector
@@ -19,10 +19,8 @@ import com.jetbrains.python.sdk.add.v2.PythonMutableTargetAddInterpreterModel
 import com.jetbrains.python.sdk.add.v2.ToolValidator
 import com.jetbrains.python.sdk.add.v2.ValidatedPath
 import com.jetbrains.python.sdk.add.v2.pathHolder
-import com.jetbrains.python.sdk.legacy.PythonSdkUtil
 import com.jetbrains.python.sdk.poetry.createPoetrySdk
 import com.jetbrains.python.sdk.poetry.detectPoetryEnvs
-import com.jetbrains.python.sdk.poetry.isPoetry
 import com.jetbrains.python.sdk.workingDirectory
 import com.jetbrains.python.statistics.InterpreterType
 import java.nio.file.Path
@@ -42,10 +40,9 @@ internal class PoetryExistingEnvironmentSelector<P : PathHolder>(model: PythonMu
       selectedEnv.get()?.homePath ?: return PyResult.localizedError(PyBundle.message("python.sdk.provided.path.is.invalid",
                                                                                      selectedEnv.get()?.homePath))
 
-    // Look in the full SDK table, not only in the SDKs for this module: a new SDK with the same home is a duplicate.
-    PythonSdkUtil.getAllSdks().find { sdk -> sdk.isPoetry && sdk.homePath == pythonBinaryPath.toStringForUI() }?.let {
-      return Result.success(it.pythonInterpreterAsync())
-    }
+    // The poetry node names the env by where it is, so the dialog asks it for the env ref of this binary.
+    (pythonBinaryPath as? PathHolder.Eel)?.let { model.fileSystem.addInterpreterByBinary(moduleOrProject, PoetryPyTool.getInstance(), it.path) }
+      ?.let { return it }
 
     val basePath =
       moduleOrProject.workingDirectory ?: return PyResult.localizedError(PyBundle.message("python.sdk.project.working.directory.not.found"))

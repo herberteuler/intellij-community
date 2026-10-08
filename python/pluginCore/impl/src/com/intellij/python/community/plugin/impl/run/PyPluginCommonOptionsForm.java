@@ -140,7 +140,7 @@ final class PyPluginCommonOptionsForm implements AbstractPyCommonOptionsForm {
 
   @Override
   public void setSdkHome(String sdkHome) {
-    final List<Sdk> allSdks = ContainerUtil.sorted(PythonSdkUtil.getAllSdks(myProject), new PreferredSdkComparator());
+    final List<Sdk> allSdks = ContainerUtil.sorted(PySdkRenderingKt.pyProjectPythonSdksUnderProgress(myProject, getModule()), new PreferredSdkComparator());
     final List<PyInterpreterItem> allItems = PySdkRenderingKt.interpreterItemsUnderProgress(allSdks, myProject);
     List<PyInterpreterItem> rows = new ArrayList<>();
     rows.add(null);
@@ -156,8 +156,8 @@ final class PyPluginCommonOptionsForm implements AbstractPyCommonOptionsForm {
 
   @Override
   public void setSdk(@Nullable Sdk sdk) {
-    List<Sdk> allSdks = new ArrayList<>(PythonSdkUtil.getAllSdks(myProject));
-    // An SDK the table does not hold is still offered, so the configuration keeps naming what it was given.
+    List<Sdk> allSdks = new ArrayList<>(PySdkRenderingKt.pyProjectPythonSdksUnderProgress(myProject, getModule()));
+    // An SDK the registry does not hold is still offered, so the configuration keeps naming what it was given.
     if (sdk != null && !allSdks.contains(sdk)) {
       allSdks.add(sdk);
     }

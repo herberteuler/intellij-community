@@ -46,6 +46,7 @@ jvm_library(
         "//platform/platform-impl/rpc",
         "//platform/remote-topics/shared:rpc-topics",
         "//fleet/rhizomedb",
+        "//python/python-pytools/common",
     ],
 )
 
@@ -75,6 +76,7 @@ jvm_library(
         "//platform/platform-impl/rpc:rpc_test_lib",
         "//platform/remote-topics/shared:rpc-topics_test_lib",
         "//fleet/rhizomedb:rhizomedb_test_lib",
+        "//python/python-pytools/common:common_test_lib",
     ],
 )
 ### auto-generated section `build intellij.python.sdk.common` end

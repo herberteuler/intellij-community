@@ -2,6 +2,7 @@
 package com.jetbrains.python.sdk.add.v2
 
 import com.intellij.openapi.components.service
+import com.intellij.execution.target.TargetEnvironmentConfiguration
 import com.intellij.platform.eel.EelApi
 import org.jetbrains.annotations.ApiStatus
 
@@ -12,6 +13,9 @@ import org.jetbrains.annotations.ApiStatus
 @ApiStatus.Internal
 interface EelFileSystemFactory {
   fun create(eelApi: EelApi): FileSystemWithEel
+
+  /** A [FileSystem] on the target [target], for a module that cannot reach the concrete target type. */
+  fun create(target: TargetEnvironmentConfiguration): FileSystem<PathHolder.Target>
 
   companion object {
     fun getInstance(): EelFileSystemFactory = service()

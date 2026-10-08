@@ -1,8 +1,11 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit
 
-import com.intellij.ide.ui.icons.rpcId
+import com.intellij.python.sdk.common.PyEnvRef
 import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.pytools.common.FusId
+import com.intellij.ide.ui.icons.rpcId
+import com.intellij.python.sdk.common.EvoRowAction
 import com.intellij.python.sdk.common.evolution.PyInterpreterDto
 import com.intellij.python.sdk.frontend.evolution.interpreterRowsChanged
 import com.jetbrains.python.allure.Layers
@@ -75,6 +78,6 @@ class PyEvoAssociatedRowsTest {
     description = path,
     // A fresh IconId every time, which is what a re-read produces.
     icon = ImageIcon().rpcId(),
-    ref = PyInterpreterRef.ExistingSdk(sdkName),
+    action = EvoRowAction.Select(PyInterpreterRef.native(FusId("pip"), PyEnvRef(sdkName))),
   )
 }

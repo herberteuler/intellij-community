@@ -5,7 +5,7 @@ import com.intellij.execution.target.FullPathOnTarget
 import com.intellij.execution.target.TargetEnvironmentConfiguration
 import com.intellij.openapi.project.Project
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.python.test.env.core.PyEnvironmentFactory
 import com.intellij.remote.RemoteSdkException
 import com.jetbrains.python.sdk.flavors.PyFlavorAndData
@@ -27,13 +27,13 @@ sealed class SdkCreationRequest {
  * removes it.
  */
 suspend fun PyEnvironmentFactory.createSdk(project: Project, request: SdkCreationRequest): Pair<PythonInterpreter, AutoCloseable> = withContext(Dispatchers.IO) {
-  val registry = PythonInterpreterProjectRegistry.getInstance(project)
+  val registry = PythonInterpreterRegistry.getInstance(project)
   when (request) {
     is SdkCreationRequest.LocalPython -> {
       val environment = createEnvironment(PredefinedPyEnvironments.VENV_3_12)
       val interpreter = environment.prepareSharedSdk(project)
       Pair(interpreter, AutoCloseable {
-        runBlocking { registry.removeSharedPythonInterpreter(interpreter) }
+        runBlocking { registry.removePythonInterpreterWithoutPyProject(interpreter) }
         environment.close()
       })
     }
@@ -47,8 +47,8 @@ suspend fun PyEnvironmentFactory.createSdk(project: Project, request: SdkCreatio
       catch (e: RemoteSdkException) {
         throw RuntimeException("Error running $PYTHON_PATH_ON_TARGET", e)
       }
-      val interpreter = registry.addSharedPythonInterpreter(PYTHON_PATH_ON_TARGET, targetData, PYTHON_PATH_ON_TARGET, setupPaths = false)
-      Pair(interpreter, AutoCloseable { runBlocking { registry.removeSharedPythonInterpreter(interpreter) } })
+      val interpreter = registry.addPythonInterpreterWithoutPyProject(PYTHON_PATH_ON_TARGET, targetData, PYTHON_PATH_ON_TARGET, setupPaths = false)
+      Pair(interpreter, AutoCloseable { runBlocking { registry.removePythonInterpreterWithoutPyProject(interpreter) } })
     }
   }
 }

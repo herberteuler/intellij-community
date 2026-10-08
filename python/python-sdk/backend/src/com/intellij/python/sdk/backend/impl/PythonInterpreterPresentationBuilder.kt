@@ -1,13 +1,15 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.sdk.backend.impl
 
+import com.intellij.python.sdk.backend.ref
+import com.intellij.ide.ui.icons.IconId
+import com.intellij.openapi.util.NlsSafe
 import com.intellij.icons.AllIcons
 import com.intellij.ide.ui.icons.rpcId
 import com.intellij.openapi.util.SystemInfoRt
 import com.intellij.python.sdk.backend.PySdkBundle.message
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.PythonInterpreterPresentationProvider
-import com.intellij.python.sdk.backend.asInterpreterRef
 import com.intellij.python.sdk.backend.getPythonInfo
 import com.intellij.python.sdk.common.PyInterpreterItem
 import com.intellij.python.sdk.common.PythonInterpreterProblem
@@ -28,7 +30,14 @@ import javax.swing.Icon
  * Reads only what is already recorded about the interpreter, so building this runs nothing and needs no coroutine.
  * Detecting the environment does; that happened when the [PythonInterpreter] was obtained.
  */
-internal fun PythonInterpreter.buildItem(customName: String? = null): PyInterpreterItem {
+internal fun PythonInterpreter.buildItem(customName: String? = null): PyInterpreterItem =
+  presentation(customName).let { PyInterpreterItem(ref, it.name, it.suffix, it.description, it.problem, it.icon, it.isPathDerivedName, it.toolShortName) }
+
+/**
+ * What a row draws for this interpreter, without the ref that selects it. For a list of the SDK table, which also shows a
+ * broken SDK that no ref names, see [PythonInterpreterPresentation].
+ */
+fun PythonInterpreter.presentation(customName: String? = null): PythonInterpreterPresentation {
   // One question, asked once: it carries both the version the row shows and the reason it is flagged.
   val info = getPythonInfo()
   val problem = problemFrom(info)
@@ -50,8 +59,7 @@ internal fun PythonInterpreter.buildItem(customName: String? = null): PyInterpre
   // rendered as-is (modulo middle ellipsis) so it doesn't degenerate into `python)`.
   val isPathDerivedName = customName == null && isNameDerivedFromHomePath(displayName, sdk.homePath)
 
-  return PyInterpreterItem(
-    ref = sdk.asInterpreterRef(),
+  return PythonInterpreterPresentation(
     name = displayName,
     suffix = secondary,
     // Empty when the SDK carries no binary path. That SDK is invalid anyway, and the row states why through [problem],
@@ -132,3 +140,17 @@ private fun wrapIconWithWarningDecorator(icon: Icon): LayeredIcon = LayeredIcon(
   setIcon(icon, 0)
   setIcon(AllIcons.Actions.Cancel, 1)
 }
+
+/**
+ * What an interpreter row draws: the parts of [PyInterpreterItem] other than its ref. A list of the SDK table holds this,
+ * because a broken SDK has no ref.
+ */
+class PythonInterpreterPresentation(
+  val name: @NlsSafe String,
+  val suffix: @NlsSafe String?,
+  val description: @NlsSafe String,
+  val problem: PythonInterpreterProblem?,
+  val icon: IconId,
+  val isPathDerivedName: Boolean,
+  val toolShortName: @NlsSafe String?,
+)

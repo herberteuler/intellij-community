@@ -19,7 +19,6 @@ import com.intellij.python.sdk.common.PyInterpreterItem;
 import com.jetbrains.python.sdk.PySdkListCellRenderer;
 import com.jetbrains.python.sdk.PySdkRenderingKt;
 import com.intellij.python.sdk.backend.PySdkBundle;
-import com.jetbrains.python.sdk.legacy.PythonSdkUtil;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.Action;
@@ -42,7 +41,7 @@ final class PyManagePackagesDialog extends DialogWrapper {
     super(project, true);
     setTitle(PyBundle.message("manage.python.packages"));
 
-    List<Sdk> sdks = new ArrayList<>(ContainerUtil.sorted(PythonSdkUtil.getAllSdks(project), new PreferredSdkComparator()));
+    List<Sdk> sdks = new ArrayList<>(ContainerUtil.sorted(PySdkRenderingKt.pyProjectPythonSdksUnderProgress(project, null), new PreferredSdkComparator()));
     // The combo holds items, not SDKs: a row states whether its interpreter can be used, which takes running it.
     List<PyInterpreterItem> items = PySdkRenderingKt.interpreterItemsUnderProgress(sdks, project);
     PyInterpreterItem selected = null;

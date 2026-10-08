@@ -4,6 +4,7 @@ package com.jetbrains.python.sdk
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.jetbrains.python.project.PyProject
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
 import org.jetbrains.annotations.ApiStatus
 import java.nio.file.Path
 
@@ -81,3 +82,10 @@ val Module.asModuleOrProject: ModuleOrProject.ModuleAndProject get() = ModuleOrP
 
 @get:ApiStatus.Internal
 val Project.asModuleOrProject: ModuleOrProject.ProjectOnly get() = ModuleOrProject.ProjectOnly(this)
+
+/** The [PyProject] of this [ModuleOrProject], or `null` for [ModuleOrProject.ProjectOnly] or a module that is not Python. */
+@ApiStatus.Internal
+suspend fun ModuleOrProject.findPyProject(): PyProject? = when (this) {
+  is ModuleOrProject.ModuleAndProject -> pyProject ?: module.asPyProject()
+  is ModuleOrProject.ProjectOnly -> null
+}

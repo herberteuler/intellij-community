@@ -144,3 +144,4 @@ internal fun parsePoetryShowOutdated(input: String): Map<String, PythonOutdatedP
 private suspend fun findInRoot(moduleBasePath: Path): Path? = withContext(Dispatchers.IO) {
   moduleBasePath.resolve(PY_PROJECT_TOML).takeIf { it.isRegularFile() }
 }
+

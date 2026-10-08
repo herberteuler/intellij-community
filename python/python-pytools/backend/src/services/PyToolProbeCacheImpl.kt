@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.pytools.backend.services
 
+import com.intellij.python.pytools.common.FusId
 import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.intellij.platform.eel.EelApi
@@ -30,7 +31,7 @@ import java.util.concurrent.TimeUnit
  * instead of waiting for the TTL.
  */
 internal class PyToolProbeCacheImpl(private val coroutineScope: CoroutineScope) : PyToolProbeCache {
-  private data class VersionKey(val machineInternalName: String, val fusId: String, val path: String)
+  private data class VersionKey(val machineInternalName: String, val fusId: FusId, val path: String)
 
   private val listingCache: AsyncCache<String, Map<PyTool, InstalledInfo>> = Caffeine.newBuilder()
     .expireAfterWrite(10, TimeUnit.MINUTES)

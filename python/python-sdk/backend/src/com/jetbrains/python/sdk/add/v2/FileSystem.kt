@@ -1,6 +1,9 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2
 
+import com.jetbrains.python.sdk.flavors.PyFlavorAndData
+import com.intellij.python.sdk.common.PyEnvRef
+import com.intellij.python.sdk.common.PyInterpreterRef
 import com.jetbrains.python.project.PyProject
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.execution.target.TargetBrowserHints
@@ -52,6 +55,12 @@ interface FileSystem<P : PathHolder> {
   fun parsePath(raw: String): PyResult<P>
   suspend fun validateExecutable(path: P): PyResult<Unit>
   suspend fun fileExists(path: P): Boolean
+
+  /** Whether [path] is a directory on this machine. */
+  suspend fun directoryExists(path: P): Boolean
+
+  /** The child [name] of the directory [dir] on this machine. It reads only the path. */
+  fun resolveChild(dir: P, name: String): P
   suspend fun getExistingSelectableInterpreters(
     projectPathPrefix: Path,
   ): List<ExistingSelectableInterpreter<P>>
@@ -143,6 +152,28 @@ interface FileSystem<P : PathHolder> {
    * Does nothing for a legacy target: it has no Eel machine to use as a key.
    */
   fun persistCustomToolPath(pathHolder: P, executable: PyExecutable)
+
+  /**
+   * The Python binary that the path-based [envRef] names in the project at [projectDir], on this machine, or `null`
+   * when there is none. On an Eel machine a relative env ref is a Python home inside [projectDir], and an absolute one
+   * is the binary itself. On a target an env ref is always the absolute path of the binary. See
+   * `com.intellij.python.sdk.backend.pathEnvRef`.
+   */
+  suspend fun resolveEnvRef(projectDir: Path, envRef: PyEnvRef): P?
+
+  /**
+   * The flavor of the interpreter at [pythonBinary] on this machine, for an interpreter that no tool manages, such as a
+   * plain venv or a system Python. On an Eel machine it is guessed from the path. A target is always Unix, and its
+   * interpreter carries no flavor data.
+   */
+  suspend fun flavorAndDataOf(pythonBinary: P): PyFlavorAndData<*, *>
+
+  /**
+   * The SDK home path and the SDK data of the existing environment that [ref] names in [pyProject], on this
+   * machine. The `PyEvoEnvironmentProvider` of the manager of [ref] finds the Python binary, and its
+   * `PySdkProvider` builds the data, see `PySdkProvider.sdkDataOf`. A target file system wraps that data for its target.
+   */
+  suspend fun sdkHomeAndData(pyProject: PyProject, ref: PyInterpreterRef): PyResult<Pair<String, PythonSdkAdditionalData>>
 }
 
 /**

@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.configuration;
 
+import com.intellij.python.sdk.backend.PyInterpreterRefsKt;
+import com.intellij.python.sdk.common.PyInterpreterRef;
 import com.intellij.ide.DataManager;
 import com.intellij.ide.HelpTooltipKt;
 import com.intellij.openapi.Disposable;
@@ -21,7 +23,6 @@ import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.HtmlChunk;
 import com.intellij.python.sdk.backend.PythonInterpreterExtKt;
 import com.intellij.python.sdk.common.PyInterpreterItem;
-import com.intellij.python.sdk.common.PyInterpreterRef;
 import com.intellij.ui.CollectionComboBoxModel;
 import com.intellij.ui.ComboboxSpeedSearch;
 import com.intellij.ui.components.DropDownLink;
@@ -321,7 +322,8 @@ public class PyActiveSdkConfigurable implements UnnamedConfigurable {
   private static PyInterpreterItem findItemFor(@NotNull Map<PyRenderedSdkType, List<PyInterpreterItem>> itemsByType,
                                                @Nullable Sdk sdk) {
     if (sdk == null) return null;
-    PyInterpreterRef ref = PythonInterpreterExtKt.asInterpreterRef(sdk);
+    PyInterpreterRef ref = PyInterpreterRefsKt.interpreterRefOf(sdk);
+    if (ref == null) return null;
     for (List<PyInterpreterItem> items : itemsByType.values()) {
       PyInterpreterItem item = ContainerUtil.find(items, candidate -> ref.equals(candidate.getRef()));
       if (item != null) return item;

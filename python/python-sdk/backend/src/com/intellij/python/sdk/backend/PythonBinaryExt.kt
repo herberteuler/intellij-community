@@ -16,6 +16,12 @@ fun PythonHomePath.resolvePythonBinary(): PythonBinary? {
   return VirtualEnvReader().findPythonInPythonRoot(this)
 }
 
+/**
+ * The Python home of this binary: the parent of `bin` (or `Scripts` on Windows), else the parent directory. It reads
+ * only the path, so any thread can call it. See [VirtualEnvReader.resolvePythonHomeFromPythonBinary].
+ */
+fun PythonBinary.resolvePythonHome(): PythonHomePath = VirtualEnvReader().resolvePythonHomeFromPythonBinary(this)
+
 
 /**
  * Detects the Python environment from the file system layout around this binary.

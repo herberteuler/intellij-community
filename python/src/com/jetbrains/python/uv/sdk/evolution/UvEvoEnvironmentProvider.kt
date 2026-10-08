@@ -1,23 +1,22 @@
 package com.jetbrains.python.uv.sdk.evolution
 
-import com.intellij.openapi.projectRoots.Sdk
+import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.backend.evolution.PyEvoEnvironmentProvider
 import com.intellij.python.community.common.tools.ToolId
 import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.intellij.python.pytools.backend.PyTool
 import com.intellij.python.sdk.backend.PySdkBundle
 import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.evolution.DiscoveredVenv
-import com.intellij.python.sdk.backend.evolution.EvoPyProject
 import com.intellij.python.sdk.backend.evolution.EvoRecreateSpec
 import com.intellij.python.sdk.backend.evolution.EvoToolContext
-import com.intellij.python.sdk.backend.evolution.PyToolEvoEnvironmentProvider
 import com.intellij.python.sdk.backend.evolution.envExistsError
 import com.intellij.python.sdk.backend.evolution.firstFreeVenvDir
 import com.intellij.python.sdk.backend.evolution.listEntryNames
 import com.intellij.python.sdk.backend.evolution.resolveNewVenvDir
 import com.intellij.python.sdk.backend.evolution.toInProjectAndOtherSections
 import com.intellij.python.sdk.backend.evolution.toolMissing
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.common.EvoRowAction
 import com.intellij.python.sdk.common.evolution.EvoAddNewDto
 import com.intellij.python.sdk.common.evolution.EvoAddNewOptionDto
 import com.intellij.python.sdk.common.evolution.EvoLeafDto
@@ -32,15 +31,10 @@ import com.intellij.python.uv.common.UV_TOOL_ID
 import com.intellij.python.uv.common.icons.PythonUvCommonIcons
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.packaging.PyVersionSpecifiers
-import com.jetbrains.python.sdk.add.v2.FileSystem
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.evolution.requiresPython
-import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
-import com.jetbrains.python.sdk.uv.UvSdkFlavor
 import com.jetbrains.python.sdk.uv.detectUvMode
-import com.jetbrains.python.sdk.uv.setupExistingEnvAndSdk
 import com.jetbrains.python.sdk.uv.setupNewUvSdkAndEnv
-import com.jetbrains.python.venvReader.VirtualEnvReader
 import io.github.z4kn4fein.semver.Version
 import io.github.z4kn4fein.semver.VersionFormatException
 import java.nio.file.Path
@@ -49,14 +43,11 @@ import kotlin.io.path.pathString
 
 private const val VERSIONS_KEY: String = "uv.supportedPythonVersions"
 
-internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
+internal class UvEvoEnvironmentProvider : PyEvoEnvironmentProvider {
   override val tool: PyTool get() = UvPyTool.getInstance()
   override val label: String get() = PySdkBundle.message("evolution.node.label.uv")
   override val icon get() = PythonUvCommonIcons.UV
   override val toolId: ToolId get() = UV_TOOL_ID
-
-  /** An interpreter of this node's environments carries this flavor, which is what names this node as the active one. */
-  override val sdkFlavor: Class<out PythonSdkFlavor<*>> get() = UvSdkFlavor::class.java
 
   /**
    * `uv venv` writes its own version into the environment's `pyvenv.cfg`, which is what lets every node say that uv made
@@ -76,34 +67,17 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
   override suspend fun loadSections(context: EvoToolContext, discovered: List<DiscoveredVenv>): EvoLoadResultDto {
     return EvoLoadResultDto.Ok(discovered.toInProjectAndOtherSections(
       owner = this,
-      baseDir = context.workspace.baseDir,
+      pyProject = context.workspace.pyProject,
       icon = icon,
       label = PySdkBundle.message("evolution.section.in.project"),
     ))
   }
 
   /**
-   * Adopts an existing virtualenv as a uv env. The mode follows the directory: a `pyproject.toml` makes it a project,
-   * anything else a pip-mode environment.
-   */
-  override suspend fun createSdkForExistingEnv(context: EvoToolContext, homePath: Path): PyResult<PythonInterpreter> {
-    val uvPath = executableOrNull(context.fileSystem) ?: return toolMissing()
-    val baseDir = context.workspace.baseDir
-    return setupExistingEnvAndSdk(
-      moduleOrProject = context.workspace.moduleOrProject,
-      pythonBinary = PathHolder.Eel(homePath),
-      uvPath = uvPath,
-      workingDir = baseDir,
-      fileSystem = context.fileSystem,
-      mode = detectUvMode(baseDir),
-    )
-  }
-
-  /**
    * Creates a new uv env in the folder the add-new row named; `token` is the chosen Python version as `major.minor`
    * ("" = uv's default), which is all `uv venv --python` is given — see [supportedPythonVersions].
    */
-  override suspend fun createSdkForNewEnv(context: EvoToolContext, ref: PyInterpreterRef.CreateEnv): PyResult<PythonInterpreter> {
+  override suspend fun createSdkForNewEnv(context: EvoToolContext, ref: EvoRowAction.CreateEnv): PyResult<PythonInterpreter> {
     val uvExecutable = executableOrNull(context.fileSystem) ?: return toolMissing()
     val venvDir = context.resolveNewVenvDir(ref)
     if (venvDir.exists()) return envExistsError(venvDir.fileName.toString())
@@ -157,15 +131,16 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
    * create. That suits the rule the widget works to: a failure leaves the folder standing and broken, and says so,
    * instead of leaving the project with nothing where an environment used to be.
    */
-  override suspend fun recreateEnv(context: EvoToolContext, homePath: Path, spec: EvoRecreateSpec): PyResult<PythonInterpreter> {
+  override suspend fun recreateEnv(context: EvoToolContext, ref: PyInterpreterRef, spec: EvoRecreateSpec): PyResult<PythonInterpreter> {
     val uvExecutable = executableOrNull(context.fileSystem) ?: return toolMissing()
+    val envDir = envDirectory(context.workspace.pyProject, ref.envRef, context.fileSystem) ?: return PyResult.localizedError(PySdkBundle.message("evolution.error.env.not.found", ref.envRef))
     val version = parseVersion(spec.baseToken).getOr { return it }
     val baseDir = context.workspace.baseDir
     return setupNewUvSdkAndEnv(
       moduleOrProject = context.workspace.moduleOrProject,
       uvExecutable = uvExecutable,
       workingDir = baseDir,
-      venvPath = PathHolder.Eel(VirtualEnvReader().resolvePythonHomeFromPythonBinary(homePath)),
+      venvPath = PathHolder.Eel(envDir),
       fileSystem = context.fileSystem,
       version = version,
       errorSink = context.errorSink,
@@ -250,7 +225,7 @@ internal class UvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     }
     return result.copy(sections = result.sections.map { section ->
       section.copy(leaves = section.leaves.map { leaf ->
-        if (leaf.ref is PyInterpreterRef.CreateEnv) leaf.copy(createVersions = versions) else leaf
+        if (leaf.action is EvoRowAction.CreateEnv) leaf.copy(createVersions = versions) else leaf
       })
     })
   }

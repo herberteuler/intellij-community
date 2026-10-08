@@ -1,6 +1,17 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2
 
+import com.jetbrains.python.sdk.guessLocalFlavorAndData
+import com.jetbrains.python.sdk.flavors.UnixPythonSdkFlavor
+import com.jetbrains.python.sdk.flavors.PyFlavorData
+import com.jetbrains.python.sdk.flavors.PyFlavorAndData
+import com.intellij.openapi.util.io.toNioPathOrNull
+import com.intellij.python.sdk.backend.evolution.PyEvoEnvironmentProvider
+import com.intellij.python.sdk.common.PyEnvRef
+import com.intellij.openapi.vfs.VirtualFileManager
+import com.jetbrains.python.sdk.PySdkDataProvider
+import com.intellij.python.sdk.common.PyInterpreterRef
+import com.jetbrains.python.project.PyProject
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.execution.target.BrowsableTargetEnvironmentType
 import com.intellij.execution.target.TargetBrowserHints
@@ -260,6 +271,10 @@ data class EelFileSystem(
 
   override suspend fun fileExists(path: PathHolder.Eel): Boolean = path.path.exists()
 
+  override suspend fun directoryExists(path: PathHolder.Eel): Boolean = withContext(Dispatchers.IO) { path.path.isDirectory() }
+
+  override fun resolveChild(dir: PathHolder.Eel, name: String): PathHolder.Eel = PathHolder.Eel(dir.path.resolve(name))
+
   override suspend fun validateVenv(homePath: PathHolder.Eel): PyResult<Unit> = withContext(Dispatchers.IO) {
     val validationResult = when {
       !homePath.path.isAbsolute -> PyResult.localizedError(message("python.sdk.new.error.no.absolute"))
@@ -443,6 +458,23 @@ data class EelFileSystem(
     executable.setCustomExecutablePath(eelDescriptor, pathHolder.path)
   }
 
+  override suspend fun flavorAndDataOf(pythonBinary: PathHolder.Eel): PyFlavorAndData<*, *> = guessLocalFlavorAndData(pythonBinary.path)
+
+  override suspend fun resolveEnvRef(projectDir: Path, envRef: PyEnvRef): PathHolder.Eel? = withContext(Dispatchers.IO) {
+    val path = envRef.value.toNioPathOrNull() ?: return@withContext null
+    val binary = if (path.isAbsolute) path.normalize() else projectDir.resolve(path).normalize().resolvePythonBinary()
+    binary?.let { PathHolder.Eel(it) }
+  }
+
+  override suspend fun sdkHomeAndData(pyProject: PyProject, ref: PyInterpreterRef): PyResult<Pair<String, PythonSdkAdditionalData>> {
+    val pythonBinary = evoProviderOf(ref).getOr { return it }.pythonBinaryOf(pyProject, ref.envRef, this).getOr { return it }
+    val data = sdkProviderOf(ref).getOr { return it }.sdkDataOf(pyProject, ref.envRef, pythonBinary, this)
+    // The SDK home path is the path of the VFS file, so it matches what the SDK table holds for the same binary.
+    val file = withContext(Dispatchers.IO) { VirtualFileManager.getInstance().refreshAndFindFileByNioPath(pythonBinary.path) }
+               ?: return PyResult.localizedError(PySdkBundle.message("evolution.error.env.not.found", pythonBinary.path.toString()))
+    return PyResult.success(file.path to data)
+  }
+
   override suspend fun resolveInWorkingDir(workingDir: Path, dirName: String): PathHolder.Eel {
     return PathHolder.Eel(workingDir.resolve(dirName))
   }
@@ -582,6 +614,11 @@ internal data class TargetFileSystem(
   override suspend fun fileExists(path: PathHolder.Target): Boolean {
     return executeCommand("test -f ${path.pathString}").isSuccess
   }
+
+  override suspend fun directoryExists(path: PathHolder.Target): Boolean = executeCommand("test -d ${path.pathString}").isSuccess
+
+  /** A target is always Unix, see [platformAndRoot]. */
+  override fun resolveChild(dir: PathHolder.Target, name: String): PathHolder.Target = PathHolder.Target("${dir.pathString.trimEnd('/')}/$name")
 
   override suspend fun validateVenv(homePath: PathHolder.Target): PyResult<Unit> = withContext(Dispatchers.IO) {
     val pythonBinaryPath = resolvePythonBinary(homePath)
@@ -834,6 +871,19 @@ internal data class TargetFileSystem(
 
   override fun persistCustomToolPath(pathHolder: PathHolder.Target, executable: PyExecutable) = Unit
 
+  override suspend fun flavorAndDataOf(pythonBinary: PathHolder.Target): PyFlavorAndData<*, *> =
+    PyFlavorAndData(PyFlavorData.Empty, UnixPythonSdkFlavor.getInstance())
+
+  override suspend fun resolveEnvRef(projectDir: Path, envRef: PyEnvRef): PathHolder.Target =
+    PathHolder.Target(envRef.value)
+
+  override suspend fun sdkHomeAndData(pyProject: PyProject, ref: PyInterpreterRef): PyResult<Pair<String, PythonSdkAdditionalData>> {
+    val pythonBinary = evoProviderOf(ref).getOr { return it }.pythonBinaryOf(pyProject, ref.envRef, this).getOr { return it }
+    val data = sdkProviderOf(ref).getOr { return it }.sdkDataOf(pyProject, ref.envRef, pythonBinary, this)
+    val targetData = PyTargetAwareAdditionalData(data, targetEnvironmentConfiguration).also { it.interpreterPath = pythonBinary.pathString }
+    return PyResult.success(pythonBinary.pathString to targetData)
+  }
+
   override suspend fun resolveInWorkingDir(workingDir: Path, dirName: String): PathHolder.Target? {
     val remoteWorkingDir = executeCommand("pwd", workingDir).successOrNull ?: return null
     return PathHolder.Target("$remoteWorkingDir/$dirName")
@@ -926,3 +976,13 @@ internal val FileSystem<*>.targetEnvironmentConfiguration: TargetEnvironmentConf
     is EelOrTarget.IsEel -> null
     is EelOrTarget.IsTarget -> r.target
   }
+
+/** The [PySdkDataProvider] of the manager of [ref], or a failure when no plugin provides that manager. */
+private fun sdkProviderOf(ref: PyInterpreterRef): PyResult<PySdkDataProvider> =
+  PySdkDataProvider.EP_NAME.findFirstSafe { it.manager == ref.manager }?.let { PyResult.success(it) }
+  ?: PyResult.localizedError(PySdkBundle.message("evolution.error.unknown.node", ref.manager.value))
+
+/** The [PyEvoEnvironmentProvider] of the manager of [ref], which finds its environments. */
+private fun evoProviderOf(ref: PyInterpreterRef): PyResult<PyEvoEnvironmentProvider> =
+  PyEvoEnvironmentProvider.EP_NAME.findFirstSafe { it.tool.fusId == ref.manager }?.let { PyResult.success(it) }
+  ?: PyResult.localizedError(PySdkBundle.message("evolution.error.unknown.node", ref.manager.value))

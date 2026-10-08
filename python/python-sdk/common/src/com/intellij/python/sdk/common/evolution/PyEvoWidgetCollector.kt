@@ -8,7 +8,7 @@ import com.intellij.internal.statistic.service.fus.collectors.CounterUsagesColle
 import com.intellij.openapi.project.Project
 import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.NonNls
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.common.EvoRowAction
 
 /**
  * Usage statistics for the Evo Python interpreter widget — the status-bar widget and its popup.
@@ -25,7 +25,7 @@ import com.intellij.python.sdk.common.PyInterpreterRef
  */
 @ApiStatus.Internal
 object PyEvoWidgetCollector : CounterUsagesCollector() {
-  private val GROUP = EventLogGroup("python.sdk.widget", 2)
+  private val GROUP = EventLogGroup("python.sdk.widget", 3)
 
   override fun getGroup(): EventLogGroup = GROUP
 
@@ -53,8 +53,8 @@ object PyEvoWidgetCollector : CounterUsagesCollector() {
     INSTALL_ROW,
   }
 
-  /** Which kind of [PyInterpreterRef] a pick resolved to. Mirrors that sealed interface, one constant per subtype. */
-  enum class RefKind { EXISTING_SDK, DETECTED_PATH, CREATE_ENV, AUTOCONFIGURE }
+  /** Which kind of [EvoRowAction] a pick resolved to. Mirrors that sealed interface, one constant per subtype. */
+  enum class RefKind { SELECT_ENV, CREATE_ENV, AUTOCONFIGURE }
 
   /** Whether a backend call succeeded. */
   enum class Outcome { OK, ERROR }
@@ -245,20 +245,19 @@ data class EvoNodeStats(val kind: EvoNodeKind, val fusId: @NonNls String? = null
   }
 }
 
-/** Which [PyEvoWidgetCollector.RefKind] this selector is. Shared, because both sides report a ref they are holding. */
+/** Which [PyEvoWidgetCollector.RefKind] this action is. Shared, because both sides report an action they are holding. */
 @ApiStatus.Internal
-fun PyInterpreterRef.evoRefKind(): PyEvoWidgetCollector.RefKind = when (this) {
-  is PyInterpreterRef.ExistingSdk -> PyEvoWidgetCollector.RefKind.EXISTING_SDK
-  is PyInterpreterRef.DetectedPath -> PyEvoWidgetCollector.RefKind.DETECTED_PATH
-  is PyInterpreterRef.CreateEnv -> PyEvoWidgetCollector.RefKind.CREATE_ENV
-  is PyInterpreterRef.Autoconfigure -> PyEvoWidgetCollector.RefKind.AUTOCONFIGURE
+fun EvoRowAction.evoRefKind(): PyEvoWidgetCollector.RefKind = when (this) {
+  is EvoRowAction.Select -> PyEvoWidgetCollector.RefKind.SELECT_ENV
+  is EvoRowAction.CreateEnv -> PyEvoWidgetCollector.RefKind.CREATE_ENV
+  is EvoRowAction.Autoconfigure -> PyEvoWidgetCollector.RefKind.AUTOCONFIGURE
 }
 
-/** True when this selector adopts an environment that already exists, rather than creating a new one. */
+/** True when this action adopts an environment that already exists, rather than creating a new one. */
 @ApiStatus.Internal
-fun PyInterpreterRef.evoReusesExistingEnv(): Boolean = when (this) {
-  is PyInterpreterRef.ExistingSdk, is PyInterpreterRef.DetectedPath -> true
+fun EvoRowAction.evoReusesExistingEnv(): Boolean = when (this) {
+  is EvoRowAction.Select -> true
   // A created env is new by definition; an autoconfigure option may go either way, and the pessimistic answer keeps
   // "previously configured" from over-counting.
-  is PyInterpreterRef.CreateEnv, is PyInterpreterRef.Autoconfigure -> false
+  is EvoRowAction.CreateEnv, is EvoRowAction.Autoconfigure -> false
 }

@@ -1,12 +1,16 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.test.env.core
 
+import com.intellij.python.sdk.backend.PIP_MANAGER
+import com.jetbrains.python.sdk.add.v2.PathHolder
+import com.intellij.python.sdk.backend.pathEnvRef
+import com.intellij.python.sdk.common.PyInterpreterRef
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.SdkType
 import com.intellij.openapi.projectRoots.impl.SdkConfigurationUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.jetbrains.python.PyNames
 import com.jetbrains.python.PythonBinary
@@ -52,20 +56,21 @@ interface PyEnvironment : AutoCloseable {
   }
 
   /**
-   * Adds the SDK of this environment to [pyProject] through [PythonInterpreterProjectRegistry] and returns its
-   * interpreter. Remove it with [PythonInterpreterProjectRegistry.removePythonInterpreter].
+   * Adds the interpreter of this environment to [pyProject] through [PythonInterpreterRegistry], by its `pip`
+   * ref, and returns it. Remove it with [PythonInterpreterRegistry.removePythonInterpreter].
    */
   suspend fun prepareSdk(pyProject: PyProject): PythonInterpreter =
-    PythonInterpreterProjectRegistry.getInstance(pyProject.project)
-      .addPythonInterpreter(pyProject, pythonHomePathInVfs(), PythonSdkAdditionalData(osSpecificSdkFlavorAndData, envPath))
+    PythonInterpreterRegistry.getInstance(pyProject.project)
+      .addPythonInterpreter(pyProject, PyInterpreterRef.native(PIP_MANAGER, pathEnvRef(PathHolder.Eel(pythonPath), pyProject.baseDir)))
+      .orThrow()
 
   /**
    * Adds the SDK of this environment to [project] as a shared interpreter, one that belongs to no [PyProject]. Remove it
-   * with [PythonInterpreterProjectRegistry.removeSharedPythonInterpreter].
+   * with [PythonInterpreterRegistry.removePythonInterpreterWithoutPyProject].
    */
   suspend fun prepareSharedSdk(project: Project): PythonInterpreter =
-    PythonInterpreterProjectRegistry.getInstance(project)
-      .addSharedPythonInterpreter(pythonHomePathInVfs(), PythonSdkAdditionalData(osSpecificSdkFlavorAndData, envPath))
+    PythonInterpreterRegistry.getInstance(project)
+      .addPythonInterpreterWithoutPyProject(pythonHomePathInVfs(), PythonSdkAdditionalData(osSpecificSdkFlavorAndData, envPath))
 
   private suspend fun pythonHomePathInVfs(): String =
     withContext(Dispatchers.IO) { VfsUtil.findFile(pythonPath, true) }?.path ?: error("Cannot find Python executable: ${pythonPath}")

@@ -4,8 +4,6 @@ package com.jetbrains.python.sdk.conda
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.execution.target.FullPathOnTarget
 import com.intellij.execution.target.TargetEnvironmentConfiguration
-import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.openapi.projectRoots.impl.SdkConfigurationUtil
 import com.intellij.python.community.execService.BinOnEel
 import com.intellij.python.community.execService.BinOnTarget
 import com.intellij.python.sdk.backend.PythonInterpreter
@@ -45,7 +43,6 @@ internal val condaSupportedLanguages: List<LanguageLevel>
 internal suspend fun PyCondaCommand.createCondaSdkFromExistingEnvironment(
   moduleOrProject: ModuleOrProject,
   condaIdentity: PyCondaEnvIdentity,
-  existingSdks: List<Sdk>,
   workingDirectory: Path,
 ): PyResult<PythonInterpreter> {
   val condaEnv = PyCondaEnv(condaIdentity, fullCondaPathOnTarget)
@@ -64,7 +61,8 @@ internal suspend fun PyCondaCommand.createCondaSdkFromExistingEnvironment(
   }
 
   val sdkType = PythonSdkType.getInstance()
-  val name = SdkConfigurationUtil.createUniqueSdkName(sdkType.suggestSdkName(null, interpreterPath), existingSdks)
+  // The registry makes the name unique.
+  val name = sdkType.suggestSdkName(null, interpreterPath)
   val pythonInterpreter = creationRequest.createSdk(moduleOrProject, name).getOr { return it }
 
   if (targetConfig == null) {
@@ -73,6 +71,10 @@ internal suspend fun PyCondaCommand.createCondaSdkFromExistingEnvironment(
   sdkType.setupSdkPaths(pythonInterpreter.getSdkAPI())
   return PyResult.success(pythonInterpreter)
 }
+
+/** The SDK data of the existing conda env [condaEnv], for the project in [workingDirectory]. */
+internal fun condaSdkDataOf(condaEnv: PyCondaEnv, workingDirectory: Path): PythonSdkAdditionalData =
+  PythonSdkAdditionalData(PyFlavorAndData(PyCondaFlavorData(condaEnv), CondaEnvSdkFlavor), workingDirectory)
 
 private const val PRINT_SYS_EXECUTABLE_SCRIPT = "import sys; print(sys.executable)"
 
@@ -98,14 +100,12 @@ private suspend fun getCondaPythonBinaryPath(
 internal suspend fun PyCondaCommand.createCondaSdkAlongWithNewEnv(
   moduleOrProject: ModuleOrProject,
   newCondaEnvInfo: NewCondaEnvRequest,
-  existingSdks: List<Sdk>,
   workingDirectory: Path,
 ): PyResult<PythonInterpreter> {
   PyCondaEnv.createEnv(this, newCondaEnvInfo).getOr { return it }
   val sdk = createCondaSdkFromExistingEnvironment(
     moduleOrProject = moduleOrProject,
     condaIdentity = newCondaEnvInfo.toIdentity(),
-    existingSdks = existingSdks,
     workingDirectory = workingDirectory,
   ).getOr { return it }
   if (targetConfig == null) {

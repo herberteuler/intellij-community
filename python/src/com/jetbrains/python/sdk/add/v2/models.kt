@@ -6,11 +6,9 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.observable.properties.AtomicProperty
 import com.intellij.openapi.observable.properties.ObservableMutableProperty
 import com.intellij.openapi.observable.properties.PropertyGraph
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.vfs.toNioPathOrNull
 import com.intellij.python.pyproject.PyProjectToml
 import com.intellij.python.pytools.backend.Version
-import com.intellij.python.sdk.backend.getSdkAPI
 import com.jetbrains.python.PyBundle.message
 import com.jetbrains.python.TraceContext
 import com.jetbrains.python.errorProcessing.PyError
@@ -205,9 +203,6 @@ class MutableTargetState<P : PathHolder>(propertyGraph: PropertyGraph) : AddInte
   val baseInterpreter: ObservableMutableProperty<PythonSelectableInterpreter<P>?> = propertyGraph.property(null)
 }
 
-
-internal val <P : PathHolder> PythonAddInterpreterModel<P>.existingSdks: List<Sdk>
-  get() = allInterpreters.value?.filterIsInstance<ExistingSelectableInterpreter<P>>()?.map { it.pythonInterpreterWrapper.pythonInterpreter.getSdkAPI() } ?: emptyList()
 
 internal suspend fun PythonAddInterpreterModel<*>.getBasePath(module: Module?): Path = withContext(Dispatchers.IO) {
   val pyProjectTomlBased = module?.asPyProject()?.let { PyProjectToml.findPyProjectTomlFile(it)?.virtualFile?.toNioPathOrNull()?.parent }

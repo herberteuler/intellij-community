@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.pycharm.community.ide.impl.configuration.interpreter
 
+import com.intellij.python.sdk.backend.impl.presentation
+import com.intellij.python.sdk.backend.impl.PythonInterpreterPresentation
 import com.intellij.icons.AllIcons
 import com.intellij.ide.DataManager
 import com.intellij.ide.ui.icons.icon
@@ -30,10 +32,8 @@ import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.asItem
 import com.intellij.python.sdk.backend.getSdkAPI
 import com.intellij.python.sdk.backend.pythonInterpreterAsync
-import com.intellij.python.sdk.common.PyInterpreterItem
 import com.intellij.ui.CollectionListModel
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.IdeBorderFactory
@@ -437,12 +437,12 @@ internal class PyAllInterpretersConfigurable(private val project: Project) : Sea
 private const val COPY_PATH_TOOLTIP_KEY = "configurable.PyAllInterpretersConfigurable.row.action.copy.path"
 
 /**
- * Renders a [PyInterpreterItem] into [label] as the "All Interpreters" list row draws it:
+ * Renders an interpreter into [label] as the "All Interpreters" list row draws it:
  * name (or `[marker] name` when the interpreter is flagged) + optional `suffix` + description +
  * tooltip carrying the problem's reason. The icon is set by the caller so the label-text path
  * stays pure.
  */
-internal fun renderPyInterpreterItemText(label: SimpleColoredComponent, item: PyInterpreterItem) {
+internal fun renderPyInterpreterItemText(label: SimpleColoredComponent, item: PythonInterpreterPresentation) {
   val problem = item.problem
   if (problem != null) label.append("[${problem.marker}] ${item.name}", SimpleTextAttributes.ERROR_ATTRIBUTES)
   else label.append(item.name)
@@ -739,7 +739,8 @@ private class PyInterpreterNameAndVersionRenderer(
     currentRow = index
     label.clear()
     if (value != null) {
-      val item: PyInterpreterItem = value.asItem()
+      // The SDK table, a broken SDK included: it has no ref, so it gets a presentation and no ref.
+      val item = value.presentation()
       label.icon = item.icon.icon()
       renderPyInterpreterItemText(label, item)
     }

@@ -1,7 +1,8 @@
 package com.intellij.python.sdk.common.evolution
 
-import com.intellij.ide.ui.icons.IconId
 import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.ide.ui.icons.IconId
+import com.intellij.python.sdk.common.EvoRowAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.util.NlsSafe
@@ -30,7 +31,7 @@ private val LOG: Logger = fileLogger()
  *
  * The interpreter model is the platform's [com.intellij.python.sdk.backend.PythonInterpreter] /
  * `PyInterpreterItem` on the backend; on the wire it is flattened into [PyInterpreterDto]
- * (display) plus a [PyInterpreterRef] (selection token). What every call is addressed to is a `PyProject`,
+ * (display) plus an [EvoRowAction] (selection token). What every call is addressed to is a `PyProject`,
  * referenced by [ProjectId] plus its [EvoPyProjectDto.key] — the project's base dir, resolved on the backend
  * against a cached snapshot. A key is deliberately not a module name: a module rename would invalidate every
  * key the frontend is holding, while a base dir survives one.
@@ -70,7 +71,7 @@ interface PyEvoSdkApi : RemoteApi<Unit> {
   /**
    * The "Shortcuts" rows shown (in place of the current-interpreter actions) when the module has no interpreter: the
    * IDE's own setup suggestion for the module, computed by the same model-aware detector the "no interpreter
-   * configured" inspection uses. Each row is a [PyInterpreterRef.Autoconfigure] leaf whose selection runs that
+   * configured" inspection uses. Each row is an [EvoRowAction.Autoconfigure] leaf whose selection runs that
    * autoconfiguration. Empty when the module already has an interpreter or nothing can be suggested.
    */
   suspend fun listShortcuts(projectId: ProjectId, pyProjectKey: String): List<EvoLeafDto>
@@ -93,20 +94,20 @@ interface PyEvoSdkApi : RemoteApi<Unit> {
   suspend fun listAssociatedInterpreters(projectId: ProjectId, pyProjectKey: String): List<PyInterpreterDto>
 
   /**
-   * Switches the module interpreter to the environment identified by [ref]. [nodeId] is the tool node the row came
-   * from (`"uv"`, `"Poetry"`, `"Conda"`, `"Hatch"`, `"pip"`, `"associated"`), used to create a correctly-typed SDK:
-   * an already-configured SDK ([PyInterpreterRef.ExistingSdk]) is assigned as-is; a detected env
-   * ([PyInterpreterRef.DetectedPath]) or a not-yet-created env ([PyInterpreterRef.CreateEnv]) is created via that
-   * tool's own "select existing"/"create" logic (the same the v2 Add dialog runs) and then assigned.
+   * Switches the module interpreter as [ref] says. [nodeId] is the tool node the row came from (`"uv"`, `"Poetry"`,
+   * `"Conda"`, `"Hatch"`, `"pip"`, `"associated"`), used to create a correctly-typed SDK: an existing env
+   * ([EvoRowAction.Select]) is added to the project by its ref when the project does not have it yet, and then
+   * assigned; a not-yet-created env ([EvoRowAction.CreateEnv]) is created via that tool's own "create" logic (the same
+   * the v2 Add dialog runs) and then assigned.
    */
-  suspend fun selectInterpreter(projectId: ProjectId, pyProjectKey: String, ref: PyInterpreterRef, nodeId: String, traceId: String): EvoSelectResultDto
+  suspend fun selectInterpreter(projectId: ProjectId, pyProjectKey: String, ref: EvoRowAction, nodeId: String, traceId: String): EvoSelectResultDto
 
   /**
-   * Destroys the environment [EvoRecreateRequestDto.envHomePath] names, builds it again in the same place on a
+   * Destroys the environment [EvoRecreateRequestDto.interpreterRef] names, builds it again in the same place on a
    * different base Python, and assigns the result — a row's inline rebuild affordance. [nodeId] is the tool node the
    * row came from, which is the tool that does the work.
    *
-   * Separate from [selectInterpreter] rather than a fifth [PyInterpreterRef]: this acts on an environment that already
+   * Separate from [selectInterpreter] rather than a fourth [EvoRowAction]: this acts on an environment that already
    * exists, it is the one call that destroys something, and a new ref would add a branch meaning "not applicable" to
    * every exhaustive `when` over that interface.
    *
@@ -261,7 +262,7 @@ suspend fun requestEvoAssociatedInterpreters(projectId: ProjectId, pyProjectKey:
   PyEvoSdkApi().listAssociatedInterpreters(projectId, pyProjectKey)
 
 @ApiStatus.Internal
-suspend fun requestEvoSelectInterpreter(projectId: ProjectId, pyProjectKey: String, ref: PyInterpreterRef, nodeId: String, traceId: String): EvoSelectResultDto =
+suspend fun requestEvoSelectInterpreter(projectId: ProjectId, pyProjectKey: String, ref: EvoRowAction, nodeId: String, traceId: String): EvoSelectResultDto =
   PyEvoSdkApi().selectInterpreter(projectId, pyProjectKey, ref, nodeId, traceId)
 
 @ApiStatus.Internal
@@ -298,7 +299,7 @@ suspend fun requestEvoPackageManagerActions(projectId: ProjectId, pyProjectKey: 
 
 /**
  * Frontend-safe, serializable projection of a `PyInterpreterItem` (an interpreter's display
- * label/icon), plus the [ref] needed to select it. All fields are pre-computed on the backend so the
+ * label/icon), plus the [action] needed to select it. All fields are pre-computed on the backend so the
  * frontend never resolves paths or spawns a process.
  */
 @ApiStatus.Internal
@@ -311,7 +312,7 @@ data class PyInterpreterDto(
   /** RPC-transferable icon; supplied by the backend via `Icon.rpcId()`. */
   val icon: IconId,
   /** Selection token for [PyEvoSdkApi.selectInterpreter]. */
-  val ref: PyInterpreterRef,
+  val action: EvoRowAction.Select,
   /**
    * URL of the dependency file this interpreter's package manager works with (`pyproject.toml`, `environment.yml`,
    * `requirements.txt`, …), or `null` when it has none.
@@ -486,8 +487,13 @@ data class EvoLeafDto(
   val secondaryText: @Nls String? = null,
   val icon: IconId,
   val kind: EvoLeafKind,
-  /** The interpreter this row selects, when [kind] is [EvoLeafKind.SELECT_ENV]. */
-  val ref: PyInterpreterRef? = null,
+  /** What choosing this row does: select an environment, or create one. */
+  val action: EvoRowAction? = null,
+  /**
+   * The Python binary of the environment this row selects, for a version probe on hover only. Nothing selects by it.
+   * `null` for a row that selects no existing environment.
+   */
+  val pythonBinary: @NonNls String? = null,
   /**
    * For an [EvoLeafKind.ACTION] row that runs a backend action (e.g. an "Advanced" add-interpreter/target action):
    * an opaque id the backend maps back to that action in [PyEvoSdkApi.performNodeAction]. `null` → display-only row.
@@ -496,8 +502,8 @@ data class EvoLeafDto(
   /**
    * When set, this row is a Python-version picker (hatch's not-yet-created declared envs): the frontend renders it as a
    * submenu of these versions instead of a plain row, and choosing one creates the env with that Python. The row's
-   * [ref] ([PyInterpreterRef.CreateEnv]) carries the tool-specific create token (hatch: the env name), and each
-   * option's token is the chosen base Python — passed back as [PyInterpreterRef.CreateEnv] `token`/`folder`.
+   * [action] ([EvoRowAction.CreateEnv]) carries the tool-specific create token (hatch: the env name), and each
+   * option's token is the chosen base Python — passed back as [EvoRowAction.CreateEnv] `token`/`folder`.
    */
   val createVersions: List<EvoAddNewOptionDto>? = null,
   /**
@@ -519,7 +525,7 @@ data class EvoLeafDto(
    */
   val versionGroup: @NlsSafe String? = null,
   /**
-   * For a [PyInterpreterRef.CreateEnv] row whose token *is* a base interpreter (poetry's per-version cache rows): the
+   * For an [EvoRowAction.CreateEnv] row whose token *is* a base interpreter (poetry's per-version cache rows): the
    * other installs of that same version, so the row can offer the finer choice the same way an "add new" version row
    * does. Empty everywhere else — including a hatch declared env, whose token is an env name and not an interpreter.
    */
@@ -547,7 +553,7 @@ data class EvoLeafDto(
 @ApiStatus.Internal
 @Serializable
 enum class EvoLeafKind {
-  /** Selects an interpreter ([EvoLeafDto.ref] is set). */
+  /** Selects an interpreter ([EvoLeafDto.action] is set). */
   SELECT_ENV,
 
   /** A labeled, display-only action row (autoconfigure options, advanced add-interpreter actions, …). */
@@ -586,8 +592,8 @@ data class EvoAddNewDto(
   /** Pre-filled env name shown on the row and in the name field: the env folder name for uv/pip (e.g. `.venv`), the env name for conda. */
   val name: @NlsSafe String,
   /**
-   * The base location passed back as [PyInterpreterRef.CreateEnv.folder]: for uv/pip the **containing dir** the env
-   * folder is created in; for conda unused (the name is the env name). See [PyInterpreterRef.CreateEnv].
+   * The base location passed back as [EvoRowAction.CreateEnv.folder]: for uv/pip the **containing dir** the env
+   * folder is created in; for conda unused (the name is the env name). See [EvoRowAction.CreateEnv].
    */
   val path: @NonNls String,
   /** Version choices, best/default first (uv leads with its default; pip with the newest system Python). */
@@ -612,7 +618,7 @@ data class EvoAddNewDto(
 data class EvoAddNewOptionDto(
   /** Short version label, e.g. `3.13`; empty for uv's "default" (uv picks the version). */
   val title: @NlsSafe String,
-  /** Tool-specific creation token passed back as [PyInterpreterRef.CreateEnv.token] (uv: version, empty = default; pip: python path). */
+  /** Tool-specific creation token passed back as [EvoRowAction.CreateEnv.token] (uv: version, empty = default; pip: python path). */
   val token: @NonNls String,
   /**
    * The individual interpreters this one version stands for, when the machine has several of it (a `pyenv` 3.12 and a
@@ -678,7 +684,7 @@ data class EvoBasePythonDto(
    * nothing to add.
    */
   val qualifier: @NlsSafe String? = null,
-  /** Creation token: this interpreter's binary path, passed back as [PyInterpreterRef.CreateEnv.token]. */
+  /** Creation token: this interpreter's binary path, passed back as [EvoRowAction.CreateEnv.token]. */
   val token: @NonNls String,
   /**
    * What to install before this interpreter exists, or null for one already on the machine.
@@ -719,8 +725,8 @@ data class EvoRecreateDto(
 data class EvoCurrentRecreateDto(
   /** The node whose tool owns this environment, and so the node that rebuilds it. */
   val nodeId: @NonNls String,
-  /** The interpreter binary of the environment to destroy — what [EvoRecreateRequestDto.envHomePath] wants. */
-  val envHomePath: @NonNls String,
+  /** The ref of the environment to destroy — what [EvoRecreateRequestDto.interpreterRef] wants. */
+  val interpreterRef: PyInterpreterRef,
   /** What to call the environment in the confirmation the user sees. */
   val title: @NlsSafe String,
   val recreate: EvoRecreateDto,
@@ -730,12 +736,12 @@ data class EvoCurrentRecreateDto(
 @ApiStatus.Internal
 @Serializable
 data class EvoRecreateRequestDto(
-  /** The interpreter binary of the environment to destroy — the value that row's [PyInterpreterRef.DetectedPath] carries. */
-  val envHomePath: @NonNls String,
+  /** The ref of the environment to destroy — the value that row's [EvoRowAction.Select] carries. */
+  val interpreterRef: PyInterpreterRef,
   /**
    * The base to build on, exactly as the chosen row carried it: an [EvoBasePythonDto.token], or an
    * [EvoAddNewOptionDto.token] when the row stood for a version. What it means is the tool's own business, as it is for
-   * [PyInterpreterRef.CreateEnv.token].
+   * [EvoRowAction.CreateEnv.token].
    */
   val baseToken: @NonNls String,
   /** A version this machine does not have: install it first, then build on what landed — see [EvoAddNewOptionDto.installable]. */

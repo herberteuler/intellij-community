@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.poetry
 
+import com.jetbrains.python.venvReader.VirtualEnvReader
+import com.intellij.python.sdk.backend.fileName
 import com.intellij.python.community.execService.DownloadConfig
 import com.intellij.python.community.execService.UploadConfig
 import com.intellij.python.community.impl.poetry.backend.PoetryPyTool
@@ -82,3 +84,18 @@ suspend fun <P : PathHolder> poetryCacheEnvRoots(fileSystem: FileSystem<P>, proj
     .mapNotNull { fileSystem.parsePath(it).getOrNull() }
     .toList()
 }
+
+/** The cache env among these env roots whose folder name ends with Python [version], or `null` when poetry has none. */
+@ApiStatus.Internal
+fun <P : PathHolder> List<P>.poetryCacheEnvFor(version: String): P? =
+  firstOrNull { poetryCacheEnvVersion(it.fileName) == version }
+
+/**
+ * The root of the poetry environment that [envRef] names for the project in [projectPath], on the machine of
+ * [fileSystem], or `null` when there is none: the project's `.venv` for [POETRY_IN_PROJECT_ENV_REF], else the cache
+ * environment of that Python version, see [poetryEnvRefOf].
+ */
+@ApiStatus.Internal
+suspend fun <P : PathHolder> poetryEnvRootOf(fileSystem: FileSystem<P>, projectPath: Path, envRef: String): P? =
+  if (envRef == POETRY_IN_PROJECT_ENV_REF) fileSystem.resolveInWorkingDir(projectPath, VirtualEnvReader.DEFAULT_VIRTUALENV_DIRNAME)
+  else poetryCacheEnvRoots(fileSystem, projectPath).poetryCacheEnvFor(envRef)

@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.uv
 
+import com.intellij.python.sdk.backend.resolvePythonHome
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.intellij.execution.target.FullPathOnTarget
 import com.intellij.execution.target.TargetEnvironmentConfiguration
@@ -253,8 +254,12 @@ internal suspend fun <P : PathHolder> setupExistingEnvAndSdk(
   fileSystem: FileSystem<P>,
   mode: UvMode,
 ): PyResult<PythonInterpreter> = withProgressText(PyBundle.message("python.sdk.progress.uv.configuring")) {
-  val venvPath = fileSystem.resolvePythonHome(pythonBinary).toStringForExecution()
-  val sdkAdditionalData = UvSdkAdditionalData(uvWorkingDirectory = workingDir, usePip = null, venvPath = venvPath, uvPath = uvPath.toStringForExecution())
-  sdkAdditionalData.requirementsPath = mode.requirementsFile
-  fileSystem.setupSdk(moduleOrProject, pythonBinary, sdkAdditionalData, null, null)
+  fileSystem.setupSdk(moduleOrProject, pythonBinary, uvSdkDataOf(pythonBinary, workingDir, mode, uvPath), null, null)
+}
+
+/** The SDK data of the existing uv environment of [pythonBinary], with the dependency file of [mode]. */
+internal fun uvSdkDataOf(pythonBinary: PathHolder, workingDir: Path, mode: UvMode, uvPath: PathHolder? = null): UvSdkAdditionalData {
+  val venvPath = pythonBinary.resolvePythonHome().toStringForExecution()
+  return UvSdkAdditionalData(uvWorkingDirectory = workingDir, usePip = null, venvPath = venvPath, uvPath = uvPath?.toStringForExecution())
+    .also { it.requirementsPath = mode.requirementsFile }
 }

@@ -1,12 +1,15 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit
 
+import com.intellij.python.sdk.common.PyEnvRef
+import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.pytools.common.FusId
 import com.intellij.internal.statistic.FUCollectorTestCase
 import com.intellij.openapi.Disposable
 import com.intellij.python.sdk.common.evolution.EvoNodeKind
 import com.intellij.python.sdk.common.evolution.EvoNodeStats
 import com.intellij.python.sdk.common.evolution.PyEvoWidgetCollector
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.common.EvoRowAction
 import com.intellij.python.sdk.common.evolution.evoRefKind
 import com.intellij.python.sdk.common.evolution.evoReusesExistingEnv
 import com.intellij.testFramework.junit5.TestApplication
@@ -93,18 +96,16 @@ class PyEvoWidgetCollectorTest {
 
   @Test
   fun `ref kind mirrors the selector`() {
-    assertEquals(PyEvoWidgetCollector.RefKind.EXISTING_SDK, PyInterpreterRef.ExistingSdk("sdk").evoRefKind())
-    assertEquals(PyEvoWidgetCollector.RefKind.DETECTED_PATH, PyInterpreterRef.DetectedPath("/x").evoRefKind())
-    assertEquals(PyEvoWidgetCollector.RefKind.CREATE_ENV, PyInterpreterRef.CreateEnv("3.12").evoRefKind())
-    assertEquals(PyEvoWidgetCollector.RefKind.AUTOCONFIGURE, PyInterpreterRef.Autoconfigure("Venv").evoRefKind())
+    assertEquals(PyEvoWidgetCollector.RefKind.SELECT_ENV, EvoRowAction.Select(PyInterpreterRef.native(FusId("pip"), PyEnvRef("sdk"))).evoRefKind())
+    assertEquals(PyEvoWidgetCollector.RefKind.CREATE_ENV, EvoRowAction.CreateEnv("3.12").evoRefKind())
+    assertEquals(PyEvoWidgetCollector.RefKind.AUTOCONFIGURE, EvoRowAction.Autoconfigure("Venv").evoRefKind())
   }
 
   @Test
   fun `only refs that adopt an existing environment count as previously configured`() {
-    assertTrue(PyInterpreterRef.ExistingSdk("sdk").evoReusesExistingEnv())
-    assertTrue(PyInterpreterRef.DetectedPath("/x").evoReusesExistingEnv())
-    assertFalse(PyInterpreterRef.CreateEnv("3.12").evoReusesExistingEnv())
-    assertFalse(PyInterpreterRef.Autoconfigure("Venv").evoReusesExistingEnv())
+    assertTrue(EvoRowAction.Select(PyInterpreterRef.native(FusId("pip"), PyEnvRef("sdk"))).evoReusesExistingEnv())
+    assertFalse(EvoRowAction.CreateEnv("3.12").evoReusesExistingEnv())
+    assertFalse(EvoRowAction.Autoconfigure("Venv").evoReusesExistingEnv())
   }
 
   @Test

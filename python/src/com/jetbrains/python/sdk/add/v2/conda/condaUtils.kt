@@ -1,21 +1,20 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.sdk.add.v2.conda
 
-import com.intellij.openapi.projectRoots.ProjectJdkTable
+import com.intellij.python.sdk.common.PyEnvRef
+import com.jetbrains.python.sdk.add.v2.addInterpreterByEnvRef
+import com.intellij.python.community.impl.conda.CondaPyTool
 import com.intellij.python.community.execService.BinaryToExec
 import com.intellij.python.pytools.backend.Version
 import com.intellij.python.pytools.backend.getToolVersion
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.intellij.util.concurrency.annotations.RequiresEdt
 import com.jetbrains.python.PyBundle.message
 import com.jetbrains.python.conda.savePythonCondaPath
 import com.jetbrains.python.errorProcessing.PyResult
-import com.jetbrains.python.isCondaVirtualEnv
 import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.add.v2.PythonAddInterpreterModel
-import com.jetbrains.python.sdk.add.v2.existingSdks
 import com.jetbrains.python.sdk.add.v2.pathHolder
 import com.jetbrains.python.sdk.add.v2.targetEnvironmentConfiguration
 import com.jetbrains.python.sdk.add.v2.validationResult
@@ -44,7 +43,6 @@ internal suspend fun PythonAddInterpreterModel<*>.createCondaEnvironment(
   return createCondaCommand().getOr { return it }.createCondaSdkAlongWithNewEnv(
     moduleOrProject,
     newCondaEnvInfo = request,
-    existingSdks = existingSdks,
     moduleOrProject.workingDirectory ?: return PyResult.localizedError(message("python.sdk.project.working.directory.not.found")),
   )
 }
@@ -90,8 +88,7 @@ internal suspend fun PythonAddInterpreterModel<*>.createSdkFromCondaEnv(
   moduleOrProject: ModuleOrProject,
   pyCondaEnv: PyCondaEnv,
 ): PyResult<PythonInterpreter> {
-  val existingSdk = ProjectJdkTable.getInstance().findJdk(pyCondaEnv.envIdentity.userReadableName)
-  if (existingSdk != null && existingSdk.isCondaVirtualEnv) return PyResult.success(existingSdk.pythonInterpreterAsync())
+  fileSystem.addInterpreterByEnvRef(moduleOrProject, CondaPyTool.getInstance(), PyEnvRef(pyCondaEnv.envIdentity.userReadableName))?.let { return it }
   val executable = condaViewModel.condaExecutable.get() ?: return PyResult.localizedError(message("python.sdk.select.conda.path.title"))
   // We only take pathHolder if everything is valid
   val pathHolder = executable.validationResult.getOr { return it }.pathHolder
@@ -102,7 +99,6 @@ internal suspend fun PythonAddInterpreterModel<*>.createSdkFromCondaEnv(
                            targetConfig = fileSystem.targetEnvironmentConfiguration).createCondaSdkFromExistingEnvironment(
     moduleOrProject = moduleOrProject,
     condaIdentity = pyCondaEnv.envIdentity,
-    existingSdks = this@createSdkFromCondaEnv.existingSdks,
     workingDirectory = workingDirectory,
   ).getOr { return it }
 

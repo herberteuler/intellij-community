@@ -1,6 +1,9 @@
 // Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package com.jetbrains.python.sdk.flavors;
 
+import com.intellij.python.sdk.backend.PyInterpreterRefsKt;
+import com.jetbrains.python.sdk.add.v2.PathHolder;
+import com.intellij.python.pytools.common.FusId;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.intellij.execution.configurations.GeneralCommandLine;
@@ -82,6 +85,29 @@ public abstract class PythonSdkFlavor<D extends PyFlavorData> {
    */
   public @NotNull Class<D> getFlavorDataClass() {
     return getEmptyFlavorForBackwardCompatibility();
+  }
+
+  /**
+   * The tool that manages the environments of this flavor, which names them in a
+   * {@link com.intellij.python.sdk.common.PyInterpreterRef}. The default is {@code pip}, for a flavor no tool
+   * manages, such as a system interpreter or a plain venv.
+   */
+  @ApiStatus.Internal
+  public @NotNull FusId getManager() {
+    return PyInterpreterRefsKt.getPipManager();
+  }
+
+  /**
+   * The {@link com.intellij.python.sdk.common.PyEnvRef} that the tool of this flavor gives the environment whose
+   * interpreter is {@code pythonBinary} and whose flavor data is {@code data}, such as the environment name for hatch.
+   * {@code null} when the tool names the environment by its binary path, which is the default: see
+   * {@link PyInterpreterRefsKt#interpreterRefOf(PathHolder, PythonSdkAdditionalData,
+   * com.intellij.python.sdk.common.PyInterpreterRef.Mode)}. It is a string here, because Java cannot return the
+   * value class.
+   */
+  @ApiStatus.Internal
+  public @Nullable String toolEnvRefOf(@NotNull PathHolder pythonBinary, @NotNull D data) {
+    return null;
   }
 
   @ApiStatus.Internal

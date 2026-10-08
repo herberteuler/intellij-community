@@ -1,6 +1,9 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.python.junit5Tests.unit
 
+import com.intellij.python.sdk.common.PyEnvRef
+import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.pytools.common.FusId
 import com.intellij.icons.AllIcons
 import com.intellij.ide.ui.icons.rpcId
 import com.intellij.openapi.actionSystem.DataContext
@@ -9,7 +12,7 @@ import com.intellij.python.sdk.common.evolution.EvoLeafKind
 import com.intellij.python.sdk.common.evolution.EvoNodeDto
 import com.intellij.python.sdk.common.evolution.EvoNodeKind
 import com.intellij.python.sdk.common.evolution.PyInterpreterDto
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.common.EvoRowAction
 import com.intellij.python.sdk.frontend.evolution.EvoPySdkSwitchPopupFactory
 import com.intellij.python.sdk.frontend.evolution.components.EvoDisclosureRow
 import com.intellij.python.sdk.frontend.evolution.components.EvoTreeLeafElement
@@ -46,7 +49,7 @@ class PyEvoWidgetToolListTest {
       title = "myenv [3.13.1]",
       description = "/home/me/project/.venv/bin/python",
       icon = AllIcons.Language.Python.rpcId(),
-      ref = PyInterpreterRef.DetectedPath("/home/me/project/.venv/bin/python"),
+      action = EvoRowAction.Select(PyInterpreterRef.native(FusId("uv"), PyEnvRef("/home/me/project/.venv/bin/python"))),
       activeNodeId = activeNodeId,
     )
 

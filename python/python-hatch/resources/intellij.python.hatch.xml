@@ -32,6 +32,7 @@
                             implementation="com.intellij.python.hatch.sdk.evolution.HatchEvoEnvironmentProvider"/>
 
     <pySdkProvider implementation="com.intellij.python.hatch.impl.sdk.HatchSdkProvider"/>
+    <pySdkDataProvider implementation="com.intellij.python.hatch.impl.sdk.HatchSdkDataProvider"/>
     <pythonFlavorProvider implementation="com.intellij.python.hatch.impl.sdk.HatchSdkFlavorProvider"/>
   </extensions>
   <extensions defaultExtensionNs="com.intellij">

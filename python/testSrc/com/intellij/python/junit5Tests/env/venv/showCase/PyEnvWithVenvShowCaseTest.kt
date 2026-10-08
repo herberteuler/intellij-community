@@ -2,7 +2,7 @@
 package com.intellij.python.junit5Tests.env.venv.showCase
 
 import com.intellij.testFramework.common.timeoutRunBlocking
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.python.junit5Tests.framework.env.PyEnvTestCase
 import com.intellij.python.junit5Tests.framework.env.pyInterpreterFixture
 import com.intellij.python.test.env.junit5.pyVenvFixture
@@ -25,7 +25,7 @@ class PyEnvWithVenvShowCaseTest {
   @Test
   fun venvTest(): Unit = timeoutRunBlocking {
     val venv = venvFixture.get()
-    val registry = PythonInterpreterProjectRegistry.getInstance(projectFixture.get())
+    val registry = PythonInterpreterRegistry.getInstance(projectFixture.get())
     Assertions.assertTrue(venv in registry.interpreters(pyProjectFixture.get()), "The venv interpreter must be in the registry")
   }
 }

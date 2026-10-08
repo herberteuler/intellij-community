@@ -28,7 +28,7 @@ import com.intellij.python.sdk.common.evolution.EvoNodeIds
 import com.intellij.python.sdk.common.evolution.EvoPyProjectDto
 import com.intellij.python.sdk.common.evolution.EvoSectionDto
 import com.intellij.python.sdk.common.evolution.PyInterpreterDto
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.common.EvoRowAction
 import com.intellij.python.sdk.common.evolution.EvoNodeKind
 import com.intellij.python.sdk.common.evolution.EvoNodeStats
 import com.intellij.python.sdk.common.evolution.PyEvoWidgetCollector
@@ -74,7 +74,7 @@ private val managePackagesAction = object : AnAction(
   }
 }
 
-/** Backend id of the `advanced` node (`AdvancedEvoEnvironmentProvider`), the anchor for the target-interpreters node. */
+/** Backend id of the `advanced` node (`AdvancedEvoNode`), the anchor for the target-interpreters node. */
 private const val ADVANCED_NODE_ID: String = EvoNodeIds.ADVANCED
 
 /**
@@ -99,7 +99,7 @@ private fun EvoLeafDto.toStubAction(): AnAction = object : AnAction({ title }, {
   override fun actionPerformed(e: AnActionEvent) {}
 }
 
-/** Synthetic node id for the "Shortcuts" autoconfigure rows (the backend ignores it for a [PyInterpreterRef.Autoconfigure] ref). */
+/** Synthetic node id for the "Shortcuts" autoconfigure rows (the backend ignores it for a [EvoRowAction.Autoconfigure] ref). */
 private const val SHORTCUTS_NODE_ID: String = EvoNodeIds.SHORTCUTS
 
 /** The project's Python interpreter settings page, matched by id the way `ShowSettingsUtil` matches one. */
@@ -197,7 +197,7 @@ class EvoPySdkSwitchPopupFactory(
     if (!versions.isNullOrEmpty()) {
       // The row's own token is where the environment goes — a hatch env name, uv's and pip's `.venv` folder — and the
       // Python comes from whichever option is chosen.
-      val createToken = (ref as? PyInterpreterRef.CreateEnv)?.token.orEmpty()
+      val createToken = (action as? EvoRowAction.CreateEnv)?.token.orEmpty()
       return createEnvRow(nodeId, traceId, title, icon.icon(), createToken, versions, null, secondaryText)
     }
     return when (kind) {
@@ -339,7 +339,7 @@ class EvoPySdkSwitchPopupFactory(
    */
   private fun EvoLeafDto.basePythonPicker(nodeId: String, traceId: String): EvoTreeNodeElement? {
     val spec = recreate ?: return null
-    val envHomePath = (ref as? PyInterpreterRef.DetectedPath)?.homePath ?: return null
+    val interpreterRef = (action as? EvoRowAction.Select)?.ref ?: return null
     val stats = nodeStats(nodeId)
     // This node's tool does the rebuilding, so an environment another tool made changes hands. Named for the
     // confirmation, which is the only place the user can learn that before it happens.
@@ -347,7 +347,7 @@ class EvoPySdkSwitchPopupFactory(
       ?.let { owner -> nodeLabel(owner) to nodeLabel(nodeId) }
       ?.let { (from, to) -> EvoToolChange(from, to) }
     return basePythonPanel(title, icon.icon(), spec.options) { token, text, installVersion ->
-      recreateEvoEnv(project, pyProjectKey, nodeId, stats, envHomePath, title, token, text, installVersion,
+      recreateEvoEnv(project, pyProjectKey, nodeId, stats, interpreterRef, title, token, text, installVersion,
                      spec.canSyncPackages, toolChange, traceId, scope)
     }.apply { stepDescription = PySdkFrontendBundle.message("evo.sdk.status.bar.popup.panel.rebuild.step") }
   }
@@ -531,7 +531,7 @@ class EvoPySdkSwitchPopupFactory(
                 ?: throw EvoWarningException(PySdkFrontendBundle.message("evo.sdk.status.bar.popup.recreate.current.unavailable"))
       val stats = nodeStats(dto.nodeId)
       fun rebuild(token: String, title: @NlsSafe String, installVersion: String?) =
-        recreateEvoEnv(project, pyProjectKey, dto.nodeId, stats, dto.envHomePath, dto.title, token, title, installVersion,
+        recreateEvoEnv(project, pyProjectKey, dto.nodeId, stats, dto.interpreterRef, dto.title, token, title, installVersion,
                        dto.recreate.canSyncPackages, null, traceId, scope)
       EvoLoadedNode(
         sections = versionRows(

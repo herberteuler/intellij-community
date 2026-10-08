@@ -32,8 +32,7 @@ data class PythonInterpreterProblem(
  * builds for the same interpreter and a combo box would fail to match its own selection. `PyInterpreterItemTest`
  * pins this.
  *
- * @property ref what to hand back to select this interpreter. A list of registered interpreters builds
- *   [PyInterpreterRef.ExistingSdk].
+ * @property ref the ref of this interpreter, which is what selects it.
  * @property name Main label: `sdk.name` or a caller-supplied override. Two items built for one interpreter with
  *   different names are still equal, so never put both in one list.
  * @property suffix Trailing info shown in brackets (e.g. `sudo / 3.12.1`), or `null`.

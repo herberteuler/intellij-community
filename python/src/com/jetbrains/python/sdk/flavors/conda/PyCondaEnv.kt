@@ -7,7 +7,6 @@ import com.intellij.execution.target.TargetEnvironmentConfiguration
 import com.intellij.execution.target.TargetedCommandLineBuilder
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.util.registry.RegistryManager
 import com.intellij.python.community.execService.BinaryToExec
 import com.intellij.python.sdk.backend.PythonInterpreter
@@ -53,19 +52,17 @@ data class PyCondaEnv(
   suspend fun createSdkFromThisEnv(
     moduleOrProject: ModuleOrProject,
     targetConfig: TargetEnvironmentConfiguration?,
-    existingSdk: List<Sdk>,
     workingDirectory: Path,
   ): PyResult<PythonInterpreter> =
-    PyCondaCommand(fullCondaPathOnTarget, targetConfig).createCondaSdkFromExistingEnvironment(moduleOrProject, envIdentity, existingSdk, workingDirectory)
+    PyCondaCommand(fullCondaPathOnTarget, targetConfig).createCondaSdkFromExistingEnvironment(moduleOrProject, envIdentity, workingDirectory)
 
   /** [createSdkFromThisEnv] for a shared interpreter, which belongs to no PyProject. */
   suspend fun createSdkFromThisEnv(
     project: Project,
     targetConfig: TargetEnvironmentConfiguration?,
-    existingSdk: List<Sdk>,
     workingDirectory: Path,
   ): PyResult<PythonInterpreter> =
-    createSdkFromThisEnv(ModuleOrProject.ProjectOnly(project), targetConfig, existingSdk, workingDirectory)
+    createSdkFromThisEnv(ModuleOrProject.ProjectOnly(project), targetConfig, workingDirectory)
 
 
   /**

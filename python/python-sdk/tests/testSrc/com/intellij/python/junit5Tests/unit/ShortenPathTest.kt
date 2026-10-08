@@ -1,11 +1,13 @@
 package com.intellij.python.junit5Tests.unit
 
+import com.intellij.python.sdk.common.PyEnvRef
+import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.pytools.common.FusId
 import com.intellij.python.sdk.backend.evolution.toSectionLabel
 import com.intellij.util.SystemProperties
 import com.intellij.ide.ui.icons.rpcId
 import com.intellij.python.sdk.backend.impl.isNameDerivedFromHomePath
 import com.intellij.python.sdk.common.PyInterpreterItem
-import com.intellij.python.sdk.common.PyInterpreterRef
 import com.intellij.python.sdk.common.shortenPath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -210,7 +212,7 @@ class ShortenPathTest {
     suffix: String?,
     toolShortName: String? = null,
   ) = PyInterpreterItem(
-    ref = PyInterpreterRef.ExistingSdk(name),
+    ref = PyInterpreterRef.native(FusId("pip"), PyEnvRef(name)),
     name = name,
     suffix = suffix,
     description = "irrelevant",

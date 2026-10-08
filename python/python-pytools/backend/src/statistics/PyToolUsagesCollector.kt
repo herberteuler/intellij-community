@@ -23,7 +23,7 @@ class PyToolUsagesCollector : CounterUsagesCollector() {
       val s = tool.configurationFusSnapshot(project)
       CONFIGURATION_CHANGED.log(
         project,
-        toolNameField with tool.fusId,
+        toolNameField with tool.fusId.value,
         sourceField with source,
         enabledField with s.enabled,
         inspectionsField with s.inspections.toThreeState,
@@ -41,10 +41,10 @@ class PyToolUsagesCollector : CounterUsagesCollector() {
     }
 
     fun logToolInstalled(project: Project, tool: PyTool, source: PyToolActionSource) {
-      TOOL_INSTALLED.log(project, tool.fusId, source)
+      TOOL_INSTALLED.log(project, tool.fusId.value, source)
     }
     fun logToolUpdated(project: Project, tool: PyTool, source: PyToolActionSource) {
-      TOOL_UPDATED.log(project, tool.fusId, source)
+      TOOL_UPDATED.log(project, tool.fusId.value, source)
     }
   }
 

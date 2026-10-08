@@ -29,7 +29,7 @@ import com.jetbrains.python.project.PyProject
 import com.intellij.python.pyproject.model.evolution.setPythonInterpreter
 import com.intellij.python.junit5Tests.framework.env.PyInterpreterFixture
 import com.intellij.python.sdk.backend.PythonInterpreter
-import com.intellij.python.sdk.backend.PythonInterpreterProjectRegistry
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.python.sdk.backend.sitePackagesDirectory
 
 /**
@@ -130,6 +130,6 @@ fun TestFixture<PyInterpreterFixture<PyEnvironment>>.pyUvVenvFixture(
 
   initialized(interpreter) {
     pyProject.setPythonInterpreter(null)
-    PythonInterpreterProjectRegistry.getInstance(project).removePythonInterpreter(pyProject, interpreter)
+    PythonInterpreterRegistry.getInstance(project).removePythonInterpreter(pyProject, interpreter)
   }
 }

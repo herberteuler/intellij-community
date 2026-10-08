@@ -1,6 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.pipenv.sdk.evolution
 
+import com.intellij.python.sdk.backend.PySdkBundle
+import com.intellij.python.sdk.backend.evolution.PyEvoEnvironmentProvider
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.python.community.common.tools.ToolId
 import com.intellij.python.community.impl.pipenv.PipEnvPyTool
@@ -10,7 +12,6 @@ import com.intellij.python.sdk.backend.PythonInterpreter
 import com.intellij.python.sdk.backend.evolution.DiscoveredVenv
 import com.intellij.python.sdk.backend.evolution.EvoPyProject
 import com.intellij.python.sdk.backend.evolution.EvoToolContext
-import com.intellij.python.sdk.backend.evolution.PyToolEvoEnvironmentProvider
 import com.intellij.python.sdk.backend.evolution.evoEnvLeaf
 import com.intellij.python.sdk.backend.evolution.toDisplayPath
 import com.intellij.python.sdk.backend.evolution.toLeaf
@@ -19,24 +20,20 @@ import com.intellij.python.sdk.backend.evolution.toolMissing
 import com.intellij.python.sdk.common.evolution.EvoAddNewDto
 import com.intellij.python.sdk.common.evolution.EvoLoadResultDto
 import com.intellij.python.sdk.common.evolution.EvoSectionDto
-import com.intellij.python.sdk.common.PyInterpreterRef
+import com.intellij.python.sdk.common.EvoRowAction
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.getOrNull
-import com.jetbrains.python.sdk.add.v2.FileSystem
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.configuration.PIPENV_TOOL_ID
 import com.intellij.python.sdk.backend.resolvePythonBinary
 import com.jetbrains.python.sdk.add.v2.FileSystemWithEel
 import com.jetbrains.python.sdk.pipenv.PIP_FILE
-import com.jetbrains.python.sdk.pipenv.createPipenvSdk
 import com.jetbrains.python.sdk.pipenv.pipfileRequiresPython
 import com.jetbrains.python.sdk.pipenv.runPipEnv
 import com.jetbrains.python.sdk.pipenv.setupPipEnvSdkWithProgressReport
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.name
-import com.jetbrains.python.sdk.pipenv.PyPipEnvSdkFlavor
-import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
 
 /**
  * Contributes the "Pipenv" node.
@@ -53,14 +50,11 @@ import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
  * The node claims no [pyvenvMarker]: pipenv writes only `virtualenv` into `pyvenv.cfg`, which poetry, hatch and the
  * `virtualenv` package write too. Claiming it would attribute another tool's environment to pipenv.
  */
-internal class PipenvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
+internal class PipenvEvoEnvironmentProvider : PyEvoEnvironmentProvider {
   override val tool: PyTool get() = PipEnvPyTool.getInstance()
-  override val label: String get() = com.intellij.python.sdk.backend.PySdkBundle.message("evolution.node.label.pipenv")
+  override val label: String get() = PySdkBundle.message("evolution.node.label.pipenv")
   override val icon get() = PythonCommunityImplPipenvCommonIcons.Pipenv
   override val toolId: ToolId get() = PIPENV_TOOL_ID
-
-  /** An interpreter of this node's environments carries this flavor, which is what names this node as the active one. */
-  override val sdkFlavor: Class<out PythonSdkFlavor<*>> get() = PyPipEnvSdkFlavor::class.java
 
   override suspend fun loadSections(context: EvoToolContext, discovered: List<DiscoveredVenv>): EvoLoadResultDto {
     val projectDir = context.workspace.baseDir
@@ -78,8 +72,10 @@ internal class PipenvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     // A cache environment is outside the project and so is absent from [discovered], leaving nothing to classify. It is
     // pipenv's own by construction, since pipenv created it under `$WORKON_HOME`; the frontend resolves its version on
     // hover.
-    val leaf = discovered.firstOrNull { it.venvRoot == envRoot }?.toLeaf(this)
-               ?: evoEnvLeaf(title = envRoot.name, pythonBinary = envRoot.resolvePythonBinary(), icon = icon)
+    val leaf = discovered.firstOrNull { it.venvRoot == envRoot }?.toLeaf(this, context.workspace.pyProject)
+               ?: envRoot.resolvePythonBinary().let { binary ->
+                 evoEnvLeaf(title = envRoot.name, pythonBinary = binary, envRef = binary?.let { envRefOf(context.workspace.pyProject, it) })
+               }
     val containingFolder = envRoot.parent
     // No "add new" beside it: a second pipenv environment for one project cannot exist.
     return EvoLoadResultDto.Ok(listOf(EvoSectionDto(
@@ -105,17 +101,13 @@ internal class PipenvEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     return fileSystem.parsePath(path).getOrNull()?.path
   }
 
-  /** Adopts the project's existing pipenv environment as a pipenv-typed SDK. */
-  override suspend fun createSdkForExistingEnv(context: EvoToolContext, homePath: Path): PyResult<PythonInterpreter> =
-    createPipenvSdk(context.workspace.moduleOrProject, context.workspace.baseDir, PathHolder.Eel(homePath), context.fileSystem)
-
   /**
    * Creates the project's pipenv environment from the base Python in `token`, then assigns its SDK.
    *
    * `folder` and `name` are unused: pipenv chooses both the location and the name itself — see [addNewEnvSpec].
    * Packages are not installed, matching the other nodes: the user asked for an interpreter, not for a sync.
    */
-  override suspend fun createSdkForNewEnv(context: EvoToolContext, ref: PyInterpreterRef.CreateEnv): PyResult<PythonInterpreter> {
+  override suspend fun createSdkForNewEnv(context: EvoToolContext, ref: EvoRowAction.CreateEnv): PyResult<PythonInterpreter> {
     val pipenvExecutable = executableOrNull(context.fileSystem) ?: return toolMissing()
     return setupPipEnvSdkWithProgressReport(
       moduleOrProject = context.workspace.moduleOrProject,

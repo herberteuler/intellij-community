@@ -1,8 +1,13 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.run.configuration
 
-import com.intellij.openapi.module.Module
+import org.jetbrains.annotations.ApiStatus
+import com.intellij.python.sdk.backend.interpreterItem
+import com.jetbrains.python.project.PyProject.Companion.getPyProjects
+import com.jetbrains.python.project.PyProject.Companion.asPyProject
+import com.intellij.python.sdk.backend.PythonInterpreterRegistry
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.module.Module
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.util.Computable
@@ -11,8 +16,6 @@ import com.intellij.platform.ide.progress.TaskCancellation
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.python.sdk.backend.asItem
 import com.intellij.python.sdk.backend.findSdk
-import com.intellij.python.sdk.backend.pyInterpreterItems
-import com.intellij.python.sdk.backend.pythonInterpreterAsync
 import com.intellij.python.sdk.common.PyInterpreterItem
 import com.jetbrains.python.PyBundle
 import com.jetbrains.python.run.AbstractPythonRunConfigurationParams
@@ -25,11 +28,13 @@ import java.util.function.Consumer
  * The interpreter combo of a run configuration.
  *
  * It holds [PyInterpreterItem]s rather than SDKs: a row states whether its interpreter can be used, and only the
- * interpreter can answer that. The items are read under a progress, off the EDT.
+ * interpreter can answer that. The items are read under a progress, off the EDT. The rows are the interpreters of the
+ * `PyProject` of the module of the configuration, or of every `PyProject` of [project] when it has no module, from
+ * [PythonInterpreterRegistry].
  */
-class PySdkComboBox(
-  private val addDefault: Boolean,
+class PySdkComboBox @ApiStatus.Internal constructor(
   private val project: Project,
+  private val addDefault: Boolean,
   private val moduleProvider: Computable<out Module?>,
 ) : ComboBox<PyInterpreterItem?>(), PyInterpreterModeNotifier {
   private val interpreterModeListeners: MutableList<Consumer<Boolean>> = mutableListOf()
@@ -46,13 +51,11 @@ class PySdkComboBox(
   }
 
   fun initList() {
-    // The module provider reads Swing components, so call it on the EDT, before the read of the interpreters.
-    val module: Module? = moduleProvider.compute()
-    val items: MutableList<PyInterpreterItem?> =
-      readInterpreters {
-        val sdks = if (module != null) PythonSdkUtil.getAllSdks(module) else PythonSdkUtil.getAllSdks(project)
-        sdks.pyInterpreterItems()
-      }.toMutableList()
+    val items: MutableList<PyInterpreterItem?> = readInterpreters {
+      val pyProjects = moduleProvider.compute()?.asPyProject()?.let { listOf(it) } ?: project.getPyProjects()
+      val registry = PythonInterpreterRegistry.getInstance(project)
+      pyProjects.flatMap { registry.interpreters(it) }.distinct().map { it.asItem() }
+    }.toMutableList()
     if (addDefault) {
       items.add(0, null)
     }
@@ -116,7 +119,8 @@ class PySdkComboBox(
     interpreterModeListeners.add(listener)
   }
 
-  private fun itemFor(sdk: Sdk): PyInterpreterItem = readInterpreters { listOf(sdk.pythonInterpreterAsync().asItem()) }.single()
+  /** The row of [sdk], or `null` for a broken SDK that has no ref. */
+  private fun itemFor(sdk: Sdk): PyInterpreterItem? = readInterpreters { sdk.interpreterItem() }
 
   private fun <T> readInterpreters(read: suspend () -> T): T =
     // Before the combo box is in a window, the progress cannot use it as the owner.

@@ -57,6 +57,9 @@
     <extensionPoint qualifiedName="Pythonid.pySdkProvider"
                     interface="com.jetbrains.python.sdk.PySdkProvider"
                     dynamic="true"/>
+    <extensionPoint qualifiedName="Pythonid.pySdkDataProvider"
+                    interface="com.jetbrains.python.sdk.PySdkDataProvider"
+                    dynamic="true"/>
     <extensionPoint qualifiedName="Pythonid.evoEnvironmentProvider"
                     interface="com.intellij.python.sdk.backend.evolution.PyEvoEnvironmentProvider"
                     dynamic="true"/>

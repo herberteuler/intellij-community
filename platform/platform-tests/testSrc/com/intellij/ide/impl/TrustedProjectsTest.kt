@@ -419,22 +419,24 @@ class TrustedProjectsTest {
   private suspend fun withProjectToClose(confirmOpenNewProject: Int?, action: suspend (projectToClose: Project) -> Unit) {
     val generalSettings = GeneralSettings.getInstance()
     val oldConfirmOpenNewProject = generalSettings.confirmOpenNewProject
-    if (confirmOpenNewProject != null) {
-      generalSettings.confirmOpenNewProject = confirmOpenNewProject
-    }
-
-    val projectToCloseRoot = testRoot.resolve("projectToClose")
-    TrustedProjects.setProjectTrusted(projectToCloseRoot, true)
-    val projectToClose = ProjectManagerEx.getInstanceEx().openProjectAsync(projectToCloseRoot, OpenProjectTask {
-      projectName = "projectToClose"
-      forceOpenInNewFrame = true
-    })!!
+    var projectToClose: Project? = null
     try {
-      action(projectToClose)
+      if (confirmOpenNewProject != null) {
+        generalSettings.confirmOpenNewProject = confirmOpenNewProject
+      }
+
+      val projectToCloseRoot = testRoot.resolve("projectToClose")
+      TrustedProjects.setProjectTrusted(projectToCloseRoot, true)
+      val openedProject = ProjectManagerEx.getInstanceEx().openProjectAsync(projectToCloseRoot, OpenProjectTask {
+        projectName = "projectToClose"
+        forceOpenInNewFrame = true
+      }) ?: Assertions.fail("The current project did not open")
+      projectToClose = openedProject
+      action(openedProject)
     }
     finally {
       generalSettings.confirmOpenNewProject = oldConfirmOpenNewProject
-      if (ProjectManagerEx.getInstanceEx().isProjectOpened(projectToClose)) {
+      if (projectToClose != null && ProjectManagerEx.getInstanceEx().isProjectOpened(projectToClose)) {
         projectToClose.closeProjectAsync()
       }
     }

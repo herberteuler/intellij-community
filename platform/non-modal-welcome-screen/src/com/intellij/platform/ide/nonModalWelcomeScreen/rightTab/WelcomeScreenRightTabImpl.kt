@@ -53,6 +53,7 @@ import com.intellij.ui.components.panels.Wrapper
 import com.intellij.ui.dsl.gridLayout.GridLayout
 import com.intellij.ui.dsl.gridLayout.UnscaledGaps
 import com.intellij.ui.dsl.gridLayout.builders.RowsGridBuilder
+import com.intellij.util.PlatformUtils
 import com.intellij.util.cancelOnDispose
 import com.intellij.util.ui.AbstractLayoutManager
 import com.intellij.util.ui.JBUI
@@ -551,7 +552,10 @@ internal suspend fun prepareDefaultBody(
 }
 
 private fun addModels(models: List<WelcomeRightTabContentProvider.FeatureButtonModel>): List<WelcomeRightTabContentProvider.FeatureButtonModel> {
-  if (!Registry.`is`("air.welcome.screen.inline.prompt", true) && !Registry.`is`("air.welcome.screen.hide.agent.sessions", true)) {
+  if (!Registry.`is`("air.welcome.screen.inline.prompt", true) &&
+      !Registry.`is`("air.welcome.screen.hide.agent.sessions", true) &&
+      !PlatformUtils.isDataGrip()) {
+
       val button = agentSessionsFeatureButtonModel()
       if (button != null && models.find { it.text == button.text } == null) {
         return buildList {

@@ -13,7 +13,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.compiled.ClsFileImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -24,7 +24,7 @@ public final class JavaSyntaxHighlighterFactory extends SyntaxHighlighterFactory
    */
   @Override
   public @NotNull SyntaxHighlighter getSyntaxHighlighter(@Nullable Project project, @Nullable VirtualFile file) {
-    return new JavaFileHighlighter(project == null ? LanguageLevel.HIGHEST : JavaPsiImplementationHelper.getInstance(project).getEffectiveLanguageLevel(file));
+    return new JavaFileHighlighter(project == null ? LanguageLevel.HIGHEST : JavaOptionalServices.getJavaPsiImplementationHelper(project).getEffectiveLanguageLevel(file));
   }
 
   /**

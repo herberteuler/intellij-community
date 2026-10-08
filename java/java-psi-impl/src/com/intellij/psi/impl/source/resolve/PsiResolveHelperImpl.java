@@ -35,7 +35,7 @@ import com.intellij.psi.PsiType;
 import com.intellij.psi.PsiTypeParameter;
 import com.intellij.psi.PsiVariable;
 import com.intellij.psi.ResolveState;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.light.LightDefaultConstructor;
 import com.intellij.psi.impl.source.resolve.graphInference.PsiGraphInferenceHelper;
 import com.intellij.psi.infos.CandidateInfo;
@@ -301,7 +301,7 @@ public class PsiResolveHelperImpl implements PsiResolveHelper {
 
   @Override
   public @NotNull LanguageLevel getEffectiveLanguageLevel(@Nullable VirtualFile virtualFile) {
-    return JavaPsiImplementationHelper.getInstance(myManager.getProject()).getEffectiveLanguageLevel(virtualFile);
+    return JavaOptionalServices.getJavaPsiImplementationHelper(myManager.getProject()).getEffectiveLanguageLevel(virtualFile);
   }
 
   public @NotNull PsiInferenceHelper getInferenceHelper(@NotNull LanguageLevel languageLevel) {

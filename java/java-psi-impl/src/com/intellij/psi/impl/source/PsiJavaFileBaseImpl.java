@@ -49,7 +49,7 @@ import com.intellij.psi.PsiSubstitutor;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.ResolveState;
 import com.intellij.psi.codeStyle.JavaCodeStyleManager;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.PsiClassImplUtil;
 import com.intellij.psi.impl.PsiFileEx;
 import com.intellij.psi.impl.PsiImplUtil;
@@ -700,7 +700,7 @@ public abstract class PsiJavaFileBaseImpl extends PsiFileImpl implements PsiJava
       }
     }
 
-    return JavaPsiImplementationHelper.getInstance(getProject()).getEffectiveLanguageLevel(virtualFile);
+    return JavaOptionalServices.getJavaPsiImplementationHelper(getProject()).getEffectiveLanguageLevel(virtualFile);
   }
 
   private static class MyCacheBuilder implements CachedValueProvider<MostlySingularMultiMap<String, ResultWithContext>> {

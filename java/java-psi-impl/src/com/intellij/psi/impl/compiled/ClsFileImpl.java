@@ -50,7 +50,7 @@ import com.intellij.psi.PsiPackageStatement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.ResolveState;
 import com.intellij.psi.compiled.ClassFileDecompilers;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.PsiFileEx;
 import com.intellij.psi.impl.PsiManagerEx;
 import com.intellij.psi.impl.compiled.ClsElementImpl.InvalidMirrorException;
@@ -302,7 +302,7 @@ public class ClsFileImpl extends PsiBinaryFileImpl
     }
 
     VirtualFile navigationFile = CachedValuesManager.getCachedValue(this, () -> {
-      PsiElement target = JavaPsiImplementationHelper.getInstance(getProject()).getClsFileNavigationElement(this);
+      PsiElement target = JavaOptionalServices.getJavaPsiImplementationHelper(getProject()).getClsFileNavigationElement(this);
       VirtualFile targetFile = target.getContainingFile().getVirtualFile();
       ModificationTracker tracker = FileIndexFacade.getInstance(getProject()).getRootModificationTracker();
       return CachedValueProvider.Result.create(targetFile, this, targetFile, tracker);

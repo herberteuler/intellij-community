@@ -39,7 +39,7 @@ import com.intellij.psi.PsiTypeParameterList;
 import com.intellij.psi.ResolveState;
 import com.intellij.psi.impl.DebugUtil;
 import com.intellij.psi.impl.InheritanceImplUtil;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.PsiClassImplUtil;
 import com.intellij.psi.impl.PsiImplUtil;
 import com.intellij.psi.impl.PsiSuperMethodImplUtil;
@@ -132,8 +132,7 @@ public class PsiClassImpl extends JavaStubPsiElement<PsiClassStub<?>> implements
       return this;
     }
     return CachedValuesManager.getCachedValue(this, () -> {
-      JavaPsiImplementationHelper helper = JavaPsiImplementationHelper.getInstance(getProject());
-      PsiClass result = helper != null ? helper.getOriginalClass(this) : this;
+      PsiClass result = JavaOptionalServices.getJavaPsiImplementationHelper(getProject()).getOriginalClass(this);
       return CachedValueProvider.Result.create(result, PsiModificationTracker.MODIFICATION_COUNT);
     });
   }

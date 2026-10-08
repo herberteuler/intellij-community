@@ -86,7 +86,7 @@ public final class JavaPsiFacadeImpl extends JavaPsiFacadeEx {
 
   public JavaPsiFacadeImpl(@NotNull Project project, @Nullable CoroutineScope coroutineScope) {
     myProject = project;
-    myFileManager = JavaFileManager.getInstance(myProject);
+    myFileManager = JavaOptionalServices.getJavaFileManager(myProject);
     myConstantEvaluationHelper = new PsiConstantEvaluationHelperImpl();
     myJvmFacade = NotNullLazyValue.atomicLazy(() -> (JvmFacadeImpl)JvmFacade.getInstance(project));
     myConversionHelper = JvmPsiConversionHelper.getInstance(myProject);
@@ -304,13 +304,12 @@ public final class JavaPsiFacadeImpl extends JavaPsiFacadeEx {
 
   @Override
   public @NotNull Collection<PsiJavaModule> findModules(@NotNull String moduleName, @NotNull GlobalSearchScope scope) {
-    JavaFileManager javaFileManager = JavaFileManager.getInstance(myProject);
     //it can be called in dumb mode
     //see com.intellij.psi.impl.JavaPlatformModuleSystem.accessibleFromLoadedModules
     //but in this case it must not be cached!
     if (DumbService.isDumb(myProject)) {
       if (DumbUtil.getInstance().mayUseIndices(myProject)) {
-        return javaFileManager.findModules(moduleName, scope);
+        return myFileManager.findModules(moduleName, scope);
       }
       else {
         //no options
@@ -321,7 +320,7 @@ public final class JavaPsiFacadeImpl extends JavaPsiFacadeEx {
       .getCachedValue(myProject, () -> {
         Map<GlobalSearchScope, Map<String, Collection<PsiJavaModule>>> scope2ModulesMap =
           ConcurrentFactoryMap.create(searchScope ->
-                                        ConcurrentFactoryMap.create(name -> javaFileManager.findModules(name, searchScope), () -> CollectionFactory.createConcurrentWeakValueMap()),
+                                        ConcurrentFactoryMap.create(name -> myFileManager.findModules(name, searchScope), () -> CollectionFactory.createConcurrentWeakValueMap()),
                                       () -> ContainerUtil.createConcurrentSoftKeySoftValueMap());
         return new CachedValueProvider.Result<>(scope2ModulesMap, 
                                                 PsiJavaModuleModificationTracker.getInstance(myProject),

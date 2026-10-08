@@ -16,7 +16,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.ResolveResult;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.source.resolve.reference.impl.providers.PsiFileReference;
 import com.intellij.psi.impl.source.tree.ChangeUtil;
 import com.intellij.psi.impl.source.tree.JavaDocElementType;
@@ -72,7 +72,7 @@ public class PsiSnippetAttributeValueImpl extends LeafPsiElement implements PsiS
     if (parent instanceof PsiSnippetAttribute) {
       PsiSnippetAttribute attribute = (PsiSnippetAttribute)parent;
       if (attribute.getName().equals(PsiSnippetAttribute.REGION_ATTRIBUTE)) {
-        return Collections.singleton(JavaPsiImplementationHelper.getInstance(getProject())
+        return Collections.singleton(JavaOptionalServices.getJavaPsiImplementationHelper(getProject())
                                        .getSnippetRegionSymbol(this));
       }
     }

@@ -16,7 +16,7 @@ import com.intellij.psi.PsiProvidesStatement;
 import com.intellij.psi.PsiRequiresStatement;
 import com.intellij.psi.PsiUsesStatement;
 import com.intellij.psi.ResolveState;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.java.stubs.JavaStubElementTypes;
 import com.intellij.psi.impl.java.stubs.PsiJavaModuleStub;
 import com.intellij.psi.impl.source.resolve.JavaResolveUtil;
@@ -213,8 +213,7 @@ public class PsiJavaModuleImpl extends JavaStubPsiElement<PsiJavaModuleStub> imp
   @Override
   public PsiElement getOriginalElement() {
     return CachedValuesManager.getCachedValue(this, () -> {
-      JavaPsiImplementationHelper helper = JavaPsiImplementationHelper.getInstance(getProject());
-      PsiJavaModule result = helper != null ? helper.getOriginalModule(this) : this;
+      PsiJavaModule result = JavaOptionalServices.getJavaPsiImplementationHelper(getProject()).getOriginalModule(this);
       return CachedValueProvider.Result.create(result, PsiModificationTracker.MODIFICATION_COUNT);
     });
   }

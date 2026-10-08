@@ -9,7 +9,7 @@ import com.intellij.psi.PsiEnumConstant;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiMember;
 import com.intellij.psi.PsiMethod;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.PsiImplUtil;
 import com.intellij.psi.impl.source.Constants;
 import com.intellij.psi.impl.source.SourceTreeToPsiMap;
@@ -74,7 +74,7 @@ public class ClassElement extends CompositeElement implements Constants {
             }
             else {
               PsiElement psiElement = firstPsi instanceof PsiMember
-                                      ? JavaPsiImplementationHelper.getInstance(psiClass.getProject()).getDefaultMemberAnchor(psiClass, (PsiMember)firstPsi)
+                                      ? JavaOptionalServices.getJavaPsiImplementationHelper(psiClass.getProject()).getDefaultMemberAnchor(psiClass, (PsiMember)firstPsi)
                                       : null;
               anchor = psiElement != null ? SourceTreeToPsiMap.psiElementToTree(psiElement) : null;
               before = Boolean.TRUE;

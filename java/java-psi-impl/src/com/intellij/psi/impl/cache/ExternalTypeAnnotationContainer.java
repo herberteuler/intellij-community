@@ -7,6 +7,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiModifierListOwner;
 import com.intellij.psi.TypeAnnotationProvider;
+import com.intellij.psi.impl.JavaOptionalServices;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -54,7 +55,7 @@ public final class ExternalTypeAnnotationContainer implements TypeAnnotationCont
 
   @Override
   public @NotNull TypeAnnotationProvider getProvider(PsiElement parent) {
-    ExternalAnnotationsManager manager = ExternalAnnotationsManager.getInstance(myOwner.getProject());
+    ExternalAnnotationsManager manager = JavaOptionalServices.getExternalAnnotationsManager(myOwner.getProject());
     List<PsiFile> files = manager.findExternalAnnotationsFiles(myOwner);
     if (files == null || files.isEmpty()) return TypeAnnotationProvider.EMPTY;
     return new TypeAnnotationProvider() {

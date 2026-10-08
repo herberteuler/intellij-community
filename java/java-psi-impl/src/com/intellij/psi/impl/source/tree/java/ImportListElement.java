@@ -19,7 +19,7 @@ import com.intellij.lang.ASTNode;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.PsiImportList;
 import com.intellij.psi.PsiImportStatementBase;
-import com.intellij.psi.impl.JavaPsiImplementationHelper;
+import com.intellij.psi.impl.JavaOptionalServices;
 import com.intellij.psi.impl.source.SourceTreeToPsiMap;
 import com.intellij.psi.impl.source.tree.CompositeElement;
 import com.intellij.psi.impl.source.tree.JavaElementType;
@@ -37,10 +37,7 @@ public class ImportListElement extends CompositeElement{
       if (first == last && (first.getElementType() == JavaElementType.IMPORT_STATEMENT || first.getElementType() == JavaElementType.IMPORT_STATIC_STATEMENT)){
         final PsiImportList list = (PsiImportList)SourceTreeToPsiMap.treeElementToPsi(this);
         final PsiImportStatementBase statement = (PsiImportStatementBase)SourceTreeToPsiMap.treeElementToPsi(first);
-        final JavaPsiImplementationHelper instance = JavaPsiImplementationHelper.getInstance(list.getProject());
-        if (instance != null) {
-          anchor = instance.getDefaultImportAnchor(list, statement);
-        }
+        anchor = JavaOptionalServices.getJavaPsiImplementationHelper(list.getProject()).getDefaultImportAnchor(list, statement);
         before = Boolean.TRUE;
       }
     }

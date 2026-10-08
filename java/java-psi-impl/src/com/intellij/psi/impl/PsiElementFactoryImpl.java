@@ -833,7 +833,7 @@ public final class PsiElementFactoryImpl extends PsiJavaParserFacadeImpl impleme
     }
 
     Project project = myManager.getProject();
-    JavaPsiImplementationHelper helper = JavaPsiImplementationHelper.getInstance(project);
+    JavaPsiImplementationHelper helper = JavaOptionalServices.getJavaPsiImplementationHelper(project);
     helper.setupCatchBlock(exceptionName, exceptionType, context, (PsiCatchSection)element);
     CodeStyleManager styleManager = CodeStyleManager.getInstance(project);
     PsiCatchSection catchSection = (PsiCatchSection)styleManager.reformat(element);

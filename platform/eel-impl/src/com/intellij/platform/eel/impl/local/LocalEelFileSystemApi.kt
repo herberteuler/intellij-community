@@ -147,7 +147,7 @@ abstract class NioBasedEelFileSystemApi(@VisibleForTesting val fs: FileSystem) :
       Files.list(path.toNioPath()).use { stream ->
         stream.asSequence().mapNotNullTo(mutableListOf()) { child ->
           try {
-            val fileAttributes = getFileAttributes(child, symlinkPolicy)
+            val fileAttributes = getFileAttributes(child, symlinkPolicy, descriptor)
             child.fileName.toString() to fileAttributes
           }
           catch (_: FileSystemException) {
@@ -170,8 +170,7 @@ abstract class NioBasedEelFileSystemApi(@VisibleForTesting val fs: FileSystem) :
     symlinkPolicy: EelFileSystemApi.SymlinkPolicy,
   ): EelResult<EelFileInfo, EelFileSystemApi.StatError> =
     wrapIntoEelResult {
-      // TODO symlinkPolicy
-      getFileAttributes(path.toNioPath(), symlinkPolicy)
+      getFileAttributes(path.toNioPath(), symlinkPolicy, descriptor)
     }
 
   override suspend fun sameFile(source: EelPath, target: EelPath): EelResult<Boolean, EelFileSystemApi.SameFileError> =
@@ -631,39 +630,45 @@ private fun copyTimes(
 private fun EelFileSystemApi.TimeSinceEpoch.toFileTime(): FileTime =
   FileTime.from(Instant.ofEpochSecond(seconds.toLong(), nanoseconds.toLong()))
 
-private fun getFileAttributes(child: Path, symlinkPolicy: EelFileSystemApi.SymlinkPolicy): EelFileInfo =
+private fun getFileAttributes(child: Path, symlinkPolicy: EelFileSystemApi.SymlinkPolicy, descriptor: EelDescriptor): EelFileInfo =
   if (SystemInfoRt.isWindows) {
     getWindowsFileAttributes(child, symlinkPolicy)
   }
   else {
-    getPosixFileAttributes(child, symlinkPolicy)
+    getPosixFileAttributes(child, symlinkPolicy, descriptor)
   }
 
-private fun getPosixFileAttributes(child: Path, symlinkPolicy: EelFileSystemApi.SymlinkPolicy): EelPosixFileInfo {
-  val s = child.fileSystem.provider().readAttributes(
-    child, PosixFileAttributes::class.java,
-    *(when (symlinkPolicy) {
-      EelFileSystemApi.SymlinkPolicy.DO_NOT_RESOLVE -> arrayOf(LinkOption.NOFOLLOW_LINKS)
-      EelFileSystemApi.SymlinkPolicy.JUST_RESOLVE, EelFileSystemApi.SymlinkPolicy.RESOLVE_AND_FOLLOW -> arrayOf()
-    })
-  )
+private fun getPosixFileAttributes(
+  child: Path,
+  symlinkPolicy: EelFileSystemApi.SymlinkPolicy,
+  descriptor: EelDescriptor,
+): EelPosixFileInfo {
+  val linkOptions = when (symlinkPolicy) {
+    EelFileSystemApi.SymlinkPolicy.DO_NOT_RESOLVE,
+    EelFileSystemApi.SymlinkPolicy.JUST_RESOLVE,
+      -> arrayOf(LinkOption.NOFOLLOW_LINKS)
+    EelFileSystemApi.SymlinkPolicy.RESOLVE_AND_FOLLOW -> emptyArray()
+  }
+  val s = child.fileSystem.provider().readAttributes(child, PosixFileAttributes::class.java, *linkOptions)
   return EelPosixFileInfoImpl(
     type = when {
       s.isRegularFile -> EelPosixFileInfoImpl.Regular(s.size())
 
       s.isDirectory -> EelPosixFileInfoImpl.Directory(EelFileInfo.CaseSensitivity.SENSITIVE)
 
-      s.isSymbolicLink -> {
-        // TODO Resolve symlinks if needed
-        EelPosixFileInfoImpl.SymlinkUnresolved
+      s.isSymbolicLink -> when (symlinkPolicy) {
+        EelFileSystemApi.SymlinkPolicy.JUST_RESOLVE -> resolvePosixSymlinkType(child, descriptor)
+        EelFileSystemApi.SymlinkPolicy.DO_NOT_RESOLVE,
+        EelFileSystemApi.SymlinkPolicy.RESOLVE_AND_FOLLOW,
+          -> EelPosixFileInfoImpl.SymlinkUnresolved
       }
 
       else -> EelPosixFileInfoImpl.Other
     },
 
     permissions = EelPosixFileInfoImpl.Permissions(
-      owner = Files.getAttribute(child, "unix:uid") as Int,
-      group = Files.getAttribute(child, "unix:gid") as Int,
+      owner = Files.getAttribute(child, "unix:uid", *linkOptions) as Int,
+      group = Files.getAttribute(child, "unix:gid", *linkOptions) as Int,
       mask = convertPosixPermissionsToMask(s.permissions()),
     ),
 
@@ -671,9 +676,22 @@ private fun getPosixFileAttributes(child: Path, symlinkPolicy: EelFileSystemApi.
     lastModifiedTime = ZonedDateTime.ofInstant(s.lastModifiedTime().toInstant(), ZoneId.systemDefault()),
     lastAccessTime = ZonedDateTime.ofInstant(s.lastAccessTime().toInstant(), ZoneId.systemDefault()),
 
-    inodeDev = Files.getAttribute(child, "unix:dev").let { it as? Long ?: 0L },
-    inodeIno = Files.getAttribute(child, "unix:ino").let { it as? Long ?: 0L },
+    inodeDev = Files.getAttribute(child, "unix:dev", *linkOptions).let { it as? Long ?: 0L },
+    inodeIno = Files.getAttribute(child, "unix:ino", *linkOptions).let { it as? Long ?: 0L },
   )
+}
+
+private fun resolvePosixSymlinkType(
+  child: Path,
+  descriptor: EelDescriptor,
+): EelPosixFileInfo.Type.Symlink.Resolved {
+  val target = Files.readSymbolicLink(child)
+  return if (target.isAbsolute) {
+    EelPosixFileInfoImpl.SymlinkResolvedAbsolute(EelPath.parse(target.toString(), descriptor))
+  }
+  else {
+    EelPosixFileInfoImpl.SymlinkResolvedRelative(target.toString())
+  }
 }
 
 private fun extractFileKey(fileKey: Any?): Triple<Int, Int, Int> {

@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.idea.k2.AbstractKotlinFirJoinLinesTest
 import org.jetbrains.kotlin.idea.k2.AbstractKotlinFirPairMatcherTest
 import org.jetbrains.kotlin.idea.k2.AbstractScriptGotoDeclarationMultifileTest
 import org.jetbrains.kotlin.idea.k2.copyPaste.AbstractK2InsertImportOnPasteTest
+import org.jetbrains.kotlin.idea.k2.copyPaste.AbstractK2PlainTextImportsCopyPastePostProcessorTest
 import org.jetbrains.kotlin.idea.k2.generate.AbstractFirGenerateHashCodeAndEqualsActionTest
 import org.jetbrains.kotlin.idea.k2.generate.AbstractFirGenerateSecondaryConstructorActionTest
 import org.jetbrains.kotlin.idea.k2.generate.AbstractFirGenerateTestSupportMethodActionTest
@@ -295,6 +296,9 @@ internal fun MutableTWorkspace.generateK2CodeInsightTests() {
                 testClassName = "Cut",
                 isRecursive = true,
             )
+        }
+        testClass<AbstractK2PlainTextImportsCopyPastePostProcessorTest> {
+            model("copyPaste/plainTextImports", pattern = TEST)
         }
 
         testClass<AbstractJavaAgainstKotlinSourceCheckerTest>(generatedClassName = "org.jetbrains.kotlin.idea.k2.K2JavaAgainstKotlinSourceCheckerTestGenerated") {

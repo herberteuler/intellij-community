@@ -1,0 +1,17 @@
+// TARGET_FILE_NAME: Target.kt
+// COPIED_TEXT
+import foo.Bar
+
+fun useAgain(bar: Bar) = bar
+// TARGET_TEXT
+package target
+
+import foo.Bar
+
+<caret>
+// EXPECTED_TEXT
+package target
+
+import foo.Bar
+
+fun useAgain(bar: Bar) = bar

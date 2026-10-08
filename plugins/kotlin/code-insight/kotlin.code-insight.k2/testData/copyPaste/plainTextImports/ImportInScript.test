@@ -1,0 +1,23 @@
+// TARGET_FILE_NAME: build.gradle.kts
+// COPIED_TEXT
+import org.jetbrains.kotlin.gradle.plugin.KotlinBasePlugin
+
+project.plugins.withType<KotlinBasePlugin>() {
+    println("configured")
+}
+// TARGET_TEXT
+plugins {
+    kotlin("jvm") version "2.0.0"
+}
+
+<caret>
+// EXPECTED_TEXT
+import org.jetbrains.kotlin.gradle.plugin.KotlinBasePlugin
+
+plugins {
+    kotlin("jvm") version "2.0.0"
+}
+
+project.plugins.withType<KotlinBasePlugin>() {
+    println("configured")
+}

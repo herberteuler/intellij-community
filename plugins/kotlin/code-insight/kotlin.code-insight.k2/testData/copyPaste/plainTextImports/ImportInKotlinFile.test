@@ -1,0 +1,15 @@
+// TARGET_FILE_NAME: Target.kt
+// COPIED_TEXT
+import foo.Bar
+
+fun use(bar: Bar) = bar
+// TARGET_TEXT
+package target
+
+<caret>
+// EXPECTED_TEXT
+package target
+
+import foo.Bar
+
+fun use(bar: Bar) = bar

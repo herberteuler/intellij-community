@@ -14,7 +14,6 @@
     <plugin id="intellij.java.aetherDependencyResolver.plugin" />
     <plugin id="org.editorconfig.editorconfigjetbrains" />
     <plugin id="org.intellij.intelliLang" />
-    <plugin id="org.jetbrains.bazel" />
     <plugin id="org.jetbrains.idea.maven" />
     <plugin id="org.jetbrains.kotlin" />
   </component>

@@ -1,5 +1,6 @@
 package com.jetbrains.python.poetry.sdk.evolution
 
+import com.jetbrains.python.sdk.poetry.poetryCacheEnvRoots
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.io.toNioPathOrNull
@@ -31,7 +32,6 @@ import com.intellij.python.sdk.common.evolution.EvoLoadResultDto
 import com.intellij.python.sdk.common.evolution.EvoRecreateDto
 import com.intellij.python.sdk.common.evolution.EvoSectionDto
 import com.jetbrains.python.errorProcessing.PyResult
-import com.jetbrains.python.getOrNull
 import com.jetbrains.python.sdk.add.v2.EelOrJustPath.Companion.asEelOrJustPath
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.evolution.deleteEnvDir
@@ -92,12 +92,7 @@ internal class PoetryEvoEnvironmentProvider : PyToolEvoEnvironmentProvider() {
     if (options.isEmpty()) return result
     // Poetry's cache environments, as full env-root paths. Force `virtualenvs.in-project=false` (as the v2 dialog does)
     // so poetry enumerates the cache envs even when an in-project `.venv` exists — otherwise it reports only `.venv`.
-    val poetryEnvRoots: List<Path> = runPoetry(projectDir.asEelOrJustPath(), "env", "list", "--full-path", inProjectEnv = false).getOrNull()
-      ?.lineSequence()
-      ?.map { Path.of(it.removeSuffix("(Activated)").trim()) }
-      ?.filter { it.name.isNotBlank() }
-      ?.toList()
-      ?: emptyList()
+    val poetryEnvRoots: List<Path> = poetryCacheEnvRoots(context.fileSystem, projectDir).map { it.path }
 
     val perVersionLeaves = options.map { option ->
       val versionStr = option.title

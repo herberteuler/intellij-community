@@ -4,12 +4,8 @@ package com.jetbrains.python.sdk.poetry
 import com.intellij.openapi.components.service
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.util.registry.Registry
-import com.intellij.python.community.execService.DownloadConfig
-import com.intellij.python.community.execService.UploadConfig
 import com.intellij.python.community.execService.python.validatePythonAndGetInfo
-import com.intellij.python.pyproject.PY_PROJECT_TOML
 import com.jetbrains.python.PyBundle
-import com.jetbrains.python.PyInternalExecApi
 import com.jetbrains.python.PythonBinary
 import com.jetbrains.python.PythonHomePath
 import com.jetbrains.python.errorProcessing.ErrorSink
@@ -24,14 +20,12 @@ import com.jetbrains.python.packaging.PyRequirement
 import com.intellij.python.requirements.parser.PyRequirementParser
 import com.jetbrains.python.packaging.common.PythonOutdatedPackage
 import com.jetbrains.python.packaging.common.PythonPackage
-import com.intellij.python.community.impl.poetry.backend.PoetryPyTool
 import com.jetbrains.python.sdk.add.v2.FileSystem
 import com.jetbrains.python.sdk.add.v2.PathHolder
 import com.jetbrains.python.sdk.add.v2.TargetFileSystemCache
 import com.jetbrains.python.sdk.add.v2.toEelFileSystem
 import com.intellij.python.sdk.backend.PySdkBundle
 import com.jetbrains.python.sdk.pySdkAdditionalData
-import com.intellij.python.pytools.runTool
 import com.jetbrains.python.sdk.add.v2.EelOrJustPath
 import com.jetbrains.python.sdk.add.v2.EelOrJustPath.Companion.toEelFileSystem
 import com.jetbrains.python.target.PyTargetAwareAdditionalData
@@ -41,7 +35,6 @@ import io.github.z4kn4fein.semver.toVersion
 import org.apache.tuweni.toml.Toml
 import org.jetbrains.annotations.ApiStatus.Internal
 import java.nio.file.Path
-import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
 
 /**
@@ -49,45 +42,8 @@ import kotlin.io.path.name
  */
 private val VERSION_2 = "2.0.0".toVersion()
 
-@Internal
-@PyInternalExecApi
-const val POETRY_TOML = "poetry.toml"
-
-
 private val POETRY_EXCLUDE_NON_DIGITS_REGEX = Regex("""\D+$""")
-private const val POETRY_LOCK = "poetry.lock"
-private val POETRY_PROJECT_FILES = listOf(PY_PROJECT_TOML, POETRY_LOCK, POETRY_TOML)
-private val POETRY_PROJECT_DOWNLOAD_CONFIG = DownloadConfig(relativePaths = POETRY_PROJECT_FILES)
 private val POETRY_PROJECT_MUTATING_COMMANDS = setOf("add", "config", "init", "install", "lock", "new", "remove", "update")
-
-private fun <P : PathHolder> Path.createPoetryMetadataUploadConfig(fileSystem: FileSystem<P>): UploadConfig? =
-  if (fileSystem.isLocal) null
-  else UploadConfig(relativePaths = POETRY_PROJECT_FILES.filter { resolve(it).isRegularFile() })
-
-@Internal
-internal suspend fun <P : PathHolder> runPoetry(
-  fileSystem: FileSystem<P>,
-  projectPath: Path?,
-  vararg args: String,
-  poetryExecutable: P? = null,
-  inProjectEnv: Boolean? = null,
-  baseEnv: Map<String, String> = emptyMap(),
-  uploadConfig: UploadConfig? = null,
-  downloadConfig: DownloadConfig? = null,
-): PyResult<String> {
-  val env = baseEnv.toMutableMap().apply {
-    if (inProjectEnv != null) put("POETRY_VIRTUALENVS_IN_PROJECT", inProjectEnv.toString())
-  }
-  return PoetryPyTool.getInstance().runTool(
-    fileSystem = fileSystem,
-    pathFromSdk = poetryExecutable?.toStringForExecution(),
-    dirPath = projectPath,
-    args = args,
-    env = env,
-    uploadConfig = uploadConfig,
-    downloadConfig = downloadConfig,
-  )
-}
 
 @Internal
 internal suspend fun runPoetry(
@@ -479,7 +435,7 @@ private suspend fun <P : PathHolder> getPoetryEnvs(
     projectPath = projectPath,
     "env", "list", "--full-path",
     poetryExecutable = poetryExecutable,
-    uploadConfig = projectPath.createPoetryMetadataUploadConfig(fileSystem),
+    uploadConfig = poetryMetadataUploadConfig(projectPath, fileSystem),
   )
   return executionResult.getOrNull()?.lineSequence()?.map { it.split(" ")[0] }?.filterNot { it.isEmpty() }?.toList() ?: emptyList()
 }

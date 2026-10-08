@@ -8,6 +8,8 @@ import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.VetoableProjectManagerListener
 import com.intellij.openapi.project.ex.ProjectManagerEx
+import com.intellij.openapi.project.impl.P3Support
+import com.intellij.openapi.project.impl.P3SupportInstaller
 import com.intellij.projectImport.ProjectAttachProcessor
 import com.intellij.projectImport.ProjectOpenedCallback
 import com.intellij.testFramework.ExtensionTestUtil
@@ -223,22 +225,113 @@ class TrustedProjectsTest {
     TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.TRUST_AND_OPEN, asDisposable())
 
     withProjectToClose(mode) { projectToClose ->
-      val projectManager = ProjectManagerEx.getInstanceEx()
-      val vetoListener = object : VetoableProjectManagerListener {
-        override fun canClose(project: Project): Boolean = project !== projectToClose
+      withVetoedClose(projectToClose!!) {
+        Assertions.assertNull(ProjectManagerEx.getInstanceEx().openProjectAsync(projectRoot, createOpenProjectTask(mode, projectToClose)))
       }
-      projectManager.addProjectManagerListener(vetoListener)
-      try {
-        Assertions.assertNull(projectManager.openProjectAsync(projectRoot, createOpenProjectTask(mode, projectToClose)))
-      }
-      finally {
-        projectManager.removeProjectManagerListener(vetoListener)
-      }
-      Assertions.assertEquals(listOf(projectToClose), projectManager.openProjects.toList())
+      Assertions.assertEquals(listOf(projectToClose), ProjectManagerEx.getInstanceEx().openProjects.toList())
     }
 
     // the current behavior: the trust dialog comes before the close, so the trust choice is saved
     Assertions.assertEquals(ThreeState.YES, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  @Test
+  fun `project for a child process opens there without the trust dialog in the parent process`(): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    // the open fails with CancellationException if the trust dialog is shown in this process
+    TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.CANCEL, asDisposable())
+    val p3Support = RecordingP3Support { it != projectRoot }
+
+    withP3Support(p3Support) {
+      withProjectToClose(OpenMode.NEW_WINDOW) { projectToClose ->
+        Assertions.assertNull(ProjectManagerEx.getInstanceEx().openProjectAsync(projectRoot, createOpenProjectTask(OpenMode.NEW_WINDOW, projectToClose)))
+        Assertions.assertEquals(listOf(projectToClose), ProjectManagerEx.getInstanceEx().openProjects.toList())
+      }
+    }
+
+    Assertions.assertEquals(listOf(projectRoot), p3Support.childProcessProjectRoots)
+    Assertions.assertEquals(ThreeState.UNSURE, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  @Test
+  fun `child process shows the trust dialog for its own project`(): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.CANCEL, asDisposable())
+    // the child process opens only its own project, and no other project is open in it
+    val p3Support = RecordingP3Support { it == projectRoot }
+
+    withP3Support(p3Support) {
+      runCatching {
+        ProjectManagerEx.getInstanceEx().openProjectAsync(projectRoot, OpenProjectTask { projectName = "project" })
+      }.onSuccess { project ->
+        project?.closeProjectAsync()
+        Assertions.fail<Nothing> { "The child process did not show the trust dialog for its own project" }
+      }.onFailure { exception ->
+        Assertions.assertInstanceOf(CancellationException::class.java, exception)
+      }
+    }
+
+    Assertions.assertEquals(emptyList<Path>(), p3Support.childProcessProjectRoots)
+    Assertions.assertEquals(ThreeState.UNSURE, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  @Test
+  fun `vetoed close of the current project does not start a child process`(): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    // the open fails with CancellationException if the trust dialog is shown in this process
+    TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.CANCEL, asDisposable())
+    val p3Support = RecordingP3Support { it != projectRoot }
+
+    withP3Support(p3Support) {
+      withProjectToClose(OpenMode.SAME_WINDOW) { projectToClose ->
+        withVetoedClose(projectToClose!!) {
+          Assertions.assertNull(ProjectManagerEx.getInstanceEx().openProjectAsync(projectRoot, createOpenProjectTask(OpenMode.SAME_WINDOW, projectToClose)))
+        }
+        Assertions.assertEquals(listOf(projectToClose), ProjectManagerEx.getInstanceEx().openProjects.toList())
+      }
+    }
+
+    Assertions.assertEquals(emptyList<Path>(), p3Support.childProcessProjectRoots)
+    Assertions.assertEquals(ThreeState.UNSURE, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  /**
+   * Opens a project in this process when [canBeOpenedInThisProcess] accepts it. Records the other projects instead of starting a child process.
+   */
+  private class RecordingP3Support(private val canBeOpenedInThisProcess: (Path) -> Boolean) : P3Support {
+    val childProcessProjectRoots: MutableList<Path> = CopyOnWriteArrayList()
+
+    override fun isEnabled(): Boolean = true
+
+    override fun canBeOpenedInThisProcess(projectStoreBaseDir: Path): Boolean = canBeOpenedInThisProcess.invoke(projectStoreBaseDir)
+
+    override suspend fun openInChildProcess(projectStoreBaseDir: Path) {
+      childProcessProjectRoots.add(projectStoreBaseDir)
+    }
+  }
+
+  private suspend fun withP3Support(support: P3Support, action: suspend () -> Unit) {
+    val oldSupport = P3SupportInstaller.installPerProcessInstanceSupportTemporarily(support)
+    try {
+      action()
+    }
+    finally {
+      P3SupportInstaller.installPerProcessInstanceSupportTemporarily(oldSupport)
+    }
+  }
+
+  private suspend fun withVetoedClose(projectToClose: Project, action: suspend () -> Unit) {
+    val projectManager = ProjectManagerEx.getInstanceEx()
+    val vetoListener = object : VetoableProjectManagerListener {
+      override fun canClose(project: Project): Boolean = project !== projectToClose
+    }
+    projectManager.addProjectManagerListener(vetoListener)
+    try {
+      action()
+    }
+    finally {
+      projectManager.removeProjectManagerListener(vetoListener)
+    }
   }
 
   private suspend fun openProjectAndCheckTrustedState(projectRoot: Path, options: OpenProjectTask, expectedTrustedState: ThreeState) {

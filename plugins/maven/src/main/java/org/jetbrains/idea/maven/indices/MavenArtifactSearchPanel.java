@@ -4,7 +4,6 @@ package org.jetbrains.idea.maven.indices;
 import com.intellij.CommonBundle;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.editor.colors.EditorFontType;
-import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.openapi.util.Pair;
@@ -25,6 +24,7 @@ import org.jetbrains.idea.maven.dom.MavenDomBundle;
 import org.jetbrains.idea.maven.dom.converters.MavenDependencyCompletionUtil;
 import org.jetbrains.idea.maven.model.MavenDependencyCompletionItem;
 import org.jetbrains.idea.maven.model.MavenId;
+import org.jetbrains.idea.maven.model.MavenRepositoryInfo;
 import org.jetbrains.idea.maven.project.MavenProjectBundle;
 import org.jetbrains.idea.maven.utils.MavenLog;
 
@@ -217,8 +217,10 @@ public class MavenArtifactSearchPanel extends JPanel {
       if (myClassMode) {
         myResultList.getEmptyText().appendLine(MavenDomBundle.message("maven.search.no.results.indices.try.update"), LINK_BOLD_ATTRIBUTES,
                                                e -> {
-                                                 ShowSettingsUtil.getInstance()
-                                                   .showSettingsDialog(myProject, MavenRepositoriesConfigurable.class);
+                                                 MavenSystemIndicesManager indicesManager = MavenSystemIndicesManager.getInstance();
+                                                 for (MavenRepositoryInfo repository : MavenIndexUtils.getAllRepositories(myProject)) {
+                                                   indicesManager.updateIndexContent(repository, myProject);
+                                                 }
                                                });
       }
 

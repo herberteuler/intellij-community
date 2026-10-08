@@ -13,7 +13,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.idea.maven.execution.MavenRunner;
 import org.jetbrains.idea.maven.execution.MavenRunnerConfigurable;
 import org.jetbrains.idea.maven.execution.MavenRunnerSettings;
-import org.jetbrains.idea.maven.indices.MavenRepositoriesConfigurable;
 import org.jetbrains.idea.maven.project.MavenGeneralConfigurable;
 import org.jetbrains.idea.maven.project.MavenIgnoredFilesConfigurable;
 import org.jetbrains.idea.maven.project.MavenImportingConfigurable;
@@ -50,10 +49,6 @@ public final class MavenSettings implements SearchableConfigurable.Parent, Backe
     myChildren.add(new MyMavenRunnerConfigurable(project));
 
     myChildren.add(new MavenTestRunningConfigurable(project));
-
-    if (!project.isDefault()) {
-      myChildren.add(new MavenRepositoriesConfigurable(project));
-    }
 
     myChildren.add(new MavenCatalogsConfigurable(project));
   }

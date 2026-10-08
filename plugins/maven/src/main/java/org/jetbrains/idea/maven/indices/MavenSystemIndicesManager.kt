@@ -226,12 +226,6 @@ class MavenSystemIndicesManager(val cs: CoroutineScope) : PersistentStateCompone
 
   }
 
-
-  fun getUpdatingStateSync(project: Project, repository: MavenRepositoryInfo): IndexUpdatingState {
-    val status = luceneUpdateStatusMap[repository.url]
-    if (status == null) return IndexUpdatingState.IDLE else return IndexUpdatingState.UPDATING
-  }
-
   /**
    * Removes every index that no open project uses.
    */

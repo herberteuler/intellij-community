@@ -217,10 +217,6 @@
       <configurable instance="org.jetbrains.idea.maven.project.MavenTestRunningConfigurable"
                     id="reference.settings.project.maven.testRunning" key="maven.testRunning" bundle="messages.MavenProjectBundle"
                     nonDefaultProject="true"/>
-      <configurable instance="org.jetbrains.idea.maven.indices.MavenRepositoriesConfigurable"
-                    id="reference.settings.project.maven.repository.indices" key="maven.repositories.title"
-                    bundle="messages.MavenIndicesBundle"
-                    nonDefaultProject="true"/>
       <configurable instance="org.jetbrains.idea.maven.wizards.archetype.MavenCatalogsConfigurable"
                     id="reference.settings.project.maven.archetype.catalogs"/>
     </projectConfigurable>

@@ -182,15 +182,46 @@ class TrustedProjectsTest {
     TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.TRUST_AND_OPEN, asDisposable())
 
     withProjectToClose(mode) { projectToClose ->
-      ProjectManagerEx.getInstanceEx()
-        .openProjectAsync(projectRoot, createOpenProjectTask(mode, projectToClose))!!
-        .awaitInitialisation()
-        .useProjectAsync { project ->
-          Assertions.assertEquals(ThreeState.YES, TrustedProjects.getProjectTrustedState(project))
-        }
+      openProjectAndCheckTrustedState(projectRoot, createOpenProjectTask(mode, projectToClose), ThreeState.YES)
     }
 
     Assertions.assertEquals(ThreeState.YES, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+    "NO_OPEN_PROJECT, true",
+    "FORCE_NEW_FRAME, true",
+    "FORCE_REUSE_FRAME, true",
+    "SAME_WINDOW, true",
+    "NEW_WINDOW, true",
+    "NO_OPEN_PROJECT, false",
+    "FORCE_NEW_FRAME, false",
+    "FORCE_REUSE_FRAME, false",
+    "SAME_WINDOW, false",
+    "NEW_WINDOW, false",
+  )
+  fun `known trusted state skips the trust dialog`(mode: OpenMode, isTrusted: Boolean): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    TrustedProjects.setProjectTrusted(projectRoot, isTrusted)
+    // the project opens only if the trust dialog is not shown
+    TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.CANCEL, asDisposable())
+    val expectedTrustedState = if (isTrusted) ThreeState.YES else ThreeState.NO
+
+    withProjectToClose(mode) { projectToClose ->
+      openProjectAndCheckTrustedState(projectRoot, createOpenProjectTask(mode, projectToClose), expectedTrustedState)
+    }
+
+    Assertions.assertEquals(expectedTrustedState, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  private suspend fun openProjectAndCheckTrustedState(projectRoot: Path, options: OpenProjectTask, expectedTrustedState: ThreeState) {
+    ProjectManagerEx.getInstanceEx()
+      .openProjectAsync(projectRoot, options)!!
+      .awaitInitialisation()
+      .useProjectAsync { project ->
+        Assertions.assertEquals(expectedTrustedState, TrustedProjects.getProjectTrustedState(project))
+      }
   }
 
   @ParameterizedTest

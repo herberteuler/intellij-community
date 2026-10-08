@@ -4,10 +4,12 @@ package com.intellij.ide.rpc
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.extensions.ExtensionPointName
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import fleet.rpc.client.RpcClientDisconnectedException
 import fleet.util.UID
@@ -33,17 +35,22 @@ import org.jetbrains.annotations.ApiStatus
 fun Document.bindToBackend(
   builder: BackendDocumentBindBuilder.() -> Unit,
 ) {
+  val bindBuilder = BackendDocumentBindBuilder().apply(builder)
+  val backendDocumentIdProvider = bindBuilder.backendDocumentIdProvider
+  if (bindBuilder.bindEditors && backendDocumentIdProvider == null && FileDocumentManager.getInstance().getFile(this) == null) {
+    LOG.error("A document without a file needs backendDocumentIdProvider to bind its editors to the backend")
+    return
+  }
+
   service<BackendBasedDocumentCoroutineScopeProvider>().cs.launch(Dispatchers.EDT) {
-    val builder = BackendDocumentBindBuilder().apply(builder)
-    val backendDocumentIdProvider = builder.backendDocumentIdProvider
     val documentBound = if (backendDocumentIdProvider != null) {
-      bindToBackend(backendDocumentIdProvider, builder.onBindingDispose, builder.bindEditors)
+      bindToBackend(backendDocumentIdProvider, bindBuilder.onBindingDispose, bindBuilder.bindEditors)
     }
     else {
       true
     }
 
-    if (documentBound && builder.bindEditors && backendDocumentIdProvider == null) {
+    if (documentBound && bindBuilder.bindEditors && backendDocumentIdProvider == null) {
       // mark the document, so future editors will be bind
       bindEditorsToBackend()
       // bind current editors (since they might be created during backends' documents initialization)
@@ -130,6 +137,9 @@ class BackendDocumentBindBuilder {
    *
    * It is useful when you would like to enable backend's features of the [Editor]
    * which is created by the platform using given [Document] (e.g. [EditorTextField]).
+   *
+   * Without [backendDocumentIdProvider], the [Document] must have a file.
+   * The backend cannot create a document for a [Document] without a file.
    */
   var bindEditors: Boolean = false
 
@@ -203,3 +213,5 @@ interface BackendDocumentBinder {
 // TODO: should BackendBasedDocument take cs as argument? Let's see by usages
 @Service(Service.Level.APP)
 private class BackendBasedDocumentCoroutineScopeProvider(val cs: CoroutineScope)
+
+private val LOG = fileLogger()

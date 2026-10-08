@@ -46,8 +46,8 @@ const TART_SUSPEND_TIMEOUT: Duration = Duration::from_mins(10);
 /// The timeout of `tart stop`. Tart asks the guest to shut down and kills the VM after its own 30 s grace.
 pub(crate) const TART_STOP_TIMEOUT: Duration = Duration::from_mins(2);
 
-/// The timeout of `tart clone`. A macOS worker is a copy-on-write clone of a local golden, but a Linux worker clones
-/// a public image by tag, which a first clone pulls from the registry.
+/// The timeout of `tart clone`. A worker is a copy-on-write clone of the local golden, so a clone pulls nothing from
+/// a registry. The bound is an upper limit and not an estimate.
 pub(crate) const TART_CLONE_TIMEOUT: Duration = Duration::from_hours(1);
 
 /// The timeout of `tart delete`. It removes the directory of one VM, its disk included.
@@ -566,14 +566,6 @@ impl Tart {
             return Err(unsupported(format!(
                 "suspending {worker} needs the `--suspendable` device set, which AIR_VM_SUSPENDABLE turned off; \
                  the worker can only be stopped"
-            )));
-        }
-        if !self.settings.is_macos_guest() {
-            // The flag is enforced at `tart run`, not at `tart suspend`: `--suspendable` on a Linux VM fails the run
-            // outright with "You can only suspend macOS VMs", so such a worker could never boot with it.
-            return Err(unsupported(format!(
-                "tart cannot suspend a {} guest; {worker} is shut down instead",
-                self.settings.guest_os
             )));
         }
         self.runner

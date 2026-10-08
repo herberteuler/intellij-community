@@ -64,6 +64,16 @@ fn answer_linux_guest(
     }
 }
 
+/// Every worker of the pool is a healthy running macOS worker with no run in flight and a logged-in console.
+fn answer_running_macos_pool(fixture: &Fixture) {
+    for channel in fixture.channels() {
+        channel.answer(answer_guest(vec![
+            ("/usr/bin/who", said("admin    console  Aug 23 10:00\n")),
+            (" active ", active_reply(None)),
+        ]));
+    }
+}
+
 /// Every worker of the pool is a healthy running Linux worker with no run in flight.
 fn answer_running_linux_pool(fixture: &Fixture) {
     for channel in fixture.channels() {
@@ -118,10 +128,10 @@ fn parallels_info_with_shares(fixture: &Fixture) -> String {
 /// already answered.
 #[tokio::test]
 async fn the_state_ladder_keeps_suspended_distinct_from_stopped() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::tart_macos();
     fixture.fake.answer(
         Answer::ListJson,
-        tart_list(&[("air-linux-1", 80.0, false, "suspended"), ("air-linux-2", 80.0, false, "stopped")]),
+        tart_list(&[("air-macos-1", 80.0, false, "suspended"), ("air-macos-2", 80.0, false, "stopped")]),
     );
     let outcome = status(&fixture).await;
     let states: Vec<&Value> = workers(&outcome).iter().map(|row| &row["state"]).collect();
@@ -133,20 +143,20 @@ async fn the_state_ladder_keeps_suspended_distinct_from_stopped() {
 /// list calls not-running is never probed at all - even when its channel would happily answer.
 #[tokio::test]
 async fn tarts_list_metadata_not_the_exec_exit_code_decides_running() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::tart_macos();
     fixture.fake.answer(
         Answer::ListJson,
-        tart_list(&[("air-linux-1", 80.0, false, "stopped"), ("air-linux-2", 80.0, true, "running")]),
+        tart_list(&[("air-macos-1", 80.0, false, "stopped"), ("air-macos-2", 80.0, true, "running")]),
     );
     // The stopped worker's channel answers success, the way a real `tart exec` against a stopped VM exits 0.
     fixture
-        .channel("air-linux-2")
+        .channel("air-macos-2")
         .answer(answer_guest(vec![(" active ", active_reply(None))]));
     let outcome = status(&fixture).await;
     let rows = workers(&outcome);
     assert_eq!((&rows[0]["state"], &rows[0]["guestAgent"]), (&json!("stopped"), &json!(false)));
     assert_eq!(
-        fixture.channel("air-linux-1").lines(),
+        fixture.channel("air-macos-1").lines(),
         Vec::<String>::new(),
         "a worker the list calls stopped was probed anyway"
     );
@@ -155,12 +165,12 @@ async fn tarts_list_metadata_not_the_exec_exit_code_decides_running() {
 
 #[tokio::test]
 async fn a_running_vm_whose_guest_never_answers_is_unresponsive() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::tart_macos();
     fixture.fake.answer(
         Answer::ListJson,
-        tart_list(&[("air-linux-1", 80.0, true, "running"), ("air-linux-2", 80.0, false, "stopped")]),
+        tart_list(&[("air-macos-1", 80.0, true, "running"), ("air-macos-2", 80.0, false, "stopped")]),
     );
-    fixture.channel("air-linux-1").answer(|_, _| {
+    fixture.channel("air-macos-1").answer(|_, _| {
         Ok(Captured {
             exit_code: 1,
             ..Captured::default()
@@ -172,15 +182,16 @@ async fn a_running_vm_whose_guest_never_answers_is_unresponsive() {
 
 // --- the tri-state facts ---------------------------------------------------------------------------------------
 
-/// `null` is "the question does not apply or was not asked", and it must never collapse into `false`: a Linux guest
-/// has no provenance receipt by design, and a worker whose guest never answered had its TCC and its SSH host key
-/// asked of nobody. Every key is present on every row, which is what an agent reading the envelope relies on.
+/// `null` is "the question was not asked", and it must never collapse into `false`. A worker whose guest never
+/// answered had its console and its TCC asked of nobody. The provenance and the SSH host key are host facts, so they
+/// are `false` and not `null`. Every key is present on every row, which is what an agent reading the envelope
+/// relies on.
 #[tokio::test]
 async fn tri_state_facts_are_null_never_false() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::tart_macos();
     fixture
         .fake
-        .answer(Answer::ListJson, tart_list(&[("air-linux-1", 80.0, false, "suspended")]));
+        .answer(Answer::ListJson, tart_list(&[("air-macos-1", 80.0, false, "suspended")]));
     let outcome = status(&fixture).await;
     let expected_gb = fixture.settings.vm_root_disk_gb;
     let host_repo = fixture.root().to_string_lossy().into_owned();
@@ -188,10 +199,10 @@ async fn tri_state_facts_are_null_never_false() {
         workers(&outcome),
         [
             json!({
-                "worker": "air-linux-1",
+                "worker": "air-macos-1",
                 "exists": true,
-                "provenanceReady": null,
-                "provenanceError": null,
+                "provenanceReady": false,
+                "provenanceError": "worker_provenance_missing",
                 "state": "suspended",
                 "pid": null,
                 "guestAgent": false,
@@ -209,14 +220,14 @@ async fn tri_state_facts_are_null_never_false() {
                 "activeRun": null,
                 "runError": null,
                 "lease": null,
-                "sshHostKeyReady": null,
+                "sshHostKeyReady": false,
                 "sshHostKeyUnique": null,
             }),
-            // A missing VM is still reported - with the one error that fact implies, and the tri-states still null.
+            // A missing VM is still reported, with the one error that fact implies, and the guest facts still null.
             json!({
-                "worker": "air-linux-2",
+                "worker": "air-macos-2",
                 "exists": false,
-                "provenanceReady": null,
+                "provenanceReady": false,
                 "provenanceError": "worker_vm_missing",
                 "state": "stopped",
                 "pid": null,
@@ -235,7 +246,7 @@ async fn tri_state_facts_are_null_never_false() {
                 "activeRun": null,
                 "runError": null,
                 "lease": null,
-                "sshHostKeyReady": null,
+                "sshHostKeyReady": false,
                 "sshHostKeyUnique": null,
             }),
         ]
@@ -246,55 +257,6 @@ async fn tri_state_facts_are_null_never_false() {
 
 // --- the macOS-only gates --------------------------------------------------------------------------------------
 
-/// TCC admission, the console session and the SSH host-key fingerprint are macOS-only, and each of the three once
-/// answered `false` for a perfectly healthy Linux worker - `tccClean: false` with `worker_tcc_admission_failed`,
-/// `console=no`, `ssh_host_key=not-ready`. A real session read that readout, concluded both Linux workers were
-/// unusable, and gave up. The state that produces it is a *running* Linux worker; a suspended one is never probed.
-#[tokio::test]
-async fn a_running_linux_worker_is_asked_no_macos_question() {
-    let fixture = Fixture::tart_linux();
-    fixture.fake.answer(
-        Answer::ListJson,
-        tart_list(&[("air-linux-1", 80.0, true, "running"), ("air-linux-2", 80.0, true, "running")]),
-    );
-    answer_running_linux_pool(&fixture);
-    let outcome = status(&fixture).await;
-    for row in workers(&outcome) {
-        assert_eq!((&row["state"], &row["guestAgent"]), (&json!("running"), &json!(true)), "{row}");
-        for field in [
-            "tccClean",
-            "tccError",
-            "consoleLogin",
-            "sshHostKeyFingerprint",
-            "sshHostKeyReady",
-            "sshHostKeyUnique",
-        ] {
-            assert_eq!(row[field], Value::Null, "{} carries {field}: {row}", row["worker"]);
-        }
-    }
-    // The assertion that matters: not the shape of the row, but that the guest was never asked.
-    for channel in fixture.channels() {
-        for probe in MACOS_ONLY_PROBES {
-            assert!(
-                !channel.saw_call_containing(probe),
-                "{} was asked {probe:?}: {:?}",
-                channel.worker(),
-                channel.lines()
-            );
-        }
-    }
-    assert!(
-        !outcome.text.contains("console=no") && !outcome.text.contains("ssh_host_key=not-ready"),
-        "a healthy Linux worker renders as failing a macOS check:\n{}",
-        outcome.text
-    );
-    assert!(
-        outcome.text.contains("console=n/a") && outcome.text.contains("ssh_host_key=n/a"),
-        "the not-applicable facts do not render as n/a:\n{}",
-        outcome.text
-    );
-}
-
 // --- the parity refusal ----------------------------------------------------------------------------------------
 
 /// `guest_init_stale` is the normal state of a pool shared between two checkouts, and the next run re-provisions
@@ -302,14 +264,14 @@ async fn a_running_linux_worker_is_asked_no_macos_question() {
 /// a layout that needs looking at.
 #[tokio::test]
 async fn a_parity_refusal_keeps_its_code() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::tart_macos();
     fixture.fake.answer(
         Answer::ListJson,
-        tart_list(&[("air-linux-1", 80.0, true, "running"), ("air-linux-2", 80.0, true, "running")]),
+        tart_list(&[("air-macos-1", 80.0, true, "running"), ("air-macos-2", 80.0, true, "running")]),
     );
-    provisioned_for_another_checkout(&fixture, "air-linux-1", "/another/checkout");
-    write_init_receipt(&fixture.settings, "air-linux-2").expect("the init receipt is written");
-    answer_running_linux_pool(&fixture);
+    provisioned_for_another_checkout(&fixture, "air-macos-1", "/another/checkout");
+    write_init_receipt(&fixture.settings, "air-macos-2").expect("the init receipt is written");
+    answer_running_macos_pool(&fixture);
     let outcome = status(&fixture).await;
     let rows = workers(&outcome);
     assert_eq!(
@@ -337,12 +299,12 @@ async fn a_parity_refusal_keeps_its_code() {
 /// whose paths are not declared for it.
 #[tokio::test]
 async fn status_resolves_the_host_paths_its_parity_verdict_needs() {
-    let fixture = Fixture::before_host_paths(Backend::Tart, GuestOs::Linux, true);
+    let fixture = Fixture::before_host_paths(Backend::Tart, GuestOs::Macos, true);
     fixture.fake.answer(
         Answer::ListJson,
-        tart_list(&[("air-linux-1", 80.0, true, "running"), ("air-linux-2", 80.0, true, "running")]),
+        tart_list(&[("air-macos-1", 80.0, true, "running"), ("air-macos-2", 80.0, true, "running")]),
     );
-    answer_running_linux_pool(&fixture);
+    answer_running_macos_pool(&fixture);
     let outcome = status(&fixture).await;
     assert_eq!(outcome.data["hostPathsError"], Value::Null);
     let host_repo = outcome.data["hostRepo"].as_str().expect("a host repo");
@@ -376,12 +338,12 @@ async fn status_resolves_the_host_paths_its_parity_verdict_needs() {
 /// every row for a check that never ran.
 #[tokio::test]
 async fn a_host_path_refusal_is_not_every_workers_parity_verdict() {
-    let fixture = Fixture::before_host_paths(Backend::Tart, GuestOs::Linux, false);
+    let fixture = Fixture::before_host_paths(Backend::Tart, GuestOs::Macos, false);
     fixture.fake.answer(
         Answer::ListJson,
-        tart_list(&[("air-linux-1", 80.0, true, "running"), ("air-linux-2", 80.0, true, "running")]),
+        tart_list(&[("air-macos-1", 80.0, true, "running"), ("air-macos-2", 80.0, true, "running")]),
     );
-    answer_running_linux_pool(&fixture);
+    answer_running_macos_pool(&fixture);
     let outcome = status(&fixture).await;
     assert_eq!(outcome.data["hostPathsError"], json!("host_repo_required"));
     assert_eq!(outcome.data["hostRepo"], json!(""));
@@ -542,21 +504,21 @@ async fn the_parallels_row_states_a_host_path_refusal_once() {
 /// `Running` decides whether the guest is probed at all.
 #[tokio::test]
 async fn an_invalid_tart_list_is_refused_rather_than_half_read() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::tart_macos();
     for (name, listing) in [
         ("not an array", "true"),
         ("null", "null"),
         (
             "entry missing Disk",
-            r#"[{"Name":"air-linux-1","Running":false,"State":"stopped"}]"#,
+            r#"[{"Name":"air-macos-1","Running":false,"State":"stopped"}]"#,
         ),
         (
             "Disk as a string",
-            r#"[{"Name":"air-linux-1","Disk":"80","Running":false,"State":"stopped"}]"#,
+            r#"[{"Name":"air-macos-1","Disk":"80","Running":false,"State":"stopped"}]"#,
         ),
         (
             "Running as a string",
-            r#"[{"Name":"air-linux-1","Disk":80,"Running":"yes","State":"stopped"}]"#,
+            r#"[{"Name":"air-macos-1","Disk":80,"Running":"yes","State":"stopped"}]"#,
         ),
     ] {
         fixture.fake.answer(Answer::ListJson, listing);
@@ -571,10 +533,10 @@ async fn an_invalid_tart_list_is_refused_rather_than_half_read() {
 /// disk and is perfectly usable against today's smaller expectation.
 #[tokio::test]
 async fn an_oversized_root_disk_still_counts_as_ready() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::tart_macos();
     fixture.fake.answer(
         Answer::ListJson,
-        tart_list(&[("air-linux-1", 400.0, false, "stopped"), ("air-linux-2", 40.0, false, "stopped")]),
+        tart_list(&[("air-macos-1", 400.0, false, "stopped"), ("air-macos-2", 40.0, false, "stopped")]),
     );
     let outcome = status(&fixture).await;
     let rows = workers(&outcome);
@@ -587,14 +549,14 @@ async fn an_oversized_root_disk_still_counts_as_ready() {
 /// unauthenticated `status` is told.
 #[tokio::test]
 async fn a_leased_worker_is_reported_without_its_holder() {
-    let fixture = Fixture::tart_linux();
-    fixture.lease_receipt("air-linux-1");
+    let fixture = Fixture::tart_macos();
+    fixture.lease_receipt("air-macos-1");
     let outcome = status(&fixture).await;
     assert_eq!(
         workers(&outcome)[0]["lease"],
         json!({ "state": "leased", "acquiredAt": "2026-08-23T00:00:00.000Z" })
     );
-    assert!(outcome.text.starts_with("air-linux-1: stopped lease=leased "), "{}", outcome.text);
+    assert!(outcome.text.starts_with("air-macos-1: stopped lease=leased "), "{}", outcome.text);
 }
 
 // --- the docker row --------------------------------------------------------------------------------------------
@@ -657,6 +619,45 @@ fn running_docker_worker(fixture: &Fixture) {
     record_create(fixture, "air-docker-1", current_argv(fixture), CONTAINER_ID);
     write_init_receipt(&fixture.settings, "air-docker-1").expect("the init receipt is written");
     answer_running_linux_pool(fixture);
+}
+
+/// TCC admission, the console session and the SSH host-key fingerprint are macOS-only. Each of the three once
+/// answered `false` for a healthy Linux worker, and a real session then took both Linux workers for unusable. So a
+/// running Linux worker is asked none of these questions.
+#[tokio::test]
+async fn a_running_linux_worker_is_asked_no_macos_question() {
+    let fixture = Fixture::docker();
+    running_docker_worker(&fixture);
+    let outcome = status(&fixture).await;
+    let row = docker_row(&outcome);
+    assert_eq!((&row["state"], &row["guestAgent"]), (&json!("running"), &json!(true)), "{row}");
+    for field in [
+        "tccClean",
+        "tccError",
+        "consoleLogin",
+        "sshHostKeyFingerprint",
+        "sshHostKeyReady",
+        "sshHostKeyUnique",
+    ] {
+        // Absent and not null: indexing an absent key also answers null, so the test asks for the key itself.
+        assert!(row.get(field).is_none(), "{} carries {field}: {row}", row["worker"]);
+    }
+    // The assertion that matters: not the shape of the row, but that the guest was never asked.
+    for channel in fixture.channels() {
+        for probe in MACOS_ONLY_PROBES {
+            assert!(
+                !channel.saw_call_containing(probe),
+                "{} was asked {probe:?}: {:?}",
+                channel.worker(),
+                channel.lines()
+            );
+        }
+    }
+    assert!(
+        !outcome.text.contains("console=no") && !outcome.text.contains("ssh_host_key=not-ready"),
+        "a healthy Linux worker renders as failing a macOS check:\n{}",
+        outcome.text
+    );
 }
 
 /// A slot with no container is `absent`, not an error, and every key of the row is present. The Tart facts are not

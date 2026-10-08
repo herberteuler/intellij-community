@@ -46,36 +46,32 @@ so one line is a whole run. Without `--lane`, it runs one iteration for each lan
 keeps one worker across several iterations, which is the warm inner loop. An interrupt of a self-leased run keeps the lease, because
 the iteration can still run on the guest, and the refusal names the receipt that frees it.
 
-## The four guests
+## The three guests
 
-All four run tests the same way. The guest executes Bazel outputs built on the host, against a warm
+All three run tests the same way. The guest executes Bazel outputs built on the host, against a warm
 IDE that a guest daemon holds open. They differ in what kind of machine they are, and in what guest
 runs in it.
 
-| | Tart Linux | Docker (default) | Tart macOS | Parallels |
-| --- | --- | --- | --- | --- |
-| machine | a Tart VM | a container on the controller's Lima VM, or on the engine that `DOCKER_BIN` or `DOCKER_HOST` names | a Tart VM | one Parallels VM |
-| image | a public Ubuntu clone, pinned by digest | a Dockerfile from a digest-pinned `ubuntu:26.04`, pulled from the JetBrains registry by its content tag, built when the pull fails | a sealed Packer golden | one pre-existing VM |
-| session | `Xvfb :88` and fluxbox | `Xvfb :88` and fluxbox, from the image's entrypoint | Aqua | Aqua |
-| root disk and memory | 80 GB, 6 GiB | the engine VM's, shared by every container | 120 GB, 32 GiB | the VM's own |
-| `pool stop` | shuts down, keeps nothing warm | stops the container, then the Lima VM when nothing is leased, keeps nothing warm | `tart suspend`, keeps the daemon and the IDE | suspends |
-| Robot screenshot | a real frame | a real frame | black, see ADR 0113 | a real frame |
-| Peekaboo | no | no | no | yes |
-| provenance | the base digest | the base digest and the image tag | a seal receipt per worker | none |
-| concurrent lanes | one per worker | one per container | one per worker | one, sequential |
+| | Docker (default) | Tart macOS | Parallels |
+| --- | --- | --- | --- |
+| machine | a container on the controller's Lima VM, or on the engine that `DOCKER_BIN` or `DOCKER_HOST` names | a Tart VM | one Parallels VM |
+| image | a Dockerfile from a digest-pinned `ubuntu:26.04`, pulled from the JetBrains registry by its content tag, built when the pull fails | a sealed Packer golden | one pre-existing VM |
+| session | `Xvfb :88` and fluxbox, from the image's entrypoint | Aqua | Aqua |
+| root disk and memory | the engine VM's, shared by every container | 120 GB, 32 GiB | the VM's own |
+| `pool stop` | stops the container, then the Lima VM when nothing is leased, keeps nothing warm | `tart suspend`, keeps the daemon and the IDE | suspends |
+| Robot screenshot | a real frame | black, see ADR 0113 | a real frame |
+| Peekaboo | no | no | yes |
+| provenance | the base digest and the image tag | a seal receipt per worker | none |
+| concurrent lanes | one per container | one per worker | one, sequential |
 
 Docker is the default on every host
-([ADR 0190](decisions/0190-the-docker-engine-is-the-default-worker.md)). It runs the same Linux guest
-profile as a Tart Linux worker, in a container, and a red run there is the same verdict.
-`java.awt.Robot` captures a real frame there, so a failure arrives with a picture. On one host its whole
-lane took the time of a Tart Linux worker, it needs no installation, and one engine holds two lanes.
-`--backend linux` selects the Tart Linux worker, for a comparison or when the engine is not available. A
-macOS guest preserves JCEF, Terminal, native-menu, WindowServer and Aqua behaviour, and that is where
-coverage about those things belongs. Select one with `--backend tart` or `--backend parallels`. A lease
-receipt records the selection, so a receipt-bearing command infers it and rejects a conflict. The Tart
-Linux guest runs Ubuntu 24.04 and the Docker guest runs 26.04, because `ghcr.io/cirruslabs/ubuntu`
-publishes no 26.04 tag (checked on 2026-09-29;
-[ADR 0183](decisions/0183-a-linux-worker-may-be-a-container.md)).
+([ADR 0190](decisions/0190-the-docker-engine-is-the-default-worker.md)), and it is the one Linux worker
+([ADR 0210](decisions/0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md)). A red run
+there is a verdict. `java.awt.Robot` captures a real frame there, so a failure arrives with a picture. It needs
+no installation, and one engine holds two lanes. A macOS guest preserves JCEF, Terminal, native-menu,
+WindowServer and Aqua behaviour, and that is where coverage about those things belongs. Select one with
+`--backend tart` or `--backend parallels`. A lease receipt records the selection, so a receipt-bearing command
+infers it and rejects a conflict.
 
 **The Tart macOS lane is known red.** At one tree it was 23 of 23 on Linux and 8 of 24 on macOS, and
 every macOS failure is macOS-only. The mechanism is window activation:
@@ -117,9 +113,8 @@ LAN address rather than a `192.168.64.*` one, which needs a LAN DHCP lease and m
 visible on the local network. Nothing else in the controller notices, because the controller uses no
 guest address and the exec channel runs over vsock.
 
-The mode is part of the `tart run` argv. Changing it restarts a worker, and on the macOS pool it also
-spends a suspended worker's saved guest state, because `discard_incompatible_suspended_state` compares
-the recorded argv. A Linux worker has no `tart suspend` and pays nothing.
+The mode is part of the `tart run` argv. Changing it restarts a worker, and it also spends a suspended
+worker's saved guest state, because `discard_incompatible_suspended_state` compares the recorded argv.
 
 **A `pool stop` after a release must name the pool.** The receipt that would have inferred it is
 gone with the release. An unqualified `pool stop` then stops the *Docker* workers, whichever guest
@@ -139,27 +134,30 @@ pull: run it detached. `community/tools/vm/provision/README.md` and
 
 ## The Linux guest
 
-The hypervisor and the guest OS are separate axes, and `--backend linux` is the one spelling that
-names the second. Everything above still applies: two read-only shares on one automount device, the
-same parity layout, `tart exec` as the only channel in, and a daemon holding a warm IDE. Four macOS
-obligations have no counterpart here, so the controller does not put them to a Linux guest at all:
-TCC admission, the console-login wait, the APFS storage initializer, and sealed-golden provenance.
-**`status` reports each of them as `null`, not `false`**, so a row reading
-`console=n/a ssh_host_key=n/a` is a *healthy* row.
+The hypervisor and the guest OS are separate axes. The one Linux guest is the Docker worker, and the
+section below describes its container layer. The Tart Linux worker was retired on 2026-10-08
+([ADR 0210](decisions/0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md)).
+Everything above still applies: two read-only shares, the parity layout, the exec channel and a daemon with a
+warm IDE. Four macOS obligations have no counterpart here, so the controller does not put them to a Linux
+guest. They are TCC admission, the console-login wait, the APFS storage initializer and sealed-golden
+provenance. A Docker row of `status` has no field for any of them.
 
-A Linux guest has no seat until something starts an X server. Provisioning installs `Xvfb :88` and
-`fluxbox` as systemd services, and it waits for the display to answer. IDE Starter then takes the
+A Linux guest has no seat until something starts an X server. The entrypoint of the image starts
+`Xvfb :88` and `fluxbox`, and it waits for the display to answer. IDE Starter then takes the
 branch it already has: `LinuxIdeDistribution.linuxCommandLine` wraps a launch in `xvfb-run` only
 when `DISPLAY` is unset, and `XorgWindowManagerHandler` checks the window manager through EWMH. So
 every IDE of a lane reuses one display. A server image also carries none of the shared libraries the
-IDE's own native code links against; `GUEST_PACKAGES` names them, and their absence is quiet.
+IDE's own native code links against. `GUEST_PACKAGES` names them, and their absence is quiet.
 
-Provisioning therefore ends with the guest proving itself, rather than with `apt-get` exiting 0.
-`validate-guest` refuses the boot unless four things hold. The display answers, a window manager is
-registered on it, the configured Node runs, and `ldd` resolves every staged shared object. Each
-refusal carries its own code and sentence.
-[ADR 0108](decisions/0108-the-guest-half-of-the-image-pipeline-is-go.md) is why, and
-[`../vm-linux-guest.md`](vm-linux-guest.md) walks that check and the digest pin.
+So each boot ends with the guest proving itself. `validate-guest` refuses the boot unless four things
+hold. The C library is glibc, the display answers, a window manager is registered on it, and `ldd`
+resolves every staged shared object. Each refusal carries its own code and sentence.
+[ADR 0108](decisions/0108-the-guest-half-of-the-image-pipeline-is-go.md) is why.
+
+The image carries Node 24.19.0 at `/usr/local/bin/node`, and `AIR_VM_NODE` defaults to that path. The
+image tag pins the Node, so a boot runs no Node check ([ADR 0210](decisions/0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md)). Only `ui-live` uses the guest Node.
+Its npm-installed registry ACP agents and the Claude CLI run on it, through `AIR_VM_NODE` and `NODE_BIN`
+in the daemon environment.
 
 A boot installs no agent CLI. Pi and Codex both come from declared Bazel runtimes under
 `plugins/air/tests/tools`. A runtime holds the pinned version and its locked npm dependencies. It also
@@ -173,30 +171,32 @@ runtime. VM preparation installs and probes no agent CLI, and existing images ne
 ## The Docker guest
 
 The default backend, `docker`, runs the Linux guest in a container on a Docker engine.
-[ADR 0183](decisions/0183-a-linux-worker-may-be-a-container.md) made it a backend, and
-[ADR 0190](decisions/0190-the-docker-engine-is-the-default-worker.md) made it the default. The guest
-is the Linux guest of the section above: the same account, the same paths, the same display and the same
-guest agent. Only the layer below the guest changes.
+[ADR 0183](decisions/0183-a-linux-worker-may-be-a-container.md) made it a backend,
+[ADR 0190](decisions/0190-the-docker-engine-is-the-default-worker.md) made it the default, and
+[ADR 0210](decisions/0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md) made it the one Linux worker. The guest is the Linux guest of the section above. This section describes the
+container layer below it.
 
 The image is `community/tools/vm/docker/Dockerfile`. The base is `DOCKER_BASE_IMAGE`
 in `community/tools/vm/provision/versions.env`, pinned by digest. The package list is `GUEST_PACKAGES`, passed
 as a build argument. It holds `git`, because the worktree and merge-conflict scenarios spawn it, and the
-Docker base has none. The Tart base ships it. The tag is `air-ui-worker:<12 hex digits>`, a digest over the Dockerfile, its
+Docker base has none. The Dockerfile also installs Node 24.19.0 from nodejs.org for the `TARGETARCH` of
+the build, and it checks a pinned sha256. The tag is `air-ui-worker:<12 hex digits>`, a digest over the Dockerfile, its
 `air-display` entrypoint, the base image and the package list. A start that finds no such tag on the
 engine pulls `registry.jetbrains.team/p/ij/containers-public/air-ui-worker:<tag>` first, and builds only
 when the pull fails or the pulled image's `org.opencontainers.image.revision` label is not the tag digest
 ([ADR 0184](decisions/0184-the-worker-image-is-pulled-by-its-content-tag.md)). The tag is the only pin.
 `AIR_VM_DOCKER_REGISTRY=off` builds without a registry, and `AIR_VM_DOCKER_PUSH=1` makes the controller
 build and publish the tag for `linux/arm64` and `linux/amd64` as one image index, which is how the
-registry gets a new tag. So a fresh worker runs no `apt-get`, and a cold host runs no build. A Docker
+registry gets a new tag. So a fresh worker runs no `apt-get`, and a cold host runs no build. A tag that the
+registry does not hold yet is built once on each host, with network access to Docker Hub and nodejs.org. A Docker
 worker runs the host's own architecture: arm64 on Apple silicon, amd64 on a Linux x86_64 host. On the
-x86_64 host the guest agent, the recorder, the Node archive and the distribution are the x86_64 builds
+x86_64 host the guest agent, the recorder, the Node of the image and the distribution are the x86_64 builds
 (`GuestArch` in `crates/avl-base/src/config.rs`). The engine gate refuses an engine of another
 architecture by name, so an emulated container is never a lane. The entrypoint starts `Xvfb :88` and fluxbox and waits until both answer.
-`validate-guest` then proves the guest, as on Tart.
+`validate-guest` then proves the guest.
 
 A worker is a container, and the container name is the worker name, `air-docker-N`. The pool has two
-slots by default, as the Tart pools do, and the two containers share one engine. `docker exec` is the
+slots by default, as the Tart macOS pool does, and the two containers share one engine. `docker exec` is the
 exec channel. It lands as root, so the `sudo -H -u admin` prefixes apply unchanged, and `docker exec -i`
 carries the relay's bytes without a tty.
 
@@ -275,8 +275,8 @@ central login export | ./community/tools/vm.cmd run --lane ui-live --test-env AI
 ```
 
 The test JVM imports that login into the guest account, starts the Central proxy and wires the agents with
-`central add`. It tears all of it down when the iteration's test plan ends, before the run reports its verdict. A Tart
-Linux VM (`--backend linux`) runs the lane the same way, and a macOS guest refuses it by name. The pinned Linux CLIs
+`central add`. It tears all of it down when the iteration's test plan ends, before the run reports its verdict. A
+macOS guest refuses the lane by name. The pinned Linux CLIs
 reach only a build that opts in with `build:air-lane-linux --define=air_lane_live_runtimes=on` in
 `.bazelrc-user.bazelrc`, until the mirror holds them. Every session of this checkout shares that file, so their
 Linux-guest builds then fetch the archives too. The skill's live-lane reference has the procedure.
@@ -291,7 +291,7 @@ The CMD halves of `vm.cmd` and `trace.cmd` build and run the binaries, as `bt.cm
    talks to the `docker` CLI only. Docker Desktop is not free for JetBrains at company scale
    ([ADR 0183](decisions/0183-a-linux-worker-may-be-a-container.md)).
 2. In a Windows shell, run `community\tools\vm.cmd status`. With no `--backend`, a Windows host takes `docker`.
-   `--backend tart`, `parallels` and `linux` are refused with `unsupported_host_backend` (exit 2). An engine that
+   `--backend tart` and `parallels` are refused with `unsupported_host_backend` (exit 2). An engine that
    does not answer is `docker_missing` (exit 69).
 3. The runtime root is `%LOCALAPPDATA%\JetBrains\air-vm-ui-tests`, and the Bazel root is `C:/ProgramData/_bazel`, the
    `startup:windows` root of `community/common.bazelrc`. `AIR_VM_RUNTIME_ROOT` and `AIR_VM_BAZEL_USER_ROOT` move
@@ -576,7 +576,8 @@ Agents consume the JSON report.
 ## What it costs
 
 The fixed costs around a lane, measured on `air-linux-1`, each reproduced on the same worker and
-day:
+day. `air-linux-1` was a Tart Linux worker, which
+[ADR 0210](decisions/0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md) retired, so its rows are history:
 
 | what | cost |
 | --- | --- |
@@ -596,7 +597,6 @@ day:
 | the first start of the Lima engine on Ubuntu 26.04, with the image download from the mirror | 197 s, of which the download and its conversion are 137 s |
 | in the Lima log, a warm start of the engine inside `pool start` or `run`, on Ubuntu 26.04, then on 24.04 | 7 s, then 15 s |
 | a warm `pool stop`, then `pool start`, on Ubuntu 26.04 | 20.3 s, then 39.5 s |
-| on the Lima engine, the pull of the worker image, then the container start, `validate-guest` and the Node staging | 31.6 s, then 34 s |
 | `shard --shards 2` of the `ui` lane on two containers of one engine | 429 s makespan, 770 s serial |
 
 The two single-class rows on `air-docker-1` ran on OrbStack. Each is one iteration on 2026-09-29, and
@@ -827,7 +827,7 @@ every guest-side verb:
 | `start`, `status`, `active`, `log`, `cancel` | the run supervisor |
 | `stage`, `stage-check`, `launch-prep`, `gc` | the runtime stager, the probe that answers whether a generation is already staged, and one daemon launch's preparation |
 | `contract` | what the agent declares about itself, its own digest included. An install that would push a binary the guest already has is skipped |
-| `provision-guest`, `validate-guest`, `stage-node`, `check-node` | the Linux boot |
+| `validate-guest` | the Linux boot |
 | `provision-image`, `validate-image` | the macOS image pipeline |
 | `trace-pack-ready` | zips the scenario traces that finished since the last pull, with the code of `air-trace pack` |
 | `relay` | bridges its standard input and output to a loopback port inside the guest, so the controller reaches the UI daemon without the guest's network address |
@@ -897,12 +897,12 @@ The refusal is a field rather than an exit, `hostPathsError`, and every row's pa
 
 ## Parity gate
 
-The controller no longer gates the daemon to one backend. `run` and `daemon` work on all four
+The controller no longer gates the daemon to one backend. `run` and `daemon` work on all three
 workers, because the guest model behind them is one model.
 
 | # | criterion | verdict |
 | --- | --- | --- |
-| 1 | a worker boots, provisions and reports ready | **Verified** on both pools. A macOS worker also reports console login, TCC admission and a unique SSH host key. A Linux worker reports those as `null`, and it is never verified by them |
+| 1 | a worker boots, provisions and reports ready | **Verified** on both pools. A macOS worker also reports console login, TCC admission and a unique SSH host key. A Docker worker has no field for those, and it is never verified by them |
 | 2 | the lane is green on a macOS worker | **Not met, and understood.** 8 of 24 classes pass, and not one of the 16 failures reproduces on Linux. See [ADR 0113](../../../../plugins/air/docs/decisions/0113-the-macos-lane-is-red-on-window-activation.md) and [IJAI-1228](https://youtrack.jetbrains.com/issue/IJAI-1228) |
 | 3 | two lanes run concurrently | **Open behind criterion 2.** Guest-side work does go in parallel, and every host-side Bazel call queues. Lane truncation under load is [ADR 0110](decisions/0110-the-truncation-chain-is-a-daemon-kill-under-load.md) |
 | 4 | a product edit invalidates correctly | **Met.** The stamp moved, the shares were remounted, the IDE relaunched, and the daemon JVM survived it |

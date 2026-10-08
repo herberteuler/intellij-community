@@ -40,14 +40,13 @@ const ACTIVE_RUN_TIMEOUT: Duration = Duration::from_secs(30);
 /// Which of the guest's two accounts one agent verb runs under.
 ///
 /// Spelled by the caller rather than looked up from the verb, because it is the verb's own requirement and a table
-/// here would be a second copy of the check the verb already makes: `provision-guest` refuses an effective uid that
-/// is not 0, in its own words.
+/// here would be a second copy of the requirement the verb states.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AgentAccount {
     /// [`user_argv`]'s prefix: the account the daemon and the IDE run as. `stage`, `gc` and `launch-prep` must be
     /// it - everything they create is read and written later by that account.
     Worker,
-    /// [`root_argv`]'s. Only the Linux boot pair asks for it.
+    /// [`root_argv`]'s. Only `validate-guest` of the Linux boot asks for it.
     Root,
 }
 
@@ -156,11 +155,10 @@ fn agent_envelope_error(failure: Option<&ReceivedError>, code: String, message: 
 /// # The sudo arm
 ///
 /// These verbs deliberately do not go through [`Guest::raw`], so until 2026-08-27 a guest that had genuinely lost
-/// passwordless sudo refused `guest_agent_failed ... exited with 1` with sudo's sentence withheld - and
-/// `provision-guest` is the first guest command of a Linux boot. It is a code of its own rather than a quoted line,
-/// because a verb sudo refused never ran, and `guest_agent_failed` is a claim about the agent. The prefix is
-/// stronger evidence here than in [`Guest::raw`]: the argv is always `sudo … <agent> <verb>`, and the agent's own
-/// failures are envelopes and usage lines.
+/// passwordless sudo refused `guest_agent_failed ... exited with 1` with sudo's sentence withheld. It is a code of its
+/// own rather than a quoted line, because a verb sudo refused never ran, and `guest_agent_failed` is a claim about the
+/// agent. The prefix is stronger evidence here than in [`Guest::raw`]: the argv is always `sudo … <agent> <verb>`, and
+/// the agent's own failures are envelopes and usage lines.
 fn agent_refusal(verb: AgentVerb, worker: &str, exit_code: i32, raw: &str) -> Refusal {
     if let Ok(envelope) = ReceivedEnvelope::read(raw)
         && let Some(error) = envelope

@@ -119,7 +119,7 @@ impl Checkout {
     }
 
     fn settings(&self) -> Config {
-        settings(Backend::Tart, GuestOs::Linux, self.path())
+        settings(Backend::Docker, GuestOs::Linux, self.path())
     }
 }
 
@@ -141,7 +141,7 @@ fn one_lanes_suites_become_the_lanes_tag_and_one_class_filter_each() {
     // The lane's tag comes first and the class filters after it - the order `shard` uses, and the reason one
     // iteration can carry both. Each pattern accepts any package, because the catalog names a suite by its simple
     // class name while JUnit matches the fully qualified one. An anchored literal of a simple name selected nothing
-    // at all, which a live run on `air-linux-2` reported as "matched no tests in the hot tier" on 2026-08-26.
+    // at all, which a live run on a Linux worker reported as "matched no tests in the hot tier" on 2026-08-26.
     assert_eq!(
         filters_of(&resolved),
         [

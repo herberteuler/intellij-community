@@ -524,7 +524,7 @@ pub struct LaneVerdict {
     pub report: Option<String>,
 }
 
-/// How a `shard` divided its lane: the shard count, one label for each shard such as `1:air-linux-1:84s`, the
+/// How a `shard` divided its lane: the shard count, one label for each shard such as `1:air-docker-1:84s`, the
 /// wall time from the first start to the last end, and the machine time of all shards.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

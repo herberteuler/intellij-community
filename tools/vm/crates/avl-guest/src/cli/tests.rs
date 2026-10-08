@@ -136,7 +136,7 @@ fn a_malformed_supervisor_value_is_a_usage_refusal() {
 fn help_answers_on_stdout_and_succeeds() {
     let answered = run_agent(&["--help"], b"");
     assert_eq!(answered.exit, 0);
-    assert!(answered.stdout.contains("stage-node"), "{}", answered.stdout);
+    assert!(answered.stdout.contains("validate-guest"), "{}", answered.stdout);
     assert!(
         !answered.stdout.contains("\n  supervise "),
         "the internal verb is listed: {}",
@@ -230,22 +230,20 @@ fn the_image_pins_are_three_named_required_flags() {
     }
 }
 
-/// The Linux verbs' positional shapes, checked before any step runs.
+/// The Linux verb's positional shapes, checked before any step runs. The retired Tart Linux verbs are unknown.
 #[test]
-fn the_linux_verbs_check_their_positional_shapes() {
-    let Verb::ProvisionGuest(provision) = parsed(&["provision-guest", "/w", ":88", "admin", "/mnt", "xvfb", "fluxbox"]) else {
-        panic!("provision-guest parsed as another verb");
+fn the_linux_verb_checks_its_positional_shapes() {
+    let Verb::ValidateGuest(validate) = parsed(&["validate-guest", ":88", "/data/daemon-runtime"]) else {
+        panic!("validate-guest parsed as another verb");
     };
-    assert_eq!(provision.packages, ["xvfb", "fluxbox"]);
-    assert_eq!(provision.display, ":88");
-    let refused: [&[&str]; 7] = [
-        &["provision-guest", "/w", ":88", "admin", "/mnt"],
-        &["provision-guest", "w", ":88", "admin", "/mnt", "xvfb"],
-        &["provision-guest", "/w", ":88x", "admin", "/mnt", "xvfb"],
-        &["provision-guest", "/w", ":88", "", "/mnt", "xvfb"],
+    assert_eq!(validate.display, ":88");
+    let refused: [&[&str]; 6] = [
         &["validate-guest", ":88"],
-        &["check-node", "/node", "0"],
-        &["check-node", "node", "24"],
+        &["validate-guest", ":88x", "/data/daemon-runtime"],
+        &["validate-guest", ":88", "daemon-runtime"],
+        &["provision-guest", "/w", ":88", "admin", "/mnt", "xvfb"],
+        &["stage-node", "/node", "/node.tar.gz", "24.19.0"],
+        &["check-node", "/node/bin/node", "24"],
     ];
     for argv in refused {
         let answered = run_agent(argv, b"");

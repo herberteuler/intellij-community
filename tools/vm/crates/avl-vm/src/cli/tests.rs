@@ -212,7 +212,7 @@ async fn a_pool_verb_that_is_missing_unknown_or_overlong_is_a_usage_error() {
     for args in [
         &[][..],
         &["restart"],
-        &["start", "air-linux-1", "extra"],
+        &["start", "air-docker-1", "extra"],
         &["gc", "all"],
         &["recycle"],
         &["recycle", "all", "extra"],
@@ -263,7 +263,7 @@ async fn a_parse_failure_is_still_reported_in_the_format_the_caller_asked_for() 
     let prose = hermetic.invoke(&["--backend", "bogus", "--text", "status"]).await;
     assert_eq!(prose.exit, Exit::USAGE);
     assert_eq!(prose.stdout, "");
-    assert_eq!(prose.stderr, "vm: --backend must be tart, parallels, linux or docker\n");
+    assert_eq!(prose.stderr, "vm: --backend must be tart, parallels or docker\n");
 
     // The same invocation without `--text` is the JSON control: the difference between the two is the form, not the
     // refusal.
@@ -313,7 +313,7 @@ fn a_global_option_after_the_command_is_the_same_option() {
     assert_eq!(args.run.argv(), ["flow-x", "--lane", "ui"]);
 
     let mixed = invocation(
-        &["--text", "daemon", "status", "--json", "--lease-file", "r.json", "--backend=linux"],
+        &["--text", "daemon", "status", "--json", "--lease-file", "r.json", "--backend=docker"],
         &pipe,
     );
     assert!(mixed.form.output == Output::Json && mixed.form.chosen);
@@ -323,13 +323,13 @@ fn a_global_option_after_the_command_is_the_same_option() {
 
     // Given twice, the later spelling wins rather than refusing.
     let twice = invocation(
-        &["--stream", "--backend", "tart", "status", "--stream", "--backend", "linux"],
+        &["--stream", "--backend", "tart", "status", "--stream", "--backend", "docker"],
         &pipe,
     );
     assert_eq!(
         twice.selection,
         Some(Selection {
-            backend: Backend::Tart,
+            backend: Backend::Docker,
             guest_os: GuestOs::Linux
         })
     );
@@ -490,7 +490,7 @@ async fn a_parse_failure_after_the_command_is_reported_in_the_requested_format()
     let hermetic = Hermetic::new();
     let prose = hermetic.invoke(&["status", "--backend", "bogus", "--text"]).await;
     assert_eq!(prose.stdout, "");
-    assert_eq!(prose.stderr, "vm: --backend must be tart, parallels, linux or docker\n");
+    assert_eq!(prose.stderr, "vm: --backend must be tart, parallels or docker\n");
     let structured = refusal(
         &hermetic
             .invoke(&["lease", "acquire", "--holder", "--text", "--backend", "bogus"])
@@ -549,10 +549,10 @@ fn the_backend_selection_comes_from_exactly_one_source() {
         guest_os: GuestOs::Macos,
     };
     let linux = Selection {
-        backend: Backend::Tart,
+        backend: Backend::Docker,
         guest_os: GuestOs::Linux,
     };
-    let linux_receipt = write_receipt(directory.path(), "tart", "linux");
+    let linux_receipt = write_receipt(directory.path(), "docker", "linux");
     let macos_receipt = write_receipt(directory.path(), "tart", "macos");
 
     assert_eq!(resolve_selection(Some(tart), None), Ok(tart), "the flag alone");
@@ -569,7 +569,7 @@ fn the_backend_selection_comes_from_exactly_one_source() {
     // Both halves are load-bearing: the pair is what a pool is.
     for (flag, receipt, disagreement) in [
         (parallels, &macos_receipt, "the backend halves"),
-        (tart, &linux_receipt, "the guest OS halves"),
+        (tart, &linux_receipt, "the backend and the guest OS halves"),
     ] {
         let refused = resolve_selection(Some(flag), Some(receipt)).expect_err(disagreement);
         assert_eq!(refused.code, "lease_backend_mismatch", "{disagreement}");
@@ -577,12 +577,27 @@ fn the_backend_selection_comes_from_exactly_one_source() {
     }
 }
 
+// A receipt of the retired Tart Linux pool and `--backend tart` share the backend, so the refusal names both axes.
+// Without the guest OS it said "tart, but --backend selected tart".
+#[test]
+fn a_stale_tart_linux_receipt_names_both_axes() {
+    let directory = tempfile::tempdir().expect("a temporary directory");
+    let stale = write_receipt(directory.path(), "tart", "linux");
+    let tart = "tart".parse::<Selection>().unwrap();
+    let refused = resolve_selection(Some(tart), Some(&stale)).expect_err("a stale receipt");
+    assert_eq!((refused.code.as_ref(), refused.exit), ("lease_backend_mismatch", Exit::NO_PERM));
+    assert_eq!(
+        refused.message,
+        "lease receipt selects tart with a linux guest, but --backend selected tart with a macos guest"
+    );
+}
+
 // The mismatch reaches the caller as an envelope with the command named: the invocation parsed, and it is the pair
 // of handles that is wrong.
 #[tokio::test]
 async fn a_lease_receipt_that_contradicts_the_backend_flag_refuses_the_whole_invocation() {
     let hermetic = Hermetic::new();
-    let receipt = write_receipt(hermetic.root.path(), "tart", "linux");
+    let receipt = write_receipt(hermetic.root.path(), "docker", "linux");
     let receipt = receipt.to_string_lossy();
     let answer = hermetic.invoke(&["--backend", "tart", "--lease-file", &receipt, "status"]).await;
     let envelope = refusal(&answer);
@@ -590,23 +605,23 @@ async fn a_lease_receipt_that_contradicts_the_backend_flag_refuses_the_whole_inv
     assert_eq!(answer.exit, Exit::NO_PERM);
     assert_eq!(envelope["command"], "status");
     assert!(
-        message(&envelope).contains("linux") && message(&envelope).contains("tart"),
+        message(&envelope).contains("docker") && message(&envelope).contains("tart"),
         "{envelope}"
     );
 }
 
 // --- the image pipeline ------------------------------------------------------------------------------------------
 
-// `image` tells the pools apart, because only one of them has a golden image. The Linux refusal matters most: a Linux
-// pool is the default on every host, so a bare `image` must refuse rather than run the macOS pipeline for someone who
-// never asked for it.
+// `image` tells the pools apart, because only one of them has a golden image. The Docker refusal matters most: the
+// Docker pool is the default on every host, so a bare `image` must refuse rather than run the macOS pipeline for
+// someone who never asked for it.
 #[tokio::test]
 async fn only_the_sealed_macos_pool_has_an_image_to_validate_or_build() {
     let hermetic = Hermetic::new();
-    // Both Linux pools answer the one refusal, which names both, because neither has a golden image.
+    // The Docker pool has no golden image.
     let bare = refusal(&hermetic.invoke(&["image", "validate"]).await);
     assert_eq!(code(&bare), "unsupported_backend_operation");
-    for word in ["linux", "docker", "Dockerfile", "--backend tart"] {
+    for word in ["docker", "Dockerfile", "--backend tart"] {
         assert!(message(&bare).contains(word), "{word}: {bare}");
     }
 

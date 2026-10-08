@@ -12,7 +12,6 @@ targets:
   - ../crates/avl-guest/src/image/provision.rs
   - ../crates/avl-guest/src/image/validate.rs
   - ../crates/avl-guest/src/linux.rs
-  - ../crates/avl-guest/src/linux/provision.rs
   - ../crates/avl-guest/src/linux/validate.rs
   - ../crates/avl-guest/src/relay.rs
   - ../crates/avl-guest/src/read_file.rs
@@ -48,7 +47,6 @@ targets:
   - ../crates/avl-vm/src/worker/docker.rs
   - ../crates/avl-testkit/src/tartfake.rs
   - ../crates/avl-vm/src/worker/parallels.rs
-  - ../crates/avl-host-sys/src/guest/linux.rs
   - ../crates/avl-affected/src/affected.rs
   - ../crates/avl-affected/src/affected/tests.rs
   - ../crates/avl-vm/src/daemon/build.rs
@@ -467,41 +465,40 @@ The daemon's half and the IDE's half of supervision are in
   [@test] ../crates/avl-vm/src/daemon/start/tests.rs
   [@test] ../crates/avl-vm/src/daemon/http/tests.rs
 
-- The controller installs the guest agent into a Linux worker on each boot. That install comes before the
-  provisioning step and before the self-check. The agent goes into the state directory of the worker, and the
-  controller makes that directory before the install.
+- The controller installs the guest agent into a Docker worker on each boot. That install comes before the
+  self-check. The agent goes into the state directory of the worker, and the controller makes that directory
+  before the install.
   [@test] ../crates/avl-host-sys/src/guest/storage/tests.rs
 
-- Provisioning of a Linux worker ends with a self-check inside the guest. The controller starts that
-  self-check after the provisioning step returns, and it runs the self-check as root. A self-check which
-  refuses the guest stops the boot of that worker. A provisioning step which failed also stops the boot, and
-  the self-check does not run.
+- The boot of a Docker worker is the agent install, the self-check and the parity layout. The image installs the
+  packages and the Node, and its entrypoint starts the display. So the boot runs no provisioning verb and no Node
+  verb. The controller starts the self-check after the agent install, and it runs the self-check as root. A
+  self-check which refuses the guest stops the boot of that worker.
   [@test] ../crates/avl-host-sys/src/guest/storage/tests.rs
 
 - The controller requires a self-check for each Linux boot. It refuses a boot which has no self-check as
   `linux_validation_unset`, and it touches no guest before that refusal.
   [@test] ../crates/avl-host-sys/src/guest/storage/tests.rs
 
-- The provisioning step of a Linux worker and its self-check are verbs of the guest agent. Each verb answers
-  the one status for a refusal. The class of the failure is the code and the message of that refusal.
-  [@test] ../crates/avl-guest/src/linux/provision/tests.rs
+- The self-check of a Linux worker is a verb of the guest agent. The verb answers the one status for a refusal.
+  The class of the failure is the code and the message of that refusal.
   [@test] ../crates/avl-guest/src/linux/validate/tests.rs
 
 - The self-check gives a separate code for each check which refuses. A display which does not answer, an
-  absent window manager, and a stale window manager property are three of these codes. A Node binary which
-  does not run, and a shared object which the guest cannot find, are two more.
+  absent window manager, and a stale window manager property are three of these codes. A C library which is not
+  glibc, and a shared object which the guest cannot find, are two more. The self-check has no Node check,
+  because the image tag pins the Node of the image.
   [@test] ../crates/avl-guest/src/linux/validate/tests.rs
 
-- The self-check waits for a window manager on the display. It waits for the same time as the provisioning
-  step waits for the display. A window manager which registers in that time does not stop the boot. The
+- The self-check waits for a window manager on the display. It probes once a second, for one minute. A window
+  manager which registers in that time does not stop the boot. The
   report of the self-check gives the number of the try which found it. The self-check does not wait for a
   stale window manager property. It refuses that property at the first try.
   [@test] ../crates/avl-guest/src/linux/validate/tests.rs
 
 - A verb of the guest agent refuses an argument which it cannot act on. That refusal is a usage refusal, and
-  the verb touches no guest before it. A display of the wrong shape, an empty worker user, an empty package
-  list, and a screen geometry of the wrong shape are such arguments.
-  [@test] ../crates/avl-guest/src/linux/provision/tests.rs
+  the verb touches no guest before it. For the self-check, a display of the wrong shape, a relative runtime root,
+  and a trailing package list are such arguments.
   [@test] ../crates/avl-guest/src/linux/validate/tests.rs
 
 - A pull copies one guest file to the host. On a Tart worker and on a Docker worker, the `read-file` verb of the

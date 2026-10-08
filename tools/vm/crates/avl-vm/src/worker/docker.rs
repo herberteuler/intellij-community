@@ -1,15 +1,17 @@
 //! The Docker backend: the `docker` CLI against containers the controller creates and owns by name.
 //!
-//! A Docker worker is the Tart Linux guest in a container. The guest agent, the parity layout, the guest paths and
-//! the relay over the exec channel (ADR 0182) are the same. What differs is how the worker is made and reached:
+//! A Docker worker is the Linux guest, in a container. The guest agent, the parity layout, the guest paths and the
+//! relay over the exec channel (ADR 0182) are those of a VM worker. What differs is how the worker is made and
+//! reached:
 //!
 //! - **the image** is built from `community/tools/vm/docker/Dockerfile` and its entrypoint `air-display`, both embedded here.
 //!   The tag is a digest of what the image is built from ([`image_tag_for`]), so a change to the Dockerfile, the
 //!   entrypoint, the base pin or [`GUEST_PACKAGES`] builds a new image, and no stale image can answer for a new
-//!   tree. The image replaces the boot-time `apt-get` of a Tart Linux worker, so a Docker worker runs no
-//!   `provision-guest`. Before a build, the controller pulls the tag from `AIR_VM_DOCKER_REGISTRY` (ADR 0184): the
-//!   tag names the same bytes wherever the image was built, and the image's `org.opencontainers.image.revision`
-//!   label carries the tag digest, so a pulled image that does not say the digest is dropped and built instead.
+//!   tree. The image installs the packages and the pinned Node, and its entrypoint starts the display, so the boot
+//!   only installs the agent and runs `validate-guest` ([`validate_argv`]). Before a build, the controller pulls the
+//!   tag from `AIR_VM_DOCKER_REGISTRY` (ADR 0184): the tag names the same bytes wherever the image was built, and the
+//!   image's `org.opencontainers.image.revision` label carries the tag digest, so a pulled image that does not say
+//!   the digest is dropped and built instead.
 //! - **the container** is made by `docker create` with the shares as read-only bind mounts and `WorkerData` in a
 //!   named volume. The shares are arguments of the create, as they are arguments of `tart run` on Tart, so a
 //!   share-set change makes the container again. The create arguments are recorded ([`CreateRecord`]), and a record
@@ -41,7 +43,6 @@ use std::time::Duration;
 use avl_base::config::{docker_buildx_label, docker_cli_label};
 use avl_base::{Config, Exit, GuestArch, OrRefuse, Refusal, Reporter, SCHEMA_VERSION, Scope};
 use avl_host_sys::fs::real_path;
-use avl_host_sys::guest::linux::GUEST_PACKAGES;
 use avl_host_sys::guest::share_mount_path;
 use avl_host_sys::lock::LockManager;
 use avl_host_sys::share::{SHARE_MODE, SharedFolder, shares};
@@ -114,6 +115,59 @@ pub(crate) const DOCKERFILE: &str = include_str!("../../../../docker/Dockerfile"
 
 /// The image's entrypoint, embedded beside the Dockerfile and copied into the build context.
 pub(crate) const ENTRYPOINT: &str = include_str!("../../../../docker/air-display");
+
+/// The packages a worker needs beyond the base image. The image installs them at build time.
+///
+/// `x11-utils` is not decoration: `XorgWindowManagerHandler` shells out to `xprop` to decide whether a window
+/// manager is registered, and reads its absence as no window manager at all.
+///
+/// **No Node here, and no `npm`.** The lane's tests need both, and the base does not supply them in a usable form.
+/// Ubuntu 26.04 has `nodejs` 22 (the `apt-cache policy` candidate on 2026-09-29). That is below `NODE_MAJOR`, and a
+/// current `@openai/codex` refuses an older major. So the Dockerfile installs a checksum-pinned Node archive from
+/// nodejs.org, which carries `npm` with it.
+///
+/// The second group is what the IDE's *own* native libraries link against, which a server image does not carry:
+/// the JBR ships the `.so` files, not their dependencies. Measured with `ldd` on a Linux worker (2026-08-19):
+/// `libEGL.so.1` is the one Skiko needs, and the other five are what `libcef.so` and `libjcef.so` need. Their
+/// absence is quiet in the worst way. `Failed to preload Skiko` is one SEVERE line in `idea.log`, and the lane keeps
+/// running. So add to this list rather than letting a guest discover it.
+///
+/// `t64` suffixes are the 64-bit-`time_t` rename of Ubuntu 24.04, and Ubuntu 26.04 keeps them. On 2026-09-29,
+/// `apt-cache policy` resolved every name here in an arm64 container of the Docker base (26.04). A base-image bump
+/// is a reason to re-check every name here.
+pub(crate) const GUEST_PACKAGES: &[&str] = &[
+    "xvfb",
+    "fluxbox",
+    "x11-utils",
+    // Skiko, which the IDE preloads for Compose rendering.
+    "libegl1",
+    // The JBR's own GTK lookup, which otherwise prints "Looking for GTK3 library... Not found." on every launch.
+    "libgtk-3-0t64",
+    // JCEF.
+    "libxdamage1",
+    "libxfixes3",
+    "libasound2t64",
+    "libatk1.0-0t64",
+    "libatk-bridge2.0-0t64",
+    "libatspi2.0-0t64",
+    // `libcef.so` and `libjcef.so` link NSS: `libnss3.so`, `libnssutil3.so`, `libsmime3.so` and `libnspr4.so`, all
+    // of which this one package carries. `validate-guest` refused a worker without it on 2026-09-29.
+    "libnss3",
+    // The merge-conflict and worktree scenarios spawn `git` from the lane IDE. The base does not ship it, and five
+    // `ui` scenarios failed without it on 2026-09-30.
+    "git",
+    // No video encoder: `air-trace-record` encodes the per-scenario video itself.
+];
+
+/// What the guest agent's `validate-guest` verb is told: the display, and the runtime root whose shared objects it
+/// runs `ldd` over.
+///
+/// Neither is the package list: the validator reads what the guest *has*, and one handed the list would need a
+/// soname-to-package mapping to use it. The root is [`Config::guest_runtime_root`], where the JBR and JCEF are, not
+/// the IDE root, where nothing is staged and the sweep would find nothing on every boot.
+pub(crate) fn validate_argv(settings: &Config) -> Vec<String> {
+    vec![settings.guest_display.clone(), settings.guest_runtime_root()]
+}
 
 /// The build argument that carries [`GUEST_PACKAGES`]. The Dockerfile must read it, and a unit test holds it to that.
 pub(crate) const PACKAGES_BUILD_ARG: &str = "AIR_GUEST_PACKAGES";

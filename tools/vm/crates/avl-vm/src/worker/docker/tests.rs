@@ -505,6 +505,99 @@ fn the_build_carries_every_guest_package_and_the_dockerfile_reads_it() {
     assert!(ENTRYPOINT.starts_with("#!"), "the entrypoint is not a script");
 }
 
+/// The image carries the Node of the pinned major, so `NODE_MAJOR` of `versions.env` and the image cannot drift apart.
+/// One `NODE_VERSION` names the archive and the URL path, so the two cannot name different releases. The archive is
+/// checked by its sha256 and goes into `/usr/local`, where [`Config::vm_node`] finds it. The layer comes before the
+/// revision, so a change of the tag alone keeps it in the build cache.
+#[test]
+fn the_dockerfile_installs_the_pinned_node_major() {
+    let major = avl_base::config::pins::guest_node_major();
+    let version = DOCKERFILE
+        .lines()
+        .find_map(|line| line.strip_prefix("ARG NODE_VERSION="))
+        .expect("the Dockerfile pins NODE_VERSION");
+    assert!(
+        version.starts_with(&format!("{major}.")),
+        "NODE_VERSION={version} is not Node {major}"
+    );
+    assert_eq!(version.split('.').count(), 3, "{version}");
+    // The shell references are built from their names, because a literal `{NAME}` reads as a format argument.
+    let shell = |name: &str| format!("${{{name}}}");
+    let archive = format!(r#"archive="node-v{}-linux-{}.tar.gz""#, shell("NODE_VERSION"), shell("node_arch"));
+    let url = format!(r#""https://nodejs.org/dist/v{}/{}""#, shell("NODE_VERSION"), shell("archive"));
+    assert!(
+        DOCKERFILE.contains(&archive),
+        "the archive name is not built from NODE_VERSION: {DOCKERFILE}"
+    );
+    assert!(
+        DOCKERFILE.contains(&url),
+        "the URL path is not built from NODE_VERSION: {DOCKERFILE}"
+    );
+    // The version is read once: no other line names a release.
+    assert!(
+        !DOCKERFILE.contains(&format!("v{version}")),
+        "a line spells the release by hand: {DOCKERFILE}"
+    );
+    assert!(DOCKERFILE.contains("ARG TARGETARCH"), "{DOCKERFILE}");
+    assert!(DOCKERFILE.contains("sha256sum --check"), "{DOCKERFILE}");
+    assert!(DOCKERFILE.contains("--directory /opt/node --strip-components=1"), "{DOCKERFILE}");
+    assert!(DOCKERFILE.contains("COPY --from=node /opt/node/ /usr/local/"), "{DOCKERFILE}");
+    let node_layer = DOCKERFILE.find("ARG NODE_VERSION=").unwrap();
+    let revision = DOCKERFILE.find(&format!("ARG {REVISION_BUILD_ARG}")).unwrap();
+    assert!(node_layer < revision, "the Node layer comes after the revision");
+    assert_eq!(Fixture::docker().settings.vm_node, "/usr/local/bin/node");
+}
+
+// The package list is the one place these names live, so what each group is for is pinned: without the first the
+// guest has no display and no window manager, and without the second the IDE starts and logs one SEVERE line about
+// Skiko while the lane keeps running.
+#[test]
+fn the_guest_packages_cover_the_display_and_the_ides_own_native_dependencies() {
+    let present: std::collections::HashSet<&str> = GUEST_PACKAGES.iter().copied().collect();
+    assert_eq!(present.len(), GUEST_PACKAGES.len(), "a package is listed twice");
+    for needed in ["xvfb", "fluxbox", "x11-utils"] {
+        assert!(present.contains(needed), "the display group is missing {needed}");
+    }
+    // No Node and no npm: Ubuntu's `nodejs` is too old for the agent CLIs. The Dockerfile installs a pinned Node.
+    for refused in ["nodejs", "npm"] {
+        assert!(!present.contains(refused), "{refused} is in the install set");
+    }
+    for needed in [
+        "libegl1",
+        "libgtk-3-0t64",
+        "libxdamage1",
+        "libxfixes3",
+        "libasound2t64",
+        "libatk1.0-0t64",
+        "libatk-bridge2.0-0t64",
+        "libatspi2.0-0t64",
+        "libnss3",
+    ] {
+        assert!(present.contains(needed), "the IDE's native dependencies are missing {needed}");
+    }
+    // The recorder encodes the video itself.
+    assert!(
+        !present.contains("ffmpeg"),
+        "the guest installs ffmpeg, which the trace recorder does not need"
+    );
+}
+
+// Positional contract with the guest agent's `validate-guest`: the display, then the runtime root whose shared
+// objects it sweeps. Not the IDE root, where nothing is staged and the sweep would find nothing on every boot.
+#[test]
+fn the_validate_argv_passes_what_the_guest_is_checked_against() {
+    let fixture = Fixture::docker();
+    let argv = validate_argv(&fixture.settings);
+    assert_eq!(
+        argv,
+        [fixture.settings.guest_display.clone(), fixture.settings.guest_runtime_root()]
+    );
+    for word in &argv {
+        assert!(!GUEST_PACKAGES.contains(&word.as_str()), "the package list leaked in: {argv:?}");
+        assert!(!word.contains("node"), "the self-check is told about a Node: {argv:?}");
+    }
+}
+
 /// The first `ensure_image` tries the registry, and when the pull fails it builds from a fresh context and keeps
 /// both logs; the next one finds the image and neither pulls nor builds.
 #[tokio::test]

@@ -16,8 +16,9 @@ use crate::lane::secrets::RUN_SECRETS_VARIABLE;
 /// identity. It is the same answer for every worker of one pool, because nothing in it is a guest's own reply.
 pub(crate) fn daemon_environment(settings: &Config) -> BTreeMap<String, String> {
     let mut environment = environment_union();
-    // The guest's node, named by the controller because it staged it: the supervisor used to answer this with its
-    // own interpreter, which is the same file only by coincidence.
+    // The guest's node, named by the controller: the Node of the Docker image or of the macOS golden, or the one
+    // `AIR_VM_NODE` names. The supervisor used to answer this with its own interpreter, which is the same file only
+    // by coincidence.
     environment.insert("NODE_BIN".to_owned(), settings.vm_node.clone());
     // A path and never a value: a run writes its `--test-env` files there, and the boot environment stays the same
     // for every run.
@@ -91,8 +92,8 @@ pub(crate) fn guest_run_environment(
         .rsplit_once('/')
         .map_or(".", |(dir, _)| if dir.is_empty() { "/" } else { dir })
         .to_owned();
-    // The staged Node first, then the platform's own directories. The Node comes first because every agent CLI a
-    // lane drives is a Node program, and the guest's own `node` is older than the pin.
+    // The guest's Node first, then the platform's own directories. The Node comes first because every agent CLI a
+    // lane drives is a Node program, and a distribution `node` on the PATH can be older than the pin.
     let mut path_entries: Vec<String> = Vec::new();
     for entry in std::iter::once(node_dir.as_str()).chain(guest_platform_path_entries(settings.guest_os)) {
         if !path_entries.iter().any(|seen| seen == entry) {

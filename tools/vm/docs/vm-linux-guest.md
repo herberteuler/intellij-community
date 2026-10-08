@@ -1,5 +1,10 @@
 # A Linux guest for the Air UI lanes
 
+**Status.** The Tart Linux worker was retired on 2026-10-08
+([ADR 0210](decisions/0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md)). The Docker
+guest keeps the Linux guest model of this note, and its image carries Node. The rest of this note is history. The
+current model is in the [VM guide](vm-ui-tests.md).
+
 Whether the UI-test workers have to be macOS, and what it cost for them not to be. **They do not have
 to be** — and since 2026-08-21 they are not: a Linux worker is what the controller leases when nobody
 names a backend, and `--lane ui` is run and judged there. An Air UI flow test passes on it and the frame

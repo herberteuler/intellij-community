@@ -19,7 +19,7 @@ use pretty_assertions::assert_eq;
 use super::tart::SuspendedState;
 use super::*;
 use crate::worker::tart::ProcessIdentity;
-use crate::worker::testing::{Fixture, find_step, manager_over};
+use crate::worker::testing::{CONSOLE_LOGIN, Fixture, find_step, manager_over};
 use avl_base::RefusalExt;
 
 fn ctx() -> Ctx {
@@ -30,7 +30,7 @@ fn lease_of(worker: &str, token: &str) -> Lease {
     Lease {
         schema_version: SCHEMA_VERSION,
         backend: Backend::Tart,
-        guest_os: GuestOs::Linux,
+        guest_os: GuestOs::Macos,
         worker: worker.to_owned(),
         token: token.to_owned(),
         holder: "a holder".to_owned(),
@@ -42,18 +42,18 @@ fn lease_of(worker: &str, token: &str) -> Lease {
 // comparison too.
 #[test]
 fn a_lease_is_its_worker_and_its_token() {
-    let lease = lease_of("air-linux-1", "token-1");
+    let lease = lease_of("air-macos-1", "token-1");
     assert!(lease.same_lease(&Lease {
         holder: "another holder".to_owned(),
         ..lease.clone()
     }));
-    assert!(!lease.same_lease(&lease_of("air-linux-1", "token-2")));
-    assert!(!lease.same_lease(&lease_of("air-linux-2", "token-1")));
+    assert!(!lease.same_lease(&lease_of("air-macos-1", "token-2")));
+    assert!(!lease.same_lease(&lease_of("air-macos-2", "token-1")));
 
     let held = Arc::new(HeldLeases::default());
     let guard = held.hold(std::slice::from_ref(&lease));
     assert!(held.contains(&lease));
-    assert!(!held.contains(&lease_of("air-linux-1", "token-2")));
+    assert!(!held.contains(&lease_of("air-macos-1", "token-2")));
     drop(guard);
     assert!(!held.contains(&lease));
 }
@@ -77,7 +77,7 @@ fn tart(fixture: &Fixture) -> &Tart {
 /// leased worker would be handed to a second holder.
 #[test]
 fn an_absent_lease_is_free_and_an_unreadable_one_refuses() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let path = fixture.settings.lease_path(fixture.worker(0));
     assert_eq!(read_lease(&path).unwrap(), None);
 
@@ -86,11 +86,11 @@ fn an_absent_lease_is_free_and_an_unreadable_one_refuses() {
         ("an empty file", ""),
         (
             "a wrong schema",
-            r#"{"schemaVersion":99,"backend":"tart","guestOs":"linux","worker":"w","token":"t","holder":"h","acquiredAt":"a"}"#,
+            r#"{"schemaVersion":99,"backend":"tart","guestOs":"macos","worker":"w","token":"t","holder":"h","acquiredAt":"a"}"#,
         ),
         (
             "a missing token",
-            r#"{"schemaVersion":1,"backend":"tart","guestOs":"linux","worker":"w","holder":"h","acquiredAt":"a"}"#,
+            r#"{"schemaVersion":1,"backend":"tart","guestOs":"macos","worker":"w","holder":"h","acquiredAt":"a"}"#,
         ),
         (
             "an unknown backend",
@@ -114,12 +114,12 @@ fn an_absent_lease_is_free_and_an_unreadable_one_refuses() {
 /// A lease reads as it was written, both axes included.
 #[test]
 fn a_lease_reads_back_as_it_was_written() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let path = fixture.settings.lease_path(fixture.worker(0));
-    let written = r#"{"schemaVersion":1,"backend":"tart","guestOs":"linux","worker":"air-linux-1","token":"t","holder":"h","acquiredAt":"2026-08-23T00:00:00.000Z"}"#;
+    let written = r#"{"schemaVersion":1,"backend":"tart","guestOs":"macos","worker":"air-macos-1","token":"t","holder":"h","acquiredAt":"2026-08-23T00:00:00.000Z"}"#;
     std::fs::write(&path, format!("{written}\n")).unwrap();
     let lease = read_lease(&path).unwrap().unwrap();
-    assert_eq!((lease.backend, lease.guest_os), (Backend::Tart, GuestOs::Linux));
+    assert_eq!((lease.backend, lease.guest_os), (Backend::Tart, GuestOs::Macos));
     assert_eq!(serde_json::to_string(&lease).unwrap(), written);
 }
 
@@ -129,7 +129,7 @@ fn a_lease_reads_back_as_it_was_written() {
 /// with the process it names answers "absent" rather than a partial value.
 #[tokio::test]
 async fn the_process_receipt_round_trips_and_is_refused_field_by_field() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0);
     let identity = fixture.run_as_fake_process(worker).await;
     assert!(!identity.process_start.is_empty() && !identity.process_command.is_empty());
@@ -179,7 +179,7 @@ async fn the_process_receipt_round_trips_and_is_refused_field_by_field() {
 /// line could not be read would be a worker nothing could ever recognise again.
 #[tokio::test]
 async fn an_unidentifiable_process_is_refused_rather_than_recorded() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0);
     let refusal = fixture.manager.write_process_identity(&ctx(), worker, -1).await.unwrap_err();
     assert_eq!(refusal.code, "process_identity_unavailable");
@@ -188,16 +188,15 @@ async fn an_unidentifiable_process_is_refused_rather_than_recorded() {
 
 // --- the run argv --------------------------------------------------------------------------------------------
 
-/// `--suspendable` is a macOS-guest flag enforced at `tart run`: on a Linux VM the run fails outright with "You can
-/// only suspend macOS VMs", so a Linux worker carrying it could never boot at all.
+/// `--suspendable` is the device set that `tart suspend` needs. `AIR_VM_SUSPENDABLE` turns it off.
 #[test]
-fn the_run_argv_declares_suspendable_only_for_a_macos_guest() {
-    for (guest_os, want) in [(GuestOs::Linux, false), (GuestOs::Macos, true)] {
-        let fixture = Fixture::builder(guest_os).env("AIR_VM_SUSPENDABLE", "1").build();
+fn the_run_argv_declares_suspendable_only_when_it_is_on() {
+    for (setting, want) in [("0", false), ("1", true)] {
+        let fixture = Fixture::builder(GuestOs::Macos).env("AIR_VM_SUSPENDABLE", setting).build();
         let worker = fixture.worker(0);
         let argv = fixture.manager.tart_run_argv(worker).unwrap();
         let joined = argv.join(" ");
-        assert_eq!(joined.contains("--suspendable"), want, "{guest_os}: {joined}");
+        assert_eq!(joined.contains("--suspendable"), want, "AIR_VM_SUSPENDABLE={setting}: {joined}");
         assert_eq!(argv.last().map(String::as_str), Some(worker), "{joined}");
         // The share grammar is the backend's, and it must reach the argv by name rather than by tag.
         for share in [&fixture.settings.repo_share_name, &fixture.settings.bazel_share_name] {
@@ -219,7 +218,7 @@ fn the_run_argv_declares_the_chosen_network_mode() {
             Some("--net-bridged=en0"),
         ),
     ] {
-        let mut builder = Fixture::builder(GuestOs::Linux);
+        let mut builder = Fixture::builder(GuestOs::Macos);
         for (name, value) in overrides {
             builder = builder.env(name, value);
         }
@@ -239,7 +238,7 @@ fn the_run_argv_declares_the_chosen_network_mode() {
 /// it.
 #[test]
 fn the_run_argv_refuses_unresolved_host_paths() {
-    let fixture = Fixture::builder(GuestOs::Linux).unresolved_host_paths().build();
+    let fixture = Fixture::builder(GuestOs::Macos).unresolved_host_paths().build();
     let refusal = fixture.manager.tart_run_argv(fixture.worker(0)).unwrap_err();
     assert_eq!(refusal.code, "host_paths_unresolved");
 }
@@ -296,7 +295,7 @@ fn a_suspended_state_record_is_refused_field_by_field() {
 /// `status` and `lease show` withhold it from an unauthorized caller too.
 #[tokio::test]
 async fn stop_refuses_a_worker_leased_by_another_holder() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0);
     let lease = fixture.write_lease(worker, "another-holders-token");
 
@@ -321,7 +320,7 @@ async fn stop_refuses_a_worker_leased_by_another_holder() {
 /// the worker it is holding when the share set no longer describes the host.
 #[tokio::test]
 async fn stop_accepts_the_holders_own_lease() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0);
     let lease = fixture.write_lease(worker, "the-holders-own-token");
     // No run process was ever recorded, so there is nothing to stop - which is the answer, not an error.
@@ -340,32 +339,11 @@ async fn stop_accepts_the_holders_own_lease() {
 /// `pool init` is pool-wide, so one leased worker refuses the whole operation rather than initializing the rest.
 #[tokio::test]
 async fn pool_init_refuses_a_leased_worker() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     fixture.write_lease(fixture.worker(0), "held");
     let refusal = fixture.manager.pool(&ctx(), PoolCommand::Init { golden: None }).await.unwrap_err();
     assert_eq!(refusal.code, "worker_leased");
     assert!(!fixture.fake.saw_call_containing("clone"));
-}
-
-/// A Linux pool clones a public image by tag and has no seal to honour. Asking for one anyway is what made `pool init`
-/// on the Tart Linux pool, then the default, die with `golden_seal_missing` while `pool start` worked.
-#[tokio::test]
-async fn pool_init_on_a_linux_pool_clones_by_tag_without_a_seal() {
-    let fixture = Fixture::linux();
-    let outcome = fixture.manager.pool(&ctx(), PoolCommand::Init { golden: None }).await.unwrap();
-    let image = &fixture.settings.linux_base_image;
-    for worker in &fixture.settings.workers {
-        assert!(
-            fixture.fake.saw_call_containing(&format!("clone {image} {worker}")),
-            "{:?}",
-            fixture.fake.calls()
-        );
-    }
-    // `--random-serial` is a macOS-guest notion: a Linux VM has no Mac serial number to randomize.
-    assert!(!fixture.fake.saw_call_containing("--random-serial"));
-    assert!(fixture.fake.saw_call_containing("--random-mac"));
-    assert_eq!(outcome.data["created"], serde_json::json!(fixture.settings.workers));
-    assert_eq!(outcome.data["guestOs"], "linux");
 }
 
 /// A named golden is only accepted if it is a name a guest command line can carry unquoted, and the refusal arrives
@@ -414,7 +392,7 @@ async fn pool_gc_and_recycle_are_refused_on_parallels() {
 /// caller of this gate wants a running worker or a refusal naming the repair.
 #[tokio::test]
 async fn require_release_ready_refuses_a_stopped_tart_worker() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0);
     let refusal = fixture.manager.require_release_ready(&ctx(), worker).await.unwrap_err();
     assert_eq!(refusal.code, "worker_stopped");
@@ -425,7 +403,7 @@ async fn require_release_ready_refuses_a_stopped_tart_worker() {
 /// "the machine is off" from "the machine is up and its agent is not".
 #[tokio::test]
 async fn require_release_ready_refuses_a_guest_that_does_not_answer() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0);
     fixture.run_as_fake_process(worker).await;
     fixture.guest.fail_everything();
@@ -452,11 +430,12 @@ async fn require_release_ready_resolves_the_host_paths() {
         ),
     )
     .unwrap();
-    let fixture = Fixture::builder(GuestOs::Linux)
+    let fixture = Fixture::builder(GuestOs::Macos)
         .unresolved_host_paths()
         .env("AIR_VM_HOST_REPO", "")
         .env("AIR_VM_HOST_GIT", &git.to_string_lossy())
         .build();
+    fixture.guest.answer(answer_guest(vec![("/usr/bin/who", said(CONSOLE_LOGIN))]));
     let worker = fixture.worker(0);
     fixture.run_as_fake_process(worker).await;
     fixture.settings.host_repo().unwrap_err();
@@ -471,7 +450,7 @@ async fn require_release_ready_resolves_the_host_paths() {
 /// guest produces an empty file and exits 0, which is a failure nothing downstream can see.
 #[tokio::test]
 async fn the_guest_channel_asks_for_a_tty_only_when_there_is_stdin() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     // The hypervisor-backed channel, not the suite's: the argv shape is the subject here.
     let manager = manager_over(&fixture.settings, fixture.runner(), None, builds_nothing());
     let channel = manager.channel(fixture.worker(0));
@@ -523,7 +502,7 @@ async fn read_all(channel: &dyn Channel, port: u16) -> Vec<u8> {
 /// listener, so the bytes cross the production stream too.
 #[tokio::test]
 async fn a_tart_connect_is_the_installed_agent_relay_with_stdin_carried() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let manager = manager_over(&fixture.settings, fixture.runner(), None, builds_nothing());
     let worker = fixture.worker(0);
     let channel = manager.channel(worker);
@@ -576,7 +555,7 @@ async fn closed_port() -> (u16, impl Sized) {
 #[tokio::test]
 async fn a_connect_to_a_closed_port_is_refused_at_the_first_read() {
     use tokio::io::AsyncReadExt as _;
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let manager = manager_over(&fixture.settings, fixture.runner(), None, builds_nothing());
     let channel = manager.channel(fixture.worker(0));
     let (port, _held) = closed_port().await;
@@ -590,7 +569,7 @@ async fn a_connect_to_a_closed_port_is_refused_at_the_first_read() {
 /// which is the whole question the guest module asks this for.
 #[tokio::test]
 async fn a_peer_that_is_not_running_has_no_channel() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let peer = fixture.settings.workers.last().unwrap().clone();
     assert!(fixture.manager.peer(&ctx(), &peer).await.unwrap().is_none());
     fixture.run_as_fake_process(&peer).await;
@@ -607,7 +586,8 @@ async fn a_peer_that_is_not_running_has_no_channel() {
 /// answered would end the start as `Started` whenever the fake `tart run` exits later than the first probe.
 #[tokio::test]
 async fn a_start_whose_run_process_dies_is_reported_with_its_log_tail() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
+    fixture.seal_macos_golden();
     fixture.fake.answer(Answer::RunOutput, "tart: the golden image is not there\n");
     fixture.fake.answer(Answer::RunExit, "1");
     fixture.guest.fail_everything();
@@ -640,8 +620,8 @@ async fn a_console_with_no_session_is_polled_rather_than_failing_the_boot() {
 }
 
 /// A boot builds the outputs it installs into a guest **before the slot is cloned**. `pool start` and `pool recycle`
-/// run no lane build, so they installed whatever the output base already held - and a cold clone answered
-/// `stage-node ... exited with 64: Usage:`. The order is the assertion.
+/// run no lane build, so they installed whatever the output base already held - and a cold clone answered a boot verb
+/// with `exited with 64: Usage:`. The order is the assertion.
 #[tokio::test]
 async fn a_boot_builds_the_guest_outputs_before_it_clones_the_slot() {
     let calls_when_built: Arc<Mutex<Option<Vec<String>>>> = Arc::default();
@@ -650,7 +630,7 @@ async fn a_boot_builds_the_guest_outputs_before_it_clones_the_slot() {
     // hook finds the log through a slot filled in below.
     let log: Arc<Mutex<Option<avl_testkit::tartfake::Fake>>> = Arc::default();
     let log_for_hook = Arc::clone(&log);
-    let fixture = Fixture::builder(GuestOs::Linux)
+    let fixture = Fixture::builder(GuestOs::Macos)
         .build_boot(Arc::new(move |_ctx| {
             let calls = log_for_hook.lock().unwrap().as_ref().map(avl_testkit::tartfake::Fake::calls);
             *recorded.lock().unwrap() = calls;
@@ -658,6 +638,7 @@ async fn a_boot_builds_the_guest_outputs_before_it_clones_the_slot() {
         }))
         .build();
     *log.lock().unwrap() = Some(fixture.fake.clone());
+    fixture.make_macos_bootable();
     fixture.fake.answer(Answer::RunSleeps, "yes");
     let _reaper = fixture.kill_run_processes_on_drop();
 
@@ -681,7 +662,7 @@ async fn a_boot_builds_the_guest_outputs_before_it_clones_the_slot() {
 /// checkout could not produce is a worker whose every verb is a guess.
 #[tokio::test]
 async fn a_boot_that_cannot_build_its_guest_outputs_clones_nothing() {
-    let fixture = Fixture::builder(GuestOs::Linux)
+    let fixture = Fixture::builder(GuestOs::Macos)
         .build_boot(Arc::new(|_ctx| {
             async { Err(Refusal::new("host_build_failed", Exit::FAILURE, "bazel build exited with 1")) }.boxed()
         }))
@@ -699,7 +680,8 @@ async fn a_boot_that_cannot_build_its_guest_outputs_clones_nothing() {
 /// identified, the guest is provisioned, and the worker is reported as started rather than as already running.
 #[tokio::test]
 async fn a_start_spawns_identifies_and_provisions() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
+    fixture.make_macos_bootable();
     let worker = fixture.worker(0);
     fixture.fake.answer(Answer::RunSleeps, "yes");
     let _reaper = fixture.kill_run_processes_on_drop();
@@ -724,12 +706,17 @@ async fn a_start_spawns_identifies_and_provisions() {
         .expect("the run process was spawned");
     assert!(run.contains("--no-graphics") && run.ends_with(worker), "{run}");
 
-    // Every verb is asserted, and **the order**, not the set: the Node pair reads the archive through the read-only
-    // Bazel share, and the parity script is what mounts it, so both must come after that script runs. They came
-    // before it until 2026-08-27, which refused every boot of every Linux worker.
+    // Every step is asserted, and **the order**, not the set: the console login, the TCC check, the worker storage,
+    // the parity script, and then the SSH host key of the readiness.
     let argvs = fixture.guest.lines();
     let mut at = 0;
-    for step in [" provision-guest ", " validate-guest ", "/bin/sh ", " stage-node ", " check-node "] {
+    for step in [
+        "/usr/bin/who",
+        "/usr/bin/sqlite3",
+        "air-init-worker-storage",
+        "/bin/sh ",
+        "air-ensure-ssh-host-keys",
+    ] {
         at = find_step(&argvs, step, at);
     }
 
@@ -751,7 +738,8 @@ async fn a_start_spawns_identifies_and_provisions() {
 /// agent, so this is the only place a missing `tart-guest-agent` can be named.
 #[tokio::test]
 async fn a_boot_whose_guest_never_answered_names_the_guest_agent() {
-    let fixture = Fixture::builder(GuestOs::Linux).env("AIR_VM_BOOT_TIMEOUT", "1").build();
+    let fixture = Fixture::builder(GuestOs::Macos).env("AIR_VM_BOOT_TIMEOUT", "1").build();
+    fixture.seal_macos_golden();
     let worker = fixture.worker(0);
     fixture.fake.answer(Answer::RunSleeps, "yes");
     let _reaper = fixture.kill_run_processes_on_drop();
@@ -772,7 +760,7 @@ async fn a_boot_whose_guest_never_answered_names_the_guest_agent() {
 /// are one function's two arms.
 #[test]
 fn the_two_boot_timeouts_are_the_one_discriminator() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0);
     let stalled = fixture.manager.boot_timed_out(worker, true);
     assert_eq!(stalled.code, "boot_timeout");
@@ -787,7 +775,7 @@ fn the_two_boot_timeouts_are_the_one_discriminator() {
 /// stop` does - and names the way past it. Nothing is deleted for a worker that was refused.
 #[tokio::test]
 async fn recycle_refuses_a_leased_worker_and_deletes_nothing() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0).to_owned();
     fixture.fake.answer(Answer::ListQuiet, format!("{worker}\n"));
     let lease = fixture.write_lease(&worker, "another-holders-token");
@@ -806,23 +794,42 @@ async fn recycle_refuses_a_leased_worker_and_deletes_nothing() {
     assert_eq!(read_lease(&fixture.settings.lease_path(&worker)).unwrap(), Some(lease));
 }
 
+/// A pool whose boot build empties the quiet listing of the fake `tart`. The fake `tart delete` keeps a listed VM
+/// listed, so without this a recycle finds the deleted clone again and refuses its missing provenance.
+fn unlisting_pool(workers: usize) -> Fixture {
+    let log: Arc<Mutex<Option<avl_testkit::tartfake::Fake>>> = Arc::default();
+    let log_for_hook = Arc::clone(&log);
+    let fixture = Fixture::builder(GuestOs::Macos)
+        .env("AIR_VM_MAX_WORKERS", &workers.to_string())
+        .build_boot(Arc::new(move |_ctx| {
+            if let Some(fake) = log_for_hook.lock().unwrap().as_ref() {
+                fake.answer(Answer::ListQuiet, "");
+            }
+            async { Ok(()) }.boxed()
+        }))
+        .build();
+    *log.lock().unwrap() = Some(fixture.fake.clone());
+    fixture.make_macos_bootable();
+    fixture
+}
+
 /// The whole repair over a materialized slot: the VM is deleted, every host record that described its guest goes with
 /// it, the worker is booted and provisioned again - and the lifecycle lock file this operation holds survives,
 /// because a `flock` binds to an inode and unlinking it would let a contender lock a fresh file at the same path.
 #[tokio::test]
 async fn recycle_deletes_the_guests_records_and_keeps_the_lifecycle_lock() {
-    let fixture = Fixture::linux();
+    let fixture = unlisting_pool(2);
     let worker = fixture.worker(0).to_owned();
     fixture.fake.answer(Answer::ListQuiet, format!("{worker}\n"));
     fixture.fake.answer(Answer::RunSleeps, "yes");
     let _reaper = fixture.kill_run_processes_on_drop();
 
     // Everything a used worker leaves behind, including a directory. The boot at the end of the recycle writes the
-    // parity and agent receipts again, so for those what is shown is that the deleted guest's copy is not the one
-    // left behind.
+    // parity receipt again, so for it what is shown is that the deleted guest's copy is not the one left behind. A
+    // macOS boot installs no agent: a lease or a run installs it.
     let directory = fixture.settings.worker_dir(&worker);
-    let stale = ["daemon.json", "suspended.json"];
-    let rewritten = ["guest-init.json", "guest-agent.json"];
+    let stale = ["daemon.json", "suspended.json", "guest-agent.json"];
+    let rewritten = ["guest-init.json"];
     for name in stale.iter().chain(&rewritten) {
         std::fs::write(directory.join(name), "{}").unwrap();
     }
@@ -866,7 +873,7 @@ async fn recycle_deletes_the_guests_records_and_keeps_the_lifecycle_lock() {
 /// still has a VM and its records when the refusal arrives.
 #[tokio::test]
 async fn recycle_that_cannot_stop_the_worker_deletes_nothing() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0).to_owned();
     fixture.fake.answer(Answer::ListQuiet, format!("{worker}\n"));
     // A live run process of the fake table, and a `tart` that refuses every verb but the listings.
@@ -887,7 +894,8 @@ async fn recycle_that_cannot_stop_the_worker_deletes_nothing() {
 /// hypervisor's own - which is what carries what `tart` said.
 #[tokio::test]
 async fn recycle_leaves_no_half_state_when_the_clone_fails() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
+    fixture.seal_macos_golden();
     let worker = fixture.worker(0).to_owned();
     // The slot has no VM, so the delete is a no-op and the clone is the first verb that can fail.
     fixture.fake.answer(Answer::Exit, "1");
@@ -897,11 +905,7 @@ async fn recycle_leaves_no_half_state_when_the_clone_fails() {
         .await
         .unwrap_err();
     assert_eq!(refusal.code, "subprocess_failed", "{refusal:?}");
-    assert!(
-        fixture
-            .fake
-            .saw_call_containing(&format!("clone {}", fixture.settings.linux_base_image))
-    );
+    assert!(fixture.fake.saw_call_containing(&format!("clone {}", fixture.settings.golden_vm)));
     assert!(!fixture.fake.calls().iter().any(|call| call.starts_with("run ")));
     assert!(!fixture.settings.pid_path(&worker).exists());
 }
@@ -911,7 +915,7 @@ async fn recycle_leaves_no_half_state_when_the_clone_fails() {
 /// actually broken makes it a failure.
 #[tokio::test]
 async fn recycle_all_recycles_what_it_can_and_names_the_rest() {
-    let fixture = Fixture::builder(GuestOs::Linux).env("AIR_VM_MAX_WORKERS", "3").build();
+    let fixture = unlisting_pool(3);
     let [leased, materialized, virgin] = [0, 1, 2].map(|index| fixture.worker(index).to_owned());
     fixture.fake.answer(Answer::ListQuiet, format!("{materialized}\n"));
     fixture.fake.answer(Answer::RunSleeps, "yes");
@@ -944,11 +948,11 @@ async fn recycle_all_recycles_what_it_can_and_names_the_rest() {
     assert!(
         fixture
             .fake
-            .saw_call_containing(&format!("clone {} {virgin}", fixture.settings.linux_base_image))
+            .saw_call_containing(&format!("clone {} {virgin}", fixture.settings.golden_vm))
     );
 
     // A refusal that does not go away on its own makes the aggregate a failure.
-    let broken = Fixture::builder(GuestOs::Linux).build();
+    let broken = Fixture::builder(GuestOs::Macos).build();
     broken.fake.answer(Answer::Exit, "1");
     let refusal = broken
         .manager
@@ -963,15 +967,15 @@ async fn recycle_all_recycles_what_it_can_and_names_the_rest() {
 /// pool's VM.
 #[tokio::test]
 async fn recycle_refuses_a_worker_this_pool_does_not_contain() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let refusal = fixture
         .manager
-        .pool(&ctx(), PoolCommand::Recycle(PoolTarget::Worker("air-macos-1".to_owned())))
+        .pool(&ctx(), PoolCommand::Recycle(PoolTarget::Worker("air-docker-1".to_owned())))
         .await
         .unwrap_err();
     assert_eq!(refusal.code, "unknown_worker", "{refusal:?}");
     assert_eq!(fixture.fake.calls(), ["--version"]);
-    assert!(!Path::new(&fixture.settings.worker_dir("air-macos-1")).exists());
+    assert!(!Path::new(&fixture.settings.worker_dir("air-docker-1")).exists());
 }
 
 // --- a run process whose VM is gone ---------------------------------------------------------------------------
@@ -980,7 +984,7 @@ async fn recycle_refuses_a_worker_this_pool_does_not_contain() {
 /// recorded process itself, and removes its record. Seen live on 2026-09-27, a peer checkout's run on unlinked disks.
 #[tokio::test]
 async fn stop_ends_a_run_process_whose_vm_tart_no_longer_lists() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
     let worker = fixture.worker(0);
     // The quiet listing stays unseeded: Tart lists no VM named `worker`.
     let stale = fixture.run_stale_tart_process(worker).await;
@@ -999,7 +1003,8 @@ async fn stop_ends_a_run_process_whose_vm_tart_no_longer_lists() {
 /// and waiting out the boot budget.
 #[tokio::test]
 async fn a_lazy_start_ends_a_stale_run_process_before_cloning() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
+    fixture.make_macos_bootable();
     let worker = fixture.worker(0);
     let _reaper = fixture.kill_run_processes_on_drop();
     let stale = fixture.run_stale_tart_process(worker).await;
@@ -1025,7 +1030,8 @@ async fn a_lazy_start_ends_a_stale_run_process_before_cloning() {
 /// clones the slot again and boots it.
 #[tokio::test]
 async fn recycle_after_a_missing_vm_release_stops_the_stale_run_process_and_clones_again() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
+    fixture.make_macos_bootable();
     let worker = fixture.worker(0).to_owned();
     let _reaper = fixture.kill_run_processes_on_drop();
     let stale = fixture.run_stale_tart_process(&worker).await;
@@ -1082,7 +1088,8 @@ fn interrupt_when(interrupts: &Interrupts, ready: impl Fn() -> bool + Send + 'st
 /// next stop answers as already stopped and the next start boots a second time.
 #[tokio::test]
 async fn an_interrupted_stop_keeps_the_run_process_record() {
-    let fixture = Fixture::linux();
+    // With the suspendable device set off, `pool stop` runs `tart stop` and not `tart suspend`.
+    let fixture = Fixture::builder(GuestOs::Macos).env("AIR_VM_SUSPENDABLE", "0").build();
     let worker = fixture.worker(0);
     // A process of the fake table stands in for the run process, and `tart stop` does not end it: the wait is still
     // polling when the interrupt lands, or the interrupt reaches `tart stop` itself.
@@ -1152,7 +1159,8 @@ async fn an_interrupted_spend_of_a_suspended_state_keeps_its_records() {
 /// answer sent the operator to a Tart log that says nothing went wrong.
 #[tokio::test]
 async fn an_interrupted_boot_is_not_reported_as_tart_exiting() {
-    let fixture = Fixture::linux();
+    let fixture = Fixture::macos();
+    fixture.seal_macos_golden();
     let worker = fixture.worker(0);
     fixture.fake.answer(Answer::RunSleeps, "yes");
     fixture.guest.fail_everything();
@@ -1174,7 +1182,7 @@ async fn an_interrupted_boot_is_not_reported_as_tart_exiting() {
 /// The share refresh remounts on Tart. The Docker twin, which only settles, is in the Docker lifecycle suite.
 #[tokio::test]
 async fn the_share_refresh_remounts_on_tart() {
-    let tart = Fixture::linux();
+    let tart = Fixture::macos();
     tart.manager.refresh_shares(&ctx(), tart.worker(0)).await.unwrap();
     assert!(
         tart.guest.lines().iter().any(|line| line.contains("remount-shares.sh")),

@@ -7,14 +7,14 @@ use super::*;
 use crate::guest::testing::{FakeChannel, Host, Peers, failed};
 
 fn peers(channel: &Arc<FakeChannel>) -> Peers {
-    Peers(vec![("air-linux-2".to_owned(), channel.clone() as Arc<dyn Channel>)])
+    Peers(vec![("air-docker-2".to_owned(), channel.clone() as Arc<dyn Channel>)])
 }
 
 #[tokio::test]
 async fn ensure_unique_ssh_host_keys_reads_peers_rather_than_regenerating() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", "regenerated\nSHA256:AAAA\n");
-    let peer = Arc::new(FakeChannel::spoke("air-linux-2", "SHA256:BBBB\n"));
+    let channel = FakeChannel::spoke("air-docker-1", "regenerated\nSHA256:AAAA\n");
+    let peer = Arc::new(FakeChannel::spoke("air-docker-2", "SHA256:BBBB\n"));
     let fingerprint = host.guest(&channel).ensure_unique_ssh_host_keys(&peers(&peer)).await.unwrap();
     // The last line, because the guest script prints what it did before it prints the answer.
     assert_eq!(fingerprint, "SHA256:AAAA");
@@ -30,11 +30,11 @@ async fn ensure_unique_ssh_host_keys_reads_peers_rather_than_regenerating() {
 #[tokio::test]
 async fn ensure_unique_ssh_host_keys_refuses_a_shared_identity() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", "SHA256:SAME\n");
-    let peer = Arc::new(FakeChannel::spoke("air-linux-2", "SHA256:SAME\n"));
+    let channel = FakeChannel::spoke("air-docker-1", "SHA256:SAME\n");
+    let peer = Arc::new(FakeChannel::spoke("air-docker-2", "SHA256:SAME\n"));
     let refusal = host.guest(&channel).ensure_unique_ssh_host_keys(&peers(&peer)).await.unwrap_err();
     assert_eq!(refusal.code, "ssh_host_key_collision");
-    assert!(refusal.message.contains("air-linux-2"), "{}", refusal.message);
+    assert!(refusal.message.contains("air-docker-2"), "{}", refusal.message);
 }
 
 // A running peer with no readiness marker is a refusal and not a skip: nothing has established that the two workers
@@ -42,8 +42,8 @@ async fn ensure_unique_ssh_host_keys_refuses_a_shared_identity() {
 #[tokio::test]
 async fn ensure_unique_ssh_host_keys_refuses_a_peer_with_no_marker() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", "SHA256:AAAA\n");
-    let peer = Arc::new(FakeChannel::answering("air-linux-2", |_| Ok(failed(1, ""))));
+    let channel = FakeChannel::spoke("air-docker-1", "SHA256:AAAA\n");
+    let peer = Arc::new(FakeChannel::answering("air-docker-2", |_| Ok(failed(1, ""))));
     let refusal = host.guest(&channel).ensure_unique_ssh_host_keys(&peers(&peer)).await.unwrap_err();
     assert_eq!(refusal.code, "ssh_host_key_peer_not_ready");
 }
@@ -51,7 +51,7 @@ async fn ensure_unique_ssh_host_keys_refuses_a_peer_with_no_marker() {
 #[tokio::test]
 async fn ensure_unique_ssh_host_keys_skips_a_stopped_peer() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", "SHA256:AAAA\n");
+    let channel = FakeChannel::spoke("air-docker-1", "SHA256:AAAA\n");
     host.guest(&channel).ensure_unique_ssh_host_keys(&Peers::default()).await.unwrap();
 }
 
@@ -60,13 +60,13 @@ async fn ensure_unique_ssh_host_keys_skips_a_stopped_peer() {
 fn parse_ssh_host_key_fingerprint_refuses_anything() {
     for refused in ["", "\n", "not a fingerprint", "SHA256:", "MD5:aa:bb", "SHA256:AA\nsaid more"] {
         assert_eq!(
-            parse_ssh_host_key_fingerprint("air-linux-1", refused).unwrap_err().code,
+            parse_ssh_host_key_fingerprint("air-docker-1", refused).unwrap_err().code,
             "ssh_host_key_invalid",
             "{refused:?}"
         );
     }
     assert_eq!(
-        parse_ssh_host_key_fingerprint("air-linux-1", "made keys\r\nSHA256:ab+/=\r\n").unwrap(),
+        parse_ssh_host_key_fingerprint("air-docker-1", "made keys\r\nSHA256:ab+/=\r\n").unwrap(),
         "SHA256:ab+/="
     );
 }

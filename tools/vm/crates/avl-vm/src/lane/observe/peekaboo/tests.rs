@@ -1,5 +1,5 @@
+use avl_base::Exit;
 use avl_base::format::words;
-use avl_base::{Backend, Exit, GuestOs};
 use avl_host_sys::Ctx;
 use avl_host_testkit::{outcome_of, refusal};
 use avl_testkit::tartfake::Answer;
@@ -136,7 +136,7 @@ fn an_artifact_failure_alone_exits_seventy_four() {
 /// carries.
 #[tokio::test]
 async fn peekaboo_is_refused_off_the_parallels_backend() {
-    for fixture in [Fixture::tart_linux(), Fixture::new(Backend::Docker, GuestOs::Linux)] {
+    for fixture in [Fixture::tart_macos(), Fixture::docker()] {
         let args = parse(&["--", "image"]).expect("the invocation parses");
         let refusal = refusal(
             command_peekaboo(

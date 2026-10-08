@@ -124,7 +124,7 @@ fn runs(daemon: &FakeDaemon) -> usize {
 async fn leased_warm_worker(fixture: &Fixture) -> PathBuf {
     let prep = fixture.pool_build().await;
     fixture.warm_daemon(&fixture.worker, &prep).await;
-    fixture.leased_by(&fixture.worker, "suite", GuestOs::Linux)
+    fixture.leased_by(&fixture.worker, "suite", GuestOs::Macos)
 }
 
 /// One green trial per entry of `iterations`, on the first worker's double, in order.
@@ -230,7 +230,7 @@ async fn a_receipt_from_another_guest_cannot_be_chained_with_this_runs_own_worke
     let fixture = Fixture::pool().await;
     let prep = fixture.pool_build().await;
     fixture.warm_daemon(&fixture.worker, &prep).await;
-    let receipt = fixture.leased_by(&fixture.worker, "suite", GuestOs::Macos);
+    let receipt = fixture.leased_by(&fixture.worker, "suite", GuestOs::Linux);
     let builds_before = fixture.bazel.build_calls();
 
     let refusal = refused(run(&fixture, &["--lane", "ui", "--trials", "2", "--workers", "2"], Some(&receipt)).await);
@@ -261,7 +261,7 @@ async fn a_release_this_run_cannot_complete_is_named_rather_than_swallowed() {
         script.run_lines = lines;
         script.results_xml = xml.into_bytes();
     }
-    let receipt = fixture.leased_by(&workers[0], "suite", GuestOs::Linux);
+    let receipt = fixture.leased_by(&workers[0], "suite", GuestOs::Macos);
     fixture.read_as_running(borrowed).await;
     let recorded = Recorded::start(fixture.host.reporter());
 
@@ -321,7 +321,7 @@ async fn an_interrupt_keeps_the_leases_this_run_took_and_writes_no_summary() {
         }
         daemons.push(daemon);
     }
-    let receipt = fixture.leased_by(&workers[0], "suite", GuestOs::Linux);
+    let receipt = fixture.leased_by(&workers[0], "suite", GuestOs::Macos);
     let recorded = Recorded::start(fixture.host.reporter());
     // The signal arrives once the acquired worker's trial is in flight, which it will not leave by itself.
     let interrupter = {

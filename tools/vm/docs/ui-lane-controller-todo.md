@@ -3,8 +3,9 @@
 Open work on the VM UI-test controller itself. The Go migration underneath it is done, then the Rust port
 that replaced it, and so is the cost work the hardware runs opened: the ports' record — why there is one
 implementation, the parity gate, the Windows stance — is [ADR 0105](decisions/0105-the-ui-lane-controller-is-go.md)
-for Go and [ADR 0059](decisions/0059-the-ui-lane-tooling-is-rust.md) for Rust. The Linux guest's own list
-is [`vm-linux-guest.md`](vm-linux-guest.md); the sealed-macOS backend no longer has one — its open list was
+for Go and [ADR 0059](decisions/0059-the-ui-lane-tooling-is-rust.md) for Rust. [`vm-linux-guest.md`](vm-linux-guest.md) is the history of the Linux guest. It holds no open list, because
+[ADR 0210](decisions/0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md) retired the Tart
+Linux worker. The sealed-macOS backend has no open list either — its open list was
 retired on 2026-08-23 once the golden was rebuilt and the lane measured on it, and what survived it lives
 in the [VM guide](vm-ui-tests.md) under `## Parity gate`. Why the daemon exists at all is
 [ADR 0104](../../../../plugins/air/docs/decisions/0104-the-daemon-caches-a-process-not-a-build.md). **This file is only the open list.**
@@ -69,8 +70,10 @@ Every item below was found by running something, and says so. Where a measuremen
 
 - **Why the exec agent's vsock context cancels under load is inside Cirrus's `tart-guest-agent`.** It exits
   at its own `main.go:44` with *"context canceled"*, on a loaded host only: three losses in 46 loaded lane
-  executions, and none in the quiet twelve. The daemon no longer dies with it, because the commit *"fix air
-  vm: the daemon survives its launch channel"* gives the supervised daemon a systemd unit of its own. So the
+  executions, and none in the quiet twelve. The daemon no longer dies with it. The guest agent starts the
+  supervisor as a released, session-detached spawn on every guest, so the daemon outlives its launch channel.
+  The systemd unit of the retired Tart Linux worker is gone
+  ([ADR 0210](decisions/0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md)). So the
   cancel now costs a reconnect instead of a lane, and
   [ADR 0110](decisions/0110-the-truncation-chain-is-a-daemon-kill-under-load.md) holds the whole
   measurement. Do not try to fix that binary here.

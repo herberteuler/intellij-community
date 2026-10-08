@@ -1,7 +1,7 @@
 //! This crate's suite fixture: the `run`, `daemon`, `shard` and `flake` suites share it. Hermetic: no VM, no network
 //! beyond the loopback HTTP double, no Bazel.
 //!
-//! Three seams, all of them the production code's own. The hypervisor is the fake `tart` of [`HostPool`]; the guest
+//! Three seams, all of them the production code's own. The hypervisor is the fake `tart` or `docker` of [`HostPool`]; the guest
 //! is [`FakeGuests`] answering through a [`Verbs`] router; and the daemon's control channel is an axum server that
 //! routes with [`avl_wire::daemon::match_route`], so the double cannot agree with the client while disagreeing with
 //! the server. The scripted guest relays each connect to that server over an in-memory stream. Over the hypervisor,
@@ -479,8 +479,13 @@ pub(crate) const FIXTURE_RUNFILES: [(&str, &str); 8] = [
     ("_main/jbr/manifest.json", "jbr-manifest"),
 ];
 
-/// The fixture's runtime descriptor.
+/// The fixture's runtime descriptor, built for an arm64 Linux guest.
 pub(crate) fn fixture_descriptor() -> Value {
+    fixture_descriptor_for("linux_aarch64")
+}
+
+/// The fixture's runtime descriptor, with the JBR of one guest platform, such as `darwin_aarch64`.
+pub(crate) fn fixture_descriptor_for(jbr_platform: &str) -> Value {
     let file = |logical_path: &str| {
         json!({
             "execPath": format!("bazel-out/bin/{logical_path}"),
@@ -506,15 +511,15 @@ pub(crate) fn fixture_descriptor() -> Value {
             "archive": file("_main/jbr/jbr.tar.gz"),
             "javaHomeSuffix": "a&b",
             "manifest": file("_main/jbr/manifest.json"),
-            "platform": "linux_aarch64",
+            "platform": jbr_platform,
             "preloadedOnly": false,
         },
         "data": [file("_main/data/project.zip")],
     })
 }
 
-/// Materializes the descriptor and its runfiles tree in `directory`, answering the descriptor path.
-pub(crate) fn write_runtime_fixture(directory: &Path) -> PathBuf {
+/// Materializes the descriptor for `jbr_platform` and its runfiles tree in `directory`, answering the descriptor path.
+pub(crate) fn write_runtime_fixture(directory: &Path, jbr_platform: &str) -> PathBuf {
     let descriptor_path = directory.join("ui_daemon.runtime.json");
     let root = avl_wire::runtime::runfiles_root(&descriptor_path);
     for (logical_path, content) in FIXTURE_RUNFILES {
@@ -524,7 +529,7 @@ pub(crate) fn write_runtime_fixture(directory: &Path) -> PathBuf {
         }
         std::fs::write(&target, content).expect("a runfile is written");
     }
-    std::fs::write(&descriptor_path, fixture_descriptor().to_string()).expect("the descriptor is written");
+    std::fs::write(&descriptor_path, fixture_descriptor_for(jbr_platform).to_string()).expect("the descriptor is written");
     descriptor_path
 }
 
@@ -634,7 +639,7 @@ impl GuestPorts {
 
 // --- the fixture -------------------------------------------------------------------------------------------------
 
-/// A [`Host`] over a Linux Tart pool, or a Docker one, with every collaborator faked.
+/// A [`Host`] over a Docker pool of the Linux guest, or a Tart pool of the macOS guest, with every collaborator faked.
 ///
 /// The daemon environment paths are pinned (`/vm/...`) rather than derived from the temporary root, so guest paths
 /// in assertions are literals.
@@ -672,14 +677,27 @@ impl Deref for DaemonFixture {
 
 impl DaemonFixture {
     /// The fixture with more environment variables, such as the `AIR_VM_DAEMON_*` budgets.
+    ///
+    /// A Docker pool of the Linux guest, with the first worker's container current and running. That is what a
+    /// warm worker has. Without it, the gate of a warm iteration makes the container again and forgets the daemon.
+    /// The guest of a running container answers a free run slot, so a lease release passes its check of the slot.
     pub(crate) async fn with_environment(extra: &[(&str, &str)]) -> Self {
-        Self::build(Backend::Tart, extra, false).await
+        let fixture = Self::build(Backend::Docker, GuestOs::Linux, extra, false).await;
+        fixture.seed_current_container().await;
+        fixture.on("active", handler(|_, _| Ok(active_reply(None))));
+        fixture
     }
 
     /// The fixture over a Docker pool: the fake `docker` answers the backend's own commands and records them in the
     /// fake's call log, and the scripted guest answers every guest command, as it does on Tart.
     pub(crate) async fn docker() -> Self {
-        Self::build(Backend::Docker, &[], false).await
+        Self::build(Backend::Docker, GuestOs::Linux, &[], false).await
+    }
+
+    /// The fixture over a Tart pool of the macOS guest, for a suite whose subject is the Tart backend: its
+    /// liveness, its remount, its gate. The scripted guest answers every guest command, as it does on Docker.
+    pub(crate) async fn tart_macos(extra: &[(&str, &str)]) -> Self {
+        Self::build(Backend::Tart, GuestOs::Macos, extra, false).await
     }
 
     /// The fixture over the production guest channel: no `TART_BIN` and no scripted guest. The Tart backend
@@ -693,12 +711,12 @@ impl DaemonFixture {
     ///
     /// [`DaemonFixture::channel`] panics here; a suite reads the fake's call log and seeds its exec answers.
     pub(crate) async fn over_hypervisor(extra: &[(&str, &str)]) -> Self {
-        Self::build(Backend::Tart, extra, true).await
+        Self::build(Backend::Tart, GuestOs::Macos, extra, true).await
     }
 
-    async fn build(backend: Backend, extra: &[(&str, &str)], over_hypervisor: bool) -> Self {
+    async fn build(backend: Backend, guest_os: GuestOs, extra: &[(&str, &str)], over_hypervisor: bool) -> Self {
         avl_affected::bridge::install_fixture();
-        let mut builder = HostPool::builder(backend, GuestOs::Linux, MINIMUM_VERSION).with_git();
+        let mut builder = HostPool::builder(backend, guest_os, MINIMUM_VERSION).with_git();
         if over_hypervisor {
             builder = builder.without_tart_bin();
         }
@@ -752,7 +770,8 @@ impl DaemonFixture {
         manager.prepare_runtime_dirs().expect("the runtime directories are created");
         let out = pool.root().join("out");
         std::fs::create_dir_all(&out).expect("the output directory is created");
-        let bazel = Arc::new(FakeBazel::new(write_runtime_fixture(&out)));
+        let platform = crate::lane::env::guest_jbr_platform(settings.guest_os, settings.guest_arch);
+        let bazel = Arc::new(FakeBazel::new(write_runtime_fixture(&out, platform)));
         // Advances only when a poll sleeps, so a poll loop's suite never waits out a real budget.
         let clock = Arc::new(FakeClock::at("2026-08-23T12:00:00Z"));
         let stdin = Arc::new(ScriptedStdin::default());

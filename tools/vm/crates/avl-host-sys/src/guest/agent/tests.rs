@@ -10,7 +10,7 @@ use crate::proc::Captured;
 fn receipt(host: &Host, source: &Path, content: &str) -> AgentReceipt {
     AgentReceipt {
         schema_version: 1,
-        worker: "air-linux-1".to_owned(),
+        worker: "air-docker-1".to_owned(),
         guest_os: "linux".to_owned(),
         host_repo: host.repo.to_string_lossy().into_owned(),
         source: source.to_string_lossy().into_owned(),
@@ -72,9 +72,9 @@ async fn install_agent_skips_when_the_guest_already_runs_these_bytes() {
     let mut host = Host::new(GuestOs::Linux);
     let source = host.agent_source("agent bytes");
     host.settings.vm_agent_source = Some(source.clone());
-    write_agent_receipt(&host.settings, "air-linux-1", &receipt(&host, &source, "agent bytes")).unwrap();
+    write_agent_receipt(&host.settings, "air-docker-1", &receipt(&host, &source, "agent bytes")).unwrap();
     let contract = format!(r#"{{"selfDigest":"{}"}}"#, agent_digest(b"agent bytes"));
-    let channel = FakeChannel::spoke("air-linux-1", contract);
+    let channel = FakeChannel::spoke("air-docker-1", contract);
     let bazel = FakeBazel::default();
     host.guest(&channel).install_agent(&bazel).await.unwrap();
     // Exactly the one `contract` round-trip: no push, and - the expensive half - no resolution either, which is only
@@ -90,7 +90,7 @@ async fn install_agent_renames_onto_the_running_binary_and_records_what_it_pushe
     let mut host = Host::new(GuestOs::Linux);
     let source = host.agent_source("new agent bytes");
     host.settings.vm_agent_source = Some(source.clone());
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     host.guest(&channel).install_agent(&ForbiddenBazel).await.unwrap();
     let settings = &host.settings;
     let as_user = format!("/usr/bin/sudo -H -u {}", settings.vm_user);
@@ -107,7 +107,7 @@ async fn install_agent_renames_onto_the_running_binary_and_records_what_it_pushe
         ]
     );
     assert_eq!(channel.calls()[0].options.stdin.as_deref(), Some(&b"new agent bytes"[..]));
-    let installed = installed_agent_receipt(settings, "air-linux-1", &host.quiet).unwrap();
+    let installed = installed_agent_receipt(settings, "air-docker-1", &host.quiet).unwrap();
     assert_eq!(installed, receipt(&host, &source, "new agent bytes"));
 }
 
@@ -122,20 +122,20 @@ fn installed_agent_receipt_rejects_a_receipt_from_another_checkout() {
     let repo = host.repo.to_string_lossy().into_owned();
     let mut foreign = receipt(&host, &source, "agent bytes");
     foreign.host_repo = format!("{repo}-other");
-    write_agent_receipt(&host.settings, "air-linux-1", &foreign).unwrap();
+    write_agent_receipt(&host.settings, "air-docker-1", &foreign).unwrap();
     let (reporter, said) = prose();
-    assert_eq!(installed_agent_receipt(&host.settings, "air-linux-1", &reporter), None);
+    assert_eq!(installed_agent_receipt(&host.settings, "air-docker-1", &reporter), None);
     // The rejection names both checkouts, because the whole difficulty of the original failure was that neither was
     // visible: the symptom was one exit 64 from a verb the other checkout's agent did not have.
     let text = said.text();
-    for wanted in [format!("{repo}-other"), repo.clone(), "air-linux-1".to_owned()] {
+    for wanted in [format!("{repo}-other"), repo.clone(), "air-docker-1".to_owned()] {
         assert!(text.contains(&wanted), "no {wanted:?} in {text:?}");
     }
     // Every other field of that receipt is in order, so this is the only thing that rejected it.
     foreign.host_repo = repo;
-    write_agent_receipt(&host.settings, "air-linux-1", &foreign).unwrap();
+    write_agent_receipt(&host.settings, "air-docker-1", &foreign).unwrap();
     let (reporter, said) = prose();
-    assert!(installed_agent_receipt(&host.settings, "air-linux-1", &reporter).is_some());
+    assert!(installed_agent_receipt(&host.settings, "air-docker-1", &reporter).is_some());
     assert_eq!(said.text(), "");
 }
 
@@ -149,9 +149,9 @@ async fn install_agent_writes_no_receipt_for_an_absent_source() {
     host.settings.vm_agent_source = Some(source.clone());
     let mut stale = receipt(&host, &source, "older bytes");
     stale.source_signature = "1:2:3:4".to_owned();
-    write_agent_receipt(&host.settings, "air-linux-1", &stale).unwrap();
+    write_agent_receipt(&host.settings, "air-docker-1", &stale).unwrap();
     let vanishing = source.clone();
-    let channel = FakeChannel::answering("air-linux-1", move |argv| {
+    let channel = FakeChannel::answering("air-docker-1", move |argv| {
         if has(argv, "/usr/bin/tee") {
             std::fs::remove_file(&vanishing).unwrap();
         }
@@ -159,7 +159,7 @@ async fn install_agent_writes_no_receipt_for_an_absent_source() {
     });
     host.guest(&channel).install_agent(&ForbiddenBazel).await.unwrap();
     assert!(
-        !agent_receipt_path(&host.settings, "air-linux-1").exists(),
+        !agent_receipt_path(&host.settings, "air-docker-1").exists(),
         "a receipt survived an unstable source"
     );
 }
@@ -168,7 +168,7 @@ async fn install_agent_writes_no_receipt_for_an_absent_source() {
 async fn install_agent_refuses_a_source_that_is_not_there() {
     let mut host = Host::new(GuestOs::Linux);
     host.settings.vm_agent_source = Some(host.dir().join("never-built"));
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     let refusal = host.guest(&channel).install_agent(&ForbiddenBazel).await.unwrap_err();
     assert_eq!(refusal.code, "guest_agent_missing");
     assert!(channel.calls().is_empty());
@@ -188,13 +188,13 @@ async fn resolving_the_agent_takes_the_last_cquery_line() {
         root: root.path().to_owned(),
         ..FakeBazel::default()
     };
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     host.guest(&channel).install_agent(&bazel).await.unwrap();
     let query = bazel.state().last_query;
     assert_eq!(query[0], "cquery");
     assert!(has(&query, "--output=starlark"), "{query:?}");
     assert_eq!(query.last().unwrap(), "@community//tools/vm:vm-guest-agent-linux-arm64");
-    let installed = installed_agent_receipt(&host.settings, "air-linux-1", &host.quiet).unwrap();
+    let installed = installed_agent_receipt(&host.settings, "air-docker-1", &host.quiet).unwrap();
     assert_eq!(installed.source, root.path().join(relative).to_string_lossy());
     // Memoized: the answer cannot change under a running controller, because nothing here builds it. The second
     // install is skipped by its receipt only if the guest agrees, which this one does not, so it resolves again -
@@ -215,7 +215,7 @@ async fn resolving_the_agent_refuses_with_the_build_to_run() {
         root: root.path().to_owned(),
         ..FakeBazel::default()
     };
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     let refusal = host.guest(&channel).install_agent(&bazel).await.unwrap_err();
     assert_eq!(refusal.code, "guest_agent_missing");
     assert!(
@@ -235,7 +235,7 @@ async fn resolving_the_agent_refuses_an_empty_cquery_answer() {
         root: host.dir().to_owned(),
         ..FakeBazel::default()
     };
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     let refusal = host.guest(&channel).install_agent(&bazel).await.unwrap_err();
     assert_eq!(refusal.code, "guest_agent_unresolved");
 }
@@ -255,13 +255,13 @@ async fn agent_self_digest_is_empty_for_every_way_of_not_knowing() {
         ("the digest is a number", said(r#"{"selfDigest":12345}"#)),
     ];
     for (name, answer) in cases {
-        let channel = FakeChannel::answering("air-linux-1", move |_| Ok(answer.clone()));
+        let channel = FakeChannel::answering("air-docker-1", move |_| Ok(answer.clone()));
         assert_eq!(host.guest(&channel).agent_self_digest().await, None, "{name}");
     }
     // The Rust agent's own `contract` reply is read too.
     let digest = agent_digest(b"x");
     let contract = serde_json::to_string(&avl_wire::supervisor::Contract::current(&digest)).unwrap();
-    let channel = FakeChannel::spoke("air-linux-1", contract);
+    let channel = FakeChannel::spoke("air-docker-1", contract);
     assert_eq!(host.guest(&channel).agent_self_digest().await, Some(digest));
 }
 
@@ -271,13 +271,13 @@ async fn agent_self_digest_is_empty_for_every_way_of_not_knowing() {
 #[tokio::test]
 async fn agent_self_digest_reports_why_it_could_not_ask() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::answering("air-linux-1", |_| Ok(failed(64, "Usage:\n  vm-guest-agent start --root DIR\n")));
+    let channel = FakeChannel::answering("air-docker-1", |_| Ok(failed(64, "Usage:\n  vm-guest-agent start --root DIR\n")));
     let (reporter, said) = prose();
     let guest = host.guest_reporting(&channel, &reporter);
     assert_eq!(guest.agent_self_digest().await, None);
     let text = said.text();
     // The agent and its exit code, not the sudo the call was re-targeted with.
-    for fragment in ["contract", "air-linux-1", "exited with 64", "reinstalling"] {
+    for fragment in ["contract", "air-docker-1", "exited with 64", "reinstalling"] {
         assert!(text.contains(fragment), "no {fragment:?} in {text}");
     }
     assert!(!text.contains("sudo"), "{text}");
@@ -292,15 +292,15 @@ fn installed_agent_receipt_rejects_a_receipt_for_another_guest() {
     let source = host.agent_source("agent bytes");
     let mut other_guest = receipt(&host, &source, "agent bytes");
     other_guest.guest_os = "macos".to_owned();
-    write_agent_receipt(&host.settings, "air-linux-1", &other_guest).unwrap();
+    write_agent_receipt(&host.settings, "air-docker-1", &other_guest).unwrap();
     // The binary is per *guest* platform: a darwin build in a Linux worker would not run at all.
-    assert_eq!(installed_agent_receipt(&host.settings, "air-linux-1", &host.quiet), None);
+    assert_eq!(installed_agent_receipt(&host.settings, "air-docker-1", &host.quiet), None);
     // A `bazel clean` invalidates the receipt rather than matching it.
     let mut cleaned = receipt(&host, &source, "agent bytes");
     cleaned.source = host.dir().join("cleaned-away").to_string_lossy().into_owned();
     cleaned.source_signature = "1:2:3:4".to_owned();
-    write_agent_receipt(&host.settings, "air-linux-1", &cleaned).unwrap();
-    assert_eq!(installed_agent_receipt(&host.settings, "air-linux-1", &host.quiet), None);
+    write_agent_receipt(&host.settings, "air-docker-1", &cleaned).unwrap();
+    assert_eq!(installed_agent_receipt(&host.settings, "air-docker-1", &host.quiet), None);
 }
 
 // The labels are the root `avl_binary` targets, one file each: the lane builds exactly these, and the install reads
@@ -329,19 +329,19 @@ fn an_agent_receipt_is_one_camel_case_line() {
     let host = Host::new(GuestOs::Linux);
     let written = AgentReceipt {
         schema_version: 1,
-        worker: "air-linux-1".to_owned(),
+        worker: "air-docker-1".to_owned(),
         guest_os: "linux".to_owned(),
         host_repo: "/repo".to_owned(),
         source: "/out/agent".to_owned(),
         source_signature: "1:2:3:4".to_owned(),
         sha256: "ab".repeat(32),
     };
-    write_agent_receipt(&host.settings, "air-linux-1", &written).unwrap();
-    let path = agent_receipt_path(&host.settings, "air-linux-1");
+    write_agent_receipt(&host.settings, "air-docker-1", &written).unwrap();
+    let path = agent_receipt_path(&host.settings, "air-docker-1");
     assert_eq!(
         std::fs::read_to_string(&path).unwrap(),
         format!(
-            r#"{{"schemaVersion":1,"worker":"air-linux-1","guestOs":"linux","hostRepo":"/repo","source":"/out/agent","sourceSignature":"1:2:3:4","sha256":"{}"}}"#,
+            r#"{{"schemaVersion":1,"worker":"air-docker-1","guestOs":"linux","hostRepo":"/repo","source":"/out/agent","sourceSignature":"1:2:3:4","sha256":"{}"}}"#,
             "ab".repeat(32)
         ) + "\n"
     );

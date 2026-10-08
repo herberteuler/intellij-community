@@ -22,12 +22,10 @@ pub(crate) fn settings(backend: Backend, guest_os: GuestOs) -> Config {
         .unwrap_or_else(|refusal| panic!("the environment was refused: {refusal:?}"))
 }
 
-/// The backend of a test fixture for a guest OS. A macOS guest runs on Tart only. A Linux guest runs on Tart on a
-/// Unix host, and on Docker on a Windows host, which drives only the Docker backend. So a test that needs a Tart
-/// pool for a Linux guest is Unix only.
+/// The backend of a test fixture for a guest OS. A macOS guest runs on Tart, and a Linux guest runs on Docker.
 pub(crate) const fn fixture_backend(guest_os: GuestOs) -> Backend {
     match guest_os {
-        GuestOs::Linux if cfg!(windows) => Backend::Docker,
-        _ => Backend::Tart,
+        GuestOs::Linux => Backend::Docker,
+        GuestOs::Macos => Backend::Tart,
     }
 }

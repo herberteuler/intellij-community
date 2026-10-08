@@ -168,9 +168,8 @@ pub(super) async fn status(ctx: &Ctx, manager: &Manager, tart: &Tart) -> Result<
         }
     }
     for row in &mut workers {
-        // A verdict where the question applies and null where it does not, rather than `false` for every Linux
-        // worker in the pool - the fingerprint is absent there by design, not missing.
-        row.ssh_host_key_ready = settings.is_macos_guest().then_some(row.ssh_host_key_fingerprint.is_some());
+        // The field stays nullable, because the wire contract has a null for a guest that has no SSH host key.
+        row.ssh_host_key_ready = Some(row.ssh_host_key_fingerprint.is_some());
         row.ssh_host_key_unique = row
             .ssh_host_key_fingerprint
             .as_ref()
@@ -201,22 +200,20 @@ async fn tart_worker_status(
     host_paths: &HostPaths,
 ) -> Result<TartWorkerStatus, Refusal> {
     let settings = manager.settings();
-    let macos = settings.is_macos_guest();
     let identity = tart.read_process_identity(worker);
     let lease = lease_summary(settings, worker)?;
     let host_process = tart.process_alive(ctx, identity.as_ref()).await?;
     let vm = local.get(worker);
 
-    let mut provenance_ready = macos.then_some(false);
-    let mut provenance_error = None;
-    if vm.is_none() {
-        provenance_error = Some("worker_vm_missing".to_owned());
-    } else if macos {
-        match tart.require_worker_provenance(worker, &settings.golden_vm) {
-            Ok(_) => provenance_ready = Some(true),
-            Err(refusal) => provenance_error = Some(refusal.code.into_owned()),
-        }
-    }
+    let provenance = if vm.is_none() {
+        Err("worker_vm_missing".to_owned())
+    } else {
+        tart.require_worker_provenance(worker, &settings.golden_vm)
+            .map(drop)
+            .map_err(|refusal| refusal.code.into_owned())
+    };
+    let provenance_ready = Some(provenance.is_ok());
+    let provenance_error = provenance.err();
 
     // `tart exec` reports a stopped VM in stderr but exits zero. Tart's own list metadata is therefore the
     // authoritative precondition for probing the guest agent; an exit code alone would turn a stopped VM into a
@@ -291,23 +288,20 @@ struct Probed {
 
 async fn probe_running_tart_guest(guest: &Guest<'_>, channel: &dyn Channel, host_paths: &HostPaths) -> Result<Probed, Refusal> {
     let settings = guest.settings;
-    let macos = settings.is_macos_guest();
-    let mut probed = Probed::default();
-    // The macOS-only probes, behind the guard the real gate applies. None of the three questions exists on a Linux
-    // guest - no TCC databases, no login session, no regenerated host key - so asking them made every healthy Linux
-    // worker report `tccClean: false`, `console=no` and `ssh_host_key=not-ready`: three verdicts on checks nobody
-    // ran.
-    if macos {
-        probed.tcc = Verdict::of(guest.require_clean_worker_tcc().await);
-        let who = channel
-            .exec(guest.ctx, &words(["/usr/bin/who"]), &SpawnOptions::within(GUEST_COMMAND_TIMEOUT))
-            .await?;
-        probed.console_login = Some(who.exit_code == 0 && console_login_seen(&who.stdout));
-    }
+    // The macOS probes. A Tart worker is a macOS guest, so each one applies.
+    let tcc = Verdict::of(guest.require_clean_worker_tcc().await);
+    let who = channel
+        .exec(guest.ctx, &words(["/usr/bin/who"]), &SpawnOptions::within(GUEST_COMMAND_TIMEOUT))
+        .await?;
     let layout = Layout::probe(guest, host_paths).await;
-    probed.worker_storage_ready = layout.worker_storage_ready;
-    probed.parity = layout.parity;
-    if macos && probed.worker_storage_ready {
+    let mut probed = Probed {
+        console_login: Some(who.exit_code == 0 && console_login_seen(&who.stdout)),
+        worker_storage_ready: layout.worker_storage_ready,
+        parity: layout.parity,
+        tcc,
+        ..Probed::default()
+    };
+    if probed.worker_storage_ready {
         // Read as root with no `-H`, the argv the guest's sudoers rule is written for - the same spelling as the peer
         // read in the SSH host-key check, kept rather than normalised.
         let fingerprint = channel

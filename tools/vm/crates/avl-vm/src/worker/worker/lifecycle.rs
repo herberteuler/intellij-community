@@ -4,8 +4,7 @@
 //! - [`StartState`] and [`StopState`], what a start or a stop found;
 //! - the lifecycle operations of [`Manager`]. Each is one `match` on the [`Machine`], and each arm calls the body in
 //!   the file of its backend: `worker/tart.rs`, `worker/parallels.rs` and `worker/docker.rs`;
-//! - [`Manager::require_unleased`], the lease guard of a lifecycle operation;
-//! - [`Manager::finish_linux_start`], the Linux half of a boot. A Tart Linux worker and a Docker worker share it.
+//! - [`Manager::require_unleased`], the lease guard of a lifecycle operation.
 //!
 //! A backend that cannot do an operation answers [`unsupported`], which keeps the refusal code a caller branches on.
 
@@ -14,7 +13,7 @@ use std::time::Duration;
 
 use avl_base::sync::lock;
 use avl_base::{Exit, Outcome, Refusal};
-use avl_host_sys::guest::{LinuxProvisioning, ensure_host_paths};
+use avl_host_sys::guest::ensure_host_paths;
 use avl_host_sys::{Backoff, Ctx};
 use serde::Serialize;
 
@@ -305,28 +304,6 @@ impl Manager {
             Machine::Parallels(parallels) => self.start_parallels(ctx, parallels, worker).await,
             Machine::Docker(docker) => self.start_docker(ctx, docker, worker, None).await,
         }
-    }
-
-    /// The Linux half of a boot, shared by a Tart Linux worker and a Docker worker: the guest's own provisioning,
-    /// then the parity layout over the two read-only shares, then the Node a lane's agent CLIs run on.
-    ///
-    /// A Linux guest has no console login to wait for, so there is no "poll again" answer here: every refusal means
-    /// the start failed. `provisioning` is the backend's half. A Tart worker passes the `provision-guest` argv,
-    /// because its guest is a public image the boot installs packages into. A Docker worker passes none, because its
-    /// image and entrypoint already did that; `validate-guest` runs on both.
-    ///
-    /// **The Node comes after the layout, because the Node archive is read through the read-only Bazel share**, and
-    /// the parity step is what mounts it on Tart. A Node staged in front of the mount refused every Linux boot for a
-    /// day.
-    pub(super) async fn finish_linux_start(&self, ctx: &Ctx, worker: &str, provisioning: &LinuxProvisioning) -> Result<(), Refusal> {
-        let channel = self.channel(worker);
-        let guest = self.guest(ctx, channel.as_ref());
-        guest.provision_linux(self.bazel(), provisioning).await?;
-        if guest.parity_broken().await? {
-            guest.provision_worker(self.share_mount()).await?;
-        }
-        guest.ensure_ready(self).await?;
-        guest.ensure_guest_node(self.bazel()).await
     }
 
     // --- stop ------------------------------------------------------------------------------------------------

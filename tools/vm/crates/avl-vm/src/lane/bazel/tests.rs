@@ -5,16 +5,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use avl_base::format::words;
-use avl_base::{Backend, Config, Exit, GuestArch, GuestOs};
+use avl_base::{Config, Exit, GuestArch, GuestOs};
 use avl_host_sys::Ctx;
-use avl_host_sys::guest::{BazelHost, node_archive_label};
+use avl_host_sys::guest::BazelHost;
 use avl_wire::daemon::LABEL as DAEMON_LABEL;
 use avl_wire::runtime::runfiles_root;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
 use super::*;
-use crate::lane::testing::{tart, unresolved};
+use crate::lane::testing::{pool, pool_backend, unresolved};
 
 const DAEMON_RELATIVE: &str = "bazel-out/darwin_arm64-fastbuild/bin/plugins/air/tests/integration/ui/ui_daemon.runtime.json";
 
@@ -102,7 +102,7 @@ esac
 
     fn settings_sharing(&self, guest_os: GuestOs, bazel_user_root: &Path) -> Config {
         let runtime_root = self.runtime_root.to_str().unwrap();
-        let settings = unresolved(Backend::Tart, guest_os, &[("AIR_VM_RUNTIME_ROOT", runtime_root)]);
+        let settings = unresolved(pool_backend(guest_os), guest_os, &[("AIR_VM_RUNTIME_ROOT", runtime_root)]);
         settings.set_host_paths(&self.repo, bazel_user_root).unwrap();
         settings
     }
@@ -147,7 +147,7 @@ esac
 fn every_invocation_carries_the_options_every_other_one_carries() {
     for command in ["build", "cquery", "info"] {
         for guest_os in [GuestOs::Macos, GuestOs::Linux] {
-            let argv = host_bazel_argv(&tart(guest_os), command, &words(["//some:target"])).unwrap();
+            let argv = host_bazel_argv(&pool(guest_os), command, &words(["//some:target"])).unwrap();
             let config = format!("--config=air-lane-{}", guest_os.as_str());
             for wanted in [
                 command,
@@ -219,7 +219,7 @@ async fn the_fake_bazel_refuses_an_invocation_that_bypasses_the_seam() {
 ///
 /// The defect it answers: nothing in the install path builds the agent. The guest setup resolves and installs under
 /// the worker's lease-operation lock, so it can refuse a *missing* binary and cannot notice a stale one. Measured on
-/// `air-linux-1` on 2026-08-25: a lane drove an agent built three days earlier from this same checkout and died in
+/// a Linux worker on 2026-08-25: a lane drove an agent built three days earlier from this same checkout and died in
 /// `launch-prep` with exit 64.
 ///
 /// One invocation and not two, which is why the labels are asserted on the recorded argv rather than only on
@@ -236,9 +236,8 @@ async fn the_lane_build_builds_this_guests_agent() {
             "@community//tools/vm:vm-guest-agent-linux-x86_64",
         ),
     ] {
-        let mut wanted = words([DAEMON_LABEL, agent]);
-        // A macOS worker's Node comes from its sealed golden image, so only the Linux build has a third target.
-        wanted.extend(node_archive_label(guest_os, guest_arch));
+        // The guest's Node comes from its image, so no build stages one.
+        let wanted = words([DAEMON_LABEL, agent]);
         assert_eq!(host_build_targets(guest_os, guest_arch, DAEMON_LABEL), wanted);
 
         let fake = FakeBazelCmd::new(guest_os);
@@ -256,11 +255,11 @@ async fn the_lane_build_builds_this_guests_agent() {
     }
 }
 
-/// A **boot** builds what it installs into a guest, and nothing else: the agent, plus the Node archive a Linux
-/// worker is staged from. No lane label, because a boot judges no test. The set is a subset of the
-/// lane build's, asserted as one here so the two cannot come to disagree about which agent bytes a worker gets.
+/// A **boot** builds what it installs into a guest, and nothing else: the agent. No lane label, because a boot
+/// judges no test. The set is a subset of the lane build's, asserted as one here so the two cannot come to disagree
+/// about which agent bytes a worker gets.
 #[tokio::test]
-async fn a_boot_builds_the_agent_and_the_archive_and_no_lane() {
+async fn a_boot_builds_the_agent_and_no_lane() {
     for (guest_os, guest_arch) in [
         (GuestOs::Macos, GuestArch::Arm64),
         (GuestOs::Linux, GuestArch::Arm64),
@@ -273,9 +272,7 @@ async fn a_boot_builds_the_agent_and_the_archive_and_no_lane() {
         lane.extend(boot.iter().cloned());
         assert_eq!(host_build_targets(guest_os, guest_arch, DAEMON_LABEL), lane);
         assert!(!boot.iter().any(|label| label == DAEMON_LABEL));
-        // A macOS worker's Node comes from its sealed golden image, so only a Linux boot has a second target.
-        let expected = if node_archive_label(guest_os, guest_arch).is_some() { 2 } else { 1 };
-        assert_eq!(boot.len(), expected, "{guest_os:?} {guest_arch}: {boot:?}");
+        assert_eq!(boot, [agent_label(guest_os, guest_arch)], "{guest_os:?} {guest_arch}");
 
         fake.bazel_for(guest_os, guest_arch)
             .build_guest_boot(&Ctx::background())

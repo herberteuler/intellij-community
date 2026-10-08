@@ -59,7 +59,7 @@ fn the_image_pipeline_floor_is_the_controller_floor() {
 /// A Tart backend over a pool with no `TART_BIN`, and a Bazel that resolves the pinned Tart to the pool's fake, or no
 /// Bazel at all.
 fn unpinned_backend(with_bazel: bool) -> (Tart, Arc<PinnedBazel>, HostPool) {
-    let pool = HostPool::builder(Backend::Tart, GuestOs::Linux, MINIMUM_VERSION)
+    let pool = HostPool::builder(Backend::Tart, GuestOs::Macos, MINIMUM_VERSION)
         .without_tart_bin()
         .build();
     let bazel = Arc::new(PinnedBazel::tart(pool.fake.executable()));
@@ -88,7 +88,7 @@ async fn the_gate_resolves_the_pinned_tart_once() {
 /// `TART_BIN` stays an override that costs no Bazel call.
 #[tokio::test]
 async fn a_named_tart_asks_bazel_nothing() {
-    let fixture = HostPool::builder(Backend::Tart, GuestOs::Linux, MINIMUM_VERSION).build();
+    let fixture = HostPool::builder(Backend::Tart, GuestOs::Macos, MINIMUM_VERSION).build();
     let bazel = Arc::new(PinnedBazel::tart(fixture.fake.executable()));
     let backend = backend_over(&fixture.settings, Some(bazel.clone()));
     backend.require_available(&Ctx::background(), "").await.unwrap();
@@ -105,7 +105,7 @@ async fn the_guest_line_resolves_the_pinned_tart_without_the_gate() {
     let real = real_path(fixture.fake.executable()).unwrap();
     for _ in 0..2 {
         let line = backend
-            .guest_argv(&ctx, "air-linux-1", &[String::from("/usr/bin/true")], false)
+            .guest_argv(&ctx, "air-macos-1", &[String::from("/usr/bin/true")], false)
             .await
             .unwrap();
         assert_eq!(PathBuf::from(&line[0]), real);
@@ -117,7 +117,7 @@ async fn the_guest_line_resolves_the_pinned_tart_without_the_gate() {
     }
     assert_eq!(bazel.asked(), ["cquery", "info"], "two guest lines, one resolution");
     assert!(
-        fixture.fake.saw_call_containing("exec air-linux-1 /usr/bin/true"),
+        fixture.fake.saw_call_containing("exec air-macos-1 /usr/bin/true"),
         "{:?}",
         fixture.fake.calls()
     );
@@ -129,7 +129,7 @@ async fn the_guest_line_resolves_the_pinned_tart_without_the_gate() {
 async fn a_guest_line_with_no_resolvable_tart_is_tart_missing() {
     let (backend, _bazel, fixture) = unpinned_backend(false);
     let refusal = backend
-        .guest_argv(&Ctx::background(), "air-linux-1", &[String::from("/usr/bin/true")], false)
+        .guest_argv(&Ctx::background(), "air-macos-1", &[String::from("/usr/bin/true")], false)
         .await
         .unwrap_err();
     assert_eq!((refusal.code.as_ref(), refusal.exit), ("tart_missing", Exit::UNAVAILABLE));

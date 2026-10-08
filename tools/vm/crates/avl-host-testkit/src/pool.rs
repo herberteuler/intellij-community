@@ -52,7 +52,6 @@ pub struct HostPoolBuilder {
     guest_arch: GuestArch,
     tart_version: String,
     parallels: bool,
-    node_archive: bool,
     git: bool,
     tart_bin: bool,
     docker_bin: bool,
@@ -70,7 +69,6 @@ impl HostPool {
             guest_arch: GuestArch::Arm64,
             tart_version: tart_version.to_owned(),
             parallels: false,
-            node_archive: false,
             git: false,
             tart_bin: true,
             docker_bin: true,
@@ -129,13 +127,6 @@ impl HostPoolBuilder {
     #[must_use]
     pub const fn guest_arch(mut self, guest_arch: GuestArch) -> Self {
         self.guest_arch = guest_arch;
-        self
-    }
-
-    /// Names a stand-in Node archive by `AIR_VM_NODE_ARCHIVE`, so a boot stages Node without asking Bazel.
-    #[must_use]
-    pub const fn with_node_archive(mut self) -> Self {
-        self.node_archive = true;
         self
     }
 
@@ -242,13 +233,6 @@ impl HostPoolBuilder {
                 "AIR_VM_PARALLELS_BIN".to_owned(),
                 parallels.executable().to_string_lossy().into_owned(),
             ));
-        }
-        if self.node_archive {
-            let archive = root
-                .path()
-                .join(format!("node-v{}-linux-arm64.tar.gz", avl_base::config::GUEST_NODE_VERSION));
-            std::fs::write(&archive, "node archive").expect("the stand-in archive is written");
-            environment.push(("AIR_VM_NODE_ARCHIVE".to_owned(), archive.to_string_lossy().into_owned()));
         }
         let git = self.git.then(FakeGit::install);
         if let Some(git) = &git {

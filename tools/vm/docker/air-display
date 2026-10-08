@@ -1,11 +1,11 @@
 #!/bin/sh
-# The entrypoint of a Docker Linux worker. It starts the X display and the window manager that the Tart Linux
-# worker gets from its systemd units, and then it keeps the container alive.
+# The entrypoint of a Docker Linux worker. The image has no systemd, so this script starts the X display and the
+# window manager, and then it keeps the container alive.
 # The controller creates the container with `--init`, so this script is the only child of Docker's init process.
 # That init process forwards a SIGTERM from `docker stop` to this script.
 #
 # The display is `AIR_VM_DISPLAY` (default `:88`). The screen is `AIR_VM_SCREEN` (default `1920x1080x24`).
-# Xvfb and fluxbox run as the worker account, as on the Tart Linux worker. `-ac` turns off the X access control,
+# Xvfb and fluxbox run as the worker account. `-ac` turns off the X access control,
 # so the IDE of the worker account connects without an `.Xauthority` file.
 # The script exits 1 when the display or the window manager does not come up, or when one of them stops later.
 # Then the container stops, and the controller starts it again on the next lease operation.
@@ -62,7 +62,7 @@ as_worker() {
   exec setpriv --reuid="$user" --regid="$user" --init-groups env HOME="$home" USER="$user" DISPLAY="$display" "$@"
 }
 
-# Xvfb makes its socket directory only as root. The Tart Linux worker gets it from systemd-tmpfiles.
+# Xvfb makes its socket directory only as root. The image has no systemd-tmpfiles to make it.
 mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
 as_worker Xvfb "$display" -ac -screen 0 "$screen" -nolisten tcp &

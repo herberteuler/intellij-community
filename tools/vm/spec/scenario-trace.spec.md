@@ -14,7 +14,7 @@ targets:
   - ../crates/avl-base/src/plain.rs
   - ../crates/avl-report/src/report.rs
   - ../crates/avl-wire/src/report.rs
-  - ../crates/avl-host-sys/src/guest/linux.rs
+  - ../crates/avl-vm/src/worker/docker.rs
   - ../crates/avl-host-sys/src/viewer.rs
   - ../../trace.cmd
 ---
@@ -347,7 +347,7 @@ The lane's side is [Flow UI Scenario Traces](../../../../plugins/air/spec/docs/f
   [@test] ../crates/avl-wire/src/report/tests.rs
 
 - The Linux guest installs no video encoder. The recorder carries its own, so a Linux worker records video.
-  [@test] ../crates/avl-host-sys/src/guest/linux/tests.rs
+  [@test] ../crates/avl-vm/src/worker/docker/tests.rs
 
 ### The server
 

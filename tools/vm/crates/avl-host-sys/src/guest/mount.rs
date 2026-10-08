@@ -5,6 +5,7 @@
 
 use std::time::Duration;
 
+use avl_base::config::VirtiofsMount;
 use avl_base::format::words;
 use avl_base::{Config, Exit, Refusal, posix_shell_quote};
 
@@ -29,41 +30,38 @@ pub fn share_mount_path(settings: &Config, share_name: &str) -> String {
 
 /// The guest script that drops every view of the shared-folder device and mounts it where the controller wants it.
 ///
-/// On Tart and Parallels every share reaches a guest through one VirtioFS device under Apple's automount tag. On
-/// macOS the guest mounts that tag at boot, at a path with spaces, and the controller replaces that mount with its
-/// own for two reasons: the boot mount is stale by design - the guest keeps a dead VirtioFS node for any file the host
+/// On Tart and Parallels every share reaches the macOS guest through one VirtioFS device under Apple's automount tag.
+/// The guest mounts that tag at boot, at a path with spaces, and the controller replaces that mount with its own for
+/// two reasons. The boot mount is stale by design: the guest keeps a dead VirtioFS node for any file the host
 /// rewrites after the mount, so `stat` still answers from cache while `open` fails with ENOENT, which is precisely
-/// what a host rebuild does to a Bazel output - and remounting is the only invalidation the guest offers. A
-/// space-free mount point also keeps every guest path a single shell word, which is all `prlctl exec` can carry.
+/// what a host rebuild does to a Bazel output. Remounting is the only invalidation the guest offers. A space-free
+/// mount point also keeps every guest path a single shell word, which is all `prlctl exec` can carry.
 ///
 /// Every binary in it is absolute. This runs under `sudo -H`, whose `secure_path` on a macOS guest contains no
 /// `/sbin`: a bare `mount` was "command not found", so the sweep unmounted nothing while still exiting 0, and the
 /// mount then failed with "Resource busy" against the boot automount it was meant to replace.
 ///
-/// The `awk` has two substitutions because the two guests print a mount differently and both spellings have to
-/// reduce to the bare mount point: macOS says `tag on /Volumes/X (AppleVirtIOFS, ...)`, Linux says `tag on /mnt/X
-/// type virtiofs (rw,...)`. Stripping only the parenthesis left ` type virtiofs` attached on Linux, and `umount`
-/// answered "no mount point specified" for the whole string.
-pub fn remount_script(settings: &Config) -> String {
-    let guest = settings.guest;
+/// macOS prints a mount as `tag on /Volumes/X (AppleVirtIOFS, ...)`, so the `awk` strips the parenthesis to reduce
+/// the line to the bare mount point.
+pub fn remount_script(settings: &Config, device: &VirtiofsMount) -> String {
     [
         "#!/bin/sh".to_owned(),
         "set -eu".to_owned(),
-        format!("MOUNT={}", posix_shell_quote(guest.share_mount)),
+        format!("MOUNT={}", posix_shell_quote(settings.guest.share_mount)),
         "LIST=/tmp/air-vm-share-mounts.txt".to_owned(),
         // Every view of the device, the boot automount included, so no stale node survives anywhere in the guest:
         // a second mount point would keep its own cache.
         format!(
-            r#"{} | /usr/bin/awk -F' on ' '/{}/ {{ sub(/ type .*/, "", $2); sub(/ \(.*/, "", $2); print $2 }}' > "$LIST""#,
-            guest.mount_binary, guest.mounted_filesystem
+            r#"{} | /usr/bin/awk -F' on ' '/{}/ {{ sub(/ \(.*/, "", $2); print $2 }}' > "$LIST""#,
+            device.mount_binary, device.mounted_filesystem
         ),
         r"while IFS= read -r mounted; do".to_owned(),
         r#"  [ -n "$mounted" ] || continue"#.to_owned(),
-        format!(r#"  {0} "$mounted" || {0} -f "$mounted""#, guest.umount_binary),
+        format!(r#"  {0} "$mounted" || {0} -f "$mounted""#, device.umount_binary),
         r#"done < "$LIST""#.to_owned(),
         r#"/bin/rm -f "$LIST""#.to_owned(),
         r#"/bin/mkdir -p "$MOUNT""#.to_owned(),
-        guest.mount_shares.to_owned(),
+        device.mount_shares.to_owned(),
         String::new(),
     ]
     .join("\n")
@@ -74,13 +72,26 @@ impl Guest<'_> {
     ///
     /// A rebuilt output the guest has already looked at is otherwise unopenable for the lifetime of the mount. The
     /// worker manager's share refresh calls this on Tart and Parallels after a host build, and waits a settle on
-    /// Docker instead. Provisioning calls it for [`ShareMount::VirtioFs`](super::ShareMount::VirtioFs).
+    /// Docker instead. Provisioning calls it for [`ShareMount::VirtioFs`](super::ShareMount::VirtioFs). A guest with
+    /// no VirtioFS device, which is a Docker worker, is refused before anything runs.
     pub async fn remount_shares(&self) -> Result<(), Refusal> {
+        let Some(device) = self.settings.guest.virtiofs else {
+            return Err(Refusal::new(
+                "unsupported_backend_operation",
+                Exit::SOFTWARE,
+                format!(
+                    "{} has no VirtioFS device to remount: a {} guest holds its shares as bind mounts",
+                    self.worker(),
+                    self.settings.guest_os
+                ),
+            ));
+        };
         let state = guest_join(&self.settings.vm_data, "state");
         let script = guest_join(&state, "remount-shares.sh");
         self.as_root(&words(["/bin/mkdir", "-p", &state]), &SpawnOptions::within(GUEST_COMMAND_TIMEOUT))
             .await?;
-        self.write_file(&script, remount_script(self.settings).as_bytes(), "700").await?;
+        self.write_file(&script, remount_script(self.settings, device).as_bytes(), "700")
+            .await?;
         self.as_root(&words(["/bin/sh", &script]), &SpawnOptions::within(REMOUNT_TIMEOUT))
             .await
             .map(drop)

@@ -24,7 +24,14 @@ fn parity_script_builds_the_layout_and_guards_a_foreign_directory() {
     let host = Host::new(GuestOs::Linux);
     let settings = &host.settings;
     let entries = words([".git", "community", "plugins"]);
-    let script = parity_script(settings, "air-linux-1", "/mnt/AirVmShares/repo", "/mnt/AirVmShares/bazel", &entries).unwrap();
+    let script = parity_script(
+        settings,
+        "air-docker-1",
+        "/mnt/AirVmShares/repo",
+        "/mnt/AirVmShares/bazel",
+        &entries,
+    )
+    .unwrap();
     let paths = guest_paths(&host);
     for required in [
         // Bazel's output root is one symlink onto its read-only mount…
@@ -62,7 +69,7 @@ fn the_parity_script_of_a_windows_host_names_only_guest_paths() {
     let entries = words([".git", "community"]);
     let script = parity_script(
         &settings,
-        "air-linux-1",
+        "air-docker-1",
         "/mnt/AirVmShares/repo",
         "/mnt/AirVmShares/bazel",
         &entries,
@@ -91,7 +98,7 @@ fn the_parity_script_of_a_windows_host_names_only_guest_paths() {
         r#"/bin/ln -sfn '/mnt/AirVmShares/repo/community' "$PARITY"/'community'"#,
         r#"/bin/ln -sfn '/data/out' "$PARITY"/out"#,
         &format!(
-            r#"printf '%s' '{{"schemaVersion":1,"backend":"{}","guestOs":"linux","worker":"air-linux-1","repoShare":"{}","bazelShare":"{}"}}"#,
+            r#"printf '%s' '{{"schemaVersion":1,"backend":"{}","guestOs":"linux","worker":"air-docker-1","repoShare":"{}","bazelShare":"{}"}}"#,
             settings.backend, settings.repo_share_name, settings.bazel_share_name
         ),
         r#"' > "$MARKER""#,
@@ -122,7 +129,7 @@ fn the_parity_script_refuses_a_foreign_tree_and_builds_its_own() {
     let (guest_os, worker) = if cfg!(target_os = "macos") {
         (GuestOs::Macos, "air-macos-1")
     } else {
-        (GuestOs::Linux, "air-linux-1")
+        (GuestOs::Linux, "air-docker-1")
     };
     let settings = Config::load(
         Selection {
@@ -170,7 +177,7 @@ fn the_parity_script_refuses_a_foreign_tree_and_builds_its_own() {
 #[test]
 fn parity_script_refuses_an_unsafe_entry_name() {
     let host = Host::new(GuestOs::Linux);
-    let refusal = parity_script(&host.settings, "air-linux-1", "/mnt/repo", "/mnt/bazel", &["a b".to_owned()]).unwrap_err();
+    let refusal = parity_script(&host.settings, "air-docker-1", "/mnt/repo", "/mnt/bazel", &["a b".to_owned()]).unwrap_err();
     assert_eq!(refusal.code, "unsafe_name");
 }
 
@@ -191,9 +198,9 @@ fn parity_marker_content_is_one_json_line() {
     let host = Host::new(GuestOs::Linux);
     let settings = &host.settings;
     assert_eq!(
-        parity_marker_content(settings, "air-linux-1"),
+        parity_marker_content(settings, "air-docker-1"),
         format!(
-            r#"{{"schemaVersion":1,"backend":"{}","guestOs":"linux","worker":"air-linux-1","repoShare":"{}","bazelShare":"{}"}}"#,
+            r#"{{"schemaVersion":1,"backend":"{}","guestOs":"linux","worker":"air-docker-1","repoShare":"{}","bazelShare":"{}"}}"#,
             settings.backend, settings.repo_share_name, settings.bazel_share_name
         ) + "\n"
     );
@@ -204,13 +211,22 @@ fn parity_marker_content_is_one_json_line() {
 /// probes and the parity script run for both kinds.
 #[tokio::test]
 async fn provision_parity_remounts_a_virtiofs_device_and_leaves_bind_mounts_alone() {
-    let host = Host::new(GuestOs::Linux);
-    let settings = &host.settings;
-    let [repo_share, _] = share::shares(settings).unwrap();
-    let probe = format!("/bin/test -e {}/.git", share_mount_path(settings, &repo_share.name));
-    let sweep = format!("/bin/sh {}/state/remount-shares.sh", settings.vm_data);
-    for (mount, remounts) in [(ShareMount::VirtioFs, true), (ShareMount::Bind, false)] {
-        let channel = FakeChannel::new("air-linux-1");
+    // The VirtioFS device is the macOS guest's, of Tart and Parallels. The bind mounts are a Docker worker's.
+    let cases = if cfg!(windows) {
+        vec![(GuestOs::Linux, ShareMount::Bind, false)]
+    } else {
+        vec![
+            (GuestOs::Macos, ShareMount::VirtioFs, true),
+            (GuestOs::Linux, ShareMount::Bind, false),
+        ]
+    };
+    for (guest_os, mount, remounts) in cases {
+        let host = Host::new(guest_os);
+        let settings = &host.settings;
+        let [repo_share, _] = share::shares(settings).unwrap();
+        let probe = format!("/bin/test -e {}/.git", share_mount_path(settings, &repo_share.name));
+        let sweep = format!("/bin/sh {}/state/remount-shares.sh", settings.vm_data);
+        let channel = FakeChannel::new(&settings.workers[0]);
         host.guest(&channel).provision_parity(mount).await.unwrap();
         let lines = channel.lines();
         assert_eq!(
@@ -234,8 +250,8 @@ async fn provision_parity_skips_out_and_the_marker_and_sorts_the_rest() {
     for entry in ["plugins", "out", "community", PARITY_MARKER] {
         std::fs::write(host.repo.join(entry), "x").unwrap();
     }
-    let channel = FakeChannel::new("air-linux-1");
-    host.guest(&channel).provision_parity(ShareMount::VirtioFs).await.unwrap();
+    let channel = FakeChannel::new("air-docker-1");
+    host.guest(&channel).provision_parity(ShareMount::Bind).await.unwrap();
     let script_path = format!("{}/state/provision-parity.sh", settings.vm_data);
     let script = channel
         .calls()
@@ -269,8 +285,8 @@ async fn provision_parity_skips_out_and_the_marker_and_sorts_the_rest() {
 async fn ensure_parity_ready_probes_as_the_worker_user() {
     let host = Host::new(GuestOs::Linux);
     let settings = &host.settings;
-    write_init_receipt(settings, "air-linux-1").unwrap();
-    let channel = FakeChannel::new("air-linux-1");
+    write_init_receipt(settings, "air-docker-1").unwrap();
+    let channel = FakeChannel::new("air-docker-1");
     host.guest(&channel).ensure_parity_ready().await.unwrap();
     let as_user = format!("/usr/bin/sudo -H -u {} /bin/test", settings.vm_user);
     let paths = guest_paths(&host);
@@ -296,14 +312,14 @@ async fn ensure_parity_ready_refuses_a_receipt_for_another_checkout() {
     // Complete and well-formed, but for another checkout: it reads, and is stale.
     let paths = guest_paths(&host);
     let receipt = format!(
-        r#"{{"schemaVersion":1,"worker":"air-linux-1","hostRepo":"/elsewhere","hostBazelUserRoot":{},"guestRepo":"/elsewhere","guestBazelUserRoot":{},"repoShare":"{}","bazelShare":"{}"}}"#,
+        r#"{{"schemaVersion":1,"worker":"air-docker-1","hostRepo":"/elsewhere","hostBazelUserRoot":{},"guestRepo":"/elsewhere","guestBazelUserRoot":{},"repoShare":"{}","bazelShare":"{}"}}"#,
         json_text(&host.bazel_user_root().to_string_lossy()),
         json_text(paths.bazel_user_root()),
         host.settings.repo_share_name,
         host.settings.bazel_share_name
     );
-    std::fs::write(init_receipt_path(&host.settings, "air-linux-1"), receipt).unwrap();
-    let channel = FakeChannel::new("air-linux-1");
+    std::fs::write(init_receipt_path(&host.settings, "air-docker-1"), receipt).unwrap();
+    let channel = FakeChannel::new("air-docker-1");
     let refusal = host.guest(&channel).ensure_parity_ready().await.unwrap_err();
     assert_eq!(refusal.code, "guest_init_stale");
     assert!(refusal.message.contains("/elsewhere"), "{}", refusal.message);
@@ -313,9 +329,9 @@ async fn ensure_parity_ready_refuses_a_receipt_for_another_checkout() {
 #[tokio::test]
 async fn ensure_parity_ready_refuses_a_failed_probe() {
     let host = Host::new(GuestOs::Linux);
-    write_init_receipt(&host.settings, "air-linux-1").unwrap();
+    write_init_receipt(&host.settings, "air-docker-1").unwrap();
     let tmp = host.settings.vm_tmp.clone();
-    let channel = FakeChannel::answering("air-linux-1", move |argv| {
+    let channel = FakeChannel::answering("air-docker-1", move |argv| {
         Ok(if has(argv, &tmp) { failed(1, "") } else { Captured::default() })
     });
     let refusal = host.guest(&channel).ensure_parity_ready().await.unwrap_err();
@@ -328,7 +344,7 @@ async fn ensure_parity_ready_refuses_a_failed_probe() {
 #[tokio::test]
 async fn parity_broken_separates_provisionable_from_real() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     assert!(host.guest(&channel).parity_broken().await.unwrap());
 
     let home = host.dir().join("elsewhere").to_string_lossy().into_owned();
@@ -353,13 +369,13 @@ async fn parity_broken_separates_provisionable_from_real() {
 fn init_receipt_round_trips_and_refuses_another_worker() {
     let host = Host::new(GuestOs::Linux);
     let settings = &host.settings;
-    write_init_receipt(settings, "air-linux-1").unwrap();
-    let path = init_receipt_path(settings, "air-linux-1");
+    write_init_receipt(settings, "air-docker-1").unwrap();
+    let path = init_receipt_path(settings, "air-docker-1");
     let paths = guest_paths(&host);
     assert_eq!(
         std::fs::read_to_string(&path).unwrap(),
         format!(
-            r#"{{"schemaVersion":1,"worker":"air-linux-1","hostRepo":{},"hostBazelUserRoot":{},"guestRepo":{},"guestBazelUserRoot":{},"repoShare":"{}","bazelShare":"{}"}}"#,
+            r#"{{"schemaVersion":1,"worker":"air-docker-1","hostRepo":{},"hostBazelUserRoot":{},"guestRepo":{},"guestBazelUserRoot":{},"repoShare":"{}","bazelShare":"{}"}}"#,
             json_text(&host.repo.to_string_lossy()),
             json_text(&host.bazel_user_root().to_string_lossy()),
             json_text(paths.repo()),
@@ -368,12 +384,12 @@ fn init_receipt_round_trips_and_refuses_another_worker() {
             settings.bazel_share_name
         ) + "\n"
     );
-    let receipt = read_init_receipt(settings, "air-linux-1").unwrap();
+    let receipt = read_init_receipt(settings, "air-docker-1").unwrap();
     assert_eq!(
         (receipt.host_repo.as_str(), receipt.repo_share.as_str(), receipt.schema_version),
         (host.repo.to_str().unwrap(), settings.repo_share_name.as_str(), 1)
     );
-    assert_eq!(read_init_receipt(settings, "air-linux-2").unwrap_err().code, "guest_init_required");
+    assert_eq!(read_init_receipt(settings, "air-docker-2").unwrap_err().code, "guest_init_required");
     // Mode 0600: every receipt this controller keeps is read back fail-closed after a crash.
     #[cfg(unix)]
     {
@@ -382,6 +398,6 @@ fn init_receipt_round_trips_and_refuses_another_worker() {
         assert_eq!(mode & 0o777, 0o600);
     }
     // Another schema, and a receipt naming another worker, are the same "not provisioned".
-    std::fs::write(&path, r#"{"schemaVersion":2,"worker":"air-linux-1"}"#).unwrap();
-    assert_eq!(read_init_receipt(settings, "air-linux-1").unwrap_err().code, "guest_init_required");
+    std::fs::write(&path, r#"{"schemaVersion":2,"worker":"air-docker-1"}"#).unwrap();
+    assert_eq!(read_init_receipt(settings, "air-docker-1").unwrap_err().code, "guest_init_required");
 }

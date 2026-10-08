@@ -9,8 +9,7 @@
 //! # Where each part lives
 //!
 //! - `worker/lifecycle.rs`: the one dispatch of the lifecycle operations (the readiness gates, start, stop and the
-//!   `pool` operations), each a `match` on the [`Machine`], and the lease guard of a lifecycle operation. It also
-//!   holds the Linux half of a boot, which a Tart Linux worker and a Docker worker share.
+//!   `pool` operations), each a `match` on the [`Machine`], and the lease guard of a lifecycle operation.
 //! - `worker/tart.rs`: the Tart lifecycle, Unix only as the Tart backend is. It also writes the two pieces of host state that only a Tart worker has.
 //!   The run process's pid receipt records the identity that recognises the process again. Reading it back is
 //!   [`Tart::read_process_identity`]. The suspended-state record says what the worker was suspended *with*. The
@@ -133,9 +132,8 @@ pub(crate) fn read_lease(path: &Path) -> Result<Option<Lease>, Refusal> {
 /// a suite can answer a guest command without a VM behind it.
 pub(crate) type ChannelFactory = Arc<dyn Fn(&str) -> Arc<dyn Channel> + Send + Sync>;
 
-/// Builds the host outputs a boot installs into a guest - the guest agent and the Node archive - before any worker
-/// is touched. `avl-vm` wires it to the lane's Bazel build; the reverse dependency, this crate reaching into the
-/// lane, is what the seam prevents.
+/// Builds the host output a boot installs into a guest, the guest agent, before any worker is touched. `avl-vm` wires
+/// it to the lane's Bazel build. The seam prevents the reverse dependency, this crate reaching into the lane.
 pub(crate) type GuestBootBuilder = Arc<dyn Fn(Ctx) -> BoxFuture<'static, Result<(), Refusal>> + Send + Sync>;
 
 /// The [`GuestBootBuilder`] that builds nothing: what a hermetic suite passes, and what every `AIR_VM_*_SOURCE`
@@ -156,8 +154,8 @@ pub(crate) struct Dependencies {
     pub channel: Option<ChannelFactory>,
     /// How the guest agent's and the pinned Tart's host files are located.
     ///
-    /// `None` is what a hermetic suite passes, and safe: its fixtures set `TART_BIN`, `AIR_VM_GUEST_AGENT_SOURCE`
-    /// and `AIR_VM_NODE_ARCHIVE`, and a named source is answered by a stat without asking Bazel anything. The two
+    /// `None` is what a hermetic suite passes, and safe: its fixtures set `TART_BIN` and `AIR_VM_GUEST_AGENT_SOURCE`,
+    /// and a named source is answered by a stat without asking Bazel anything. The two
     /// readers answer an unnamed one differently, which is why this stays an `Option` rather than a stand-in: an
     /// install is refused `bazel_unavailable` rather than spawning a 24 s `cquery`, and the Tart backend refuses
     /// `tart_missing` before it spawns anything.

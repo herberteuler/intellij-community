@@ -53,7 +53,7 @@ fn assert_no_temporaries_left(directory: &Path) {
 }
 
 async fn pull(fixture: &Fixture, source: &str, destination: &Path) -> Result<u64, avl_base::Refusal> {
-    pull_from(fixture, "air-linux-1", source, destination).await
+    pull_from(fixture, "air-docker-1", source, destination).await
 }
 
 async fn pull_from(fixture: &Fixture, worker: &str, source: &str, destination: &Path) -> Result<u64, avl_base::Refusal> {
@@ -71,7 +71,7 @@ fn a_pull_moves_raw_bytes_on_tart_and_docker_and_base64_on_parallels() {
 
 #[tokio::test]
 async fn pull_publishes_the_guest_bytes_atomically() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::docker();
     let corpus = corpus();
     answer_pull(&fixture.fake, &corpus);
     let (directory, destination) = destination();
@@ -96,7 +96,7 @@ async fn pull_publishes_the_guest_bytes_atomically() {
     assert_no_temporaries_left(directory.path());
     // The guest reads the file as the worker user, through the agent's own verb.
     let read = format!(
-        "exec air-linux-1 /usr/bin/sudo -H -u admin {} read-file /guest/artifact.bin",
+        "exec air-docker-1 /usr/bin/sudo -H -u admin {} read-file /guest/artifact.bin",
         fixture.settings.vm_agent
     );
     assert!(
@@ -110,7 +110,7 @@ async fn pull_publishes_the_guest_bytes_atomically() {
 /// is published. A read whose receipt is missing is refused too.
 #[tokio::test]
 async fn pull_refuses_bytes_the_receipt_does_not_name() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::docker();
     fixture.fake.answer(Answer::ReadFile, "changed on the way");
     let sent = serde_json::to_value(FileReceipt::of(b"what the guest sent")).unwrap();
     fixture
@@ -171,7 +171,7 @@ async fn pull_decodes_a_wrapped_base64_stream_in_process() {
 
 #[tokio::test]
 async fn pull_refuses_to_overwrite_an_existing_artifact() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::docker();
     answer_pull(&fixture.fake, b"new");
     let (directory, destination) = destination();
     std::fs::write(&destination, "already published").expect("the earlier artifact is written");
@@ -192,7 +192,7 @@ async fn pull_refuses_to_overwrite_an_existing_artifact() {
 
 #[tokio::test]
 async fn pull_refuses_a_destination_it_cannot_link_safely() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::docker();
     answer_pull(&fixture.fake, b"payload");
     let (directory, _) = destination();
     // A destination the filesystem itself refuses (a name past NAME_MAX): the move fails with something other than
@@ -213,7 +213,7 @@ async fn pull_refuses_a_destination_it_cannot_link_safely() {
 
 #[tokio::test]
 async fn pull_refuses_a_failed_guest_read_and_cleans_up() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::docker();
     fixture.fake.answer(Answer::ExecExit, "1");
     fixture
         .fake
@@ -246,9 +246,9 @@ async fn pull_refuses_a_stream_that_is_not_base64() {
 /// what landed where.
 #[tokio::test]
 async fn the_pull_command_publishes_into_the_workers_artifact_directory() {
-    let fixture = Fixture::tart_linux();
-    fixture.mark_ready("air-linux-1").await;
-    let receipt = fixture.lease_receipt("air-linux-1");
+    let fixture = Fixture::docker();
+    fixture.mark_ready("air-docker-1").await;
+    let receipt = fixture.lease_receipt("air-docker-1");
     answer_pull(&fixture.fake, b"evidence");
     let outcome = outcome_of(
         command_pull(
@@ -261,11 +261,12 @@ async fn the_pull_command_publishes_into_the_workers_artifact_directory() {
         .await,
     );
     let destination = outcome.data["destination"].as_str().expect("a destination").to_owned();
-    assert!(destination.ends_with("artifacts/air-linux-1/logs/log.txt"), "{destination}");
+    // A Docker worker keys its directory apart, so a container cannot share state with a Tart slot.
+    assert!(destination.ends_with("artifacts/docker-air-docker-1/logs/log.txt"), "{destination}");
     assert_eq!(
         outcome.data,
         json!({
-            "worker": "air-linux-1",
+            "worker": "air-docker-1",
             "source": "/guest/log.txt",
             "destination": destination,
             "bytes": 8,

@@ -26,18 +26,18 @@ pub(super) fn ctx() -> Ctx {
     Ctx::background()
 }
 
-/// A Linux pool of the named workers, or of the default slots when `workers` is empty. `TART_BIN` points at the fake,
+/// A Tart pool of the named workers, or of the default slots when `workers` is empty. `TART_BIN` points at the fake,
 /// seeded with its version: `lease release` runs the version gate before it touches a worker.
 ///
 /// A Windows host has the Docker backend only. There a Docker pool of the two Tart slot names stands in, and the
 /// tests that need a Tart worker or a file mode are Unix only.
 pub(super) fn pool(workers: &str) -> Fixture {
     #[cfg(unix)]
-    let builder = Fixture::builder(GuestOs::Linux);
+    let builder = Fixture::builder(GuestOs::Macos);
     #[cfg(windows)]
     let (builder, workers) = (
         Fixture::docker_builder(),
-        if workers.is_empty() { "air-linux-1,air-linux-2" } else { workers },
+        if workers.is_empty() { "air-macos-1,air-macos-2" } else { workers },
     );
     if workers.is_empty() {
         builder.build()
@@ -197,7 +197,7 @@ fn only_one_of_many_concurrent_placements_wins_one_worker() {
 /// it both would survey the same free pool and place a lease on its first slot.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn two_concurrent_acquisitions_take_different_workers() {
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let (first, second) = tokio::join!(acquire(&fixture, "agent-a"), acquire(&fixture, "agent-b"));
     let (first, second) = (first.unwrap(), second.unwrap());
     assert_ne!(text(&first.data, "worker"), text(&second.data, "worker"));
@@ -213,7 +213,7 @@ async fn two_concurrent_acquisitions_take_different_workers() {
 /// sharded reply is its own shape.
 #[tokio::test]
 async fn count_is_a_ceiling_and_exact_refuses_short_without_leaving_leases() {
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let outcome = command_lease_acquire(&ctx(), &fixture.manager, &request("shardable", 4, false))
         .await
         .unwrap();
@@ -229,7 +229,7 @@ async fn count_is_a_ceiling_and_exact_refuses_short_without_leaving_leases() {
 
     // `--exact` refuses a short set - and unwinds every lease it placed on the way, because a worker owned by nobody is
     // worse than an acquisition that failed.
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let refusal = command_lease_acquire(&ctx(), &fixture.manager, &request("measurement", 3, true))
         .await
         .unwrap_err();
@@ -244,7 +244,7 @@ async fn count_is_a_ceiling_and_exact_refuses_short_without_leaving_leases() {
 /// than this command is to hold a lock while it does.
 #[tokio::test]
 async fn a_full_pool_is_exhausted_rather_than_waited_on() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     acquire(&fixture, "first").await.unwrap();
     assert_eq!(code(acquire(&fixture, "second").await), "pool_exhausted");
 }
@@ -255,7 +255,7 @@ async fn a_full_pool_is_exhausted_rather_than_waited_on() {
 /// handed the *same* handle rather than a second one.
 #[tokio::test]
 async fn an_acquisition_is_idempotent_through_its_original_receipt() {
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let first = acquire(&fixture, "agent").await.unwrap();
     let second = acquire(&fixture, "agent").await.unwrap();
     assert_eq!(text(&first.data, "worker"), text(&second.data, "worker"));
@@ -270,7 +270,7 @@ async fn an_acquisition_is_idempotent_through_its_original_receipt() {
 /// handing a live lease to whoever asks for it under the right name.
 #[tokio::test]
 async fn recovery_without_the_original_receipt_refuses() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let outcome = acquire(&fixture, "agent").await.unwrap();
     std::fs::remove_file(lease_file(&outcome)).unwrap();
     assert_eq!(code(acquire(&fixture, "agent").await), "lease_recovery_receipt_missing");
@@ -280,10 +280,10 @@ async fn recovery_without_the_original_receipt_refuses() {
 /// make each shard configure Bazel differently, and the two configurations evict each other's analysis cache.
 #[tokio::test]
 async fn an_acquisition_spanning_guest_oses_is_refused() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let worker = fixture.worker(0);
     let lease = Lease {
-        guest_os: GuestOs::Macos,
+        guest_os: GuestOs::Linux,
         ..fixture.new_lease(worker, "token", "agent")
     };
     assert!(try_atomic_lease(&fixture.settings, worker, &lease).unwrap());
@@ -327,7 +327,7 @@ fn acquire_refuses_an_invocation_it_cannot_honour() {
 /// not private; the holder's identity is.
 #[tokio::test]
 async fn show_names_the_holder_only_of_the_callers_own_lease() {
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let held = acquire(&fixture, "the-holder").await.unwrap();
     let worker = text(&held.data, "worker");
 
@@ -364,14 +364,14 @@ async fn show_names_the_holder_only_of_the_callers_own_lease() {
 #[cfg(unix)]
 #[tokio::test]
 async fn releasing_a_stopped_tart_worker_does_not_start_it() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let held = acquire(&fixture, "agent").await.unwrap();
     let released = release(&fixture, &lease_file(&held), &FakeProbe::default()).await.unwrap();
     assert_eq!(
         released.data,
-        serde_json::json!({ "worker": "air-linux-1", "released": true, "workerWasStopped": true })
+        serde_json::json!({ "worker": "air-macos-1", "released": true, "workerWasStopped": true })
     );
-    assert_eq!(read_lease(&fixture.settings.lease_path("air-linux-1")).unwrap(), None);
+    assert_eq!(read_lease(&fixture.settings.lease_path("air-macos-1")).unwrap(), None);
     assert_eq!(receipt_files(&fixture.settings), Vec::<PathBuf>::new());
     assert!(!fixture.fake.saw_call_containing("run"));
     // The receipt no longer owns anything, so a second release refuses rather than repeating itself.
@@ -449,17 +449,17 @@ async fn a_docker_release_without_a_cli_is_docker_missing() {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_refused_release_leaves_the_lease_in_place() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let held = acquire(&fixture, "agent").await.unwrap();
     // A running worker, so the release takes the guest path - and a guest that does not answer, so the gate refuses
     // before anything is unlinked.
-    fixture.run_as_fake_process("air-linux-1").await;
+    fixture.run_as_fake_process("air-macos-1").await;
     fixture.guest.fail_everything();
     assert_eq!(
         code(release(&fixture, &lease_file(&held), &FakeProbe::default()).await),
         "guest_agent_unavailable"
     );
-    assert!(read_lease(&fixture.settings.lease_path("air-linux-1")).unwrap().is_some());
+    assert!(read_lease(&fixture.settings.lease_path("air-macos-1")).unwrap().is_some());
     assert!(lease_file(&held).exists());
 }
 
@@ -468,16 +468,16 @@ async fn a_refused_release_leaves_the_lease_in_place() {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_release_of_a_worker_whose_vm_is_missing_skips_the_guest() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let held = acquire(&fixture, "agent").await.unwrap();
-    // The quiet listing stays unseeded: Tart lists no `air-linux-1`.
-    let stale = fixture.run_stale_tart_process("air-linux-1").await;
+    // The quiet listing stays unseeded: Tart lists no `air-macos-1`.
+    let stale = fixture.run_stale_tart_process("air-macos-1").await;
     fixture.guest.fail_everything();
     let outcome = release(&fixture, &lease_file(&held), &FakeProbe::default()).await.unwrap();
-    assert_eq!(outcome.text, "released=air-linux-1");
+    assert_eq!(outcome.text, "released=air-macos-1");
     assert_eq!(outcome.data["workerVmMissing"], Value::Bool(true));
     assert_eq!(outcome.data["staleRunProcess"], Value::from(stale.identity.pid));
-    assert!(read_lease(&fixture.settings.lease_path("air-linux-1")).unwrap().is_none());
+    assert!(read_lease(&fixture.settings.lease_path("air-macos-1")).unwrap().is_none());
     assert!(!lease_file(&held).exists());
     assert!(fixture.guest.lines().is_empty(), "{:?}", fixture.guest.lines());
     // The release ends nothing: the stale process is `pool recycle`'s.
@@ -496,10 +496,10 @@ async fn a_release_of_a_worker_whose_vm_is_missing_skips_the_guest() {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_release_of_a_listed_worker_still_asks_the_guest() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let held = acquire(&fixture, "agent").await.unwrap();
-    fixture.fake.answer(avl_testkit::tartfake::Answer::ListQuiet, "air-linux-1\n");
-    let _stale = fixture.run_stale_tart_process("air-linux-1").await;
+    fixture.fake.answer(avl_testkit::tartfake::Answer::ListQuiet, "air-macos-1\n");
+    let _stale = fixture.run_stale_tart_process("air-macos-1").await;
     fixture.guest.fail_everything();
     assert_eq!(
         code(release(&fixture, &lease_file(&held), &FakeProbe::default()).await),
@@ -508,12 +508,15 @@ async fn a_release_of_a_listed_worker_still_asks_the_guest() {
     assert!(lease_file(&held).exists());
 }
 
-/// Every guest command exits 0, and the supervisor's `active` verb answers `run_id` in the slot.
+/// Every guest command exits 0, the console is logged in, and the supervisor's `active` verb answers `run_id` in the
+/// slot.
 #[cfg(unix)]
 fn live_guest(fixture: &Fixture, run_id: &'static str) {
     fixture.guest.answer(move |argv, _| {
         Ok(if has(argv, "active") {
             active_reply(Some(run_id))
+        } else if has(argv, "/usr/bin/who") {
+            avl_host_testkit::said(crate::worker::testing::CONSOLE_LOGIN)
         } else {
             Captured::default()
         })
@@ -526,17 +529,17 @@ fn live_guest(fixture: &Fixture, run_id: &'static str) {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_release_succeeds_while_a_warm_daemon_holds_the_slot() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let held = acquire(&fixture, "agent").await.unwrap();
-    fixture.run_as_fake_process("air-linux-1").await;
+    fixture.run_as_fake_process("air-macos-1").await;
     live_guest(&fixture, "run-ui-daemon-1");
 
     let probe = FakeProbe::new(Some("run-ui-daemon-1"), Some("run-ui-daemon-1"));
     let released = release(&fixture, &lease_file(&held), &probe).await.unwrap();
-    assert_eq!(released.text, "released=air-linux-1");
+    assert_eq!(released.text, "released=air-macos-1");
     assert_eq!(released.data["released"], true);
     assert!(released.data.get("workerWasStopped").is_none());
-    assert_eq!(read_lease(&fixture.settings.lease_path("air-linux-1")).unwrap(), None);
+    assert_eq!(read_lease(&fixture.settings.lease_path("air-macos-1")).unwrap(), None);
     assert_eq!(receipt_files(&fixture.settings), Vec::<PathBuf>::new());
     // The next holder gets no secret file of this one's runs.
     let removal = format!("/bin/rm -rf -- {}", fixture.settings.vm_run_secrets);
@@ -552,16 +555,16 @@ async fn a_release_succeeds_while_a_warm_daemon_holds_the_slot() {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_release_is_refused_while_an_iteration_is_in_flight() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let held = acquire(&fixture, "agent").await.unwrap();
-    fixture.run_as_fake_process("air-linux-1").await;
+    fixture.run_as_fake_process("air-macos-1").await;
     live_guest(&fixture, "run-ui-daemon-1");
 
     let probe = FakeProbe::new(None, Some("run-ui-daemon-1"));
     let refusal = release(&fixture, &lease_file(&held), &probe).await.unwrap_err();
     assert_eq!(refusal.code, "run_active", "{refusal:?}");
     assert!(refusal.message.contains("run-ui-daemon-1"), "{refusal}");
-    assert!(read_lease(&fixture.settings.lease_path("air-linux-1")).unwrap().is_some());
+    assert!(read_lease(&fixture.settings.lease_path("air-macos-1")).unwrap().is_some());
     assert_eq!(receipt_files(&fixture.settings).len(), 1);
 }
 
@@ -571,7 +574,7 @@ async fn a_release_is_refused_while_an_iteration_is_in_flight() {
 /// to another lease, and nothing the user happens to keep in that directory.
 #[test]
 fn removing_receipts_takes_only_the_ones_for_that_lease() {
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let mine = fixture.new_lease(fixture.worker(0), "my-token", "me");
     let yours = fixture.new_lease(fixture.worker(1), "your-token", "you");
     let same_worker = fixture.new_lease(fixture.worker(0), "an-older-token", "me");
@@ -666,7 +669,7 @@ fn a_receipt_selects_the_pool_it_names() {
 /// that ran anyway would act on another holder's worker with a handle that looked valid when it was checked.
 #[tokio::test]
 async fn a_lease_that_changed_under_the_operation_refuses() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let worker = fixture.worker(0);
     let lease = fixture.new_lease(worker, "the-original", "holder");
     assert!(try_atomic_lease(&fixture.settings, worker, &lease).unwrap());

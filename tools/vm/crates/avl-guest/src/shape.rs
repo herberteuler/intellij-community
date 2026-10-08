@@ -1,4 +1,4 @@
-//! The fixed shapes the verbs check in an argument or in a tool's answer: a display, a version, a screen geometry.
+//! The fixed shapes the verbs check in an argument or in a tool's answer: a display and a release.
 //!
 //! They are written by hand, because a regex engine would be the largest part of the agent, and the controller
 //! reinstalls the agent on every worker when its bytes change.
@@ -9,11 +9,6 @@ mod tests;
 /// Whether `value` is one or more ASCII digits.
 pub(crate) fn is_digits(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit())
-}
-
-/// Whether `value` is `groups` runs of [is_digits] joined by `separator`, such as `24.19.0` or `1920x1080x24`.
-pub(crate) fn is_digit_groups(value: &str, separator: char, groups: usize) -> bool {
-    value.split(separator).count() == groups && value.split(separator).all(is_digits)
 }
 
 /// The release that follows the first `version ` with one, `N.N` or `N.N.N`, such as `2.39` of

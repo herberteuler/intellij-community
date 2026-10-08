@@ -27,10 +27,7 @@ vocabulary! {
         Gc = "gc",
         ProvisionImage = "provision-image",
         ValidateImage = "validate-image",
-        ProvisionGuest = "provision-guest",
         ValidateGuest = "validate-guest",
-        StageNode = "stage-node",
-        CheckNode = "check-node",
         /// Zips only the bundles of a guest trace directory that no earlier call packed, with the same code as
         /// `air-trace pack`: `trace-pack-ready <sourceDir> <destinationZip> <ledger> [--all]`. Without `--all` it
         /// takes only the finished bundles, the ones with a manifest. The ledger is a guest file that lists the

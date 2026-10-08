@@ -15,8 +15,8 @@ mod tests;
 ///
 /// One `cquery` names the file, and one `info output_base` roots it. The `cquery` also fetches the repository when
 /// nothing has fetched it yet, because loading the target needs its package. So a caller that must not download on
-/// its own path (the Node archive under a lease lock) has something else fetch first, and a caller that may
-/// download (the Tart backend's first command) gets the fetch here.
+/// its own path has something else fetch first, and a caller that may download (the Tart backend's first command)
+/// gets the fetch here.
 ///
 /// Asked rather than assembled by hand, because the repository directory carries the canonical name Bazel derives
 /// from the module graph, which nothing here can spell. What `cquery` prints is `external/<canonical>/<file>`,

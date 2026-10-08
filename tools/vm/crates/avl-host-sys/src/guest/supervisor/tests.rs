@@ -62,7 +62,7 @@ async fn aqua_argv_differs_per_guest() {
     );
 
     let linux = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", slot(None));
+    let channel = FakeChannel::spoke("air-docker-1", slot(None));
     let settings = &linux.settings;
     linux
         .guest(&channel)
@@ -84,7 +84,7 @@ async fn aqua_argv_differs_per_guest() {
 #[tokio::test]
 async fn non_aqua_invocation_runs_as_the_worker_user() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", slot(None));
+    let channel = FakeChannel::spoke("air-docker-1", slot(None));
     host.guest(&channel).active_run().await.unwrap();
     let settings = &host.settings;
     assert_eq!(
@@ -113,7 +113,7 @@ async fn non_aqua_invocation_runs_as_the_worker_user() {
 #[tokio::test]
 async fn invoke_supervisor_checks_the_echoed_command() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", envelope("status", ActiveReply { active: None }));
+    let channel = FakeChannel::spoke("air-docker-1", envelope("status", ActiveReply { active: None }));
     let refusal = host
         .guest(&channel)
         .invoke_supervisor(
@@ -134,7 +134,7 @@ async fn invoke_supervisor_checks_the_echoed_command() {
 async fn invoke_supervisor_refuses_another_schema() {
     let host = Host::new(GuestOs::Linux);
     let channel = FakeChannel::spoke(
-        "air-linux-1",
+        "air-docker-1",
         r#"{"schemaVersion":2,"ok":true,"command":"active","data":{"active":null}}"#,
     );
     let refusal = host.guest(&channel).active_run().await.unwrap_err();
@@ -153,7 +153,7 @@ async fn invoke_supervisor_refuses_another_schema() {
 #[tokio::test]
 async fn invoke_supervisor_reads_nulls_as_what_was_left_out() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::answering("air-linux-1", |_| {
+    let channel = FakeChannel::answering("air-docker-1", |_| {
         Ok(failed(
             70,
             r#"{"schemaVersion":null,"ok":null,"command":null,"error":{"code":"supervisor_busy","message":null}}"#,
@@ -164,7 +164,7 @@ async fn invoke_supervisor_reads_nulls_as_what_was_left_out() {
         (refusal.code.as_ref(), refusal.message.as_str()),
         ("supervisor_busy", "guest run supervisor exited 70")
     );
-    let channel = FakeChannel::answering("air-linux-1", |_| Ok(failed(70, "null")));
+    let channel = FakeChannel::answering("air-docker-1", |_| Ok(failed(70, "null")));
     let refusal = host.guest(&channel).active_run().await.unwrap_err();
     assert_eq!(refusal.code, "supervisor_failed");
 }
@@ -172,13 +172,13 @@ async fn invoke_supervisor_reads_nulls_as_what_was_left_out() {
 #[tokio::test]
 async fn invoke_supervisor_refuses_something_that_is_not_json() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::answering("air-linux-1", |_| Ok(failed(2, "sudo: a password is required\n")));
+    let channel = FakeChannel::answering("air-docker-1", |_| Ok(failed(2, "sudo: a password is required\n")));
     let refusal = host.guest(&channel).active_run().await.unwrap_err();
     assert_eq!(refusal.code, "supervisor_protocol");
     // The guest's own exit code survives, so a caller branching on it is not told the failure was this controller's.
     assert_eq!(refusal.exit, Exit::from_status(2, Exit::FAILURE));
     // And a reply that is not JSON on a command that exited 0 still leaves nonzero.
-    let silent = FakeChannel::spoke("air-linux-1", "");
+    let silent = FakeChannel::spoke("air-docker-1", "");
     assert_eq!(host.guest(&silent).active_run().await.unwrap_err().exit, Exit::SOFTWARE);
 }
 
@@ -188,13 +188,13 @@ async fn invoke_supervisor_refuses_something_that_is_not_json() {
 async fn supervisor_failure_carries_the_agents_own_code() {
     let host = Host::new(GuestOs::Linux);
     let answer = refused("active", "run_state_unreadable", "active.json is truncated");
-    let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(65, &answer)));
+    let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(65, &answer)));
     let refusal = host.guest(&channel).active_run().await.unwrap_err();
     assert_eq!(refusal.code, "run_state_unreadable");
     assert!(refusal.message.contains("active.json is truncated"), "{}", refusal.message);
     assert_eq!(refusal.exit, Exit::DATA_ERR);
     // An envelope that states nothing gets the controller's own sentence.
-    let bare = FakeChannel::answering("air-linux-1", |_| {
+    let bare = FakeChannel::answering("air-docker-1", |_| {
         Ok(failed(1, r#"{"schemaVersion":1,"ok":false,"command":"active"}"#))
     });
     let refusal = host.guest(&bare).active_run().await.unwrap_err();
@@ -211,7 +211,7 @@ async fn supervisor_failure_carries_the_agents_own_code() {
 #[tokio::test]
 async fn invoke_agent_keeps_the_argv_and_answers_the_verbs_own_document() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", r#"{"complete":true}"#);
+    let channel = FakeChannel::spoke("air-docker-1", r#"{"complete":true}"#);
     let stdout = host
         .guest(&channel)
         .invoke_agent(
@@ -233,23 +233,23 @@ async fn invoke_agent_keeps_the_argv_and_answers_the_verbs_own_document() {
 }
 
 // The account is the caller's, and the two prefixes differ in exactly one thing. A `-u` in front of the Linux boot
-// pair would be a refused boot on every Linux worker.
+// verb would run it as the worker.
 #[tokio::test]
 async fn invoke_agent_runs_a_verb_under_the_account_its_caller_named() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", r#"{"ok":true}"#);
+    let channel = FakeChannel::spoke("air-docker-1", r#"{"ok":true}"#);
     host.guest(&channel)
         .invoke_agent(
             AgentAccount::Root,
-            AgentVerb::ProvisionGuest,
-            &words(["/data", ":88"]),
+            AgentVerb::ValidateGuest,
+            &words([":88", "/data"]),
             &SpawnOptions::within(Duration::from_mins(1)),
         )
         .await
         .unwrap();
     assert_eq!(
         channel.lines()[0],
-        format!("/usr/bin/sudo -H {} provision-guest /data :88", host.settings.vm_agent)
+        format!("/usr/bin/sudo -H {} validate-guest :88 /data", host.settings.vm_agent)
     );
 }
 
@@ -258,7 +258,7 @@ async fn invoke_agent_runs_a_verb_under_the_account_its_caller_named() {
 async fn invoke_agent_reports_the_agents_own_refusal() {
     let host = Host::new(GuestOs::Linux);
     let answer = refused("stage", "stage_manifest_unreadable", "manifest is truncated");
-    let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(70, &answer)));
+    let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(70, &answer)));
     let refusal = host
         .guest(&channel)
         .invoke_agent(
@@ -281,7 +281,7 @@ async fn invoke_agent_reports_the_agents_own_refusal() {
 async fn invoke_agent_reports_a_usage_refusal_with_its_first_line() {
     let host = Host::new(GuestOs::Linux);
     let usage = "usage: vm-guest-agent stage <runtime-root> <manifest> | stage-check <runtime-root> <digest>\n";
-    let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(64, usage)));
+    let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(64, usage)));
     let refusal = host
         .guest(&channel)
         .invoke_agent(
@@ -295,7 +295,7 @@ async fn invoke_agent_reports_a_usage_refusal_with_its_first_line() {
     assert_eq!(refusal.code, "guest_agent_failed");
     for fragment in [
         "launch-prep",
-        "air-linux-1",
+        "air-docker-1",
         "exited with 64",
         "usage: vm-guest-agent stage",
         "older than this controller",
@@ -314,7 +314,7 @@ async fn invoke_agent_reports_a_usage_refusal_with_its_first_line() {
 async fn a_usage_envelope_from_the_rust_agent_keeps_its_code() {
     let host = Host::new(GuestOs::Linux);
     let answer = refused("launch-prep", "usage", "usage: vm-guest-agent launch-prep <runtime-root>");
-    let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(64, &answer)));
+    let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(64, &answer)));
     let refusal = host
         .guest(&channel)
         .invoke_agent(
@@ -328,7 +328,7 @@ async fn a_usage_envelope_from_the_rust_agent_keeps_its_code() {
     assert_eq!(refusal.code, "usage");
     assert_eq!(
         refusal.message,
-        "the guest agent's launch-prep in air-linux-1 refused: usage: vm-guest-agent launch-prep <runtime-root>. \
+        "the guest agent's launch-prep in air-docker-1 refused: usage: vm-guest-agent launch-prep <runtime-root>. \
          the installed guest agent does not have this verb or these arguments, which is what an agent older than \
          this controller looks like"
     );
@@ -342,7 +342,7 @@ async fn a_staging_envelope_carries_its_message_and_keeps_the_attribution() {
     let host = Host::new(GuestOs::Linux);
     let spoken = "stable classpath source is not a file: /vm/runtime/generations/abc/lib/0001-app.jar";
     let answer = refused("stage", "guest_stage_failed", spoken);
-    let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(70, &answer)));
+    let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(70, &answer)));
     let refusal = host
         .guest(&channel)
         .invoke_agent(
@@ -354,13 +354,13 @@ async fn a_staging_envelope_carries_its_message_and_keeps_the_attribution() {
         .await
         .unwrap_err();
     assert_eq!(refusal.code, "guest_stage_failed");
-    for fragment in [spoken, "stage", "air-linux-1"] {
+    for fragment in [spoken, "stage", "air-docker-1"] {
         assert!(refusal.message.contains(fragment), "no {fragment:?}: {}", refusal.message);
     }
     assert_eq!(refusal.exit, Exit::SOFTWARE);
     // An envelope that names a code and no message still says where it happened.
     let silent = r#"{"schemaVersion":1,"ok":false,"command":"gc","error":{"code":"guest_gc_failed"}}"#;
-    let quiet = FakeChannel::answering("air-linux-2", move |_| Ok(failed(70, silent)));
+    let quiet = FakeChannel::answering("air-docker-2", move |_| Ok(failed(70, silent)));
     let refusal = host
         .guest(&quiet)
         .invoke_agent(
@@ -372,7 +372,7 @@ async fn a_staging_envelope_carries_its_message_and_keeps_the_attribution() {
         .await
         .unwrap_err();
     assert_eq!(refusal.code, "guest_gc_failed");
-    assert_eq!(refusal.message, "the guest agent's gc in air-linux-2 refused: it stated no reason");
+    assert_eq!(refusal.message, "the guest agent's gc in air-docker-2 refused: it stated no reason");
 }
 
 // The agent's own message is bounded like everything else a refusal carries, and on a character boundary.
@@ -382,7 +382,7 @@ async fn an_envelope_message_is_bounded_on_a_rune_boundary() {
     // `é` is two bytes and the prefix is odd-length, so the bound falls inside a character.
     let spoken = format!("cannot read x{}", "é".repeat(GUEST_AGENT_MESSAGE_BYTES));
     let answer = refused("stage", "guest_stage_failed", &spoken);
-    let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(70, &answer)));
+    let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(70, &answer)));
     let refusal = host
         .guest(&channel)
         .invoke_agent(
@@ -421,7 +421,7 @@ async fn invoke_agent_quotes_a_usage_line_and_withholds_every_other_stderr() {
         ("nothing at all", "", None),
     ];
     for (name, stderr, quoted) in cases {
-        let channel = FakeChannel::answering("air-linux-1", move |_| {
+        let channel = FakeChannel::answering("air-docker-1", move |_| {
             Ok(Captured {
                 exit_code: 1,
                 stdout: "TART_VM_TOKEN=secret".to_owned(),
@@ -440,7 +440,7 @@ async fn invoke_agent_quotes_a_usage_line_and_withholds_every_other_stderr() {
             .await
             .unwrap_err();
         assert_eq!(refusal.code, "guest_agent_failed", "{name}");
-        let bare = "the guest agent's gc in air-linux-1 exited with 1";
+        let bare = "the guest agent's gc in air-docker-1 exited with 1";
         match quoted {
             // The bare `exited with N`, with nothing of the stream appended. Equality rather than a substring sweep:
             // this is the assertion that fails if the exception widens again.
@@ -479,13 +479,13 @@ async fn invoke_agent_names_a_sudo_refusal_rather_than_blaming_the_agent() {
         ),
     ];
     for (name, stderr, code) in cases {
-        let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(1, stderr)));
+        let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(1, stderr)));
         let refusal = host
             .guest(&channel)
             .invoke_agent(
                 AgentAccount::Root,
-                AgentVerb::ProvisionGuest,
-                &words(["/vm/data"]),
+                AgentVerb::ValidateGuest,
+                &words([":88", "/vm/data"]),
                 &SpawnOptions::within(Duration::from_mins(1)),
             )
             .await
@@ -496,7 +496,7 @@ async fn invoke_agent_names_a_sudo_refusal_rather_than_blaming_the_agent() {
         }
         // The verb, the worker, sudo's own sentence, and the fact that no repository code installs the policy - the
         // last of which stops a reader looking for the provisioning step that "forgot" it.
-        for fragment in ["air-linux-1", "provision-guest", stderr.trim(), "base image"] {
+        for fragment in ["air-docker-1", "validate-guest", stderr.trim(), "base image"] {
             assert!(refusal.message.contains(fragment), "{name}: no {fragment:?}: {}", refusal.message);
         }
     }
@@ -506,7 +506,7 @@ async fn invoke_agent_names_a_sudo_refusal_rather_than_blaming_the_agent() {
 #[tokio::test]
 async fn invoke_agent_does_not_blame_the_agents_age_for_a_plain_failure() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::answering("air-linux-1", |_| Ok(failed(1, "gc refused\n")));
+    let channel = FakeChannel::answering("air-docker-1", |_| Ok(failed(1, "gc refused\n")));
     let refusal = host
         .guest(&channel)
         .invoke_agent(
@@ -528,7 +528,7 @@ async fn invoke_agent_does_not_blame_the_agents_age_for_a_plain_failure() {
 async fn active_run_accepts_an_explicit_null() {
     let host = Host::new(GuestOs::Linux);
     let channel = FakeChannel::spoke(
-        "air-linux-1",
+        "air-docker-1",
         r#"{"schemaVersion":1,"ok":true,"command":"active","data":{"active":null}}"#,
     );
     assert_eq!(host.guest(&channel).active_run().await.unwrap(), None);
@@ -538,7 +538,7 @@ async fn active_run_accepts_an_explicit_null() {
 async fn active_run_refuses_a_missing_active_field() {
     let host = Host::new(GuestOs::Linux);
     let channel = FakeChannel::spoke(
-        "air-linux-1",
+        "air-docker-1",
         r#"{"schemaVersion":1,"ok":true,"command":"active","data":{"runId":"run-1"}}"#,
     );
     assert_eq!(host.guest(&channel).active_run().await.unwrap_err().code, "supervisor_protocol");
@@ -550,7 +550,7 @@ async fn active_run_refuses_a_missing_active_field() {
 async fn active_run_refuses_an_undeclared_phase() {
     let host = Host::new(GuestOs::Linux);
     let channel = FakeChannel::spoke(
-        "air-linux-1",
+        "air-docker-1",
         r#"{"schemaVersion":1,"ok":true,"command":"active","data":{"active":{"schemaVersion":1,"runId":"run-1","phase":"booting"}}}"#,
     );
     assert_eq!(host.guest(&channel).active_run().await.unwrap_err().code, "supervisor_protocol");
@@ -562,7 +562,7 @@ async fn active_run_refuses_an_undeclared_phase() {
 async fn active_run_keeps_an_undeclared_outcome() {
     let host = Host::new(GuestOs::Linux);
     let channel = FakeChannel::spoke(
-        "air-linux-1",
+        "air-docker-1",
         r#"{"schemaVersion":1,"ok":true,"command":"active","data":{"active":{"schemaVersion":1,"runId":"run-1","phase":"finished","outcome":"evaporated"}}}"#,
     );
     let active = host.guest(&channel).active_run().await.unwrap().unwrap();
@@ -573,7 +573,7 @@ async fn active_run_keeps_an_undeclared_outcome() {
 #[tokio::test]
 async fn supervisor_run_state_reply_compares_the_identity() {
     let host = Host::new(GuestOs::Linux);
-    let other = FakeChannel::spoke("air-linux-1", envelope("status", live_run("run-other")));
+    let other = FakeChannel::spoke("air-docker-1", envelope("status", live_run("run-other")));
     let refusal = host
         .guest(&other)
         .supervisor_run_state_reply(
@@ -588,7 +588,7 @@ async fn supervisor_run_state_reply_compares_the_identity() {
         .await
         .unwrap_err();
     assert_eq!(refusal.code, "supervisor_protocol");
-    let asked = FakeChannel::spoke("air-linux-1", envelope("status", live_run("run-asked")));
+    let asked = FakeChannel::spoke("air-docker-1", envelope("status", live_run("run-asked")));
     let state = host
         .guest(&asked)
         .supervisor_run_state_reply(
@@ -612,7 +612,7 @@ async fn supervisor_log_reply_refuses_a_missing_field() {
     let host = Host::new(GuestOs::Linux);
     let args = words(["--run", "run-1"]);
     let partial = FakeChannel::spoke(
-        "air-linux-1",
+        "air-docker-1",
         envelope("log", json!({ "runId": "run-1", "logPath": "/tmp/run.log", "content": "hello" })),
     );
     let refusal = host
@@ -629,7 +629,7 @@ async fn supervisor_log_reply_refuses_a_missing_field() {
     assert_eq!(refusal.code, "supervisor_protocol");
     assert!(refusal.message.contains("truncated"), "{}", refusal.message);
     let complete = FakeChannel::spoke(
-        "air-linux-1",
+        "air-docker-1",
         envelope(
             "log",
             LogReply {
@@ -658,7 +658,7 @@ async fn supervisor_log_reply_refuses_a_missing_field() {
 #[tokio::test]
 async fn reject_active_run_names_the_run_holding_the_slot() {
     let host = Host::new(GuestOs::Linux);
-    let busy = FakeChannel::spoke("air-linux-1", slot(Some(live_run("run-abc"))));
+    let busy = FakeChannel::spoke("air-docker-1", slot(Some(live_run("run-abc"))));
     let refusal = host.guest(&busy).reject_active_run("restart the daemon").await.unwrap_err();
     assert_eq!(refusal.code, "run_active");
     assert!(
@@ -666,7 +666,7 @@ async fn reject_active_run_names_the_run_holding_the_slot() {
         "{}",
         refusal.message
     );
-    let free = FakeChannel::spoke("air-linux-1", slot(None));
+    let free = FakeChannel::spoke("air-docker-1", slot(None));
     host.guest(&free).reject_active_run("restart the daemon").await.unwrap();
 }
 
@@ -712,7 +712,7 @@ async fn a_parked_daemon_is_not_an_executing_run() {
         ),
     ];
     for (name, held, probe, want) in cases {
-        let channel = FakeChannel::spoke("air-linux-1", slot(held));
+        let channel = FakeChannel::spoke("air-docker-1", slot(held));
         let guest = host.guest(&channel);
         assert_eq!(guest.judge_run_slot(probe).await.unwrap(), want, "{name}");
         let released = guest.reject_executing_run(probe, "release the lease").await;
@@ -728,7 +728,7 @@ async fn a_parked_daemon_is_not_an_executing_run() {
 #[tokio::test]
 async fn an_unreachable_daemon_is_judged_executing() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::spoke("air-linux-1", slot(Some(live_run("run-daemon"))));
+    let channel = FakeChannel::spoke("air-docker-1", slot(Some(live_run("run-daemon"))));
     let guest = host.guest(&channel);
 
     // The record names the run in the slot, and the daemon behind it says nothing: a daemon to retire, not work to
@@ -753,7 +753,7 @@ async fn an_unreachable_daemon_is_judged_executing() {
 
     // A daemon run that no record names is a failed start's or a dead controller's: still refused, and the refusal
     // names the command that retires it.
-    let orphan_channel = FakeChannel::spoke("air-linux-1", slot(Some(live_run("run-ui-daemon-1"))));
+    let orphan_channel = FakeChannel::spoke("air-docker-1", slot(Some(live_run("run-ui-daemon-1"))));
     let refusal = host
         .guest(&orphan_channel)
         .reject_executing_run(&foreign, "release the lease")

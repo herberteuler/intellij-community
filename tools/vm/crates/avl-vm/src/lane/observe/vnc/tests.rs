@@ -15,16 +15,16 @@ fn write_tart_log(fixture: &Fixture, worker: &str, lines: &[String]) {
 
 #[tokio::test]
 async fn vnc_reads_the_first_endpoint_in_the_last_forty_log_lines() {
-    let fixture = Fixture::tart_linux();
-    fixture.mark_ready("air-linux-1").await;
-    let receipt = fixture.lease_receipt("air-linux-1");
+    let fixture = Fixture::tart_macos();
+    fixture.mark_ready("air-macos-1").await;
+    let receipt = fixture.lease_receipt("air-macos-1");
     // An endpoint outside the 40-line window must not win: it is a previous boot's.
     let mut lines = vec!["boot: VNC server: vnc://stale.example:5900".to_owned()];
     lines.extend((0..50).map(|index| format!("guest: progress {index}")));
     lines.push("boot: VNC server: VNC://127.0.0.1:5901".to_owned());
     lines.push("boot: also rfb://127.0.0.1:5902".to_owned());
     lines.extend((0..5).map(|_| "guest: trailing".to_owned()));
-    write_tart_log(&fixture, "air-linux-1", &lines);
+    write_tart_log(&fixture, "air-macos-1", &lines);
 
     let outcome = outcome_of(command_vnc(&Ctx::background(), &fixture.manager, Some(&receipt)).await);
     // First match wins, matched case-insensitively, and the CRLF line ending does not travel inside the endpoint.
@@ -38,9 +38,9 @@ async fn vnc_reads_the_first_endpoint_in_the_last_forty_log_lines() {
 
 #[tokio::test]
 async fn vnc_refuses_a_stopped_worker() {
-    let fixture = Fixture::tart_linux();
+    let fixture = Fixture::tart_macos();
     // A lease but no live run-process identity: the worker is stopped, and vnc has nothing to point at.
-    let receipt = fixture.lease_receipt("air-linux-1");
+    let receipt = fixture.lease_receipt("air-macos-1");
     let refusal = refusal(command_vnc(&Ctx::background(), &fixture.manager, Some(&receipt)).await);
     assert_eq!((refusal.code.as_ref(), refusal.exit), ("worker_stopped", Exit::FAILURE));
 }

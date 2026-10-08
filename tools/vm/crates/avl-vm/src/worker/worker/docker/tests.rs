@@ -18,8 +18,9 @@ fn docker(fixture: &Fixture) -> &Docker {
 }
 
 /// The whole Docker start over the fake: the image is built, the container is created and recorded, started, and
-/// the guest runs the Linux boot **without** `provision-guest`, in the order the Tart Linux boot runs it. The
-/// parity step remounts nothing: the shares are bind mounts.
+/// the guest runs the Linux boot: the agent install, `validate-guest`, the parity layout and the readiness. The image
+/// carries the packages and the Node, so no retired verb runs. The parity step remounts nothing: the shares are bind
+/// mounts.
 #[tokio::test]
 async fn a_docker_start_builds_creates_starts_and_validates_without_provisioning() {
     let fixture = Fixture::docker();
@@ -42,10 +43,11 @@ async fn a_docker_start_builds_creates_starts_and_validates_without_provisioning
     assert!(docker(&fixture).create_record_is_current(worker).unwrap());
 
     let argvs = fixture.guest.lines();
-    assert!(!argvs.iter().any(|argv| argv.contains(" provision-guest ")), "{argvs:#?}");
-    assert!(!argvs.iter().any(|argv| argv.contains("remount-shares.sh")), "{argvs:#?}");
+    for retired in [" provision-guest ", " stage-node ", " check-node ", "remount-shares.sh"] {
+        assert!(!argvs.iter().any(|argv| argv.contains(retired)), "{retired}: {argvs:#?}");
+    }
     let mut at = 0;
-    for step in [" validate-guest ", "/bin/sh ", " stage-node ", " check-node "] {
+    for step in ["/bin/mv -f ", " validate-guest ", "/bin/sh "] {
         at = find_step(&argvs, step, at);
     }
 

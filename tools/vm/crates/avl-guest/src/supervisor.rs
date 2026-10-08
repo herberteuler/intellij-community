@@ -19,7 +19,6 @@ mod supervise;
 #[cfg(test)]
 mod tests;
 
-use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
@@ -110,14 +109,11 @@ fn wait_for_identity(system: &dyn System, pid: i32, within: Duration) -> Option<
 
 // --- start ---------------------------------------------------------------------------------------------------
 
-/// What `start` spawns the supervisor with: this binary, the launch host it runs on, and the account and
-/// environment the supervisor inherits. Gathered once, so a test can hand `start` another binary and another host.
+/// What `start` spawns the supervisor with: this binary and the launch host it runs on. Gathered once, so a test
+/// can hand `start` another binary and another host.
 pub(crate) struct Launcher {
     pub self_exe: PathBuf,
     pub host: LaunchHost,
-    pub uid: u32,
-    pub gid: u32,
-    pub environment: Vec<(OsString, OsString)>,
 }
 
 impl Launcher {
@@ -126,9 +122,6 @@ impl Launcher {
             // An unreadable executable path surfaces as a spawn failure naming the empty path.
             self_exe: std::env::current_exe().unwrap_or_default(),
             host: LaunchHost::current(),
-            uid: nix::unistd::getuid().as_raw(),
-            gid: nix::unistd::getgid().as_raw(),
-            environment: std::env::vars_os().collect(),
         }
     }
 }
@@ -169,30 +162,17 @@ pub(crate) fn start(system: &dyn System, launcher: &Launcher, args: &StartArgs) 
     state::write_json_atomic(&paths.state, &starting).map_err(AgentRefusal::internal)?;
 
     let supervisor_log = open_append(&paths.supervisor_log).map_err(AgentRefusal::internal)?;
-    // One spawn point for every guest. Under systemd it is a client that asks for a unit of its own, because the
-    // exec channel's cgroup reaps everything the channel started.
-    // A container and a macOS guest take the released spawn.
-    let launch = launch::supervise_launch_for(
-        launcher.host,
-        &launcher.self_exe,
-        &root,
-        run_id,
-        &paths.supervisor_log,
-        launcher.uid,
-        launcher.gid,
-        &launcher.environment,
-    )?;
-    // The detected host goes into the log before the spawn. A run that a misdetected systemd guest reaps then names
-    // its cause in the one file that outlives it.
-    let how = launch.unit.as_deref().unwrap_or("the released spawn");
+    // One spawn point for every guest: the released spawn of the supervisor.
+    let launch = launch::supervise_launch_for(&launcher.self_exe, &root, run_id);
+    // The host goes into the log before the spawn, in the one file that outlives a run that died early.
     writeln!(
         &supervisor_log,
-        "{} start {run_id}: launch host {}, supervisor in {how}",
+        "{} start {run_id}: launch host {}, supervisor in the released spawn",
         stamp(system.now()),
         launcher.host.as_str()
     )
     .map_err(AgentRefusal::internal)?;
-    launch.start(&supervisor_log, &paths.supervisor_log, run_id)?;
+    launch.start(&supervisor_log)?;
     drop(supervisor_log);
 
     let until = deadline(system, START_TIMEOUT);
@@ -203,12 +183,7 @@ pub(crate) fn start(system: &dyn System, launcher: &Launcher, args: &StartArgs) 
         }
         system.sleep(POLL_INTERVAL);
     }
-    let mut message = format!("supervisor did not start {run_id} within {} ms", START_TIMEOUT.as_millis());
-    if let Some(unit) = &launch.unit {
-        // The client's own exit proves only that the manager accepted the unit. A unit that then failed to exec
-        // says so in the journal, and this names where to read it.
-        message.push_str(&format!("; read {unit} with `journalctl -u {unit}`"));
-    }
+    let message = format!("supervisor did not start {run_id} within {} ms", START_TIMEOUT.as_millis());
     Err(AgentRefusal::failure("start_timeout", message))
 }
 

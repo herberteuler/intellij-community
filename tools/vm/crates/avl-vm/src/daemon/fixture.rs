@@ -46,19 +46,25 @@ impl Fixture {
         Self::of(DaemonFixture::over_hypervisor(&[]).await)
     }
 
+    /// The fixture over a Tart pool of the macOS guest: see [`DaemonFixture::tart_macos`].
+    pub(crate) async fn tart_macos() -> Self {
+        Self::of(DaemonFixture::tart_macos(&[]).await)
+    }
+
     /// The fixture over a Docker pool: see [`DaemonFixture::docker`]. The fake `docker`'s calls are in `tart`'s
     /// call log, because the two fakes share one.
     pub(crate) async fn docker() -> Self {
         Self::of(DaemonFixture::docker().await)
     }
 
-    /// The fixture a several-worker command runs over.
+    /// The fixture a several-worker command runs over: a Tart pool of the macOS guest with two workers.
     ///
-    /// Every worker of the pool is unleased, its guest answers `df` with plenty of space and silence to everything
-    /// else, and `tart list` reports an empty pool - which is what lets a lease release finish without a guest,
-    /// since a stopped worker is released without touching one. `USER` is set, so a run id has a known prefix.
+    /// Not a Docker pool, because the fake `docker` holds one container. Every worker of the pool is unleased, its
+    /// guest answers `df` with plenty of space and silence to everything else, and `tart list` reports an empty pool.
+    /// So a lease release finishes without a guest, because a stopped worker is released without touching one.
+    /// `USER` is set, so a run id has a known prefix.
     pub(crate) async fn pool() -> Self {
-        let fixture = Self::with_environment(&[("USER", "suite-user")]).await;
+        let fixture = Self::of(DaemonFixture::tart_macos(&[("USER", "suite-user")]).await);
         fixture.on("df", answer_text(PLENTIFUL_DF));
         fixture
     }

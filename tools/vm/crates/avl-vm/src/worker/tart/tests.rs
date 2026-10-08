@@ -612,22 +612,16 @@ async fn a_root_disk_only_ever_grows() {
 
 // --- suspend ---------------------------------------------------------------------------------------------------
 
+/// `--suspendable` is a device set that a boot chooses. With it off there is no state to keep, so a suspend is
+/// refused.
 #[tokio::test]
-async fn suspend_is_refused_where_there_is_no_state_to_keep() {
+async fn suspend_needs_the_suspendable_device_set() {
     let ctx = ctx();
-
-    // `tart run --suspendable` fails outright on a Linux VM with "You can only suspend macOS VMs", so such a worker
-    // could never boot with the device set and has nothing to save.
-    let linux = Fixture::linux();
-    let refusal = tart(&linux).suspend(&ctx, "air-linux-1").await.unwrap_err();
-    assert!(is_unsupported(&refusal), "{refusal:?}");
-    assert_eq!(refusal.exit, Exit::USAGE);
-    assert!(!linux.fake.saw_call_containing("suspend"));
-
-    // `--suspendable` is a device-set choice made at boot; with it off there is no state.
     let off = Fixture::builder(GuestOs::Macos).env("AIR_VM_SUSPENDABLE", "0").build();
     let refusal = tart(&off).suspend(&ctx, "air-macos-1").await.unwrap_err();
     assert!(is_unsupported(&refusal), "{refusal:?}");
+    assert_eq!(refusal.exit, Exit::USAGE);
+    assert!(!off.fake.saw_call_containing("suspend"));
 
     let macos = Fixture::macos();
     tart(&macos).suspend(&ctx, "air-macos-1").await.unwrap();

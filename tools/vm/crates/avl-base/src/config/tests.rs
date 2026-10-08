@@ -22,13 +22,6 @@ const POOL_HOST: HostOs = match HostOs::CURRENT {
     host => host,
 };
 
-fn linux() -> Selection {
-    Selection {
-        backend: Backend::Tart,
-        guest_os: GuestOs::Linux,
-    }
-}
-
 fn tart_macos() -> Selection {
     Selection {
         backend: Backend::Tart,
@@ -70,10 +63,10 @@ fn refuse(selection: Selection, environment: &Environment) -> Refusal {
     refuse_on(POOL_HOST, selection, environment)
 }
 
+// A Docker worker on a Linux host, so the engine is external and the defaults are the same on every host.
 #[test]
 fn the_linux_defaults_are_the_documented_ones() {
-    let config = load(linux(), &env(&[]));
-    let node = format!("/home/admin/WorkerData/node/{GUEST_NODE_VERSION}/bin/node");
+    let config = load_on(HostOs::Linux, docker(), &env(&[]));
     let guest_runtime_root = config.guest_runtime_root();
     let cases = [
         ("vm user", config.vm_user.as_str(), "admin"),
@@ -85,27 +78,23 @@ fn the_linux_defaults_are_the_documented_ones() {
             &config.vm_download_cache,
             "/home/admin/WorkerData/build-download",
         ),
-        ("vm node root", &config.vm_node_root, "/home/admin/WorkerData/node"),
-        ("vm node", &config.vm_node, &node),
+        ("vm node", &config.vm_node, "/usr/local/bin/node"),
         // The root `validate-guest` sweeps with `ldd`, and the root the daemon stages a generation into.
         ("guest runtime root", &guest_runtime_root, "/home/admin/WorkerData/daemon-runtime"),
         ("vm uid", &config.vm_uid, "1000"),
         ("guest display", &config.guest_display, ":88"),
         ("share mount", config.guest.share_mount, "/mnt/AirVmShares"),
         ("link flags", config.guest.link_flags, "-sfn"),
-        ("mounted filesystem", config.guest.mounted_filesystem, "virtiofs"),
     ];
     for (what, got, want) in cases {
         assert_eq!(got, want, "{what}");
     }
     // Host paths carry the host's own separator, so they are built rather than written out.
     assert_eq!(config.tart_home, Path::new("/Users/air").join(".tart"));
-    assert_eq!(config.runtime_root, POOL_HOST.runtime_root(Path::new("/Users/air"), &env(&[])));
+    assert_eq!(config.runtime_root, HostOs::Linux.runtime_root(Path::new("/Users/air"), &env(&[])));
     assert_eq!(config.image_root, Path::new(WORKSPACE).join("provision"));
-    assert_eq!(config.vm_memory_mib, 6_144);
-    assert_eq!(config.vm_root_disk_gb, 80);
-    assert_eq!(config.workers, ["air-linux-1", "air-linux-2"]);
-    assert_eq!(config.linux_base_image, pins::linux_base_image());
+    assert_eq!(config.vm_root_disk_gb, 0);
+    assert_eq!(config.workers, ["air-docker-1", "air-docker-2"]);
     assert_eq!(config.tart, None);
     assert_eq!(
         config.daemon,
@@ -198,7 +187,7 @@ fn a_windows_host_reads_its_own_home_and_application_data() {
 // read, and a macOS or a Linux host drives them all.
 #[test]
 fn a_windows_host_drives_only_docker() {
-    for selection in [linux(), tart_macos(), parallels()] {
+    for selection in [tart_macos(), parallels()] {
         let refusal = refuse_on(HostOs::Windows, selection, &env(&[]));
         assert_eq!(
             (refusal.code.as_ref(), refusal.exit),
@@ -278,7 +267,7 @@ fn a_program_is_named_by_the_last_component_of_its_path() {
 // worker runs the host's own architecture, x86_64 on any x86_64 host and arm64 on any arm64 host.
 #[test]
 fn the_guest_architecture_follows_the_backend_and_the_host() {
-    for selection in [linux(), tart_macos(), parallels()] {
+    for selection in [tart_macos(), parallels()] {
         assert_eq!(load(selection, &env(&[])).guest_arch, GuestArch::Arm64, "{selection:?}");
     }
     let docker = load(docker(), &env(&[])).guest_arch;
@@ -293,7 +282,7 @@ fn the_guest_architecture_follows_the_backend_and_the_host() {
 #[test]
 fn a_retired_name_is_not_read() {
     let config = load(
-        linux(),
+        docker(),
         &env(&[
             ("VM_DATA", "/retired"),
             ("PARALLELS_VM_DATA", "/retired"),
@@ -306,7 +295,7 @@ fn a_retired_name_is_not_read() {
     );
     assert_eq!(config.vm_data, "/home/admin/WorkerData");
     assert_eq!(config.vm_user, "admin");
-    assert_eq!(config.runtime_root, load(linux(), &env(&[])).runtime_root);
+    assert_eq!(config.runtime_root, load(docker(), &env(&[])).runtime_root);
     assert_eq!((config.boot_timeout_seconds, config.vm_cpu), (180, 8));
 }
 
@@ -314,7 +303,7 @@ fn a_retired_name_is_not_read() {
 #[test]
 fn the_daemon_budgets_come_from_the_environment() {
     let tuned = load(
-        linux(),
+        docker(),
         &env(&[
             ("AIR_VM_DAEMON_PORT", "9000"),
             ("AIR_VM_DAEMON_BOOT_TIMEOUT", "60"),
@@ -365,25 +354,9 @@ fn the_presentation_defaults_on_and_turns_off_by_name() {
     assert_eq!(Presentation::load(&env(&[(THEME_VARIABLE, "light")])).theme, Some(Theme::Light));
 }
 
-// The default a worker is cloned from has to be content-addressed: a floating tag would make two clones a month
-// apart two different workers.
-#[test]
-fn the_linux_base_image_default_is_pinned_by_digest() {
-    let image = pins::linux_base_image();
-    let (repository, digest) = image
-        .split_once('@')
-        .unwrap_or_else(|| panic!("the default is not a digest reference: {image}"));
-    assert_eq!(repository, "ghcr.io/cirruslabs/ubuntu");
-    let hex = digest
-        .strip_prefix("sha256:")
-        .unwrap_or_else(|| panic!("the pin is not a sha256 digest: {digest}"));
-    assert_eq!(hex.len(), 64, "{digest}");
-    assert!(hex.bytes().all(|byte| byte.is_ascii_hexdigit()), "{digest}");
-}
-
 // The pins come from the image pipeline's own `versions.env`, embedded at compile time. This reads the same file
-// at run time, so an `include_str!` path that points anywhere else fails here, and checks every name the crate
-// reads: `LINUX_BASE_REFERENCE` with its `${LINUX_BASE_DIGEST}` expanded, `GOLDEN_VM`, `NODE_MAJOR`.
+// at run time, so an `include_str!` path that points anywhere else fails here. It also checks every name the crate
+// reads: `GOLDEN_VM`, `NODE_MAJOR`, `DOCKER_BASE_IMAGE` and the Lima images.
 #[test]
 fn the_pins_are_the_image_pipelines_own() {
     let path = avl_testkit::repo_path("tools/vm/provision/versions.env");
@@ -391,15 +364,10 @@ fn the_pins_are_the_image_pipelines_own() {
     assert_eq!(on_disk, pins::VERSIONS_ENV, "the embedded versions.env is another file");
 
     let parsed = pins::parse(&on_disk).expect("versions.env parses");
-    let reference = parsed
-        .get("LINUX_BASE_REFERENCE")
-        .expect("versions.env declares LINUX_BASE_REFERENCE");
-    assert!(!reference.contains("${"), "{reference}");
-    assert_eq!(reference, &format!("ghcr.io/cirruslabs/ubuntu@{}", parsed["LINUX_BASE_DIGEST"]));
-    assert_eq!(pins::linux_base_image(), reference);
+    assert!(!parsed.contains_key("LINUX_BASE_REFERENCE"), "the Tart Linux base is retired");
     assert!(!pins::tart_golden_vm().is_empty());
     assert!(pins::guest_node_major() > 0);
-    // Pinned by digest like the Tart base, and a Docker Hub reference rather than a Tart OCI image.
+    // A Docker Hub reference, pinned by digest.
     let docker_base = pins::docker_base_image();
     assert!(
         docker_base.starts_with("ubuntu:") && docker_base.contains("@sha256:"),
@@ -429,15 +397,6 @@ fn an_unexpanded_reference_in_the_pins_is_refused() {
     assert_eq!(parsed["A"], "x1y");
 }
 
-// A pinned default must not cost anybody the ability to point a bisect at another image.
-#[test]
-fn the_linux_base_image_override_still_wins() {
-    let config = load(linux(), &env(&[("AIR_VM_LINUX_IMAGE", "ghcr.io/cirruslabs/ubuntu:24.10")]));
-    assert_eq!(config.linux_base_image, "ghcr.io/cirruslabs/ubuntu:24.10");
-    let empty = load(linux(), &env(&[("AIR_VM_LINUX_IMAGE", "")]));
-    assert_eq!(empty.linux_base_image, pins::linux_base_image());
-}
-
 #[test]
 fn the_macos_defaults_differ_only_where_they_should() {
     let config = load(tart_macos(), &env(&[]));
@@ -463,58 +422,28 @@ fn the_macos_defaults_differ_only_where_they_should() {
     assert_eq!(parallels.workers, ["macOS"]);
 }
 
-// One Node pin in two places that must agree: the whole version a Linux worker's archive is named by, and the
-// major the guest's self-check compares against.
+// A Docker worker runs the Node of its image. An operator's `AIR_VM_NODE` still wins.
 #[test]
-fn the_pinned_node_version_carries_the_pinned_major() {
-    let major = pins::guest_node_major().to_string();
-    assert!(
-        GUEST_NODE_VERSION.starts_with(&format!("{major}.")),
-        "{GUEST_NODE_VERSION} is not a Node {major}"
-    );
-    // Three components and no leading `v`: the guest verb makes it a directory name and refuses anything else.
-    let parts: Vec<&str> = GUEST_NODE_VERSION.split('.').collect();
-    assert_eq!(parts.len(), 3, "{GUEST_NODE_VERSION}");
-    assert!(
-        parts
-            .iter()
-            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())),
-        "{GUEST_NODE_VERSION}"
-    );
-}
-
-// A Linux worker runs the Node the controller stages; an operator's `AIR_VM_NODE` still wins, and `avl_host_sys::guest`
-// reads exactly this difference to decide whether to stage at all.
-#[test]
-fn the_linux_node_is_the_staged_one_unless_it_is_overridden() {
-    let staged = load(linux(), &env(&[]));
-    assert_eq!(staged.vm_node, staged.staged_node_binary());
-    assert_eq!(
-        staged.staged_node_binary(),
-        format!("{}/{GUEST_NODE_VERSION}/bin/node", staged.vm_node_root)
-    );
-    let moved = load(linux(), &env(&[("AIR_VM_NODE_ROOT", "/opt/air-node")]));
-    assert_eq!(moved.vm_node, format!("/opt/air-node/{GUEST_NODE_VERSION}/bin/node"));
-    let overridden = load(linux(), &env(&[("AIR_VM_NODE", "/usr/bin/node")]));
+fn the_linux_node_is_the_images_unless_it_is_overridden() {
+    assert_eq!(load(docker(), &env(&[])).vm_node, "/usr/local/bin/node");
+    let overridden = load(docker(), &env(&[("AIR_VM_NODE", "/usr/bin/node")]));
     assert_eq!(overridden.vm_node, "/usr/bin/node");
-    assert_ne!(overridden.vm_node, overridden.staged_node_binary());
 }
 
 // A run secret stays off the persistent data volume: a Linux guest keeps it on tmpfs. A macOS guest has none, so its
 // directory follows the run scratch. Nothing overrides it: `AIR_VM_RUN_SECRETS` may only repeat the derived path.
 #[test]
 fn a_linux_guest_keeps_run_secrets_on_tmpfs() {
-    assert_eq!(load(linux(), &env(&[])).vm_run_secrets, "/dev/shm/air-run-secrets");
     assert_eq!(load(docker(), &env(&[])).vm_run_secrets, "/dev/shm/air-run-secrets");
     let macos = load(tart_macos(), &env(&[]));
     assert_eq!(macos.vm_run_secrets, format!("{}/run-secrets", macos.vm_tmp));
     let moved_tmp = load(tart_macos(), &env(&[("AIR_VM_TMP", "/Volumes/scratch/tmp")]));
     assert_eq!(moved_tmp.vm_run_secrets, "/Volumes/scratch/tmp/run-secrets");
-    let repeated = load(linux(), &env(&[("AIR_VM_RUN_SECRETS", "/dev/shm/air-run-secrets")]));
+    let repeated = load(docker(), &env(&[("AIR_VM_RUN_SECRETS", "/dev/shm/air-run-secrets")]));
     assert_eq!(repeated.vm_run_secrets, "/dev/shm/air-run-secrets");
     // A lease release removes the directory whole, so every other path is refused, the guest's root among them.
     for refused in ["/run/air-secrets", "/", "//", "air-secrets", "/dev/shm/air-run-secrets/"] {
-        let refusal = refuse(linux(), &env(&[("AIR_VM_RUN_SECRETS", refused)]));
+        let refusal = refuse(docker(), &env(&[("AIR_VM_RUN_SECRETS", refused)]));
         assert_eq!(refusal.code, "invalid_environment", "{refused}");
         assert!(refusal.message.contains("AIR_VM_RUN_SECRETS"), "{}", refusal.message);
     }
@@ -556,7 +485,7 @@ fn only_the_derived_run_secrets_directory_is_removable() {
 #[test]
 fn an_empty_variable_is_unset() {
     let config = load(
-        linux(),
+        docker(),
         &env(&[
             ("AIR_VM_DATA", ""),
             ("AIR_VM_NETWORK", ""),
@@ -573,12 +502,15 @@ fn an_empty_variable_is_unset() {
 // Bridged mode carries a second setting; an interface with no mode is carried and unused rather than refused.
 #[test]
 fn bridged_networking_carries_its_interface() {
-    let config = load(linux(), &env(&[("AIR_VM_NETWORK", "bridged"), ("AIR_VM_BRIDGED_INTERFACE", "en0")]));
+    let config = load(
+        tart_macos(),
+        &env(&[("AIR_VM_NETWORK", "bridged"), ("AIR_VM_BRIDGED_INTERFACE", "en0")]),
+    );
     assert_eq!(
         (config.vm_network.as_str(), config.vm_bridged_interface.as_deref()),
         ("bridged", Some("en0"))
     );
-    let unused = load(linux(), &env(&[("AIR_VM_BRIDGED_INTERFACE", "en0")]));
+    let unused = load(tart_macos(), &env(&[("AIR_VM_BRIDGED_INTERFACE", "en0")]));
     assert_eq!(
         (unused.vm_network.as_str(), unused.vm_bridged_interface.as_deref()),
         ("nat", Some("en0"))
@@ -659,13 +591,13 @@ fn every_refusal_has_its_code_and_exit_status() {
         ),
         (
             "an unsafe worker prefix",
-            &[("AIR_VM_WORKER_PREFIX", "air linux")],
+            &[("AIR_VM_WORKER_PREFIX", "air docker")],
             "unsafe_name",
             "worker name prefix",
         ),
         (
             "an unsafe explicit worker",
-            &[("AIR_VM_WORKERS", "air-linux-1,air linux 2")],
+            &[("AIR_VM_WORKERS", "air-docker-1,air docker 2")],
             "unsafe_name",
             "worker name",
         ),
@@ -707,23 +639,27 @@ fn every_refusal_has_its_code_and_exit_status() {
         ),
         (
             "a duplicated explicit pool",
-            &[("AIR_VM_WORKERS", "air-linux-1,air-linux-1")],
+            &[("AIR_VM_WORKERS", "air-docker-1,air-docker-1")],
             "invalid_worker_pool",
             "distinct",
         ),
     ];
+    // A Docker pool on a macOS host, so the Lima engine reads the disk size and its floor.
     for (what, pairs, code, mentions) in cases {
-        let refusal = refuse(linux(), &env(pairs));
+        let refusal = refuse_on(HostOs::Macos, docker(), &env(pairs));
         assert_eq!(refusal.code, code, "{what}: {}", refusal.message);
         assert_eq!(refusal.exit, Exit::USAGE, "{what}");
         assert!(refusal.message.contains(mentions), "{what}: {}", refusal.message);
     }
 }
 
-// The floor is per guest, because the images are different sizes.
+// The floor is per guest, because the images are different sizes. The Linux floor is that of the Lima engine.
 #[test]
 fn the_disk_floor_is_per_guest() {
-    assert_eq!(load(linux(), &env(&[("AIR_VM_ROOT_DISK_GB", "40")])).vm_root_disk_gb, 40);
+    assert_eq!(
+        load_on(HostOs::Macos, docker(), &env(&[("AIR_VM_ROOT_DISK_GB", "40")])).vm_root_disk_gb,
+        40
+    );
     let refusal = refuse(tart_macos(), &env(&[("AIR_VM_ROOT_DISK_GB", "79")]));
     assert!(refusal.message.contains("at least 80"), "{}", refusal.message);
 }
@@ -733,10 +669,10 @@ fn the_disk_floor_is_per_guest() {
 #[test]
 fn a_count_is_a_strict_base_ten_positive_integer() {
     for spelling in ["8.0", "0x10", "1e3", "0b1000", "0o10", "1_000", "Infinity", "+8"] {
-        let refusal = refuse(linux(), &env(&[("AIR_VM_CPU", spelling)]));
+        let refusal = refuse(docker(), &env(&[("AIR_VM_CPU", spelling)]));
         assert_eq!(refusal.code, "invalid_environment", "AIR_VM_CPU={spelling}");
     }
-    assert_eq!(load(linux(), &env(&[("AIR_VM_CPU", "  12  ")])).vm_cpu, 12);
+    assert_eq!(load(docker(), &env(&[("AIR_VM_CPU", "  12  ")])).vm_cpu, 12);
 }
 
 // The two axes are not independent, and the pair is refused once here.
@@ -756,12 +692,28 @@ fn parallels_refuses_a_non_macos_guest() {
     assert!(refusal.message.contains("Aqua session"), "{}", refusal.message);
 }
 
+// The Tart backend runs the macOS golden only. A Linux guest on Tart is refused by name.
+#[test]
+fn tart_refuses_a_linux_guest() {
+    let refusal = refuse(
+        Selection {
+            backend: Backend::Tart,
+            guest_os: GuestOs::Linux,
+        },
+        &env(&[]),
+    );
+    assert_eq!(
+        (refusal.code.as_ref(), refusal.exit),
+        ("unsupported_backend_operation", Exit::USAGE)
+    );
+    assert!(refusal.message.contains("--backend docker"), "{}", refusal.message);
+}
+
 #[test]
 fn backend_parsing_is_one_flag_over_two_axes() {
     for (value, backend, guest_os) in [
         ("tart", Backend::Tart, GuestOs::Macos),
         ("parallels", Backend::Parallels, GuestOs::Macos),
-        ("linux", Backend::Tart, GuestOs::Linux),
         ("docker", Backend::Docker, GuestOs::Linux),
     ] {
         let selection: Selection = value.parse().expect("a known backend");
@@ -769,10 +721,13 @@ fn backend_parsing_is_one_flag_over_two_axes() {
         assert_eq!(selection.label(), value);
         assert_eq!(selection.to_string(), value);
     }
-    let refusal = "vmware".parse::<Selection>().expect_err("an unknown backend");
-    assert_eq!(refusal.code, "usage");
-    // The refusal lists every spelling, so an operator who typed a wrong one reads the right one.
-    assert!(refusal.message.contains("tart, parallels, linux or docker"), "{}", refusal.message);
+    // `linux` named the retired Tart Linux pool.
+    for retired in ["vmware", "linux"] {
+        let refusal = retired.parse::<Selection>().expect_err("an unknown backend");
+        assert_eq!(refusal.code, "usage");
+        // The refusal lists every spelling, so an operator who typed a wrong one reads the right one.
+        assert!(refusal.message.contains("tart, parallels or docker"), "{}", refusal.message);
+    }
     // One value rather than two defaults: falling back to the axes separately can compose a rejected pair.
     assert_eq!(Selection::DEFAULT, docker());
     assert_eq!(Selection::DEFAULT.label(), "docker");
@@ -781,7 +736,7 @@ fn backend_parsing_is_one_flag_over_two_axes() {
 
 #[test]
 fn the_host_repo_refuses_to_be_read_before_it_is_resolved() {
-    let config = load(linux(), &env(&[]));
+    let config = load(docker(), &env(&[]));
     let refusal = config.host_repo().expect_err("an unresolved repository");
     assert_eq!(refusal.code, "host_paths_unresolved");
     assert!(refusal.message.contains("ensure_host_paths"), "{}", refusal.message);
@@ -823,17 +778,17 @@ fn a_parallels_worker_directory_is_keyed_apart() {
 
 #[test]
 fn a_worker_outside_the_pool_is_refused() {
-    let config = load(linux(), &env(&[]));
-    config.require_pool_worker("air-linux-2").unwrap();
+    let config = load(docker(), &env(&[]));
+    config.require_pool_worker("air-docker-2").unwrap();
     let refusal = config.require_pool_worker("air-macos-1").expect_err("a worker from another pool");
     assert_eq!(refusal.code, "unknown_worker");
     // The message names the pool, so the reader does not have to guess which pool they reached.
-    assert!(refusal.message.contains("air-linux-1, air-linux-2"), "{}", refusal.message);
+    assert!(refusal.message.contains("air-docker-1, air-docker-2"), "{}", refusal.message);
 }
 
 #[test]
 fn the_pool_names_are_distinct_per_guest() {
-    let linux = load(linux(), &env(&[])).workers;
+    let linux = load(docker(), &env(&[])).workers;
     let macos = load(tart_macos(), &env(&[])).workers;
     assert!(linux.iter().all(|name| !macos.contains(name)), "{linux:?} {macos:?}");
 }
@@ -841,13 +796,13 @@ fn the_pool_names_are_distinct_per_guest() {
 #[test]
 fn an_explicit_pool_fixes_its_size() {
     let config = load(
-        linux(),
-        &env(&[("AIR_VM_WORKERS", " air-linux-7 , air-linux-9 "), ("AIR_VM_MAX_WORKERS", "16")]),
+        docker(),
+        &env(&[("AIR_VM_WORKERS", " air-docker-7 , air-docker-9 "), ("AIR_VM_MAX_WORKERS", "16")]),
     );
-    assert_eq!(config.workers, ["air-linux-7", "air-linux-9"]);
-    let scaled = load(linux(), &env(&[("AIR_VM_MAX_WORKERS", "5")]));
+    assert_eq!(config.workers, ["air-docker-7", "air-docker-9"]);
+    let scaled = load(docker(), &env(&[("AIR_VM_MAX_WORKERS", "5")]));
     assert_eq!(scaled.workers.len(), 5);
-    assert_eq!(scaled.workers[4], "air-linux-5");
+    assert_eq!(scaled.workers[4], "air-docker-5");
 }
 
 // The set of guests is closed, so a guest with no profile cannot be constructed; its spelling is a usage
@@ -859,38 +814,33 @@ fn a_guest_with_no_profile_is_refused() {
     for os in [GuestOs::Macos, GuestOs::Linux] {
         let profile = os.profile();
         assert_eq!(profile.os, os);
-        for field in [
-            profile.share_mount,
-            profile.chown,
-            profile.link_flags,
-            profile.mounted_filesystem,
-            profile.mount_binary,
-            profile.umount_binary,
-            profile.mount_shares,
-        ] {
+        for field in [profile.share_mount, profile.chown, profile.link_flags] {
             assert!(!field.is_empty(), "{os}: {profile:?}");
         }
         assert_eq!(os.as_str().parse::<GuestOs>(), Ok(os));
     }
 }
 
-// Absolute because the remount sweep runs under `sudo -H`, whose `secure_path` on a macOS guest has no `/sbin`.
+// Only a macOS guest has the VirtioFS device. Its mount binaries are absolute, because the remount sweep runs under
+// `sudo -H`, whose `secure_path` on a macOS guest has no `/sbin`.
 #[test]
-fn the_mount_binaries_are_absolute() {
-    for os in [GuestOs::Macos, GuestOs::Linux] {
-        let profile = os.profile();
-        assert!(
-            profile.mount_binary.starts_with('/') && profile.umount_binary.starts_with('/'),
-            "{profile:?}"
-        );
+fn only_the_macos_guest_has_a_virtiofs_device_with_absolute_binaries() {
+    assert_eq!(GuestOs::Linux.profile().virtiofs, None);
+    let virtiofs = GuestOs::Macos.profile().virtiofs.expect("the macOS guest has the device");
+    for field in [virtiofs.mounted_filesystem, virtiofs.mount_shares] {
+        assert!(!field.is_empty(), "{virtiofs:?}");
     }
+    assert!(
+        virtiofs.mount_binary.starts_with('/') && virtiofs.umount_binary.starts_with('/'),
+        "{virtiofs:?}"
+    );
 }
 
 // First refusal wins, in the order the readers run, so one invalid environment produces one message.
 #[test]
 fn the_first_refusal_wins() {
     let refusal = refuse(
-        linux(),
+        docker(),
         &env(&[
             ("AIR_VM_NETWORK", "bridged"),
             ("AIR_VM_ROOT_DISK_OPTS", "NOPE;"),
@@ -904,18 +854,28 @@ fn the_first_refusal_wins() {
 #[test]
 fn root_disk_options_accept_only_tarts_own_spelling() {
     for value in ["caching=cached,sync=none", "sync=none", "caching", ""] {
-        let result = Config::load_on(POOL_HOST, linux(), &env(&[("AIR_VM_ROOT_DISK_OPTS", value)]), Path::new("/repo"));
+        let result = Config::load_on(
+            POOL_HOST,
+            tart_macos(),
+            &env(&[("AIR_VM_ROOT_DISK_OPTS", value)]),
+            Path::new("/repo"),
+        );
         assert!(result.is_ok(), "{value:?} was refused: {result:?}");
     }
     for value in ["caching=Cached", "sync=none;rm -rf /", "sync = none", "caching,,sync"] {
-        let result = Config::load_on(POOL_HOST, linux(), &env(&[("AIR_VM_ROOT_DISK_OPTS", value)]), Path::new("/repo"));
+        let result = Config::load_on(
+            POOL_HOST,
+            tart_macos(),
+            &env(&[("AIR_VM_ROOT_DISK_OPTS", value)]),
+            Path::new("/repo"),
+        );
         assert!(result.is_err(), "{value:?} was accepted");
     }
 }
 
 #[test]
 fn a_name_is_what_a_shell_carries_unquoted() {
-    for name in ["air-linux-1", "run.2026_09", "A-z.0_9"] {
+    for name in ["air-docker-1", "run.2026_09", "A-z.0_9"] {
         assert!(validate_name(name, "worker name").is_ok(), "{name}");
     }
     for name in ["", "../escape", "a b", "a/b", "semi;colon", "ünicode"] {
@@ -941,8 +901,8 @@ fn the_pairs_keep_an_empty_value() {
 
 // --- the Docker pool -----------------------------------------------------------------------------------------
 
-/// A Docker worker has the Tart Linux guest's account and paths, so the guest scripts see one layout, and a pool of
-/// two containers, as a Tart pool has two workers, unless the operator asks for another size.
+/// A Docker worker has the Linux guest's account and paths, and a pool of two containers, as a Tart pool has two
+/// workers, unless the operator asks for another size.
 #[test]
 fn the_docker_defaults_are_the_linux_guests_with_two_slots() {
     let config = load(docker(), &env(&[]));
@@ -983,8 +943,8 @@ fn the_docker_defaults_are_the_linux_guests_with_two_slots() {
     assert_eq!(config.docker_pull_log_path(), root.join("docker-pull.log"));
     assert_eq!(config.docker_push_log_path(), root.join("docker-push.log"));
     assert_eq!(config.docker_image_record_path(), root.join("docker-image.json"));
-    // The Tart pools keep their own defaults.
-    assert_eq!(load(linux(), &env(&[])).workers, ["air-linux-1", "air-linux-2"]);
+    // The Tart pool keeps its own defaults.
+    assert_eq!(load(tart_macos(), &env(&[])).workers, ["air-macos-1", "air-macos-2"]);
 }
 
 #[test]
@@ -1149,7 +1109,7 @@ fn the_docker_engine_follows_the_environment_and_the_host() {
         );
     }
     // The engine is a fact of the Docker backend only: a Tart pool on a Mac runs no Lima engine.
-    assert!(!load_on(HostOs::Macos, linux(), &env(&[])).runs_lima_engine());
+    assert!(!load_on(HostOs::Macos, tart_macos(), &env(&[])).runs_lima_engine());
 }
 
 /// The Lima home is under the XDG state directory on every host, so the socket path stays short, and its files are
@@ -1175,9 +1135,7 @@ fn the_lima_engine_paths_are_short_and_pool_wide() {
         (8, LIMA_ENGINE_MEMORY_MIB, 80)
     );
     assert_eq!(LIMA_ENGINE_MEMORY_MIB, 16_384);
-    // An external engine keeps the 6 GiB of a Linux worker, which only the Tart Linux pool reads, and the override
-    // wins over the engine default.
-    assert_eq!(load_on(HostOs::Linux, docker(), &env(&[])).vm_memory_mib, 6_144);
+    // The override wins over the engine default.
     assert_eq!(
         load_on(HostOs::Macos, docker(), &env(&[("AIR_VM_MEMORY_MB", "8192")])).vm_memory_mib,
         8_192

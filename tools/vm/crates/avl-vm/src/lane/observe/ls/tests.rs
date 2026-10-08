@@ -30,10 +30,10 @@ fn args(directory: &str, depth: u8) -> LsArgs {
 /// channel is what lets a failing lane be diagnosed while the daemon holds the warm IDE.
 #[tokio::test]
 async fn ls_is_deliberately_allowed_while_a_run_is_active() {
-    let fixture = Fixture::tart_linux();
-    fixture.mark_ready("air-linux-1").await;
-    let receipt = fixture.lease_receipt("air-linux-1");
-    let channel = fixture.channel("air-linux-1");
+    let fixture = Fixture::docker();
+    fixture.mark_ready("air-docker-1").await;
+    let receipt = fixture.lease_receipt("air-docker-1");
+    let channel = fixture.channel("air-docker-1");
     channel.answer(answer_guest(vec![
         (" active ", active_reply(Some("run-1"))),
         ("/usr/bin/find", said("/tmp\n/tmp/a\r\n/tmp/b\n")),
@@ -42,7 +42,7 @@ async fn ls_is_deliberately_allowed_while_a_run_is_active() {
     assert_eq!(
         outcome.data,
         json!({
-            "worker": "air-linux-1",
+            "worker": "air-docker-1",
             "directory": "/tmp",
             "depth": 2,
             "entries": ["/tmp", "/tmp/a", "/tmp/b"],
@@ -67,10 +67,10 @@ async fn ls_is_deliberately_allowed_while_a_run_is_active() {
 /// paths: more entries than the cap, and a stdout capture that was itself truncated.
 #[tokio::test]
 async fn ls_names_truncation_rather_than_hiding_it() {
-    let fixture = Fixture::tart_linux();
-    fixture.mark_ready("air-linux-1").await;
-    let receipt = fixture.lease_receipt("air-linux-1");
-    let channel = fixture.channel("air-linux-1");
+    let fixture = Fixture::docker();
+    fixture.mark_ready("air-docker-1").await;
+    let receipt = fixture.lease_receipt("air-docker-1");
+    let channel = fixture.channel("air-docker-1");
 
     let over_cap = vec!["/tmp/entry-xxx"; LS_ENTRY_LIMIT + 1].join("\n");
     channel.answer(answer_guest(vec![("/usr/bin/find", said(&over_cap))]));
@@ -98,10 +98,10 @@ async fn ls_names_truncation_rather_than_hiding_it() {
 /// an exit of 1 with nothing listed is still a refusal, because then the directory itself was unreadable.
 #[tokio::test]
 async fn ls_keeps_what_find_listed_before_an_unreadable_entry() {
-    let fixture = Fixture::tart_linux();
-    fixture.mark_ready("air-linux-1").await;
-    let receipt = fixture.lease_receipt("air-linux-1");
-    let channel = fixture.channel("air-linux-1");
+    let fixture = Fixture::docker();
+    fixture.mark_ready("air-docker-1").await;
+    let receipt = fixture.lease_receipt("air-docker-1");
+    let channel = fixture.channel("air-docker-1");
     channel.answer(answer_guest(vec![(
         "/usr/bin/find",
         Captured {

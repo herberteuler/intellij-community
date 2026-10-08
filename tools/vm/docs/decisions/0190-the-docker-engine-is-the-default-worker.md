@@ -13,6 +13,9 @@ worker as the default until the lane was green on Docker. It also supersedes the
 It moves the default of [ADR 0189](0189-the-docker-engine-is-a-lima-vm-the-controller-owns.md). How the lane uses the
 worker is [the VM guide](../vm-ui-tests.md).
 
+Superseded in part on 2026-10-08: [ADR 0210](0210-the-docker-image-carries-node-and-the-tart-linux-worker-is-retired.md) removes `--backend linux`, which this record
+names as the fallback.
+
 ## Context
 
 ADR 0183 made a Docker container a third backend and kept the Tart Linux worker as the default. Its reason was that

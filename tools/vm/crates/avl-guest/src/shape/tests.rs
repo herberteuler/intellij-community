@@ -1,26 +1,5 @@
 use super::*;
 
-#[test]
-fn digit_groups_take_exactly_their_shape() {
-    for (value, separator, groups) in [("88", '.', 1), ("24.19.0", '.', 3), ("1920x1080x24", 'x', 3)] {
-        assert!(is_digit_groups(value, separator, groups), "{value:?} was refused");
-    }
-    for (value, separator, groups) in [
-        ("", '.', 1),
-        ("8.8", '.', 1),
-        ("24.19", '.', 3),
-        ("24.19.0.1", '.', 3),
-        ("24..0", '.', 3),
-        ("v24.19.0", '.', 3),
-        ("24.19.0\n", '.', 3),
-        ("1920x1080", 'x', 3),
-        ("1920x1080x24 -nolisten", 'x', 3),
-        ("١٩٢٠x1080x24", 'x', 3),
-    ] {
-        assert!(!is_digit_groups(value, separator, groups), "{value:?} was accepted");
-    }
-}
-
 /// The two lines are the loaders' own: the Tart base (Ubuntu 24.04) and the Docker base (Ubuntu 26.04).
 #[test]
 fn the_release_is_the_first_one_after_version() {

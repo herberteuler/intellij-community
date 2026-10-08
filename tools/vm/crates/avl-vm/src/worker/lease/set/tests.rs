@@ -15,7 +15,7 @@ use crate::worker::lease::tests::{ctx, pool, request};
 
 #[tokio::test]
 async fn acquired_workers_carry_the_handle_that_frees_them() {
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let held = acquire_workers(&ctx(), &fixture.manager, &request("shardable", 2, false))
         .await
         .unwrap();
@@ -48,7 +48,7 @@ async fn acquired_workers_carry_the_handle_that_frees_them() {
 /// the length of what came back.
 #[tokio::test]
 async fn acquire_workers_answers_fewer_rather_than_waiting() {
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let held = acquire_workers(&ctx(), &fixture.manager, &request("shardable", 3, false))
         .await
         .unwrap();
@@ -56,7 +56,7 @@ async fn acquire_workers_answers_fewer_rather_than_waiting() {
 
     // `exact` is the measurement run's escape hatch, and it unwinds what it placed rather than leaving a partly-owned
     // set behind.
-    let fixture = pool("air-linux-1");
+    let fixture = pool("air-macos-1");
     let refusal = acquire_workers(&ctx(), &fixture.manager, &request("measurement", 2, true))
         .await
         .unwrap_err();
@@ -70,7 +70,7 @@ async fn acquire_workers_answers_fewer_rather_than_waiting() {
 #[cfg(unix)]
 #[tokio::test]
 async fn release_workers_finishes_the_set_and_names_what_stayed_held() {
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let held = acquire_workers(&ctx(), &fixture.manager, &request("shardable", 2, false))
         .await
         .unwrap();
@@ -100,9 +100,9 @@ async fn release_workers_finishes_the_set_and_names_what_stayed_held() {
 /// receipt its invoker supplied with the workers it leased itself.
 #[test]
 fn require_one_guest_os_refuses_a_set_a_caller_assembled() {
-    let fixture = pool("air-linux-1,air-linux-2");
+    let fixture = pool("air-macos-1,air-macos-2");
     let given = Lease {
-        guest_os: GuestOs::Macos,
+        guest_os: GuestOs::Linux,
         ..fixture.new_lease(fixture.worker(0), "token", "the-invoker")
     };
     let ours = fixture.new_lease(fixture.worker(1), "token", "vm-flake");

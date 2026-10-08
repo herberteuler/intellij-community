@@ -11,7 +11,7 @@ use std::time::Duration;
 use avl_base::SystemClock;
 use avl_base::format::words;
 use avl_base::{Exit, OrRefuse, Outcome, Refusal, SCHEMA_VERSION, validate_name};
-use avl_host_sys::guest::{LinuxProvisioning, ensure_host_paths, linux, read_init_receipt};
+use avl_host_sys::guest::{ensure_host_paths, read_init_receipt};
 use avl_host_sys::share::shares;
 use avl_host_sys::{Backoff, Ctx, Poll, PsField, SpawnOptions};
 use nix::sys::signal::{Signal, kill, killpg};
@@ -22,10 +22,7 @@ use serde_json::json;
 use super::pool::render_list;
 use super::{GUEST_PROBE_TIMEOUT, Lease, Manager, StartState, StopState, probe_timeout, read_lease};
 use crate::worker::secure::write_json_line;
-use crate::worker::tart::{
-    ProcessIdentity, SealedGolden, TART_CLONE_TIMEOUT, TART_DELETE_TIMEOUT, TART_SET_TIMEOUT, TART_STOP_TIMEOUT, Tart, VmState,
-};
-use avl_base::RefusalExt;
+use crate::worker::tart::{ProcessIdentity, TART_CLONE_TIMEOUT, TART_DELETE_TIMEOUT, TART_SET_TIMEOUT, TART_STOP_TIMEOUT, Tart, VmState};
 
 /// What `tart run` prints when Virtualization.framework refuses another machine. Matched as prose because it is the
 /// only signal: the run process exits with a status that says nothing else.
@@ -64,9 +61,8 @@ impl Manager {
         ]
         .map(str::to_owned)
         .to_vec();
-        // Required for `tart suspend`. macOS guests only, and `tart run` is where that is enforced: the flag on a
-        // Linux VM fails the run outright with "You can only suspend macOS VMs".
-        if settings.vm_suspendable && settings.is_macos_guest() {
+        // Required for `tart suspend`.
+        if settings.vm_suspendable {
             argv.push("--suspendable".to_owned());
         }
         // The network mode. `nat` declares nothing and is the default; the other two are alternatives rather than
@@ -352,7 +348,7 @@ impl Manager {
         ensure_host_paths(ctx, &self.runner, &self.settings).await?;
         // **Before the clone, because a boot runs verbs of the agent it installs.** `pool start` and `pool recycle`
         // build no lane, so they used to install whatever the output base already held - and a cold clone then
-        // answered `stage-node ... exited with 64: Usage:`, `EX_USAGE` from an agent older than this controller. Here
+        // answered a boot verb with `exited with 64: Usage:`, `EX_USAGE` from an agent older than this controller. Here
         // rather than in the two `pool` commands, so the lazy start of an unused slot is covered too. A lease-only
         // operation builds nothing: it runs no boot verb and must not spend a build under a held lock.
         (self.build_boot)(ctx.clone()).await?;
@@ -444,20 +440,10 @@ impl Manager {
     ///
     /// # The sequence, and the one rule it enforces
     ///
-    /// The console login, then the guest's own provisioning, then the parity layout over the two read-only shares,
-    /// then the Node a lane's agent CLIs run on. Each step's precondition is the step in front of it, and the two
-    /// that read a *host* path through a share must come after the step that mounts one: a Node staged in front of
-    /// the mount refused every Linux boot for a day, and no unit test could see it, because the mount is a guest fact.
+    /// The console login, then the TCC check, then the worker storage, then the parity layout over the two read-only
+    /// shares. Each step's precondition is the step in front of it, and a step that reads a *host* path through a
+    /// share must come after the step that mounts one.
     pub(super) async fn finish_tart_start(&self, ctx: &Ctx, tart: &Tart, worker: &str) -> Result<bool, Refusal> {
-        if !self.settings.is_macos_guest() {
-            linux::note_provisioning(&self.reporter, worker);
-            let provisioning = LinuxProvisioning {
-                provision_argv: Some(linux::provision_argv(&self.settings)),
-                validate_argv: linux::validate_argv(&self.settings),
-            };
-            self.finish_linux_start(ctx, worker, &provisioning).await?;
-            return Ok(true);
-        }
         let channel = self.channel(worker);
         let guest = self.guest(ctx, channel.as_ref());
         if !guest.has_console_login().await? {
@@ -466,8 +452,7 @@ impl Manager {
         guest.require_clean_worker_tcc().await?;
         let root_disk_gb = tart.root_disk_gb(ctx, worker).await?.unwrap_or(self.settings.vm_root_disk_gb);
         // Before the parity layout, not after: the parity script creates the data directory itself, and a storage
-        // step that checks for it would then never grow a fresh clone's container. A Linux cloud image grows its
-        // own root filesystem at boot.
+        // step that checks for it would then never grow a fresh clone's container.
         guest.ensure_worker_storage(root_disk_gb).await?;
         // The shares this process declared are mounted by the parity provisioning, and the layout is built over
         // them here. They do *not* attach on their own at guest boot. A macOS worker stages no Node: its Node comes
@@ -537,9 +522,7 @@ impl Manager {
         if !tart.running(ctx, worker).await? || !self.guest_answers(ctx, worker, GUEST_PROBE_TIMEOUT).await {
             return self.start_without_lifecycle_lock(ctx, worker).await.map(drop);
         }
-        if self.settings.is_macos_guest() {
-            tart.require_worker_provenance(worker, &self.settings.golden_vm)?;
-        }
+        tart.require_worker_provenance(worker, &self.settings.golden_vm)?;
         let channel = self.channel(worker);
         let guest = self.guest(ctx, channel.as_ref());
         guest.require_console_login().await?;
@@ -623,9 +606,8 @@ impl Manager {
         }
         // Suspending keeps what the worker is expensive to rebuild: the warm UI-test daemon and the IDE it holds open
         // come back with the guest. Measured on 2026-08-12 that costs about two seconds and a ~6 GB state file, and
-        // resuming takes 29 s against a 32 s cold boot - so the reason to prefer it is the warm guest. A Linux guest
-        // cannot be suspended, so its `pool stop` keeps no warm daemon.
-        let suspending = self.settings.vm_suspendable && self.settings.is_macos_guest();
+        // resuming takes 29 s against a 32 s cold boot - so the reason to prefer it is the warm guest.
+        let suspending = self.settings.vm_suspendable;
         if suspending {
             // Written first: it is the input to the compatibility check the next start makes, and a state file with
             // no record beside it costs a whole extra boot.
@@ -759,49 +741,10 @@ impl Manager {
 
     // --- pool init -------------------------------------------------------------------------------------------
 
-    /// Two operations behind one verb. A macOS pool clones a sealed golden and audits it. A Linux pool clones a
-    /// public image by tag, and it has no seal, because nothing is baked in to audit. Only a macOS pool takes a
-    /// `golden`, and an empty one is the configured golden.
+    /// Clones the sealed golden into every slot and audits it. An empty `golden` is the configured golden.
     pub(super) async fn pool_init_tart(&self, ctx: &Ctx, tart: &Tart, golden: Option<&str>) -> Result<Outcome, Refusal> {
-        if !self.settings.is_macos_guest() {
-            if golden.is_some() {
-                return Err(Refusal::usage("pool init on a Linux pool takes no golden VM"));
-            }
-            return self.pool_init_linux(ctx, tart).await;
-        }
         let golden = golden.filter(|golden| !golden.is_empty()).unwrap_or(&self.settings.golden_vm);
         self.pool_init_macos(ctx, tart, golden).await
-    }
-
-    /// Materializes a Linux pool, which has no seal to honour: the clone is the base image by tag. Asking for the
-    /// seal anyway is what made `pool init` on the Tart Linux pool, then the default, die with `golden_seal_missing`
-    /// while `pool start`, which reaches the same clone, worked.
-    async fn pool_init_linux(&self, ctx: &Ctx, tart: &Tart) -> Result<Outcome, Refusal> {
-        tart.require_available(ctx, "").await?;
-        self.prepare_runtime_dirs()?;
-        let mut created = Vec::new();
-        for worker in &self.settings.workers {
-            if self.materialize_tart_worker(ctx, tart, worker, &self.settings.golden_vm).await? {
-                created.push(worker.clone());
-            }
-        }
-        let settings = &self.settings;
-        Ok(Outcome {
-            data: json!({
-                "backend": settings.backend,
-                "guestOs": settings.guest_os,
-                "baseImage": settings.linux_base_image,
-                "workers": settings.workers,
-                "created": created,
-                "rootDiskGb": settings.vm_root_disk_gb,
-            }),
-            text: format!(
-                "base_image={}\nworkers={}\nroot_disk_gb={}",
-                settings.linux_base_image,
-                settings.workers.join(","),
-                settings.vm_root_disk_gb
-            ),
-        })
     }
 
     async fn pool_init_macos(&self, ctx: &Ctx, tart: &Tart, golden: &str) -> Result<Outcome, Refusal> {
@@ -857,38 +800,29 @@ impl Manager {
     pub(super) async fn materialize_tart_worker(&self, ctx: &Ctx, tart: &Tart, worker: &str, golden: &str) -> Result<bool, Refusal> {
         let settings = &self.settings;
         let exists = tart.exists(ctx, worker).await?;
-        let macos = settings.is_macos_guest();
-        // A macOS worker comes from a locally sealed golden whose clone inputs are recorded and re-checked; a Linux
-        // worker comes from a public image by tag, with nothing baked in to audit.
-        let mut seal: Option<SealedGolden> = None;
-        let source = if macos {
-            if exists {
-                tart.require_worker_provenance(worker, golden)?;
-            }
-            seal = Some(tart.require_sealed_golden(golden)?);
-            golden
-        } else {
-            settings.linux_base_image.as_str()
-        };
+        // A worker comes from a locally sealed golden whose clone inputs are recorded and re-checked.
+        if exists {
+            tart.require_worker_provenance(worker, golden)?;
+        }
+        let seal = tart.require_sealed_golden(golden)?;
         let program = tart.program();
         if !exists {
-            self.note(worker, format!("cloning {source} -> {worker}"));
+            self.note(worker, format!("cloning {golden} -> {worker}"));
             // TART_NO_AUTO_PRUNE keeps the clone from evicting another worker's image to make room for this one.
             self.runner
                 .with_overrides(&[("TART_NO_AUTO_PRUNE", "1")])
                 .checked(
                     ctx,
-                    &words([&program, "clone", source, worker]),
+                    &words([&program, "clone", golden, worker]),
                     &SpawnOptions::within(TART_CLONE_TIMEOUT),
                 )
                 .await?;
-            // --random-serial is a macOS-guest notion; a Linux VM has no Mac serial number to randomize.
-            let mut randomize = words([&program, "set", worker, "--random-mac"]);
-            if macos {
-                randomize.push("--random-serial".to_owned());
-            }
             self.runner
-                .checked(ctx, &randomize, &SpawnOptions::within(TART_SET_TIMEOUT))
+                .checked(
+                    ctx,
+                    &words([&program, "set", worker, "--random-mac", "--random-serial"]),
+                    &SpawnOptions::within(TART_SET_TIMEOUT),
+                )
                 .await?;
         }
         // The disk is the one setting that cannot be re-applied freely, which is why it is the hypervisor's own
@@ -913,9 +847,7 @@ impl Manager {
                 &SpawnOptions::within(TART_SET_TIMEOUT),
             )
             .await?;
-        if let Some(seal) = &seal {
-            tart.write_worker_provenance(worker, seal)?;
-        }
+        tart.write_worker_provenance(worker, &seal)?;
         Ok(!exists)
     }
 

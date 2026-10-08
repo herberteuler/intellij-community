@@ -745,7 +745,7 @@ impl State {
         paint.link("trace", &url) + &video
     }
 
-    /// `[air-linux-1] ` once a second worker was seen, and nothing for a run of one worker.
+    /// `[air-docker-1] ` once a second worker was seen, and nothing for a run of one worker.
     pub(crate) fn worker_prefix(&self, worker: &str) -> String {
         if worker.is_empty() || self.workers.len() < 2 {
             return String::new();

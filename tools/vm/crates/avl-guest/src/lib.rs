@@ -1,4 +1,4 @@
-//! The guest half: the run supervisor, the runtime stager, provisioning verbs and the agent binary.
+//! The guest half: the run supervisor, the runtime stager, the image and guest verbs, and the agent binary.
 //!
 //! One static binary. The controller pushes it into the guest and invokes it over the one exec channel each
 //! hypervisor offers. The reason it is a typed binary is that every silent defect the controller has had lived on
@@ -7,14 +7,15 @@
 //!
 //! The verbs do not collide: `start|supervise|status|active|log|cancel` are the run supervisor's,
 //! `stage|stage-check|launch-prep|gc` are the stager's, `provision-image|validate-image` build the macOS golden
-//! image, `provision-guest|validate-guest|stage-node|check-node` make a Linux worker out of a booted public clone,
-//! and `trace-pack-ready` zips the trace bundles that finished since the last pull with `air-trace pack`'s own
-//! code. `relay` bridges its standard streams to a guest loopback port, which is how the controller reaches the UI
-//! daemon. `read-file` copies one file to its standard output unchanged, which is how the controller pulls a file. `runfiles-tree` builds the runfiles tree of a host MANIFEST, for a Windows host that writes no tree.
+//! image, `validate-guest` proves a Linux worker, and `trace-pack-ready` zips the trace bundles that finished since
+//! the last pull with `air-trace pack`'s own code. `relay` bridges its standard streams to a guest loopback port,
+//! which is how the controller reaches the UI daemon. `read-file` copies one file to its standard output unchanged,
+//! which is how the controller pulls a file. `runfiles-tree` builds the runfiles tree of a host MANIFEST, for a
+//! Windows host that writes no tree.
 //!
 //! The image pair takes three named flags (`--macos-version --node-major --junie-version`), because the Packer
-//! template `air-macos.pkr.hcl` passes them by name. The four Linux verbs take positional argv: an absolute path,
-//! a `:88`, an account name and an absolute path are four shapes no transposition survives.
+//! template `air-macos.pkr.hcl` passes them by name. `validate-guest` takes a positional argv: a `:88` and an
+//! absolute path are two shapes no transposition survives.
 //!
 //! This crate is dispatch plus the verbs. The documents that cross to the host, and every verb's name, are declared
 //! in `avl-wire`, where the host reads the same declaration; the pack report is `avl-trace-tools`'. It depends on

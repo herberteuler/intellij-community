@@ -130,7 +130,7 @@ async fn iteration_fixture(iteration_id: &str) -> (Fixture, PreparedBuild, HostS
     iteration_fixture_over(Fixture::new().await, iteration_id).await
 }
 
-/// [`iteration_fixture`] over a given fixture, such as a Docker pool's, whose container is then current and running.
+/// [`iteration_fixture`] over a given fixture. On a Docker pool the container is then current and running.
 async fn iteration_fixture_over(fixture: Fixture, iteration_id: &str) -> (Fixture, PreparedBuild, HostState) {
     fixture.on("df", answer_text(PLENTIFUL_DF));
     let prep = fixture.prepared().await;
@@ -215,10 +215,10 @@ fn remounts(fixture: &Fixture) -> usize {
     fixture.channel().calls_containing("/bin/sh /vm/data/state/remount-shares.sh").len()
 }
 
-// A moved mount digest quiesces the daemon around the remount and resumes it, without a restart.
+// On Tart a moved mount digest quiesces the daemon around the remount and resumes it, without a restart.
 #[tokio::test]
 async fn a_mount_digest_mismatch_quiesces_remounts_and_resumes() {
-    let (fixture, prep, mut state) = iteration_fixture("it-11").await;
+    let (fixture, prep, mut state) = iteration_fixture_over(Fixture::tart_macos().await, "it-11").await;
     state.last_mount_digest = "something-else".to_owned();
     state.write(&fixture.settings, &fixture.worker).unwrap();
     let attempt = run_warm_iteration(&fixture, false).await;
@@ -729,7 +729,7 @@ async fn an_iteration_without_traces_reports_neither() {
 // the gate cannot use is the gate's own refusal, and no guest was asked anything.
 #[tokio::test]
 async fn a_warm_iteration_passes_the_hypervisor_gate_first() {
-    let (fixture, _, _) = iteration_fixture("it-32").await;
+    let (fixture, _, _) = iteration_fixture_over(Fixture::tart_macos().await, "it-32").await;
     fixture.tart.answer(Answer::VersionExit, "1");
     let attempt = run_warm_iteration(&fixture, false).await;
     let error = error_of(&attempt);

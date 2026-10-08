@@ -8,11 +8,11 @@ use crate::worker::tart::MINIMUM_VERSION;
 // A tool that `TART_BIN` or `DOCKER_BIN` names is the operator's, so only the others are pinned tools of the pool.
 #[test]
 fn a_pool_runs_from_its_pins_only_what_no_variable_names() {
-    let tart = HostPool::builder(Backend::Tart, GuestOs::Linux, MINIMUM_VERSION)
+    let tart = HostPool::builder(Backend::Tart, GuestOs::Macos, MINIMUM_VERSION)
         .without_tart_bin()
         .build();
     assert_eq!(PinnedTool::of_pool(&tart.settings), [PinnedTool::Tart]);
-    let named = HostPool::builder(Backend::Tart, GuestOs::Linux, MINIMUM_VERSION).build();
+    let named = HostPool::builder(Backend::Tart, GuestOs::Macos, MINIMUM_VERSION).build();
     assert_eq!(PinnedTool::of_pool(&named.settings), []);
     let docker = HostPool::builder(Backend::Docker, GuestOs::Linux, MINIMUM_VERSION).build();
     assert_eq!(PinnedTool::of_pool(&docker.settings), []);
@@ -60,7 +60,7 @@ async fn one_query_resolves_every_pinned_tool_of_a_pool() {
 // With no Bazel every request answers `None`, and each backend refuses with its own code.
 #[tokio::test]
 async fn a_pool_without_bazel_resolves_nothing() {
-    let pool = HostPool::builder(Backend::Tart, GuestOs::Linux, MINIMUM_VERSION)
+    let pool = HostPool::builder(Backend::Tart, GuestOs::Macos, MINIMUM_VERSION)
         .without_tart_bin()
         .build();
     let pinned = PinnedTools::new(Arc::clone(&pool.settings), pool.runner(), None);

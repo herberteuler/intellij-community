@@ -5,7 +5,7 @@ use avl_base::{Backend, GuestArch, GuestOs};
 use pretty_assertions::assert_eq;
 
 use super::*;
-use crate::lane::testing::{settings, tart};
+use crate::lane::testing::{docker, settings, tart};
 
 fn environment_of(pairs: &[String]) -> BTreeMap<String, String> {
     pairs
@@ -24,10 +24,10 @@ fn the_daemon_environment_is_the_union_without_the_junit_filter() {
         !environment_union().contains_key("JB_TEST_JUNIT5_FILTERS"),
         "a JUnit filter reached the daemon's launch environment, where it would outlive its iteration"
     );
-    let settings = tart(GuestOs::Linux);
+    let settings = docker();
     let environment = daemon_environment(&settings);
-    // The controller names the guest's node because it staged it.
-    assert_eq!(environment.get("NODE_BIN"), Some(&settings.staged_node_binary()));
+    // The controller names the Node of the Docker image.
+    assert_eq!(environment.get("NODE_BIN").map(String::as_str), Some("/usr/local/bin/node"));
     assert!(!environment.contains_key("JB_TEST_JUNIT5_FILTERS"));
 }
 
@@ -35,7 +35,7 @@ fn the_daemon_environment_is_the_union_without_the_junit_filter() {
 /// boot environment is part of the launch digest and outlives the run.
 #[test]
 fn the_daemon_environment_names_the_run_secrets_directory_only() {
-    let settings = tart(GuestOs::Linux);
+    let settings = docker();
     let environment = daemon_environment(&settings);
     assert_eq!(
         environment.get("AIR_VM_RUN_SECRETS").map(String::as_str),
@@ -50,7 +50,6 @@ fn the_daemon_environment_names_the_run_secrets_directory_only() {
 #[test]
 fn the_guest_decides_the_jbr_platform() {
     for (backend, guest_os, guest_arch, wanted) in [
-        (Backend::Tart, GuestOs::Linux, GuestArch::Arm64, "linux_aarch64"),
         (Backend::Tart, GuestOs::Macos, GuestArch::Arm64, "darwin_aarch64"),
         (Backend::Parallels, GuestOs::Macos, GuestArch::Arm64, "darwin_aarch64"),
         (Backend::Docker, GuestOs::Linux, GuestArch::Arm64, "linux_aarch64"),
@@ -80,11 +79,11 @@ fn only_a_macos_guest_is_searched_in_homebrew() {
     );
 }
 
-/// The guest PATH is the staged Node and then the platform's own directories, in that order. A lane value is never
+/// The guest PATH is the guest's Node and then the platform's own directories, in that order. A lane value is never
 /// a PATH entry: the test JVM receives it as a variable of its own.
 #[test]
-fn the_guest_path_is_the_staged_node_then_the_platform() {
-    let settings = tart(GuestOs::Linux);
+fn the_guest_path_is_the_guests_node_then_the_platform() {
+    let settings = docker();
     let test_env = BTreeMap::from([
         ("AIR_FLOW_UI_REAL".to_owned(), "true".to_owned()),
         // A value that looks like a resolved binary still contributes no directory.
@@ -98,18 +97,21 @@ fn the_guest_path_is_the_staged_node_then_the_platform() {
         "/share/self/ui_daemon.runtime.json",
     ));
 
-    // The staged Node's own `bin` comes first, because the agent CLIs a lane drives are Node programs.
-    let staged = settings.staged_node_binary();
-    let node_bin = Path::new(&staged).parent().unwrap().to_str().unwrap();
-    let wanted: Vec<&str> = std::iter::once(node_bin)
+    // The image's Node is in `/usr/local/bin`, the first platform directory, so the PATH names it once.
+    assert_eq!(settings.vm_node, "/usr/local/bin/node");
+    assert_eq!(environment["PATH"], guest_platform_path_entries(GuestOs::Linux).join(":"));
+    // An operator's Node in its own directory comes first, because the agent CLIs a lane drives are Node programs.
+    let mut own_node = docker();
+    own_node.vm_node = "/opt/air-node/bin/node".to_owned();
+    let first = environment_of(&guest_run_environment(&own_node, &BTreeMap::new(), "run-ui-daemon-7", "/d", "/s"));
+    let wanted: Vec<&str> = std::iter::once("/opt/air-node/bin")
         .chain(guest_platform_path_entries(GuestOs::Linux))
         .collect();
-    assert_eq!(environment["PATH"], wanted.join(":"));
+    assert_eq!(first["PATH"], wanted.join(":"));
     assert_eq!(environment["AIR_FLOW_UI_REAL"], "true");
 
-    // The dedup, on a guest whose Node *is* a platform directory's. `AIR_VM_NODE` is how an operator puts it back
-    // there.
-    let mut on_platform_path = tart(GuestOs::Linux);
+    // The dedup moves a platform directory to the front when the Node is there.
+    let mut on_platform_path = docker();
     on_platform_path.vm_node = "/usr/bin/node".to_owned();
     let shared = environment_of(&guest_run_environment(
         &on_platform_path,
@@ -159,7 +161,7 @@ fn the_run_environment_names_the_runfiles_tree_and_the_runs_own_scratch() {
 #[test]
 fn a_lane_value_overrides_the_run_environment() {
     let pairs = guest_run_environment(
-        &tart(GuestOs::Linux),
+        &docker(),
         &BTreeMap::from([("HOME".to_owned(), "/tmp/lane-home".to_owned())]),
         "run-ui-daemon-7",
         "/d",

@@ -58,10 +58,10 @@ pub(crate) const PROGRAM: &str = "./community/tools/vm.cmd";
 /// The paragraphs under the help of `vm`: the pools, the global options, and the form of the output.
 const AFTER_HELP: &str = "--backend names a pool: docker (the default) is the Ubuntu guest in a container, with its own \
 air-docker-N slots and an image the controller builds; on macOS its engine is a Lima VM the controller starts, and \
-elsewhere it is the engine DOCKER_HOST names or the host's own. linux is a Tart-hosted Ubuntu guest with its own \
-air-linux-N slots, tart is the same hypervisor with a sealed macOS guest, and parallels is the single pre-existing \
-macOS VM. A command without --backend, such as pool stop, acts on the docker pool. A lease receipt records the \
-selection, so later receipt-bearing commands infer it.
+elsewhere it is the engine DOCKER_HOST names or the host's own. tart is a sealed macOS guest with its own \
+air-macos-N slots, and parallels is the single pre-existing macOS VM. A command without --backend, such as \
+pool stop, acts on the docker pool. A lease receipt records the selection, so later receipt-bearing commands \
+infer it.
 
 Global options, accepted before or after the command and anywhere before a literal --: --json and --text choose the \
 output form, --stream adds NDJSON progress, --backend selects the pool, and --lease-file passes the receipt. So \
@@ -181,8 +181,8 @@ pub(crate) struct Global {
     /// Adds NDJSON progress on stderr.
     #[arg(long, global = true)]
     pub stream: bool,
-    /// The pool: tart, parallels, linux or docker. docker is the Ubuntu guest of linux in a container.
-    #[arg(long, global = true, value_name = "tart|parallels|linux|docker")]
+    /// The pool: tart, parallels or docker. docker is the Ubuntu guest in a container.
+    #[arg(long, global = true, value_name = "tart|parallels|docker")]
     pub backend: Option<String>,
     /// The mode-0600 lease receipt.
     #[arg(long = "lease-file", global = true, value_name = "FILE")]

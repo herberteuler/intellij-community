@@ -144,7 +144,7 @@ impl Scope {
         Self { worker: name.into() }
     }
 
-    /// `[air-linux-1] `, short enough to stay in front of a test name without wrapping it.
+    /// `[air-docker-1] `, short enough to stay in front of a test name without wrapping it.
     pub(crate) fn prefix(scope: Option<&Self>) -> String {
         scope.map_or_else(String::new, |scope| format!("[{}] ", scope.worker))
     }

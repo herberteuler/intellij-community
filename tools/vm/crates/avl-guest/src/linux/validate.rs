@@ -1,6 +1,6 @@
-//! `validate-guest`: proving a provisioned Linux worker can run a UI lane, before a lane discovers it cannot.
+//! `validate-guest`: proving a Linux worker can run a UI lane, before a lane discovers it cannot.
 //!
-//! Runs as root immediately after `provision-guest`, on every boot. Every check exists because its absence was
+//! Runs as root on every boot of a Docker worker, after the agent install. Every check exists because its absence was
 //! quiet: a worker whose C library is not the one the JBR is built against, whose X server never came up, whose
 //! window manager never registered, or whose runtime cannot resolve one shared object still accepts a run. The
 //! display failure surfaces minutes later as an IDE that cannot open a window, and the missing `.so` as one SEVERE
@@ -8,12 +8,12 @@
 //!
 //! # What it does not hold
 //!
-//! **No package list and no soname-to-package mapping.** `avl_host_sys::guest::linux::GUEST_PACKAGES` does not arrive here at all; this
+//! **No package list and no soname-to-package mapping.** The controller's `GUEST_PACKAGES` does not arrive here. This
 //! verb reads what the guest *has*: the C library, the display, and the shared objects under the staged runtime
 //! root. A package added to that list is covered here without being named here twice.
 //!
-//! **No Node check.** That is `check-node`: this verb runs before the controller mounts the Bazel share the Node
-//! archive is read through, so a Node check here refused every boot ahead of the staging it was meant to prove.
+//! **No Node check.** The Docker image installs the pinned Node. The image tag is a digest over the Dockerfile, so
+//! the pin is the proof.
 
 use serde::Serialize;
 use std::collections::{BTreeSet, HashSet};
@@ -22,8 +22,8 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use super::{
-    FLUXBOX_UNIT, LDD_TOOL, LOADERS, SUPPORTING_WM_CHECK_PROPERTY, WAIT_ATTEMPTS, WAIT_INTERVAL, XDPYINFO_TOOL, XPROP_TOOL, XVFB_UNIT,
-    on_display, supporting_window_id, wait_budget,
+    FLUXBOX_PROCESS, LDD_TOOL, LOADERS, SUPPORTING_WM_CHECK_PROPERTY, WAIT_ATTEMPTS, WAIT_INTERVAL, XDPYINFO_TOOL, XPROP_TOOL,
+    XVFB_PROCESS, on_display, supporting_window_id, wait_budget,
 };
 use crate::cli::ValidateGuestArgs;
 use crate::reply::AgentRefusalExt;
@@ -139,7 +139,7 @@ impl<R: Runner> GuestValidator<R> {
             AgentRefusal::refused(
                 "linux_display_not_answering",
                 format!(
-                    "the X display {} does not answer {XDPYINFO_TOOL}, so {XVFB_UNIT} is not serving it: {error:#}",
+                    "the X display {} does not answer {XDPYINFO_TOOL}, so {XVFB_PROCESS} is not serving it: {error:#}",
                     self.display
                 ),
             )
@@ -201,11 +201,9 @@ impl<R: Runner> GuestValidator<R> {
 
     /// Waits for a window manager to register, rather than asking once and refusing.
     ///
-    /// **The boot this exists for was measured, on `air-linux-2` on 2026-08-25.** A `pool recycle` cloned a fresh
-    /// guest, `provision-guest` answered `displayProbes: 1`, and the next `validate-guest` refused
-    /// `linux_window_manager_missing` on a guest that was healthy thirty seconds later. `air-fluxbox.service` is
-    /// `Type=simple` and `Requires=air-xvfb.service`, so systemd starts fluxbox the moment Xvfb is *forked*, which
-    /// on a first boot leaves about a second to take the display.
+    /// A window manager starts a moment after the X server, so a first boot can find the display with no window
+    /// manager yet. On a Tart Linux worker on 2026-08-25, one probe refused `linux_window_manager_missing` on a guest
+    /// that was healthy thirty seconds later.
     ///
     /// A stale property leaves on the pass that sees it, unwaited: only an absent one is a state a later probe can
     /// improve on, and waiting a stale one out would turn the one real fault this check sees into a timeout.
@@ -224,8 +222,8 @@ impl<R: Runner> GuestValidator<R> {
             "linux_window_manager_missing",
             format!(
                 "no window manager is registered on {} after {} of waiting: the root window has no \
-                 {SUPPORTING_WM_CHECK_PROPERTY}, so {FLUXBOX_UNIT} is not running or fluxbox exited without ever \
-                 taking the display",
+                 {SUPPORTING_WM_CHECK_PROPERTY}, so {FLUXBOX_PROCESS} is not running or exited without ever taking \
+                 the display",
                 self.display,
                 wait_budget()
             ),
@@ -234,20 +232,19 @@ impl<R: Runner> GuestValidator<R> {
 
     /// Proves this guest's C library is the glibc every binary the lane stages is built against.
     ///
-    /// The JBR is a *glibc* build of the guest's architecture, and so is the pinned Node archive. Neither runs on a
-    /// musl guest.
+    /// The JBR is a *glibc* build of the guest's architecture, and it does not run on a musl guest.
     /// Two observations and one repair: the loader the JBR's `PT_INTERP` names must be there, and it must answer
     /// its own `--version`. The musl loader is statted, never run, so a musl guest hears the word musl rather than
     /// a usage block.
     fn check_glibc(&mut self) -> Result<String, AgentRefusal> {
-        const REPAIR: &str = " A worker needs a glibc base image. The pinned config.DefaultLinuxBaseImage is one.";
+        const REPAIR: &str = " A worker needs a glibc base image. The pinned DOCKER_BASE_IMAGE is one.";
         let refused = |message: String| AgentRefusal::refused("linux_glibc_missing", message + REPAIR);
         let (glibc, musl) = (self.loaders.glibc.display(), self.loaders.musl.display());
         if !is_file(&self.loaders.glibc) {
             if is_file(&self.loaders.musl) {
                 return Err(refused(format!(
                     "this guest is a musl guest: {glibc} is absent and {musl} is present. The JBR this lane \
-                     stages is a {} glibc build, and so is the pinned Node archive. Neither runs here.",
+                     stages is a {} glibc build, and it does not run here.",
                     LOADERS.jbr_platform
                 )));
             }
@@ -320,7 +317,7 @@ impl<R: Runner> GuestValidator<R> {
                 "linux_shared_object_unresolved",
                 format!(
                     "shared objects the staged runtime links against are not found in this guest: {}{suffix}; add \
-                     the package that carries them to GUEST_PACKAGES in crates/avl-host-sys/src/guest/linux.rs",
+                     the package that carries them to GUEST_PACKAGES in crates/avl-vm/src/worker/docker.rs",
                     unresolved.join("; ")
                 ),
             ));

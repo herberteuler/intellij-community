@@ -472,7 +472,7 @@ const fn milliseconds(value: f64) -> u64 {
     value.max(0.0) as u64
 }
 
-/// One label for each shard: its index, its worker and its predicted time, such as `1:air-linux-1:84s`, and `+rest`
+/// One label for each shard: its index, its worker and its predicted time, such as `1:air-docker-1:84s`, and `+rest`
 /// for the shard that runs the remainder.
 fn shard_labels(plan: &ShardPlan, held: &[HeldWorker]) -> Vec<String> {
     plan.shards

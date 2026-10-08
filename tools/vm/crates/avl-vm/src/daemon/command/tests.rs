@@ -42,7 +42,7 @@ fn run_command_args(argv: &[&str]) -> RunCommandArgs {
 }
 
 // The grammar rejects an extra argument and an unknown verb before anything runs, and names the verbs: `daemon warm
-// --backend linux` is a plausible mistake, and it must cost a message rather than a lane build.
+// --backend docker` is a plausible mistake, and it must cost a message rather than a lane build.
 #[test]
 fn the_daemon_grammar_refuses_arguments_and_unknown_verbs() {
     let parse = |argv: &[&str]| DaemonProbe::try_parse_from(std::iter::once("daemon").chain(argv.iter().copied()));
@@ -73,7 +73,7 @@ async fn daemon_warm_needs_no_lease_file() {
     let fixture = Fixture::new().await;
     let ctx = Ctx::background();
     let outcome = fixture.host.command_daemon(&ctx, DaemonVerb::Warm, None).await.unwrap();
-    assert!(outcome.text.starts_with("warmed linux "), "{:?}", outcome.text);
+    assert!(outcome.text.starts_with("warmed docker "), "{:?}", outcome.text);
     for verb in [
         DaemonVerb::Start,
         DaemonVerb::Restart,
@@ -98,7 +98,7 @@ async fn daemon_warm_reports_the_build_identities_and_touches_no_guest() {
     assert!(fixture.channel().calls().is_empty(), "warming reached the guest");
     assert_eq!(fixture.bazel.build_calls(), 1, "a warm is one host build");
     assert_eq!(outcome.data["worker"], json!(null), "the payload names no worker, as null");
-    assert_eq!(outcome.data["config"], "linux");
+    assert_eq!(outcome.data["config"], "docker");
     assert_eq!(outcome.data["guestOs"], "linux");
     // The reference stamp, through the same call a `daemon start` makes.
     let built = fixture
@@ -117,7 +117,7 @@ async fn daemon_warm_reports_the_build_identities_and_touches_no_guest() {
     assert!(
         outcome
             .text
-            .starts_with(&format!("warmed linux {} in ", &built.runtime_digest[..12]))
+            .starts_with(&format!("warmed docker {} in ", &built.runtime_digest[..12]))
             && outcome.text.ends_with('s')
             && !outcome.text.contains('\n'),
         "one line naming the configuration, the digest and the cost: {:?}",
@@ -751,7 +751,7 @@ fn the_verdict_names_the_traces_that_did_not_pass() {
             error: None,
         })
     );
-    let reason = "the guest agent's trace-pack-ready in air-linux-1 exited with 70";
+    let reason = "the guest agent's trace-pack-ready in air-docker-1 exited with 70";
     pulled.traces_error = Some(reason.to_owned());
     let failing = traces_of([&pulled]).unwrap();
     assert_eq!((failing.error.as_deref(), failing.scenarios), (Some(reason), 2));
@@ -900,7 +900,7 @@ async fn command_run_reports_all_skipped_with_the_reasons() {
         ndjson_line(&run_started_record("it-22")),
         ndjson_line(
             &json!({"event": "containerSkipped", "timestamp": "t", "displayName": "MyTest", "id": "c1",
-            "className": "com.example.MyTest", "reason": "codex is not installed on air-linux-1 (tart linux guest)"}),
+            "className": "com.example.MyTest", "reason": "codex is not installed on air-docker-1 (docker linux guest)"}),
         ),
         ndjson_line(&summary_record("it-22", 0, 0, 0, 1, 0, false)),
     ];

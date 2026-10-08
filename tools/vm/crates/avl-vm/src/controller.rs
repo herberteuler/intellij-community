@@ -31,6 +31,13 @@ use avl_base::RefusalExt;
 /// pair neither source named, and the pool it named might not exist. So a flag and a receipt that disagree on
 /// *either* half are a refusal, not a merge: continuing would mean acting on another pool's worker while holding a
 /// handle that looks valid.
+/// A selection with both of its axes, such as `tart with a macos guest`. A refusal of two selections names both
+/// axes, because two selections can have the same backend: a receipt of the retired Tart Linux pool and
+/// `--backend tart` are both `tart`.
+fn both_axes(selection: Selection) -> String {
+    format!("{} with a {} guest", selection.backend, selection.guest_os)
+}
+
 pub(crate) fn resolve_selection(flag: Option<Selection>, lease_file: Option<&Path>) -> Result<Selection, Refusal> {
     let inferred = lease_file.and_then(receipt_backend);
     match (flag, inferred) {
@@ -39,8 +46,8 @@ pub(crate) fn resolve_selection(flag: Option<Selection>, lease_file: Option<&Pat
             Exit::NO_PERM,
             format!(
                 "lease receipt selects {}, but --backend selected {}",
-                inferred.label(),
-                flag.label()
+                both_axes(inferred),
+                both_axes(flag)
             ),
         )),
         (Some(flag), _) => Ok(flag),

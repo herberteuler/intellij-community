@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use avl_base::RefusalExt;
 use avl_base::fs::create_private_dir;
 use avl_base::{Config, Exit, GuestArch, GuestOs, Refusal, Reporter};
-use avl_host_sys::guest::{BazelHost, agent_label, node_archive_label};
+use avl_host_sys::guest::{BazelHost, agent_label};
 use avl_host_sys::paths::lies_below;
 use avl_host_sys::runfiles::HostRunfiles;
 use avl_host_sys::{Ctx, ProcError, Runner, SpawnOptions};
@@ -110,11 +110,6 @@ pub(crate) fn host_bazel_argv(settings: &Config, command: &str, args: &[String])
 /// freshness holds by construction for `run`, `shard`, `flake` and `daemon start`, the four paths that reach a
 /// worker, and all four reach it through [`Bazel::build`].
 ///
-/// The Node archive a Linux worker is staged from rides along for a narrower reason: a checksum-pinned download
-/// cannot be stale, but *fetching* the repository that holds it is 340 MB on a cold checkout, and the only other
-/// thing that would trigger that fetch is the guest setup's own `cquery` - under the lease-operation lock. Bazel
-/// prints `… is a source file, nothing will be built for it` for it, once per lane build, and that line is expected.
-///
 /// Lease-only operations - `lease acquire`, `lease release`, `status`, `exec`, `pull` - build nothing and still
 /// install, which is deliberate: they judge no test, and a build inside them would put minutes under a held lock on
 /// the path that *frees* a worker.
@@ -124,20 +119,15 @@ pub(crate) fn host_build_targets(guest_os: GuestOs, guest_arch: GuestArch, label
         .collect()
 }
 
-/// What a *boot* installs into a guest: the agent, and the Node archive a Linux worker is staged from. The lane
-/// label is deliberately not here - a boot judges no test.
+/// What a *boot* installs into a guest: the agent for the guest's OS and architecture. The lane label is not here,
+/// because a boot judges no test.
 ///
-/// This exists because a boot depends on verbs only a fresh agent has. `pool start` and `pool recycle` build no
-/// lane, so until 2026-08-27 they installed whatever the last build left in the output base; measured on
-/// `air-linux-2` that day, a cold clone received an agent built the day before and answered `stage-node ... exited
-/// with 64: Usage:`. [`host_build_targets`] is this set plus the lane's own label, so a lane build and a boot build
-/// cannot come to disagree about which agent bytes a worker gets.
+/// A boot runs verbs that only a fresh agent has. `pool start` and `pool recycle` build no lane, so until 2026-08-27
+/// they installed the agent that the last build left in the output base. On that day a cold clone received an agent
+/// built the day before and answered a boot verb with `exited with 64: Usage:`. [`host_build_targets`] is this set
+/// plus the lane's own label, so a lane build and a boot build give a worker the same agent bytes.
 pub(crate) fn guest_boot_targets(guest_os: GuestOs, guest_arch: GuestArch) -> Vec<String> {
-    // The Node archive is a *downloaded* file, so building it fetches the repository rather than compiling
-    // anything. A macOS guest stages no Node and contributes no second target.
-    std::iter::once(agent_label(guest_os, guest_arch).to_owned())
-        .chain(node_archive_label(guest_os, guest_arch))
-        .collect()
+    vec![agent_label(guest_os, guest_arch).to_owned()]
 }
 
 /// The host Bazel over one invocation's settings, with the two memos its answers share.

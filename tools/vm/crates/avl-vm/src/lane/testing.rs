@@ -33,6 +33,24 @@ pub(crate) fn unresolved(backend: Backend, guest_os: GuestOs, extra: &[(&str, &s
         .unwrap_or_else(|refusal| panic!("the environment was refused: {refusal:?}"))
 }
 
+/// The backend of a pool for one guest: Docker for a Linux guest, and Tart for a macOS guest.
+pub(crate) const fn pool_backend(guest_os: GuestOs) -> Backend {
+    match guest_os {
+        GuestOs::Linux => Backend::Docker,
+        GuestOs::Macos => Backend::Tart,
+    }
+}
+
+/// The settings of the pool for one guest over the fixed `/repo`, for the cases that read no checkout.
+pub(crate) fn pool(guest_os: GuestOs) -> Config {
+    settings(pool_backend(guest_os), guest_os, Path::new("/repo"))
+}
+
+/// Docker settings over the fixed `/repo`: the Linux guest, for the cases that read no checkout.
+pub(crate) fn docker() -> Config {
+    settings(Backend::Docker, GuestOs::Linux, Path::new("/repo"))
+}
+
 /// Tart settings over the fixed `/repo`, for the cases that read no checkout.
 pub(crate) fn tart(guest_os: GuestOs) -> Config {
     settings(Backend::Tart, guest_os, Path::new("/repo"))

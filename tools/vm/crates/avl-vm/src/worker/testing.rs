@@ -82,7 +82,7 @@ impl Fixture {
 
     pub(crate) fn docker_builder() -> FixtureBuilder {
         FixtureBuilder {
-            pool: HostPool::builder(Backend::Docker, GuestOs::Linux, TART_VERSION).with_node_archive(),
+            pool: HostPool::builder(Backend::Docker, GuestOs::Linux, TART_VERSION),
             build_boot: builds_nothing(),
             #[cfg(unix)]
             pinned_bazel: false,
@@ -124,22 +124,18 @@ impl Fixture {
     }
 }
 
-/// The Tart pools and the run process of a Tart worker.
+/// The Tart pool and the run process of a Tart worker.
 #[cfg(unix)]
 impl Fixture {
-    pub(crate) fn linux() -> Self {
-        Self::builder(GuestOs::Linux).build()
-    }
-
     pub(crate) fn macos() -> Self {
         Self::builder(GuestOs::Macos).build()
     }
 
-    /// A boot installs the guest agent and stages Node, and naming both sources is what keeps the "no Bazel"
-    /// promise: a named source is answered by a stat.
+    /// A boot installs the guest agent, and naming its source is what keeps the "no Bazel" promise: a named source
+    /// is answered by a stat.
     pub(crate) fn builder(guest_os: GuestOs) -> FixtureBuilder {
         FixtureBuilder {
-            pool: HostPool::builder(Backend::Tart, guest_os, MINIMUM_VERSION).with_node_archive(),
+            pool: HostPool::builder(Backend::Tart, guest_os, MINIMUM_VERSION),
             build_boot: builds_nothing(),
             #[cfg(unix)]
             pinned_bazel: false,
@@ -183,6 +179,70 @@ impl Fixture {
             .await
             .expect("the fake run process can be identified");
         StaleRun { child, identity }
+    }
+
+    /// Makes every slot of this Tart macOS pool bootable over the fakes: [`Fixture::seal_macos_golden`], then
+    /// [`Fixture::answer_macos_boot`].
+    pub(crate) fn make_macos_bootable(&self) {
+        self.seal_macos_golden();
+        self.answer_macos_boot();
+    }
+
+    /// Gives the golden its clone inputs, the pins of the image build and a seal, and gives every slot a disk. The
+    /// fake `tart clone` copies nothing, and the provenance of a clone reads the disk.
+    pub(crate) fn seal_macos_golden(&self) {
+        use crate::worker::tart::{CloneInput, SealedGolden};
+        use std::os::unix::fs::PermissionsExt;
+        let settings = &self.settings;
+        let tart = self.manager.tart().expect("a Tart pool");
+        let golden = settings.golden_vm.as_str();
+        let write_vm_file = |vm: &str, name: &str, content: &str| {
+            let directory = settings.tart_home.join("vms").join(vm);
+            std::fs::create_dir_all(&directory).expect("a VM directory");
+            std::fs::write(directory.join(name), content).expect("a VM file");
+        };
+        for input in [CloneInput::Disk, CloneInput::Config, CloneInput::Nvram] {
+            write_vm_file(golden, input.file_name(), &format!("the golden's {}\n", input.file_name()));
+        }
+        let (base_digest, macos_version) = ("sha256:fixture", "26.6.2");
+        std::fs::write(
+            settings.image_root.join("versions.env"),
+            format!("GOLDEN_SEAL_SCHEMA=1\nCIRRUS_BASE_DIGEST={base_digest}\nMACOS_VERSION={macos_version}\n"),
+        )
+        .expect("the image pins are written");
+        let signature = |input| tart.vm_file_signature(golden, input).expect("a clone input signature");
+        let seal = SealedGolden {
+            schema_version: SCHEMA_VERSION,
+            golden: golden.to_owned(),
+            disk_signature: signature(CloneInput::Disk),
+            config_signature: signature(CloneInput::Config),
+            nvram_signature: signature(CloneInput::Nvram),
+            base_digest: base_digest.to_owned(),
+            macos_version: macos_version.to_owned(),
+            audited_at: "2026-08-09T00:00:00Z".to_owned(),
+        };
+        let seal_path = tart.seal_path(golden);
+        std::fs::write(&seal_path, serde_json::to_vec(&seal).expect("a seal encodes")).expect("the seal is written");
+        std::fs::set_permissions(&seal_path, std::fs::Permissions::from_mode(0o600)).expect("the seal is private");
+        for worker in &settings.workers {
+            write_vm_file(worker, CloneInput::Disk.file_name(), &format!("the disk of {worker}\n"));
+        }
+    }
+
+    /// Makes every guest answer the macOS boot: a console login, clean TCC databases and an SSH host key of its own.
+    ///
+    /// These are answers of each channel, and a channel's own answer wins over the pool's. So a test that needs a
+    /// guest that fails does not call this.
+    pub(crate) fn answer_macos_boot(&self) {
+        use avl_host_testkit::{answer_guest, said};
+        for (index, worker) in self.settings.workers.iter().enumerate() {
+            self.guest.channel(worker).answer(answer_guest(vec![
+                ("/usr/bin/who", said(CONSOLE_LOGIN)),
+                ("/usr/bin/sqlite3", said("0\n")),
+                // The script that makes the key and the read of a peer's marker both name the marker path.
+                ("ssh-host-key-fingerprint", said(&format!("SHA256:worker{index}\n"))),
+            ]));
+        }
     }
 
     /// Kills the detached `tart run` of every worker when dropped: one that outlived the suite would hold a VM slot
@@ -349,12 +409,16 @@ fn read_identity(path: &std::path::Path) -> Option<ProcessIdentity> {
     serde_json::from_slice(&std::fs::read(path).ok()?).ok()
 }
 
+/// What `/usr/bin/who` answers in a macOS guest whose console is logged in.
+#[cfg(unix)]
+pub(crate) const CONSOLE_LOGIN: &str = "admin    console  Aug 23 10:00\n";
+
 /// Finds `step` in the guest transcript at or after `from`, answering its index.
 pub(crate) fn find_step(argvs: &[String], step: &str, from: usize) -> usize {
     let found = argvs
         .iter()
         .position(|argv| argv.contains(step))
-        .unwrap_or_else(|| panic!("a Linux boot must run {step:?}; guest calls were {argvs:#?}"));
+        .unwrap_or_else(|| panic!("a boot must run {step:?}; guest calls were {argvs:#?}"));
     assert!(found >= from, "{step:?} ran out of order, at call {found} of {argvs:#?}");
     found
 }

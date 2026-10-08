@@ -197,7 +197,7 @@ async fn a_lease_from_another_guest_is_refused_before_anything_runs() {
     let fixture = Fixture::pool().await;
     seed_baseline(&fixture, &TWO_CLASSES);
     let workers = fixture.workers();
-    fixture.leased_by(&workers[0], "suite#1", GuestOs::Macos);
+    fixture.leased_by(&workers[0], "suite#1", GuestOs::Linux);
     let builds_before = fixture.bazel.build_calls();
 
     let refusal = refused(run(&fixture, &["--shards", "2", "--holder", "suite", "--lane", "ui"]).await);

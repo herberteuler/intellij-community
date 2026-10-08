@@ -154,7 +154,7 @@ async fn a_lock_refusal_is_one_settled_entry_and_its_siblings_still_run() {
         two(None),
         |held: &[HeldWorker]| {
             // The second worker's lease changes under the run: another holder's token is on disk now.
-            fixture.leased_by(&held[1].lease.worker, "somebody-else", GuestOs::Linux);
+            fixture.leased_by(&held[1].lease.worker, "somebody-else", GuestOs::Macos);
             Ok(())
         },
         async |(): &(), index: usize, current: Lease, _: &Arc<PreparedBuild>| (index, current.worker),
@@ -254,7 +254,7 @@ async fn a_signal_before_the_fan_out_starts_no_body() {
 async fn a_borrowed_receipt_runs_first_and_is_never_released() {
     let fixture = Fixture::pool().await;
     let workers = fixture.workers();
-    let receipt = fixture.leased_by(&workers[0], "suite", GuestOs::Linux);
+    let receipt = fixture.leased_by(&workers[0], "suite", GuestOs::Macos);
     let leased = bounded(fixture.host.leased_run(
         &Ctx::background(),
         RUN_ID,
@@ -285,7 +285,7 @@ async fn a_borrowed_receipt_runs_first_and_is_never_released() {
 async fn a_borrowed_receipt_of_another_guest_costs_no_build_and_no_lease() {
     let fixture = Fixture::pool().await;
     let workers = fixture.workers();
-    let receipt = fixture.leased_by(&workers[0], "suite", GuestOs::Macos);
+    let receipt = fixture.leased_by(&workers[0], "suite", GuestOs::Linux);
     let refusal = refused(
         bounded(fixture.host.leased_run(
             &Ctx::background(),

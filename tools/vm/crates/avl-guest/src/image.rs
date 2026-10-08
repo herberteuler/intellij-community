@@ -10,6 +10,9 @@
 pub(crate) mod provision;
 pub(crate) mod validate;
 
+#[cfg(test)]
+mod tests;
+
 use std::fs;
 use std::io;
 use std::os::unix::fs::PermissionsExt;
@@ -131,6 +134,8 @@ pub(crate) fn resolve(stat: &Stat, search_path: &[String], name: &str) -> Option
         .find(|candidate| is_executable(stat, candidate))
 }
 
-/// Whether `version` names this major. The trailing dot is the whole check: without it a `v240` would satisfy a
-/// pin of 24.
-pub(crate) use crate::linux::check_node::is_node_major;
+/// Whether `version` (`v24.10.0`) names this major. The trailing dot is the whole check: without it a `v240` would
+/// satisfy a pin of 24.
+pub(crate) fn is_node_major(version: &str, major: u32) -> bool {
+    version.starts_with(&format!("v{major}."))
+}

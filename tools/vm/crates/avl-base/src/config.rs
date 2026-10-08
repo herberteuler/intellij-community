@@ -47,15 +47,6 @@ pub const CAPTURE_LIMIT_BYTES: usize = 8 << 20;
 pub const DEFAULT_GIT_STATUS_PROBE_TIMEOUT_MS: u64 = 5_000;
 pub const MAX_GIT_STATUS_PROBE_TIMEOUT_MS: u64 = 30_000;
 
-/// The whole Node version a Linux worker is staged with.
-///
-/// The whole version and not only the major, because what a Linux worker gets is an archive: `avl_host_sys::guest` spells
-/// this text into a Bazel label, so a version this const and
-/// `runtime-installation/runtime_test_dependencies.bzl` disagree about is a label Bazel refuses by name. Ubuntu
-/// 24.04, the Tart base, ships `nodejs` 18 and no `npm`. Ubuntu 26.04, the Docker base, ships `nodejs` 22. Both
-/// majors are below `NODE_MAJOR`, and the agent CLIs a flow lane drives refuse an older major.
-pub const GUEST_NODE_VERSION: &str = "24.19.0";
-
 /// The pinned Tart executable, declared in `tart.MODULE.bazel` of this workspace. The Tart backend asks Bazel
 /// for it at its first command, unless `TART_BIN` names another executable.
 ///
@@ -188,23 +179,15 @@ pub mod pins {
             .unwrap_or_else(|| panic!("versions.env declares no {name}"))
     }
 
-    /// The public Cirrus Ubuntu image a Linux worker is cloned from, addressed by digest
-    /// (`LINUX_BASE_REFERENCE`). The digest is the only thing that makes a Linux worker reproducible: `24.04` is a
-    /// floating tag, and upstream republishing it changes the package set and the passwordless sudo a worker
-    /// inherits. `AIR_VM_LINUX_IMAGE` overrides it.
-    pub fn linux_base_image() -> &'static str {
-        pin("LINUX_BASE_REFERENCE")
-    }
-
     /// The sealed golden a Tart macOS worker is cloned from when `AIR_VM_GOLDEN_VM` names none (`GOLDEN_VM`, the
     /// name `build-golden.sh` gives the built VM).
     pub fn tart_golden_vm() -> &'static str {
         pin("GOLDEN_VM")
     }
 
-    /// The Node major a worker's guest must answer, one number for both guests (`NODE_MAJOR`). A current
-    /// `@openai/codex` refuses an older major, so a guest with the distribution's own Node fails inside a run
-    /// rather than at a check.
+    /// The Node major of a worker's guest, one number for both guests (`NODE_MAJOR`). The macOS golden installs
+    /// this major from Homebrew. The Docker image installs a Node of this major, and a unit test checks the
+    /// Dockerfile against it. A current `@openai/codex` refuses an older major.
     ///
     /// # Panics
     /// When `NODE_MAJOR` is not a number; the unit test reads it.
@@ -215,18 +198,15 @@ pub mod pins {
             .unwrap_or_else(|_| panic!("versions.env NODE_MAJOR={major} is not a number"))
     }
 
-    /// The Ubuntu image a Docker worker's image is built on, addressed by digest (`DOCKER_BASE_IMAGE`). A second pin
-    /// beside [`linux_base_image`] and not the same one: the Tart base is a Tart OCI image of a whole VM, and a
-    /// container is built from the Docker Hub image, so the two digests name different bytes. The Docker pin names
-    /// Ubuntu 26.04 and the Tart pin stays on 24.04; ADR 0183 says why. The pin is an input of the image tag, so a
-    /// digest bump builds the image again.
+    /// The Ubuntu image a Docker worker's image is built on, addressed by digest (`DOCKER_BASE_IMAGE`). The pin
+    /// names Ubuntu 26.04. It is an input of the image tag, so a digest bump builds the image again.
     pub fn docker_base_image() -> &'static str {
         pin("DOCKER_BASE_IMAGE")
     }
 
     /// The Ubuntu cloud image the Lima engine of a macOS host boots, for one architecture: its URL and its sha256
     /// (`LIMA_BASE_IMAGE_<ARCH>_URL`, `LIMA_BASE_IMAGE_<ARCH>_SHA256`). Lima downloads the image itself and checks
-    /// the digest, as `tart clone` checks [`linux_base_image`]. The pins are inputs of the engine template, so a
+    /// the digest. The pins are inputs of the engine template, so a
     /// bump makes the engine VM again.
     pub fn lima_base_image(arch: super::GuestArch) -> (&'static str, &'static str) {
         match arch {
@@ -241,7 +221,7 @@ pub mod pins {
 /// The hypervisor, or the container engine: what runs the worker.
 ///
 /// Docker is a backend and not a guest OS, because what differs is how a worker is made, started and reached. The
-/// guest is the same Ubuntu with the same guest agent, parity layout and paths as on a Tart Linux worker.
+/// Docker worker is the Linux guest: an Ubuntu with the guest agent, the parity layout and the Linux paths.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Backend {
@@ -515,26 +495,39 @@ pub struct GuestOsProfile {
     pub chown: &'static str,
     /// The `ln` flags that do not dereference an existing link: BSD spells it `-h`, GNU `-n`.
     pub link_flags: &'static str,
-    /// How `mount` names the shared-folder filesystem in its output, for the remount sweep.
+    /// The VirtioFS device and its remount sweep, or `None` for a guest whose shares are bind mounts. Only a macOS
+    /// guest has one: Tart and Parallels run a macOS guest, and a Docker worker's shares are bind mounts.
+    pub virtiofs: Option<&'static VirtiofsMount>,
+}
+
+/// How a guest's remount sweep reads and mounts the shared-folder device of Tart and Parallels.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VirtiofsMount {
+    /// How `mount` names the shared-folder filesystem in its output.
     pub mounted_filesystem: &'static str,
-    /// Absolute because the sweep runs under `sudo -H`, whose `secure_path` on a macOS guest has no `/sbin`: a
-    /// bare `mount` is "command not found", the sweep unmounts nothing, and the mount that follows fails with
-    /// "Resource busy".
+    /// Absolute because the sweep runs under `sudo -H`, whose `secure_path` on a macOS guest has no `/sbin`. A bare
+    /// `mount` is "command not found", the sweep unmounts nothing, and the mount that follows fails with "Resource
+    /// busy".
     pub mount_binary: &'static str,
     pub umount_binary: &'static str,
     /// Mounts [`GuestOsProfile::share_mount`] from the tag, given the mount point in `$MOUNT`.
     pub mount_shares: &'static str,
 }
 
+static MACOS_VIRTIOFS: VirtiofsMount = VirtiofsMount {
+    mounted_filesystem: "AppleVirtIOFS",
+    mount_binary: "/sbin/mount",
+    umount_binary: "/sbin/umount",
+    mount_shares: r#"/sbin/mount_virtiofs com.apple.virtio-fs.automount "$MOUNT""#,
+};
+
 static MACOS_PROFILE: GuestOsProfile = GuestOsProfile {
     os: GuestOs::Macos,
     share_mount: "/Volumes/AirVmShares",
     chown: "/usr/sbin/chown",
     link_flags: "-sfh",
-    mounted_filesystem: "AppleVirtIOFS",
-    mount_binary: "/sbin/mount",
-    umount_binary: "/sbin/umount",
-    mount_shares: r#"/sbin/mount_virtiofs com.apple.virtio-fs.automount "$MOUNT""#,
+    virtiofs: Some(&MACOS_VIRTIOFS),
 };
 
 static LINUX_PROFILE: GuestOsProfile = GuestOsProfile {
@@ -543,13 +536,8 @@ static LINUX_PROFILE: GuestOsProfile = GuestOsProfile {
     share_mount: "/mnt/AirVmShares",
     chown: "/bin/chown",
     link_flags: "-sfn",
-    mounted_filesystem: "virtiofs",
-    // usrmerge symlinks, so these are the same binaries as /usr/bin/mount and /usr/bin/umount.
-    mount_binary: "/bin/mount",
-    umount_binary: "/bin/umount",
-    // The same tag as macOS: Tart publishes every untagged `--dir` share on Apple's automount device whatever the
-    // guest is; only macOS mounts it by itself.
-    mount_shares: r#"/bin/mount -t virtiofs com.apple.virtio-fs.automount "$MOUNT""#,
+    // A Docker worker's shares are bind mounts, with no device to sweep.
+    virtiofs: None,
 };
 
 /// Which pool a message is about, in the spelling `--backend` accepts.
@@ -579,21 +567,17 @@ impl Selection {
     ///   that cannot exist;
     /// - a Windows host drives Docker only ([`HostOs::drives`]).
     ///
-    /// The Tart Linux pool, the Tart macOS pool and the Parallels VM stay one `--backend` away. A Windows host still
+    /// The Tart macOS pool and the Parallels VM stay one `--backend` away. A Windows host still
     /// refuses a Tart or a Parallels selection that a flag or a receipt names.
     pub const DEFAULT: Self = Self {
         backend: Backend::Docker,
         guest_os: GuestOs::Linux,
     };
 
-    /// The spelling `--backend` accepts for this selection. A Linux guest on Tart is `linux`; a Linux guest in a
-    /// container is `docker`, the default pool ([`Selection::DEFAULT`]).
+    /// The spelling `--backend` accepts for this selection. A Linux guest in a container is `docker`, the default
+    /// pool ([`Selection::DEFAULT`]).
     pub const fn label(self) -> &'static str {
-        match (self.backend, self.guest_os) {
-            (Backend::Docker, _) => "docker",
-            (_, GuestOs::Linux) => "linux",
-            (backend, GuestOs::Macos) => backend.as_str(),
-        }
+        self.backend.as_str()
     }
 }
 
@@ -609,9 +593,8 @@ impl fmt::Display for Selection {
     }
 }
 
-/// The `--backend` flag: one flag, two axes. `linux` is a Tart-hosted Linux guest, the pairing a worker exists
-/// for, and `docker` is the same Linux guest in a container. Widening the flag would name combinations nothing is
-/// provisioned to serve.
+/// The `--backend` flag: one flag, two axes. `tart` and `parallels` are a macOS guest, and `docker` is a Linux
+/// guest in a container. A wider flag names pairs that no worker serves.
 impl FromStr for Selection {
     type Err = Refusal;
 
@@ -619,10 +602,9 @@ impl FromStr for Selection {
         let (backend, guest_os) = match value {
             "tart" => (Backend::Tart, GuestOs::Macos),
             "parallels" => (Backend::Parallels, GuestOs::Macos),
-            "linux" => (Backend::Tart, GuestOs::Linux),
             "docker" => (Backend::Docker, GuestOs::Linux),
             _ => {
-                return Err(Refusal::usage("--backend must be tart, parallels, linux or docker"));
+                return Err(Refusal::usage("--backend must be tart, parallels or docker"));
             }
         };
         Ok(Self { backend, guest_os })
@@ -798,9 +780,10 @@ fn is_root_disk_options(value: &str) -> bool {
     })
 }
 
-/// The size a new worker's root disk is grown to. The floor is the image plus room for the writable state
-/// (`out`, `tmp`, `build-download`, the daemon's jar store): the macOS image is 50 GB, the Ubuntu one 20. Only
-/// ever applied upwards: `tart set --disk-size` cannot shrink a disk.
+/// The size of a worker's root disk. The floor is the image plus room for the writable state (`out`, `tmp`,
+/// `build-download`, the daemon's jar store). A Tart macOS worker grows its disk to this size, and its image is
+/// 50 GB. Only ever applied upwards: `tart set --disk-size` cannot shrink a disk. For a Linux guest, it is the disk
+/// of the Lima engine VM, which the containers of the Docker pool share.
 fn worker_root_disk_gb(reader: &mut Reader<'_>, guest_os: GuestOs) -> u32 {
     let (floor, fallback) = match guest_os {
         GuestOs::Macos => (80, 120),
@@ -825,7 +808,7 @@ fn worker_root_disk_gb(reader: &mut Reader<'_>, guest_os: GuestOs) -> u32 {
 /// container on 2026-09-29, the user's choice while nothing sized the engine. Since the Docker pool is the default
 /// (ADR 0190) it has two, so a `shard` and a second session each find a worker, and the Lima engine is sized for two
 /// lanes ([`LIMA_ENGINE_MEMORY_MIB`]).
-fn worker_slots(reader: &mut Reader<'_>, backend: Backend, guest_os: GuestOs) -> Vec<String> {
+fn worker_slots(reader: &mut Reader<'_>, backend: Backend) -> Vec<String> {
     if let Some(explicit) = reader.set("AIR_VM_WORKERS") {
         let workers: Vec<String> = explicit
             .split(',')
@@ -852,17 +835,16 @@ fn worker_slots(reader: &mut Reader<'_>, backend: Backend, guest_os: GuestOs) ->
         }
         return workers;
     }
-    let (default_prefix, default_count) = match (backend, guest_os) {
-        (Backend::Docker, _) => ("air-docker", 2),
-        (_, GuestOs::Macos) => ("air-macos", 2),
-        (_, GuestOs::Linux) => ("air-linux", 2),
+    let default_prefix = match backend {
+        Backend::Docker => "air-docker",
+        Backend::Tart | Backend::Parallels => "air-macos",
     };
     let prefix = reader.string("AIR_VM_WORKER_PREFIX", default_prefix);
     if let Err(refusal) = validate_name(&prefix, "worker name prefix") {
         reader.refuse(refusal);
         return Vec::new();
     }
-    let max_workers = reader.bounded_positive_int("AIR_VM_MAX_WORKERS", default_count, 16);
+    let max_workers = reader.bounded_positive_int("AIR_VM_MAX_WORKERS", 2, 16);
     (1..=max_workers).map(|index| format!("{prefix}-{index}")).collect()
 }
 
@@ -949,13 +931,9 @@ pub struct Config {
     /// The guest's Node. The lane's tests need it rather than the controller: the daemon puts its directory first
     /// on the guest PATH, because a lane drives real agent CLIs that are Node programs.
     pub vm_node: String,
-    /// A Node archive on the host to stage instead of asking Bazel for it (`AIR_VM_NODE_ARCHIVE`).
-    pub vm_node_archive: Option<PathBuf>,
-    /// Where the controller stages Node archives in the guest, one directory per version.
-    pub vm_node_root: String,
 
     pub vm_user: String,
-    /// The uid an Aqua launch runs `launchctl asuser` against. The Cirrus Ubuntu image's `admin` is 1000.
+    /// The uid an Aqua launch runs `launchctl asuser` against. The Docker image's `admin` is 1000.
     pub vm_uid: String,
     pub vm_home: String,
     pub vm_data: String,
@@ -969,10 +947,11 @@ pub struct Config {
     pub vm_agent_source: Option<PathBuf>,
 
     pub vm_cpu: u32,
-    /// The memory of a worker VM in MiB (`AIR_VM_MEMORY_MB`): 32768 for a macOS guest and 6144 for a Linux guest.
+    /// The memory of a worker VM in MiB (`AIR_VM_MEMORY_MB`): 32768 for a macOS guest.
     ///
     /// On the Lima engine it is the memory of the engine VM, which every container of the Docker pool shares, and the
-    /// default is [`LIMA_ENGINE_MEMORY_MIB`].
+    /// default is [`LIMA_ENGINE_MEMORY_MIB`]. A container on an external engine has no cap of its own, so nothing
+    /// reads the value there.
     pub vm_memory_mib: u32,
     /// The macOS guest's screen, `tart set --display` (`AIR_VM_RESOLUTION`). Not the Linux X display, which is
     /// [`Config::guest_display`].
@@ -981,14 +960,10 @@ pub struct Config {
     /// of its own to grow. On the Lima engine ([`DockerEngine::Lima`]) it is the disk of the engine VM.
     pub vm_root_disk_gb: u32,
     /// The X screen geometry a Docker worker's entrypoint gives Xvfb (`AIR_VM_SCREEN`), or `None` for its default.
-    /// Only a Docker worker reads it on the host: the Tart Linux guest reads the variable from its own environment
-    /// in `provision-guest`.
     pub vm_screen: Option<String>,
 
     pub boot_timeout_seconds: u32,
     pub golden_vm: String,
-    /// What a Linux worker is cloned from, pinned by digest ([`pins::linux_base_image`]).
-    pub linux_base_image: String,
     /// The X display a Linux worker's IDE opens on, so a display the guest already runs is picked up instead of
     /// a fresh headless one per IDE.
     pub guest_display: String,
@@ -1133,6 +1108,14 @@ impl Config {
                 "a Docker worker is a Linux container; a macOS guest needs a VM, which --backend tart gives",
             ));
         }
+        // The Tart backend runs the sealed macOS golden only. The Linux guest is a Docker worker.
+        if backend == Backend::Tart && guest_os == GuestOs::Linux {
+            return Err(Refusal::new(
+                "unsupported_backend_operation",
+                Exit::USAGE,
+                "a Tart worker is a macOS guest; a Linux guest is a Docker worker, which --backend docker gives",
+            ));
+        }
         let mut reader = Reader::new(environment);
         let linux = guest_os == GuestOs::Linux;
         let tart = backend == Backend::Tart;
@@ -1164,15 +1147,15 @@ impl Config {
         let lima_home = reader.path("AIR_VM_LIMA_HOME", || home.join(".local/state/JetBrains/air-vm-ui-tests/lima"));
 
         let workers = match backend {
-            Backend::Tart | Backend::Docker => worker_slots(&mut reader, backend, guest_os),
+            Backend::Tart | Backend::Docker => worker_slots(&mut reader, backend),
             Backend::Parallels => vec![reader.string("AIR_VM_PARALLELS_VM", "macOS")],
         };
         for worker in &workers {
             reader.name(worker, "worker name");
         }
 
-        // Only the default differs per backend: the Parallels VM was set up with another account. A Docker image
-        // makes the account the Tart Linux image has, so the guest scripts see one layout.
+        // Only the default differs per backend: the Parallels VM was set up with another account. The Docker image
+        // makes the account `admin`, which the macOS golden has too, so the guest scripts see one layout.
         let default_user = if backend == Backend::Parallels { "test" } else { "admin" };
         let vm_user = reader.string("AIR_VM_USER", default_user);
         let home_root = if linux { "/home" } else { "/Users" };
@@ -1209,22 +1192,17 @@ impl Config {
         let bazel_share_name = reader.string("AIR_VM_BAZEL_SHARE_NAME", "air-macos-bazel");
         reader.name(&bazel_share_name, "Bazel share name");
 
-        // A Linux guest runs the same IDE with no Aqua, no WindowServer and no Spotlight, and with an Xvfb in
-        // place of a compositor. The Linux default is 6 GiB, and ADR 0183 records the measurement behind it. The
-        // daemon JVM sets no `-Xmx`, so its default maximum heap follows the cap. The Lima engine is one VM that the
-        // two containers of a Docker pool share, so it gets 16 GiB; see [`Config::vm_memory_mib`].
+        // The daemon JVM sets no `-Xmx`, so its default maximum heap follows the cap. The Lima engine is one VM that
+        // the two containers of a Docker pool share, so it gets 16 GiB; see [`Config::vm_memory_mib`].
         let vm_memory_fallback = if backend == Backend::Docker && docker_engine == DockerEngine::Lima {
             LIMA_ENGINE_MEMORY_MIB
-        } else if linux {
-            6_144
         } else {
             32_768
         };
 
-        let vm_node_root = reader.string("AIR_VM_NODE_ROOT", format!("{vm_data}/node"));
         let vm_node_fallback = if linux {
-            // The archive the controller stages, at the path it stages it to.
-            staged_node_binary(&vm_node_root)
+            // The Docker image installs the pinned Node into `/usr/local`.
+            "/usr/local/bin/node".to_owned()
         } else if tart {
             // The Tart golden image installs the pinned Node at a versioned Homebrew prefix.
             format!("/opt/homebrew/opt/node@{}/bin/node", pins::guest_node_major())
@@ -1318,8 +1296,6 @@ impl Config {
             vm_download_cache: reader.string("AIR_VM_DOWNLOAD_CACHE", format!("{vm_data}/build-download")),
             git: reader.string("AIR_VM_HOST_GIT", "git"),
             vm_node: reader.string("AIR_VM_NODE", vm_node_fallback),
-            vm_node_archive: reader.optional("AIR_VM_NODE_ARCHIVE").map(PathBuf::from),
-            vm_node_root,
             vm_user,
             vm_uid: reader.string("AIR_VM_UID", vm_uid_fallback),
             vm_home,
@@ -1338,7 +1314,6 @@ impl Config {
             vm_screen,
             boot_timeout_seconds: reader.positive_int("AIR_VM_BOOT_TIMEOUT", 180),
             golden_vm: reader.string("AIR_VM_GOLDEN_VM", pins::tart_golden_vm()),
-            linux_base_image: reader.string("AIR_VM_LINUX_IMAGE", pins::linux_base_image()),
             guest_display: reader.string("AIR_VM_DISPLAY", ":88"),
             tart_home: reader.path("TART_HOME", || home.join(".tart")),
             tart_version_override: reader.boolean(TART_VERSION_OVERRIDE_VARIABLE, false),
@@ -1421,13 +1396,6 @@ impl Config {
 
     // --- guest paths -------------------------------------------------------------------------------------
 
-    /// The Node the controller stages into a Linux worker, by the path it stages it to. Compared against
-    /// [`Config::vm_node`]: the two differ only when an operator exported `AIR_VM_NODE`, which says "run the Node
-    /// I supplied", and then nothing is staged.
-    pub fn staged_node_binary(&self) -> String {
-        staged_node_binary(&self.vm_node_root)
-    }
-
     /// [`Config::vm_run_secrets`], once it is proven to be the form [`run_secrets_dir`] derives for this guest, an
     /// absolute path with no `.` or `..` component: what `daemon stop` and a lease release hand to `rm -rf`.
     ///
@@ -1473,8 +1441,8 @@ impl Config {
         }
     }
 
-    /// Where the build a boot performs writes its log: pool-wide, because what it produces (the guest agent and
-    /// the Node archive) is the same for every worker of a guest.
+    /// Where the build a boot performs writes its log: pool-wide, because what it produces (the guest agent) is the
+    /// same for every worker of a guest.
     pub fn guest_boot_build_log_path(&self) -> PathBuf {
         self.runtime_root.join("guest-boot-build.log")
     }
@@ -1666,9 +1634,4 @@ fn is_screen_geometry(value: &str) -> bool {
 /// which Lima spells `{{.Dir}}/sock/docker.sock`.
 fn lima_socket_path(lima_home: &Path) -> PathBuf {
     lima_home.join(LIMA_ENGINE_INSTANCE).join("sock").join("docker.sock")
-}
-
-/// Where a staged Node archive puts its interpreter, under one node root. A guest path.
-fn staged_node_binary(node_root: &str) -> String {
-    format!("{node_root}/{GUEST_NODE_VERSION}/bin/node")
 }

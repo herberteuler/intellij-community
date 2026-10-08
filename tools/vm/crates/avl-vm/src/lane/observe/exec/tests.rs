@@ -12,11 +12,11 @@ use avl_base::RefusalExt;
 
 #[tokio::test]
 async fn exec_is_refused_while_a_run_is_active() {
-    let fixture = Fixture::tart_linux();
-    fixture.mark_ready("air-linux-1").await;
-    let receipt = fixture.lease_receipt("air-linux-1");
+    let fixture = Fixture::docker();
+    fixture.mark_ready("air-docker-1").await;
+    let receipt = fixture.lease_receipt("air-docker-1");
     fixture
-        .channel("air-linux-1")
+        .channel("air-docker-1")
         .answer(answer_guest(vec![(" active ", active_reply(Some("run-1")))]));
     let refusal = refusal(
         command_exec(
@@ -39,10 +39,10 @@ async fn exec_is_refused_while_a_run_is_active() {
 
 #[tokio::test]
 async fn exec_runs_the_command_as_the_worker_user() {
-    let fixture = Fixture::tart_linux();
-    fixture.mark_ready("air-linux-1").await;
-    let receipt = fixture.lease_receipt("air-linux-1");
-    let channel = fixture.channel("air-linux-1");
+    let fixture = Fixture::docker();
+    fixture.mark_ready("air-docker-1").await;
+    let receipt = fixture.lease_receipt("air-docker-1");
+    let channel = fixture.channel("air-docker-1");
     channel.answer(answer_guest(vec![(" active ", active_reply(None)), ("/bin/echo", said("hi\n"))]));
     let outcome = outcome_of(
         command_exec(
@@ -57,7 +57,7 @@ async fn exec_runs_the_command_as_the_worker_user() {
     assert_eq!(
         outcome.data,
         json!({
-            "worker": "air-linux-1",
+            "worker": "air-docker-1",
             "exitCode": 0,
             "stdout": "hi\n",
             "stderr": "",
@@ -76,10 +76,10 @@ async fn exec_runs_the_command_as_the_worker_user() {
 /// process can echo the bridge token, and a refusal ends up in an envelope an agent logs.
 #[tokio::test]
 async fn a_failed_guest_command_keeps_its_exit_and_withholds_its_output() {
-    let fixture = Fixture::tart_linux();
-    fixture.mark_ready("air-linux-1").await;
-    let receipt = fixture.lease_receipt("air-linux-1");
-    fixture.channel("air-linux-1").answer(answer_guest(vec![
+    let fixture = Fixture::docker();
+    fixture.mark_ready("air-docker-1").await;
+    let receipt = fixture.lease_receipt("air-docker-1");
+    fixture.channel("air-docker-1").answer(answer_guest(vec![
         (" active ", active_reply(None)),
         (
             "/bin/false",

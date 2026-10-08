@@ -563,8 +563,7 @@ fn the_child_path_and_home_follow_the_guest_os() {
             "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
             "/Users/",
         ),
-        (LaunchHost::LinuxSystemd, "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", "/home/"),
-        (LaunchHost::LinuxNoSystemd, "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", "/home/"),
+        (LaunchHost::Linux, "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", "/home/"),
     ];
     for (host, path, home_parent) in cases {
         let environment = child_environment(host, [(OsString::from("USER"), OsString::from("worker"))]);
@@ -599,105 +598,18 @@ fn strings(argv: &[OsString]) -> Vec<String> {
     argv.iter().map(|word| word.to_string_lossy().into_owned()).collect()
 }
 
-fn environment(pairs: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
-    pairs
-        .iter()
-        .map(|(name, value)| (OsString::from(name), OsString::from(value)))
-        .collect()
-}
-
-fn linux_launch(pairs: &[(&str, &str)]) -> SuperviseLaunch {
-    supervise_launch_for(
-        LaunchHost::LinuxSystemd,
+/// Every guest launches the bare `supervise` verb of this binary. The verb is one that the dispatch accepts, so the
+/// supervisor supervises the run that `start` waits for.
+#[test]
+fn the_launch_is_the_supervise_verb_itself() {
+    let launch = supervise_launch_for(
         Path::new("/home/admin/WorkerData/state/vm-guest-agent"),
         Path::new("/home/admin/WorkerData/state/ui-runs"),
         "run-ui-daemon-1",
-        Path::new("/home/admin/WorkerData/state/ui-runs/run-ui-daemon-1/supervisor.log"),
-        1000,
-        109,
-        &environment(pairs),
-    )
-    .unwrap()
-}
-
-/// The Linux argv, element for element. A transient service and not a scope: a scope keeps the `sudo` that asked
-/// for it as the supervisor's parent, in the cgroup that is about to be reaped (ADR 0110).
-#[test]
-fn the_linux_launch_asks_systemd_for_a_unit_of_its_own() {
-    let launch = linux_launch(&[("DISPLAY", ":88"), ("HOME", "/home/admin")]);
-    let log = "/home/admin/WorkerData/state/ui-runs/run-ui-daemon-1/supervisor.log";
-    assert_eq!(
-        strings(&launch.argv),
-        [
-            "/usr/bin/sudo",
-            "-n",
-            "/usr/bin/systemd-run",
-            "--collect",
-            "--quiet",
-            "--unit=air-supervise-run-ui-daemon-1.service",
-            "--uid=1000",
-            "--gid=109",
-            &format!("--property=StandardOutput=append:{log}"),
-            &format!("--property=StandardError=append:{log}"),
-            "--setenv=DISPLAY=:88",
-            "--setenv=HOME=/home/admin",
-            "/home/admin/WorkerData/state/vm-guest-agent",
-            "supervise",
-            "--root",
-            "/home/admin/WorkerData/state/ui-runs",
-            "--run",
-            "run-ui-daemon-1",
-        ]
     );
-    assert_eq!(launch.unit.as_deref(), Some("air-supervise-run-ui-daemon-1.service"));
-}
-
-/// The macOS guest keeps the spawn it has: it runs no systemd, and `launchctl asuser` puts the agent in the console
-/// user's session rather than a unit's cgroup.
-#[test]
-fn the_macos_launch_is_the_supervise_verb_itself() {
-    let launch = supervise_launch_for(
-        LaunchHost::Macos,
-        Path::new("/Users/admin/WorkerData/state/vm-guest-agent"),
-        Path::new("/Users/admin/WorkerData/state/ui-runs"),
-        "run-ui-daemon-1",
-        Path::new("/Users/admin/WorkerData/state/ui-runs/run-ui-daemon-1/supervisor.log"),
-        501,
-        20,
-        &environment(&[("DISPLAY", ":88")]),
-    )
-    .unwrap();
+    let argv = strings(&launch.argv);
     assert_eq!(
-        strings(&launch.argv),
-        [
-            "/Users/admin/WorkerData/state/vm-guest-agent",
-            "supervise",
-            "--root",
-            "/Users/admin/WorkerData/state/ui-runs",
-            "--run",
-            "run-ui-daemon-1",
-        ]
-    );
-    assert_eq!(launch.unit, None);
-}
-
-/// A container runs no systemd, so its launch is the bare supervise verb, released like the macOS one. The exec
-/// that spawned it ends, and `docker-init` adopts the supervisor.
-#[test]
-fn the_container_launch_is_the_supervise_verb_itself() {
-    let launch = supervise_launch_for(
-        LaunchHost::LinuxNoSystemd,
-        Path::new("/home/admin/WorkerData/state/vm-guest-agent"),
-        Path::new("/home/admin/WorkerData/state/ui-runs"),
-        "run-ui-daemon-1",
-        Path::new("/home/admin/WorkerData/state/ui-runs/run-ui-daemon-1/supervisor.log"),
-        1000,
-        1000,
-        &environment(&[("DISPLAY", ":88"), ("TART_VM_TOKEN", "secret")]),
-    )
-    .unwrap();
-    assert_eq!(
-        strings(&launch.argv),
+        argv,
         [
             "/home/admin/WorkerData/state/vm-guest-agent",
             "supervise",
@@ -707,177 +619,37 @@ fn the_container_launch_is_the_supervise_verb_itself() {
             "run-ui-daemon-1",
         ]
     );
-    assert_eq!(launch.unit, None);
-}
-
-/// The three launch hosts give two shapes: a unit only under systemd, and the released spawn on the other two.
-#[test]
-fn only_a_systemd_guest_gets_a_unit() {
-    for (host, unit) in [
-        (LaunchHost::LinuxSystemd, true),
-        (LaunchHost::LinuxNoSystemd, false),
-        (LaunchHost::Macos, false),
-    ] {
-        let launch = supervise_launch_for(
-            host,
-            Path::new("/opt/agent"),
-            Path::new("/opt/runs"),
-            "run-1",
-            Path::new("/opt/runs/run-1/supervisor.log"),
-            1000,
-            1000,
-            &[],
-        )
-        .unwrap();
-        assert_eq!(launch.unit.is_some(), unit, "{host:?}");
-        assert_eq!(strings(&launch.argv)[0] == "/usr/bin/sudo", unit, "{host:?}");
-    }
-}
-
-/// systemd is the init exactly when `run/systemd/system` is a directory, the test of `sd_booted(3)`. A container
-/// root has none, and a plain file at that path is not a booted systemd either.
-#[test]
-fn the_linux_launch_host_is_read_from_run_systemd_system() {
-    let directory = tempfile::tempdir().unwrap();
-    let root = directory.path();
-    assert_eq!(LaunchHost::linux(root), LaunchHost::LinuxNoSystemd);
-    fs::create_dir_all(root.join("run/systemd")).unwrap();
-    fs::write(root.join("run/systemd/system"), "").unwrap();
-    assert_eq!(LaunchHost::linux(root), LaunchHost::LinuxNoSystemd);
-    fs::remove_file(root.join("run/systemd/system")).unwrap();
-    fs::create_dir(root.join("run/systemd/system")).unwrap();
-    assert_eq!(LaunchHost::linux(root), LaunchHost::LinuxSystemd);
-}
-
-/// One verb on both guests: a unit that asked for a different `--root` or `--run` would supervise a run nobody is
-/// waiting for. And the verb the unit asks for is one the dispatch accepts.
-#[test]
-fn the_unit_carries_the_same_supervise_verb_the_macos_guest_spawns() {
-    let argv = strings(&linux_launch(&[]).argv);
-    let verb = [
-        "supervise",
-        "--root",
-        "/home/admin/WorkerData/state/ui-runs",
-        "--run",
-        "run-ui-daemon-1",
-    ];
-    assert_eq!(argv[argv.len() - verb.len()..], verb);
-    let parsed = crate::cli::parse(&argv[argv.len() - verb.len() - 1..].iter().map(OsString::from).collect::<Vec<_>>());
+    let parsed = crate::cli::parse(&argv.iter().map(OsString::from).collect::<Vec<_>>());
     assert!(matches!(parsed.unwrap().verb, crate::cli::Verb::Supervise(_)));
 }
 
-/// The channel's own values stop at the channel: a `--setenv` becomes a unit property, and `systemctl show` prints
-/// one to any account in the guest. DISPLAY must travel, because it is the IDE's only X server.
+/// The launch host is the guest OS of this build. No guest runs systemd, so the OS is the whole answer.
 #[test]
-fn the_unit_carries_no_channel_value() {
-    let launch = linux_launch(&[
-        ("TART_VM_TOKEN", "secret"),
-        ("TART_VM_WORKER", "air-linux-3"),
-        ("PARALLELS_VM_TOKEN", "secret"),
-        ("DISPLAY", ":88"),
-    ]);
-    let rendered = strings(&launch.argv).join(" ");
-    for name in launch::CHANNEL_VARIABLES {
-        assert!(!rendered.contains(name), "the unit carries {name}");
-    }
-    assert!(!rendered.contains("secret"));
-    assert!(rendered.contains("--setenv=DISPLAY=:88"));
-}
-
-/// One environment composes one argv, whatever order the process's environment came in.
-#[test]
-fn the_unit_environment_is_sorted() {
-    let launch = linux_launch(&[("ZONE", "z"), ("HOME", "/home/admin"), ("DISPLAY", ":88"), ("", "nameless")]);
-    let assignments: Vec<String> = strings(&launch.argv)
-        .into_iter()
-        .filter_map(|word| word.strip_prefix("--setenv=").map(str::to_owned))
-        .collect();
-    assert_eq!(assignments, ["DISPLAY=:88", "HOME=/home/admin", "ZONE=z"]);
-}
-
-/// systemd substitutes `$NAME` in a unit's own argv, so a path carrying one is refused by name. The macOS and the
-/// container launches have no systemd behind them and take the path as it is.
-#[test]
-fn a_dollar_sign_in_a_unit_path_is_refused_rather_than_substituted() {
-    let refusal = supervise_launch_for(
-        LaunchHost::LinuxSystemd,
-        Path::new("/home/admin/$USER/vm-guest-agent"),
-        Path::new("/home/admin/WorkerData/state/ui-runs"),
-        "run-ui-daemon-1",
-        Path::new("/home/admin/log"),
-        1000,
-        109,
-        &[],
-    )
-    .unwrap_err();
-    assert_eq!(refusal.code, "supervise_unit_path_unsupported");
-    assert!(refusal.message.contains("$USER"), "{}", refusal.message);
-    for host in [LaunchHost::Macos, LaunchHost::LinuxNoSystemd] {
-        supervise_launch_for(
-            host,
-            Path::new("/Users/admin/$USER/vm-guest-agent"),
-            Path::new("/Users/admin/runs"),
-            "run-ui-daemon-1",
-            Path::new("/Users/admin/log"),
-            501,
-            20,
-            &[],
-        )
-        .unwrap();
-    }
-}
-
-/// A launcher that refuses is a named failure, not a fallback to the released spawn the channel reaps. The message
-/// carries this process's facts and points at the log for the launcher's own bytes.
-#[test]
-fn a_launcher_that_refuses_fails_with_its_own_reason() {
-    let directory = tempfile::tempdir().unwrap();
-    let log_path = directory.path().join("supervisor.log");
-    let log = open_append(&log_path).unwrap();
-    let launch = SuperviseLaunch {
-        argv: ["/bin/sh", "-c", "echo 'Unknown assignment: NoSuchProperty=1' >&2; exit 1"]
-            .map(OsString::from)
-            .to_vec(),
-        unit: Some("air-supervise-run-ui-daemon-1.service".to_owned()),
+fn the_launch_host_is_the_guest_os() {
+    let wanted = if cfg!(target_os = "linux") {
+        LaunchHost::Linux
+    } else {
+        LaunchHost::Macos
     };
-    let refusal = launch.start(&log, &log_path, "run-ui-daemon-1").unwrap_err();
+    assert_eq!(LaunchHost::current(), wanted);
+    assert_eq!((LaunchHost::Linux.as_str(), LaunchHost::Macos.as_str()), ("linux", "macos"));
+}
+
+/// A launch that cannot run is a refusal at once, and not a `start_timeout` 15 s later.
+#[test]
+fn a_launch_that_cannot_run_is_refused() {
+    let directory = tempfile::tempdir().unwrap();
+    let log = open_append(&directory.path().join("supervisor.log")).unwrap();
+    let launch = SuperviseLaunch {
+        argv: vec![directory.path().join("no-such-agent").into()],
+    };
+    let refusal = launch.start(&log).unwrap_err();
     assert_eq!(
         (refusal.code.as_ref(), refusal.exit),
-        ("supervise_unit_refused", AgentExit::Failure)
+        ("internal_error", AgentExit::Failure),
+        "{refusal:?}"
     );
-    for wanted in [
-        "air-supervise-run-ui-daemon-1.service",
-        "run-ui-daemon-1",
-        "exit status: 1",
-        &*log_path.to_string_lossy(),
-    ] {
-        assert!(
-            refusal.message.contains(wanted),
-            "the refusal does not name {wanted:?}: {}",
-            refusal.message
-        );
-    }
-    assert!(!refusal.message.contains("Unknown assignment"), "{}", refusal.message);
-    assert!(fs::read_to_string(&log_path).unwrap().contains("Unknown assignment"));
-}
-
-/// An image without `systemd-run`, or a `sudo` that stopped answering, is the same named failure, naming the
-/// launcher it could not run.
-#[test]
-fn a_launcher_that_is_absent_fails_with_its_own_reason() {
-    let directory = tempfile::tempdir().unwrap();
-    let log_path = directory.path().join("supervisor.log");
-    let log = open_append(&log_path).unwrap();
-    let launch = SuperviseLaunch {
-        argv: vec![directory.path().join("no-such-systemd-run").into()],
-        unit: Some("air-supervise-run-ui-daemon-1.service".to_owned()),
-    };
-    let refusal = launch.start(&log, &log_path, "run-ui-daemon-1").unwrap_err();
-    assert_eq!(
-        (refusal.code.as_ref(), refusal.exit),
-        ("supervise_unit_refused", AgentExit::Failure)
-    );
-    assert!(refusal.message.contains("no-such-systemd-run"), "{}", refusal.message);
+    assert!(SuperviseLaunch { argv: Vec::new() }.start(&log).is_err());
 }
 
 // --- the contract --------------------------------------------------------------------------------------------
@@ -943,9 +715,6 @@ fn a_real_run_starts_reports_and_cancels() {
     let launcher = Launcher {
         self_exe: agent_launcher(directory.path()),
         host: LaunchHost::Macos,
-        uid: nix::unistd::getuid().as_raw(),
-        gid: nix::unistd::getgid().as_raw(),
-        environment: vec![],
     };
     let run = RunArgs {
         root: RootArgs { root: root.clone() },

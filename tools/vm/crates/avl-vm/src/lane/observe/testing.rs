@@ -10,6 +10,8 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::worker::docker::CreateRecord;
+use crate::worker::hypervisor::Machine;
 use crate::worker::lease::write_lease_receipt;
 use crate::worker::tart::MINIMUM_VERSION;
 use crate::worker::worker::{Dependencies, Lease, Manager, builds_nothing};
@@ -19,6 +21,9 @@ use avl_host_sys::lock::LockManager;
 use avl_host_sys::{Ctx, ProcessTable};
 use avl_host_testkit::{FakeChannel, FakeGuests, FakeProcesses, HostPool, answer_guest, quiet, said};
 use avl_testkit::tartfake::Answer;
+
+/// The id the fake engine reports for the container of a ready Docker worker.
+const CONTAINER_ID: &str = "fake-container-1";
 
 /// A pool over the fake hypervisor, fake guests and a temporary runtime root.
 pub(crate) struct Fixture {
@@ -50,8 +55,9 @@ impl Fixture {
         Self::build(Backend::Docker, GuestOs::Linux, None, true)
     }
 
-    pub(crate) fn tart_linux() -> Self {
-        Self::new(Backend::Tart, GuestOs::Linux)
+    /// The Linux pool: one Docker slot over the fake `docker`, on an external engine.
+    pub(crate) fn docker() -> Self {
+        Self::new(Backend::Docker, GuestOs::Linux)
     }
 
     /// The pool the macOS-only half of `status` applies to: TCC admission, the Aqua session, and the SSH host key
@@ -78,13 +84,8 @@ impl Fixture {
             builder = builder.with_lima_engine();
         }
         if backend == Backend::Tart {
-            // Named after the guest OS, the way the production default is: a pool of `air-linux-*` workers that
-            // answered macOS questions would read as though one worker could be both.
-            let prefix = match guest_os {
-                GuestOs::Macos => "air-macos",
-                GuestOs::Linux => "air-linux",
-            };
-            builder = builder.env("AIR_VM_WORKERS", &format!("{prefix}-1,{prefix}-2"));
+            // The production names of the Tart pool, whose guest is macOS.
+            builder = builder.env("AIR_VM_WORKERS", "air-macos-1,air-macos-2");
         }
         let pool = builder.build();
         if host_git == Some(false) {
@@ -123,10 +124,31 @@ impl Fixture {
         self.guests.channels()
     }
 
-    /// Puts one worker into the state the readiness gate accepts without booting anything: a run-process identity
-    /// naming a live process of the fake table, and an init receipt for the fixture's paths. The command is no `tart
-    /// run`, so no path takes the process for an orphaned run.
+    /// Puts one worker into the state the readiness gate accepts without booting anything, and writes an init
+    /// receipt for the fixture's paths.
+    ///
+    /// On Tart it is a run-process identity that names a live process of the fake table. The command is no `tart
+    /// run`, so no path takes the process for an orphaned run. On Docker it is a running container, made with the
+    /// argv a create uses now, from an image the engine has.
     pub(crate) async fn mark_ready(&self, worker: &str) {
+        if let Machine::Docker(docker) = self.manager.machine() {
+            self.fake.answer(Answer::ContainerState, "running/0\n");
+            self.fake.answer(Answer::ContainerId, format!("{CONTAINER_ID}\n"));
+            self.fake.answer(Answer::ImagePresent, "");
+            let record = CreateRecord {
+                schema_version: SCHEMA_VERSION,
+                worker: worker.to_owned(),
+                argv: docker.create_argv(worker).expect("the create argv"),
+                container_id: CONTAINER_ID.to_owned(),
+            };
+            let path = self.settings.docker_create_record_path(worker);
+            std::fs::create_dir_all(path.parent().expect("a worker directory")).expect("the worker directory is created");
+            let mut encoded = serde_json::to_vec(&record).expect("the record encodes");
+            encoded.push(b'\n');
+            std::fs::write(path, encoded).expect("the create record is written");
+            write_init_receipt(&self.settings, worker).expect("the init receipt is written");
+            return;
+        }
         let pid = self.processes.start(&format!("stand-in for the run process of {worker}"));
         self.manager
             .write_process_identity(&Ctx::background(), worker, pid)

@@ -6,13 +6,13 @@ use std::collections::BTreeMap;
 
 use avl_base::SystemClock;
 use avl_base::{Exit, Outcome, Refusal};
-use avl_host_sys::guest::{LinuxProvisioning, ensure_host_paths, linux};
+use avl_host_sys::guest::ensure_host_paths;
 use avl_host_sys::{Backoff, Ctx, Poll};
 use serde_json::json;
 
 use super::pool::render_list;
 use super::{GUEST_PROBE_TIMEOUT, Lease, Manager, StartState, StopState, probe_timeout, read_lease};
-use crate::worker::docker::{ContainerState, Docker, container_unusable};
+use crate::worker::docker::{ContainerState, Docker, container_unusable, validate_argv};
 use crate::worker::lima::{EngineState, Lima};
 use avl_base::RefusalExt;
 
@@ -142,20 +142,28 @@ impl Manager {
                 ));
             }
         }
-        self.finish_linux_start(
-            ctx,
-            worker,
-            &LinuxProvisioning {
-                provision_argv: None,
-                validate_argv: linux::validate_argv(&self.settings),
-            },
-        )
-        .await?;
+        self.finish_docker_start(ctx, worker).await?;
         Ok(if already_running {
             StartState::AlreadyRunning
         } else {
             StartState::Started
         })
+    }
+
+    /// The guest half of a Docker boot: the agent install and `validate-guest`, then the parity layout over the two
+    /// read-only shares, then the readiness a run needs.
+    ///
+    /// A Linux guest has no console login to wait for, so there is no "poll again" answer here: every refusal means
+    /// the start failed. The image installs the packages and the pinned Node, and its entrypoint starts the display,
+    /// so the boot has no provisioning verb.
+    async fn finish_docker_start(&self, ctx: &Ctx, worker: &str) -> Result<(), Refusal> {
+        let channel = self.channel(worker);
+        let guest = self.guest(ctx, channel.as_ref());
+        guest.provision_linux(self.bazel(), &validate_argv(&self.settings)).await?;
+        if guest.parity_broken().await? {
+            guest.provision_worker(self.share_mount()).await?;
+        }
+        guest.ensure_ready(self).await
     }
 
     /// The image every container of the pool runs, pulled or built under the pool-wide image lock.
@@ -247,8 +255,8 @@ impl Manager {
 
     // --- stop ------------------------------------------------------------------------------------------------
 
-    /// Stops a Docker worker's container. No suspend, as on a Tart Linux worker: the container keeps its volume, so
-    /// the next start keeps the staging, and only the daemon starts cold.
+    /// Stops a Docker worker's container. No suspend: the container keeps its volume, so the next start keeps the
+    /// staging, and only the daemon starts cold.
     ///
     /// The engine is reached and never changed ([`Docker::reach_engine`]): a Lima engine that does not run holds no
     /// running container, so the stop is done, and a Lima engine of another template is not made again.
@@ -271,7 +279,7 @@ impl Manager {
     // --- the Lima engine --------------------------------------------------------------------------------------
 
     /// Stops the Lima engine after `pool stop`, when nothing of the pool needs it: no worker is leased and no
-    /// container runs. Nothing stays warm, as on a Tart Linux pool. Answers the engine's state word after the hook.
+    /// container runs. Nothing stays warm. Answers the engine's state word after the hook.
     ///
     /// The check and the stop run under the lifecycle lock of every slot, because a lease acquisition takes the lock
     /// of its slot: no lease can start between the check and the stop. An engine that does not run is left as it is,

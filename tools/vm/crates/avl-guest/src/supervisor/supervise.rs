@@ -37,7 +37,7 @@ const REJECTED_EXIT: i32 = 75;
 const fn child_path(host: LaunchHost) -> &'static str {
     match host {
         LaunchHost::Macos => "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
-        LaunchHost::LinuxSystemd | LaunchHost::LinuxNoSystemd => "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        LaunchHost::Linux => "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
     }
 }
 
@@ -45,7 +45,7 @@ const fn child_path(host: LaunchHost) -> &'static str {
 const fn home_parent(host: LaunchHost) -> &'static str {
     match host {
         LaunchHost::Macos => "/Users/",
-        LaunchHost::LinuxSystemd | LaunchHost::LinuxNoSystemd => "/home/",
+        LaunchHost::Linux => "/home/",
     }
 }
 

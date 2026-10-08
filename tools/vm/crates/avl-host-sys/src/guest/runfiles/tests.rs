@@ -40,7 +40,7 @@ async fn a_manifest_is_sent_to_the_verb_and_its_root_is_checked() {
     let (host, runfiles) = manifest_host();
     let settings = &host.settings;
     let expected = runfiles.guest_root(settings).unwrap();
-    let channel = FakeChannel::spoke("air-linux-1", reply(&expected, false));
+    let channel = FakeChannel::spoke("air-docker-1", reply(&expected, false));
     host.guest(&channel).ensure_runfiles_tree(&runfiles, &expected).await.unwrap();
 
     let calls = channel.calls();
@@ -81,7 +81,7 @@ async fn the_trees_the_verb_removed_are_noted() {
             "removed": ["/data/runfiles/old-1", "/data/runfiles/old-2"],
         },
     });
-    let channel = FakeChannel::spoke("air-linux-1", answer.to_string());
+    let channel = FakeChannel::spoke("air-docker-1", answer.to_string());
     let (reporter, output) = prose();
     host.guest_reporting(&channel, &reporter)
         .ensure_runfiles_tree(&runfiles, &expected)
@@ -96,11 +96,11 @@ async fn the_trees_the_verb_removed_are_noted() {
 async fn a_tree_at_another_root_is_refused() {
     let (host, runfiles) = manifest_host();
     let expected = runfiles.guest_root(&host.settings).unwrap();
-    let channel = FakeChannel::spoke("air-linux-1", reply("/data/runfiles/other", true));
+    let channel = FakeChannel::spoke("air-docker-1", reply("/data/runfiles/other", true));
     let refusal = host.guest(&channel).ensure_runfiles_tree(&runfiles, &expected).await.unwrap_err();
     assert_eq!(refusal.code, "guest_runfiles_mismatch");
 
-    let garbled = FakeChannel::spoke("air-linux-1", "not json");
+    let garbled = FakeChannel::spoke("air-docker-1", "not json");
     let refusal = host.guest(&garbled).ensure_runfiles_tree(&runfiles, &expected).await.unwrap_err();
     assert_eq!(refusal.code, "guest_runfiles_protocol");
 }
@@ -109,7 +109,7 @@ async fn a_tree_at_another_root_is_refused() {
 #[tokio::test]
 async fn a_tree_needs_no_guest_call() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     let tree = HostRunfiles::Tree(host.repo.join("ui_daemon.runtime.json.runfiles"));
     host.guest(&channel).ensure_runfiles_tree(&tree, "/unused").await.unwrap();
     assert!(channel.calls().is_empty());

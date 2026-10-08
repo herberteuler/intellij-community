@@ -246,9 +246,9 @@ fn the_shared_object_sweep_runs_only_after_the_cheap_checks_passed() {
 
 // --- the argument contract ------------------------------------------------------------------------------------
 
-/// Exactly two values, checked before anything is read; a wrong argv is a wiring defect in `linux.ValidateArgv`
-/// and refuses as usage. **Two and not four**: the Node binary and major are `check-node`'s argv now, and a
-/// controller still passing the retired four is a wiring defect rather than a checked boot.
+/// Exactly two values, checked before anything is read. A wrong argv is a wiring defect in the controller's
+/// `validate_argv` and refuses as usage. A controller that still passes the retired four values is a wiring defect
+/// too, and not a checked boot.
 #[test]
 fn the_validate_argv_is_exactly_two_checked_values() {
     let cases: [(&str, &[&str]); 7] = [
@@ -402,7 +402,7 @@ fn an_unresolved_shared_object_names_the_object_and_the_library_that_wanted_it()
         "libEGL.so.1",
         "libGLdispatch.so.0",
         "GUEST_PACKAGES",
-        "crates/avl-host-sys/src/guest/linux.rs",
+        "crates/avl-vm/src/worker/docker.rs",
     ] {
         assert!(refusal.message.contains(fragment), "{fragment}: {}", refusal.message);
     }
@@ -417,12 +417,12 @@ fn a_guest_refusal_names_what_it_checked_and_what_it_found() {
         (
             "a display that does not answer",
             |fixture| fixture.worker().fail_with(XDPYINFO_TOOL, 1),
-            &[":88", XDPYINFO_TOOL, XVFB_UNIT],
+            &[":88", XDPYINFO_TOOL, XVFB_PROCESS],
         ),
         (
             "no window manager at all",
             |fixture| fixture.worker().reply(&root_xprop(), ABSENT),
-            &[":88", SUPPORTING_WM_CHECK_PROPERTY, FLUXBOX_UNIT],
+            &[":88", SUPPORTING_WM_CHECK_PROPERTY, FLUXBOX_PROCESS],
         ),
         (
             "a stale window manager property",
@@ -438,12 +438,12 @@ fn a_guest_refusal_names_what_it_checked_and_what_it_found() {
                 fixture.remove_glibc_loader();
                 fixture.stage_musl_loader();
             },
-            &["musl", "glibc", "config.DefaultLinuxBaseImage"],
+            &["musl", "glibc", "DOCKER_BASE_IMAGE"],
         ),
         (
             "no dynamic loader at all",
             |fixture| fixture.remove_glibc_loader(),
-            &["glibc", "config.DefaultLinuxBaseImage"],
+            &["glibc", "DOCKER_BASE_IMAGE"],
         ),
     ];
     for (name, damage, mentions) in cases {
@@ -689,7 +689,7 @@ fn a_window_manager_that_never_registers_refuses_after_the_budget() {
         (refusal.code.as_ref(), refusal.exit),
         ("linux_window_manager_missing", AgentExit::Refused)
     );
-    for fragment in [":88", SUPPORTING_WM_CHECK_PROPERTY, FLUXBOX_UNIT, "60 s"] {
+    for fragment in [":88", SUPPORTING_WM_CHECK_PROPERTY, FLUXBOX_PROCESS, "60 s"] {
         assert!(refusal.message.contains(fragment), "{fragment}: {}", refusal.message);
     }
     let worker = &fixture.validator.runner;

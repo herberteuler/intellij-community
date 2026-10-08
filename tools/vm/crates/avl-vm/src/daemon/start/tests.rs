@@ -23,7 +23,7 @@ fn remounts(fixture: &Fixture) -> usize {
 // can.
 #[tokio::test]
 async fn remount_is_skipped_only_when_both_digests_match() {
-    let fixture = Fixture::new().await;
+    let fixture = Fixture::tart_macos().await;
     let prep = fixture.prepared().await;
     let recorded = |launch: &str, mount: &str| {
         let mut state = fixture.daemon.host_state("run-1", launch);
@@ -753,7 +753,8 @@ async fn a_stop_whose_cancel_fails_forgets_a_run_that_no_longer_holds_the_slot()
 async fn a_stop_that_cannot_read_the_slot_keeps_the_record() {
     let fixture = Fixture::new().await;
     let prep = fixture.prepared().await;
-    // `active` stays unrouted: exit 0 with no output, which the supervisor decoder refuses.
+    // `active` answers exit 0 with no output, which the supervisor decoder refuses.
+    fixture.on("active", answer_exit(0));
     fixture.on("cancel", answer_exit(1));
     let state = fixture.seed_healthy_daemon(&prep);
     let failure = refusal(fixture.host.stop_daemon(&Ctx::background(), &fixture.worker, Some(&state)).await);

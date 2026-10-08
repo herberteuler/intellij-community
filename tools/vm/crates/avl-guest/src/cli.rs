@@ -36,8 +36,7 @@ pub(crate) struct Agent {
 }
 
 // One line per paragraph: clap wraps to the terminal.
-const AFTER_HELP: &str = "The four Linux verbs take their arguments positionally, and every one of them is required. \
-AIR_VM_SCREEN overrides the X screen geometry provision-guest gives the worker.
+const AFTER_HELP: &str = "validate-guest takes its arguments positionally, and every one of them is required.
 
 trace-pack-ready zips only the finished bundles that LEDGER does not name yet, or with --all every bundle that it \
 does not name, and adds them to LEDGER. When nothing is new it writes no zip.
@@ -82,14 +81,8 @@ pub(crate) enum Verb {
     ProvisionImage(ImagePins),
     /// Prove a finished macOS golden image.
     ValidateImage(ImagePins),
-    /// Make a Linux worker out of a booted public clone.
-    ProvisionGuest(ProvisionGuestArgs),
-    /// Prove a provisioned Linux worker.
+    /// Prove a Linux worker: the display, the window manager and the shared objects of the runtime.
     ValidateGuest(ValidateGuestArgs),
-    /// Extract the Node archive onto a Linux worker.
-    StageNode(StageNodeArgs),
-    /// Check that a Node binary runs and has the pinned major.
-    CheckNode(CheckNodeArgs),
     /// Zip the trace bundles no earlier call packed.
     TracePackReady(TracePackReadyArgs),
     /// Answer this binary's own wire and the digest of its bytes.
@@ -118,10 +111,7 @@ impl Verb {
             Self::Gc(_) => AgentVerb::Gc,
             Self::ProvisionImage(_) => AgentVerb::ProvisionImage,
             Self::ValidateImage(_) => AgentVerb::ValidateImage,
-            Self::ProvisionGuest(_) => AgentVerb::ProvisionGuest,
             Self::ValidateGuest(_) => AgentVerb::ValidateGuest,
-            Self::StageNode(_) => AgentVerb::StageNode,
-            Self::CheckNode(_) => AgentVerb::CheckNode,
             Self::TracePackReady(_) => AgentVerb::TracePackReady,
             Self::Contract => AgentVerb::Contract,
             Self::Relay(_) => AgentVerb::Relay,
@@ -231,45 +221,11 @@ pub(crate) struct ImagePins {
 }
 
 #[derive(Args, Debug, Clone)]
-pub(crate) struct ProvisionGuestArgs {
-    #[arg(value_parser = absolute_path)]
-    pub worker_data: PathBuf,
-    #[arg(value_parser = display)]
-    pub display: String,
-    #[arg(value_parser = non_empty_string)]
-    pub user: String,
-    #[arg(value_parser = absolute_path)]
-    pub share_mount: PathBuf,
-    /// The install set. It is not optional, and an empty one is the verb's own usage refusal, which says why.
-    #[arg(value_name = "PACKAGE")]
-    pub packages: Vec<String>,
-}
-
-#[derive(Args, Debug, Clone)]
 pub(crate) struct ValidateGuestArgs {
     #[arg(value_parser = display)]
     pub display: String,
     #[arg(value_parser = absolute_path)]
     pub runtime_root: PathBuf,
-}
-
-#[derive(Args, Debug, Clone)]
-pub(crate) struct StageNodeArgs {
-    #[arg(value_parser = absolute_path)]
-    pub node_root: PathBuf,
-    #[arg(value_parser = absolute_path)]
-    pub archive: PathBuf,
-    /// A Node version like 24.19.0. It becomes a directory name, so a separator would escape the root.
-    #[arg(value_parser = node_version)]
-    pub version: String,
-}
-
-#[derive(Args, Debug, Clone)]
-pub(crate) struct CheckNodeArgs {
-    #[arg(value_parser = absolute_path)]
-    pub node_binary: PathBuf,
-    #[arg(value_parser = clap::value_parser!(u32).range(1..))]
-    pub node_major: u32,
 }
 
 // --- the trace verb -----------------------------------------------------------------------------------------
@@ -350,13 +306,6 @@ fn display(value: &str) -> Result<String, String> {
     Ok(value.to_owned())
 }
 
-fn node_version(value: &str) -> Result<String, String> {
-    if !shape::is_digit_groups(value, '.', 3) {
-        return Err(format!("expected a Node version like 24.19.0, not {}", reply::quoted(value)));
-    }
-    Ok(value.to_owned())
-}
-
 // --- parsing and dispatch -----------------------------------------------------------------------------------
 
 pub(crate) fn parse(args: &[OsString]) -> Result<Agent, clap::Error> {
@@ -416,17 +365,8 @@ pub(crate) fn dispatch(verb: Verb, streams: &mut Streams<'_>) -> u8 {
             let result = image::validate::ImageValidator::new(&pins, surface).validate();
             answer_enveloped(streams, name, result)
         }
-        Verb::ProvisionGuest(args) => answer_enveloped(streams, name, provision_guest(args)),
         Verb::ValidateGuest(args) => {
             let result = linux::validate::GuestValidator::new(&args, SystemRunner).validate();
-            answer_enveloped(streams, name, result)
-        }
-        Verb::StageNode(args) => {
-            let mut stager = linux::node::NodeStager::new(&args, SystemRunner);
-            answer_enveloped(streams, name, stager.stage())
-        }
-        Verb::CheckNode(args) => {
-            let result = linux::check_node::NodeChecker::new(&args, SystemRunner).check();
             answer_enveloped(streams, name, result)
         }
         Verb::TracePackReady(args) => answer_enveloped(streams, name, tracepack::pack_ready(&args)),
@@ -440,14 +380,4 @@ pub(crate) fn dispatch(verb: Verb, streams: &mut Streams<'_>) -> u8 {
         }
         Verb::ReadFile(args) => read_file::read_file(&args.path, streams),
     }
-}
-
-/// `provision-guest` against this guest: the install set and the screen geometry are checked before anything runs,
-/// so a malformed one is a usage refusal with nothing touched.
-fn provision_guest(args: ProvisionGuestArgs) -> Result<linux::provision::ProvisionReport, AgentRefusal> {
-    linux::provision::check_packages(&args.packages)?;
-    let screen = std::env::var(linux::provision::SCREEN_VARIABLE).ok();
-    let screen = linux::provision::screen_geometry(screen.as_deref())?;
-    let euid = nix::unistd::geteuid().as_raw();
-    linux::provision::LinuxProvisioner::new(args, screen, euid, SystemRunner).provision()
 }

@@ -15,7 +15,7 @@ use crate::testing::runner;
 #[tokio::test]
 async fn as_user_and_as_root_wrap_the_argv() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     let guest = host.guest(&channel);
     guest
         .as_user(&words(["/bin/true", "x"]), &SpawnOptions::within(Duration::from_mins(1)))
@@ -39,7 +39,7 @@ async fn as_user_and_as_root_wrap_the_argv() {
 #[tokio::test]
 async fn raw_withholds_what_the_guest_printed() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::answering("air-linux-1", |_| {
+    let channel = FakeChannel::answering("air-docker-1", |_| {
         Ok(Captured {
             exit_code: 3,
             stdout: "TART_VM_TOKEN=secret".to_owned(),
@@ -57,7 +57,7 @@ async fn raw_withholds_what_the_guest_printed() {
     // It names the worker and the program that actually ran, with its arguments - never the hypervisor binary, and
     // never the `sudo` every guest call is re-targeted with.
     assert!(
-        refusal.message.contains("false in air-linux-1") && refusal.message.contains("(--flag)"),
+        refusal.message.contains("false in air-docker-1") && refusal.message.contains("(--flag)"),
         "{}",
         refusal.message
     );
@@ -150,7 +150,7 @@ fn the_effective_program_is_found_behind_every_wrapper_shape() {
 #[tokio::test]
 async fn raw_quotes_sudos_own_complaint_and_nothing_else() {
     let host = Host::new(GuestOs::Linux);
-    let sudo_failed = FakeChannel::answering("air-linux-1", |_| Ok(failed(1, "sudo: a password is required\n")));
+    let sudo_failed = FakeChannel::answering("air-docker-1", |_| Ok(failed(1, "sudo: a password is required\n")));
     let refusal = host
         .guest(&sudo_failed)
         .as_user(&words(["/bin/true"]), &SpawnOptions::within(Duration::from_mins(1)))
@@ -162,7 +162,7 @@ async fn raw_quotes_sudos_own_complaint_and_nothing_else() {
         refusal.message
     );
     // Anything else on that stream stays withheld, including a second line behind a `sudo:` first one.
-    let guest_failed = FakeChannel::answering("air-linux-1", |_| Ok(failed(1, "sudoku: TART_VM_TOKEN=secret\nsudo: not first\n")));
+    let guest_failed = FakeChannel::answering("air-docker-1", |_| Ok(failed(1, "sudoku: TART_VM_TOKEN=secret\nsudo: not first\n")));
     let refusal = host
         .guest(&guest_failed)
         .as_user(&words(["/bin/true"]), &SpawnOptions::within(Duration::from_mins(1)))
@@ -181,7 +181,7 @@ async fn raw_quotes_sudos_own_complaint_and_nothing_else() {
 #[tokio::test]
 async fn a_refusal_redacts_an_argv_element_that_carries_a_value() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::answering("air-linux-1", |_| Ok(failed(1, "")));
+    let channel = FakeChannel::answering("air-docker-1", |_| Ok(failed(1, "")));
     let payload = "b".repeat(200);
     let refusal = host
         .guest(&channel)
@@ -203,7 +203,7 @@ async fn a_refusal_redacts_an_argv_element_that_carries_a_value() {
         assert!(!message.contains(withheld), "{message}");
     }
     // What it still says is which call this was, which is the point of naming an argv at all.
-    for kept in ["java in air-linux-1", "-cp", "/vm/runtime/lib"] {
+    for kept in ["java in air-docker-1", "-cp", "/vm/runtime/lib"] {
         assert!(message.contains(kept), "wanted {kept:?}: {message}");
     }
 }
@@ -219,7 +219,7 @@ async fn a_refusals_argv_and_its_quoted_line_are_both_bounded() {
     // `é` is two bytes and the prefix is odd-length, so the 240th byte of this line is a continuation byte.
     let complaint = format!("sudo: x{}", "é".repeat(400));
     let stderr = format!("{complaint}\nTART_VM_TOKEN=secret\n");
-    let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(1, &stderr)));
+    let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(1, &stderr)));
     let refusal = host
         .guest(&channel)
         .as_user(&line, &SpawnOptions::within(Duration::from_mins(1)))
@@ -237,7 +237,7 @@ async fn a_refusals_argv_and_its_quoted_line_are_both_bounded() {
 
     // One argument longer than the per-element bound is redacted rather than dropped: a refusal that named an argv
     // and rendered nothing of it would read as a command with no arguments.
-    let long = FakeChannel::answering("air-linux-1", |_| Ok(failed(1, "")));
+    let long = FakeChannel::answering("air-docker-1", |_| Ok(failed(1, "")));
     let refusal = host
         .guest(&long)
         .as_user(
@@ -247,7 +247,7 @@ async fn a_refusals_argv_and_its_quoted_line_are_both_bounded() {
         .await
         .unwrap_err();
     assert!(
-        refusal.message.contains("false in air-linux-1 exited with 1 (…)"),
+        refusal.message.contains("false in air-docker-1 exited with 1 (…)"),
         "{}",
         refusal.message
     );
@@ -257,7 +257,7 @@ async fn a_refusals_argv_and_its_quoted_line_are_both_bounded() {
 #[tokio::test]
 async fn succeeds_is_a_probe_and_not_a_refusal() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::answering("air-linux-1", |_| Ok(failed(1, "")));
+    let channel = FakeChannel::answering("air-docker-1", |_| Ok(failed(1, "")));
     let guest = host.guest(&channel);
     assert!(
         !guest
@@ -276,7 +276,7 @@ async fn succeeds_is_a_probe_and_not_a_refusal() {
 #[tokio::test]
 async fn write_file_streams_through_tee_and_then_chmods() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     let guest = host.guest(&channel);
     guest.write_file("/tmp/x", b"hello", "700").await.unwrap();
     let user = &host.settings.vm_user;
@@ -298,7 +298,7 @@ async fn write_file_streams_through_tee_and_then_chmods() {
 async fn write_file_names_itself_in_the_refusal() {
     let host = Host::new(GuestOs::Linux);
     let stderr = format!("no such directory{}", "x".repeat(3000));
-    let channel = FakeChannel::answering("air-linux-1", move |_| Ok(failed(4, &stderr)));
+    let channel = FakeChannel::answering("air-docker-1", move |_| Ok(failed(4, &stderr)));
     let refusal = host.guest(&channel).write_file("/tmp/x", b"hello", "700").await.unwrap_err();
     assert_eq!(refusal.code, "guest_write_failed");
     assert_eq!(refusal.exit, Exit::from_status(4, Exit::FAILURE));
@@ -315,7 +315,7 @@ async fn write_file_names_itself_in_the_refusal() {
 #[tokio::test]
 async fn write_secret_file_carries_the_content_on_stdin_only() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     let secret = b"login-export-0123456789abcdef";
     host.guest(&channel)
         .write_secret_file("/dev/shm/air-run-secrets/AIR_LIVE_CENTRAL_LOGIN", secret)
@@ -348,7 +348,7 @@ async fn write_secret_file_carries_the_content_on_stdin_only() {
 #[tokio::test]
 async fn write_secret_file_withholds_the_guest_output_of_a_failure() {
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::answering("air-linux-1", |_| {
+    let channel = FakeChannel::answering("air-docker-1", |_| {
         Ok(Captured {
             exit_code: 2,
             stdout: "login-export-0123456789abcdef".to_owned(),
@@ -397,7 +397,7 @@ fn unresolved_settings(root: &Path, extra: &[(&str, &str)]) -> Config {
     }
     Config::load(
         Selection {
-            backend: avl_base::Backend::Tart,
+            backend: avl_base::Backend::Docker,
             guest_os: GuestOs::Linux,
         },
         &environment,
@@ -496,7 +496,7 @@ async fn ensure_host_paths_refuses_a_git_without_an_answer() {
 #[tokio::test]
 async fn require_console_login_is_macos_only() {
     let linux = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     linux.guest(&channel).require_console_login().await.unwrap();
     // A Linux worker's display is an Xvfb the controller starts, not a seat a user logs into: nothing is asked.
     assert!(channel.calls().is_empty(), "{:?}", channel.lines());
@@ -521,13 +521,12 @@ async fn require_console_login_is_macos_only() {
 fn a_sessions_steps_can_run_on_a_spawned_task() {
     fn spawnable<T: Send>(_: T) {}
     let host = Host::new(GuestOs::Linux);
-    let channel = FakeChannel::new("air-linux-1");
+    let channel = FakeChannel::new("air-docker-1");
     let guest = host.guest(&channel);
     let bazel = testing::ForbiddenBazel;
     let peers = testing::Peers::default();
     spawnable(guest.install_agent(&bazel));
-    spawnable(guest.provision_linux(&bazel, &LinuxProvisioning::default()));
-    spawnable(guest.ensure_guest_node(&bazel));
+    spawnable(guest.provision_linux(&bazel, &[]));
     spawnable(guest.provision_worker(ShareMount::VirtioFs));
     spawnable(guest.ensure_ready(&peers));
     let probe = FakeProbe::default();

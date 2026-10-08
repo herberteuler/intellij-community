@@ -10,7 +10,6 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use avl_base::config::GUEST_NODE_VERSION;
 use avl_base::report::{Buffer, Mode, Terminal};
 use avl_base::{Config, Environment, GuestOs, Refusal, Reporter, Selection};
 use avl_wire::verb::AgentVerb;
@@ -220,13 +219,6 @@ pub(crate) struct Host {
     root: tempfile::TempDir,
 }
 
-/// The guests the [`Host`] fixture can stand for on this host. A Windows host has no macOS guest.
-pub(crate) const FIXTURE_GUESTS: &[GuestOs] = if cfg!(windows) {
-    &[GuestOs::Linux]
-} else {
-    &[GuestOs::Macos, GuestOs::Linux]
-};
-
 impl Host {
     pub(super) fn new(guest_os: GuestOs) -> Self {
         let root = tempfile::tempdir().expect("a temporary directory");
@@ -241,7 +233,7 @@ impl Host {
         let environment = Environment::from_pairs([
             ("HOME", home.as_str()),
             ("AIR_VM_RUNTIME_ROOT", runtime.as_str()),
-            ("AIR_VM_WORKERS", "air-linux-1,air-linux-2"),
+            ("AIR_VM_WORKERS", "air-docker-1,air-docker-2"),
         ]);
         let settings = Config::load(
             Selection {
@@ -252,8 +244,8 @@ impl Host {
             &root.path().join("scripts"),
         )
         .unwrap_or_else(|refusal| panic!("the fixture environment was refused: {refusal:?}"));
-        // The backend names the worker directory, `docker-air-linux-1` for a Docker worker.
-        for worker in ["air-linux-1", "air-linux-2", "air-macos-1"] {
+        // The backend names the worker directory, `docker-air-docker-1` for a Docker worker.
+        for worker in ["air-docker-1", "air-docker-2", "air-macos-1"] {
             std::fs::create_dir_all(settings.worker_dir(worker)).expect("a fixture directory");
         }
         settings.set_host_paths(&repo, &bazel).expect("fresh host paths");
@@ -303,24 +295,6 @@ pub(crate) fn prose() -> (Reporter, Buffer) {
     let (reporter, _, stderr) = Reporter::in_memory("vm");
     reporter.set_mode(Mode::Human(Terminal::default()));
     (reporter, stderr)
-}
-
-/// A Bazel that answers where this checkout's Node archive is, over a file that exists. The relative path carries
-/// the `external/<canonical>/` prefix `cquery` prints for a downloaded external file - and the reason resolution
-/// joins onto the output base rather than the execution root. The output base is under the host's Bazel user root,
-/// as a real one is, so the guest sees the archive through the Bazel share.
-pub(crate) fn node_archive_host(host: &Host) -> (FakeBazel, PathBuf) {
-    let base = host.bazel_user_root().join("output-base");
-    let relative = format!("external/+air_acp_runtime_test_deps/node-v{GUEST_NODE_VERSION}-linux-arm64.tar.gz");
-    let archive = base.join(&relative);
-    std::fs::create_dir_all(archive.parent().unwrap()).unwrap();
-    std::fs::write(&archive, "node archive").unwrap();
-    let bazel = FakeBazel {
-        stdout: format!("{relative}\n"),
-        output_base: format!("{}\n", base.display()),
-        ..FakeBazel::default()
-    };
-    (bazel, archive)
 }
 
 /// [`ParkedDaemonProbe`] with both of its answers seeded: what makes a holder idle is the daemon's own account of

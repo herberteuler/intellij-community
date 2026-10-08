@@ -121,7 +121,7 @@ fn fixture_repo(repo: &Path) {
 fn a_selector_inside_a_lane_resolves_to_its_filter() {
     let repo = tempfile::tempdir().unwrap();
     fixture_repo(repo.path());
-    let settings = settings(Backend::Tart, GuestOs::Linux, repo.path());
+    let settings = settings(Backend::Docker, GuestOs::Linux, repo.path());
 
     let selection = resolve_selector_selection(&settings, "AirFlowSmokeTest", &quiet()).unwrap();
 
@@ -145,7 +145,7 @@ fn a_selector_inside_a_lane_resolves_to_its_filter() {
 fn a_target_outside_the_ide_lanes_is_refused() {
     let repo = tempfile::tempdir().unwrap();
     fixture_repo(repo.path());
-    let settings = settings(Backend::Tart, GuestOs::Linux, repo.path());
+    let settings = settings(Backend::Docker, GuestOs::Linux, repo.path());
     for selector in [
         "//plugins/air/tests/integration/headless/claude:claude_test",
         // A pattern can hit more than one target, so no single label - and no filter - can describe it.
@@ -167,7 +167,7 @@ fn a_target_outside_the_ide_lanes_is_refused() {
 #[test]
 fn the_lane_label_itself_is_accepted_as_a_selector() {
     let empty = tempfile::tempdir().unwrap();
-    let settings = settings(Backend::Tart, GuestOs::Linux, empty.path());
+    let settings = settings(Backend::Docker, GuestOs::Linux, empty.path());
     let label = ui_lane("ui-real").unwrap().label;
 
     let selection = resolve_selector_selection(&settings, label, &quiet()).unwrap();

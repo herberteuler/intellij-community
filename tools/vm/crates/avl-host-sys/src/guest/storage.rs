@@ -1,4 +1,4 @@
-//! A worker's writable storage, the Linux boot's two guest-agent verbs, and the readiness a run needs.
+//! A worker's writable storage, the Linux boot's guest-agent verb, and the readiness a run needs.
 
 use std::time::Duration;
 
@@ -14,10 +14,6 @@ use super::supervisor::AgentAccount;
 use super::{GUEST_COMMAND_TIMEOUT, Guest, guest_join};
 use crate::proc::SpawnOptions;
 
-/// The timeout of `provision-guest`. It installs the guest packages with the package manager of the image, which
-/// downloads them on a first boot.
-const PROVISION_TIMEOUT: Duration = Duration::from_mins(30);
-
 /// The timeout of `validate-guest`. It checks the display, the packages and the accounts, seconds of work.
 const VALIDATE_TIMEOUT: Duration = Duration::from_mins(5);
 
@@ -31,33 +27,11 @@ const STORAGE_INIT_TIMEOUT: Duration = Duration::from_mins(10);
 #[cfg(test)]
 mod tests;
 
-/// What the two backend-specific guest-agent verbs of a Linux boot are told, both composed by the caller.
-///
-/// Values and not the verbs. The verb names are this controller's protocol with its own agent, [`AgentVerb`], and
-/// are named at the invocations below; what the caller supplies is the half only the Linux backend knows - the
-/// package list, the display, the guest paths - which is why [`super::linux`] builds these two and this module
-/// decides when each runs. The Node pair is not here: its values are the controller's own, and it runs later in the boot.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct LinuxProvisioning {
-    /// What `provision-guest` is told, positionally: the data directory, the display, the worker user, the share
-    /// mount point, and then the package list.
-    ///
-    /// `None` on a Docker worker, and only there. Its image installs the same package list at build time, and its
-    /// entrypoint starts the display and the window manager, so the verb has nothing left to do. `validate-guest`
-    /// still runs, because the image is exactly what it exists to doubt.
-    pub provision_argv: Option<Vec<String>>,
-    /// What `validate-guest` is told. Not optional: a provisioned worker that was never asked to prove itself is
-    /// the state two real gaps were found in, months after the boot that introduced them, by reading `idea.log`.
-    pub validate_argv: Vec<String>,
-}
-
 /// Puts one boot verb's own report where a person can read it, and is the only thing that does.
 ///
 /// The verbs answer a document rather than lines, and their streams do not travel: [`Guest::invoke_agent`] captures
-/// both and echoes neither, deliberately - a first boot's `dpkg-query` probe writes one line per package it is about
-/// to install, which is the noise the reports exist instead of. So the fields that argue for their own visibility -
-/// the display's and the window manager's probe counts, the installed/present split - reach a boot's log through
-/// here.
+/// both and echoes neither, deliberately. So the fields that argue for their own visibility, such as the window
+/// manager's probe count, reach a boot's log through here.
 ///
 /// The `data` half whole, with no struct for it on this side: a copy of the guest's report types here would be the
 /// declaration that goes quietly stale, dropping a renamed field out of a note rather than failing to compile.
@@ -83,8 +57,7 @@ impl Guest<'_> {
     /// Runs one guest-agent verb of a boot and notes what it answered. The one spelling of "run a boot verb", so no
     /// verb can be the one whose report is dropped.
     ///
-    /// The account is the caller's, because the boot's verbs do not agree about it: the pair that installs packages
-    /// must be root, and the pair that extracts an archive into the worker's own data directory must be the worker.
+    /// The account is the caller's. `validate-guest` runs as root.
     pub(crate) async fn invoke_boot_verb(
         &self,
         account: AgentAccount,
@@ -97,28 +70,22 @@ impl Guest<'_> {
         Ok(())
     }
 
-    /// Brings a Linux worker to the state a run needs, on every boot.
+    /// Brings a Linux worker to the state a run needs, on every boot: the worker storage, the guest agent, and then
+    /// `validate-guest` with `validate_argv`.
     ///
-    /// Two guest-agent verbs rather than a sequence of execs from here, because `provision-guest` installs packages
-    /// and enables services, and a half-applied sequence is much harder to reason about than one verb that is safe
-    /// to re-run. It ends with the guest proving itself rather than with the installer exiting 0: everything
-    /// `validate-guest` checks was once discovered from `idea.log` days later.
+    /// The Docker image installs the packages and the pinned Node, and its entrypoint starts the display. So the boot
+    /// ends with the guest proving itself: everything `validate-guest` checks was once discovered from `idea.log` days
+    /// later. The verb goes through [`Guest::invoke_agent`] rather than [`Guest::as_root`], so it answers a named
+    /// refusal and not an exit integer.
     ///
-    /// Every verb goes through [`Guest::invoke_agent`] rather than [`Guest::as_root`], which is why each answers a
-    /// named refusal instead of an exit integer: [`Guest::raw`] withholds a guest's output by contract, and the agent's
-    /// envelope is carried whole. Both run as root: `provision-guest` refuses any other effective uid.
-    ///
-    /// It *begins* with [`Guest::install_agent`], because every step after it is a verb of that binary. The agent's
-    /// destination lives under the state directory created just before it, so the install cannot come earlier
-    /// either. That ordering is also this boot's trust boundary: the worker account writes the binary and root then
-    /// executes it, on a guest that is disposable and holds no credentials.
-    ///
-    /// **The worker's Node is not staged here, and it cannot be**: see [`Guest::ensure_guest_node`].
-    pub async fn provision_linux(&self, bazel: &dyn BazelHost, provisioning: &LinuxProvisioning) -> Result<(), Refusal> {
+    /// It *begins* with [`Guest::install_agent`], because the verb is a verb of that binary. The agent's destination
+    /// lives under the state directory created just before it, so the install cannot come earlier either. That
+    /// ordering is also this boot's trust boundary: the worker account writes the binary and root then executes it,
+    /// on a guest that is disposable and holds no credentials.
+    pub async fn provision_linux(&self, bazel: &dyn BazelHost, validate_argv: &[String]) -> Result<(), Refusal> {
         // Refused before the guest is touched rather than skipped, because a skipped self-check is invisible in
-        // exactly the way the self-check exists to end - and not by letting `validate-guest` refuse an empty argv,
-        // which would arrive after a first boot spent its minutes installing packages.
-        if provisioning.validate_argv.is_empty() {
+        // exactly the way the self-check exists to end.
+        if validate_argv.is_empty() {
             return Err(Refusal::new(
                 "linux_validation_unset",
                 Exit::FAILURE,
@@ -136,27 +103,8 @@ impl Guest<'_> {
         )
         .await?;
         self.install_agent(bazel).await?;
-        if let Some(provision_argv) = &provisioning.provision_argv {
-            self.invoke_boot_verb(AgentAccount::Root, AgentVerb::ProvisionGuest, provision_argv, PROVISION_TIMEOUT)
-                .await?;
-        } else {
-            self.reporter.note(
-                format!(
-                    "the image and its entrypoint own the display; skipping {}",
-                    AgentVerb::ProvisionGuest
-                ),
-                Some(&self.scope()),
-            );
-        }
-        // Only after provisioning returned: an installer that failed leaves nothing to validate, and a validator run
-        // against it would report the *display* as the problem when the cause was an `apt-get` that never finished.
-        self.invoke_boot_verb(
-            AgentAccount::Root,
-            AgentVerb::ValidateGuest,
-            &provisioning.validate_argv,
-            VALIDATE_TIMEOUT,
-        )
-        .await
+        self.invoke_boot_verb(AgentAccount::Root, AgentVerb::ValidateGuest, validate_argv, VALIDATE_TIMEOUT)
+            .await
     }
 
     /// Grows a freshly cloned macOS worker's APFS container to its root-disk size and creates the directories it
@@ -217,8 +165,7 @@ impl Guest<'_> {
     /// the shares are there.
     ///
     /// Tart plus macOS adds the SSH identity check: two macOS workers are clones of one sealed image, and `tart exec`
-    /// reaches the guest over SSH. A Linux worker has the same cloned keys but nothing here reaches it over SSH, so
-    /// regenerating keys there would be ceremony rather than a fix.
+    /// reaches the guest over SSH. Nothing here reaches a Docker worker over SSH, so it needs no such check.
     pub async fn ensure_ready(&self, peers: &dyn PeerChannels) -> Result<(), Refusal> {
         let settings = self.settings;
         if settings.backend == Backend::Tart && settings.is_macos_guest() {

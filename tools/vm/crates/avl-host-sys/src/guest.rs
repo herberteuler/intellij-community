@@ -44,9 +44,7 @@ use avl_base::RefusalExt;
 
 mod agent;
 mod external;
-pub mod linux;
 mod mount;
-mod node;
 mod parity;
 mod runfiles;
 mod sshkeys;
@@ -65,13 +63,11 @@ pub use agent::{
 };
 pub use external::{external_file, external_files};
 pub use mount::{remount_script, share_mount_path};
-pub use node::node_archive_label;
 pub use parity::{
     InitReceipt, PARITY_MARKER, ParityError, ShareMount, init_receipt_path, parity_marker_content, parity_script, read_init_receipt,
     validate_parity_entry_name, write_init_receipt,
 };
 pub use sshkeys::{PeerChannels, parse_ssh_host_key_fingerprint};
-pub use storage::LinuxProvisioning;
 pub use supervisor::{AgentAccount, OLDER_AGENT_HINT, ParkedDaemonProbe, RunSlot, SupervisorOptions};
 pub use tcc::{SENSITIVE_TCC_SERVICES, TCC_DECISION_QUERY, worker_tcc_admission_error};
 

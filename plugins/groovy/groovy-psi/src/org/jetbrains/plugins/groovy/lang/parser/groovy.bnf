@@ -1023,9 +1023,7 @@ private single_parameter_lambda_expression_base ::= single_parameter_lambda_expr
 private single_parameter_lambda_expression_head ::= single_parameter_lambda_parameter_list mb_nl '->' { consumeTokenMethod = 'consumeTokenFast' }
 
 single_parameter_lambda_parameter_list ::= !<<isApplicationArguments>> single_parameter_lambda_parameter { elementType = parameter_list }
-single_parameter_lambda_parameter ::= modifier_list (weak_keyword | IDENTIFIER) {
-  elementType = parameter
-}
+single_parameter_lambda_parameter ::= empty_modifier_list (weak_keyword | IDENTIFIER) { elementType = parameter }
 private single_parameter_lambda_body ::= expression_single_parameter_lambda_body | lazy_block_lambda_body
 expression_single_parameter_lambda_body ::= expression_or_application_except_zero_params_closure
 {

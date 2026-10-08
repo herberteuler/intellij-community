@@ -13,34 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jetbrains.java.generate.test;
-
-import java.util.logging.Logger;
+package com.intellij.java.generate.test;
 
 /**
  * This is a dummy test bean for testing the toString() plugin.
  */
 @SuppressWarnings("unused")
-public class DummySortTestBean {
+public class DummyGetterTestBean {
 
-    private Logger myLogger;
-    private int age;
-    private int year;
-    private String name;
-    private String email;
-    private boolean _member;
-    private DummyTestBean bean;
+    public int getX() throws RuntimeException { return 0; }
+    public DummyModelTestBean getModel() { return null; }
+    public DummyModelTestBean getDummyModel() { return null; }
+    private DummyModelTestBean model;
 
-
+    /**
+     * Hello Claus this is DummyGetterTestBean
+     */
     @Override
     public String toString() {
-        return "DummySortTestBean{" +
-                "age=" + age +
-                ", year=" + year +
-                ", name='" + name + '\'' +
-                ", email='" + email + '\'' +
-                ", _member=" + _member +
-                ", bean=" + bean +
+        return "DummyGetterTestBean{" +
+                "model=" + model +
+                ", x=" + getX() +
+                ", dummyModel=" + getDummyModel() +
                 '}';
     }
 }

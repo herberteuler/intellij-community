@@ -164,6 +164,11 @@ object ActionUtil {
   @JvmField
   val SECONDARY_ICON: Key<Icon> = Key.create("SECONDARY_ICON")
 
+  /** Aligns the secondary icon to the right edge of a popup row. */
+  @ApiStatus.Internal
+  @JvmField
+  val SECONDARY_ICON_RIGHT_ALIGNED: Key<Boolean> = Key.create("SECONDARY_ICON_RIGHT_ALIGNED")
+
   /** Hide disabled child actions */
   @JvmField
   val HIDE_DISABLED_CHILDREN: Key<Boolean> = Key.create("HIDE_DISABLED_CHILDREN")

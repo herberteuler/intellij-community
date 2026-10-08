@@ -9,6 +9,7 @@ import com.intellij.ide.impl.ProjectUtil;
 import com.intellij.lang.LangBundle;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.AccessToken;
 import com.intellij.openapi.application.WriteIntentReadAction;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
@@ -101,6 +102,11 @@ public class ProjectSettingsStepBase<T> extends AbstractActionWithPanel implemen
     super();
     getTemplatePresentation().setIcon(projectGenerator.getLogo());
     getTemplatePresentation().setText(projectGenerator.getName());
+    Icon secondaryIcon = projectGenerator.getSecondaryIcon();
+    if (secondaryIcon != null) {
+      getTemplatePresentation().putClientProperty(ActionUtil.SECONDARY_ICON, secondaryIcon);
+      getTemplatePresentation().putClientProperty(ActionUtil.SECONDARY_ICON_RIGHT_ALIGNED, Boolean.TRUE);
+    }
     myProjectGenerator = projectGenerator;
     myCallback = callback;
     myProjectDirectory = NotNullLazyValue.lazy(() -> findSequentNonExistingUntitled().toFile());

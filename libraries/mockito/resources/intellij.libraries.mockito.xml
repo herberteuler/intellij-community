@@ -1,7 +1,8 @@
 <idea-plugin visibility="internal">
   <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
   <dependencies>
-    <module name="intellij.libraries.mockito"/>
+    <module name="intellij.libraries.byte.buddy"/>
+    <module name="intellij.libraries.byte.buddy.agent"/>
   </dependencies>
   <!-- endregion -->
 </idea-plugin>

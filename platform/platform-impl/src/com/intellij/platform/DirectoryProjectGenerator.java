@@ -8,6 +8,7 @@ import com.intellij.openapi.util.NlsContexts;
 import com.intellij.openapi.util.NotNullLazyValue;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.concurrency.annotations.RequiresEdt;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -51,6 +52,14 @@ public interface DirectoryProjectGenerator<T> {
    */
   @Nullable
   Icon getLogo();
+
+  /**
+   * @return secondary icon (e.g. lock) displayed on the right side of the generator, or null if none
+   */
+  @ApiStatus.Internal
+  default @Nullable Icon getSecondaryIcon() {
+    return null;
+  }
 
   @RequiresEdt
   void generateProject(@NotNull Project project,

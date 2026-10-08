@@ -255,7 +255,10 @@ internal fun composeProductContent(content: ProductContentPlan, table: Map<Strin
       requiredIfAvailable = content.contentModuleRequiredIfAvailable.get(name),
     ))
   }
-  additional.mapTo(blocks) { (namespace, blockRows) -> ProductContentBlock(namespace, blockRows) }
+  // the Product DSL renders the namespaced blocks before the block without a namespace
+  additional.entries
+    .sortedWith(compareBy<Map.Entry<String?, List<ProductContentRow>>> { it.key == null }.thenBy { it.key })
+    .mapTo(blocks) { (namespace, blockRows) -> ProductContentBlock(namespace, blockRows) }
   return ComposedProductContent(
     aliases = aliases.sorted(),
     includes = content.includes.map { (href, kind) -> "$kind=$href" },

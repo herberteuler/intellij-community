@@ -1,16 +1,29 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.codeInsight.codeVision
 
-import com.jetbrains.python.allure.Layers
-import com.jetbrains.python.allure.Subsystems
+import com.intellij.codeInsight.codeVision.CodeVisionAnchorKind
+import com.intellij.codeInsight.codeVision.settings.CodeVisionSettings
 import com.intellij.idea.TestFor
 import com.intellij.openapi.options.advanced.AdvancedSettings
+import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.utils.codeVision.CodeVisionTestCase
+import com.jetbrains.python.allure.Layers
+import com.jetbrains.python.allure.Subsystems
 import kotlin.time.Duration.Companion.milliseconds
 
 @Subsystems.CodeInsight
 @Layers.Functional
 class PyCodeVisionProviderTest : CodeVisionTestCase() {
+  override fun setUp() {
+    super.setUp()
+    val settings = CodeVisionSettings.getInstance()
+    val prevPosition = settings.defaultPosition
+    settings.defaultPosition = CodeVisionAnchorKind.Top
+    Disposer.register(testRootDisposable) {
+      settings.defaultPosition = prevPosition
+    }
+  }
+
   fun testDynamicUsages() = doTest("""
     /*<# block [1 usage] #>*/
     class MyClass:

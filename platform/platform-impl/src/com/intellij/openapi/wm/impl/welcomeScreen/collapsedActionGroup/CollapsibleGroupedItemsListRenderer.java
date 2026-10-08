@@ -4,6 +4,7 @@ package com.intellij.openapi.wm.impl.welcomeScreen.collapsedActionGroup;
 import com.intellij.openapi.actionSystem.ActionGroup;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.ui.popup.util.PopupUtil;
 import com.intellij.ui.ExperimentalUI;
 import com.intellij.ui.popup.list.SelectablePanel;
@@ -14,11 +15,14 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.DefaultListModel;
+import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JPanel;
 import javax.swing.ListCellRenderer;
 import javax.swing.border.EmptyBorder;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -34,12 +38,16 @@ public class CollapsibleGroupedItemsListRenderer implements ListCellRenderer<AnA
   /** Renders simple AnAction items, which are actually only name and icon. */
   private final JLabel textLabel = new JLabel();
 
+  /** Renders secondary right-aligned icon (e.g. lock) when present. */
+  private final JLabel rightIconLabel = new JLabel();
+
   /** ListCellRendererComponent for simple AnAction Items. SelectablePanel wraps textLabel to provide a selection effect. */
   private final JComponent panel = createMainPanel();
 
   public CollapsibleGroupedItemsListRenderer() {
     textLabel.setBorder(JBUI.Borders.empty(5, 0));
     textLabel.setIconTextGap(JBUI.CurrentTheme.ActionsList.elementIconGap());
+    rightIconLabel.setBorder(JBUI.Borders.empty(5, 8, 5, 0));
   }
 
   @Override
@@ -62,12 +70,15 @@ public class CollapsibleGroupedItemsListRenderer implements ListCellRenderer<AnA
   private JComponent createMainPanel() {
     if (ExperimentalUI.isNewUI()) {
       var panel = SelectablePanel.wrap(textLabel);
+      panel.add(rightIconLabel, BorderLayout.EAST);
       PopupUtil.configListRendererFlexibleHeight(panel);
       return panel;
     }
     else {
-      return JBUI.Panels.simplePanel(textLabel)
+      JPanel panel = JBUI.Panels.simplePanel(textLabel)
         .withBorder(new EmptyBorder(JBUI.CurrentTheme.ActionsList.cellPadding()));
+      panel.add(rightIconLabel, BorderLayout.EAST);
+      return panel;
     }
   }
 
@@ -122,5 +133,9 @@ public class CollapsibleGroupedItemsListRenderer implements ListCellRenderer<AnA
   private void setLabelByAction(@NotNull AnAction value) {
     textLabel.setText(value.getTemplateText());
     textLabel.setIcon(value.getTemplatePresentation().getIcon());
+    boolean rightAligned = Boolean.TRUE.equals(value.getTemplatePresentation().getClientProperty(ActionUtil.SECONDARY_ICON_RIGHT_ALIGNED));
+    Icon secondaryIcon = rightAligned ? value.getTemplatePresentation().getClientProperty(ActionUtil.SECONDARY_ICON) : null;
+    rightIconLabel.setIcon(secondaryIcon);
+    rightIconLabel.setVisible(secondaryIcon != null);
   }
 }

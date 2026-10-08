@@ -7,6 +7,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionHolder;
 import com.intellij.openapi.actionSystem.ShortcutProvider;
 import com.intellij.openapi.actionSystem.ShortcutSet;
+import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.keymap.KeymapUtil;
 import com.intellij.openapi.ui.popup.ListItemDescriptorAdapter;
@@ -65,6 +66,7 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
   private @Nullable JLabel myShortcutLabel;
   private @Nullable JLabel mySecondaryIconLabel;
   private @Nullable JLabel mySecondaryTextLabel;
+  private @Nullable JPanel mySecondaryPane;
   protected JLabel myMnemonicLabel;
   protected JLabel myIconLabel;
 
@@ -165,10 +167,12 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
     mySecondaryIconLabel.setVisible(false);
     secondary.add(mySecondaryIconLabel, BorderLayout.WEST);
 
+    mySecondaryPane = secondary;
+
     panel.add(secondary, BorderLayout.CENTER);
 
     myShortcutLabel = new JLabel();
-    JBEmptyBorder shortcutBorder = ExperimentalUI.isNewUI() ? JBUI.Borders.empty() : JBUI.Borders.empty(0,0,1,3);
+    JBEmptyBorder shortcutBorder = ExperimentalUI.isNewUI() ? JBUI.Borders.empty() : JBUI.Borders.empty(0, 0, 1, 3);
     myShortcutLabel.setBorder(shortcutBorder);
     myShortcutLabel.setForeground(UIManager.getColor("MenuItem.acceleratorForeground"));
     panel.add(myShortcutLabel, BorderLayout.EAST);
@@ -241,7 +245,8 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
     if (ExperimentalUI.isNewUI()) {
       left.setBorder(JBUI.Borders.empty());
       right.setBorder(JBUI.Borders.empty());
-    } else {
+    }
+    else {
       int leftRightInset = (ListPopupImpl.NEXT_STEP_AREA_WIDTH - AllIcons.Icons.Ide.MenuArrow.getIconWidth()) / 2;
       left.setBorder(JBUI.Borders.empty(insets.top, insets.left, insets.bottom, 0));
       right.setBorder(JBUI.Borders.empty(insets.top, leftRightInset, insets.bottom, insets.right));
@@ -264,7 +269,7 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
     myMainPane = left;
     myButtonPane = right;
 
-   return result;
+    return result;
   }
 
   @Override
@@ -430,6 +435,12 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
 
       if (icon != null) {
         mySecondaryIconLabel.setIcon(icon);
+        boolean rightAligned = value instanceof PopupFactoryImpl.ActionItem item &&
+                               Boolean.TRUE.equals(item.getClientProperty(ActionUtil.SECONDARY_ICON_RIGHT_ALIGNED));
+        if (mySecondaryPane != null) {
+          mySecondaryPane.add(mySecondaryIconLabel, rightAligned ? BorderLayout.CENTER : BorderLayout.WEST);
+        }
+        mySecondaryIconLabel.setHorizontalAlignment(rightAligned ? SwingConstants.RIGHT : SwingConstants.LEADING);
         boolean selected = isSelected && isSelectable && !nextStepButtonSelected;
         setForegroundSelected(mySecondaryIconLabel, selected);
         mySecondaryIconLabel.setVisible(true);
@@ -460,8 +471,8 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
   /**
    * The flag that determines whether to leave extra space for inline actions when they're not shown.
    *
-   * @see #setReserveSpaceForExtraButtons(boolean)
    * @return the current flag value
+   * @see #setReserveSpaceForExtraButtons(boolean)
    */
   public boolean isReserveSpaceForExtraButtons() {
     return reserveSpaceForExtraButtons;
@@ -470,16 +481,17 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
   /**
    * Controls reserving extra space for the inline actions when they're not shown.
    * <p>
-   *   Inline actions are only shown when the item is selected.
-   *   Reserving extra space (the default) helps to avoid resizing
-   *   of the contents when the selection moves, because the inline actions will take that reserved space as they appear.
-   *   In the current implementation the space is reserved for a single button only, which is a common case.
+   * Inline actions are only shown when the item is selected.
+   * Reserving extra space (the default) helps to avoid resizing
+   * of the contents when the selection moves, because the inline actions will take that reserved space as they appear.
+   * In the current implementation the space is reserved for a single button only, which is a common case.
    * </p>
    * <p>
-   *   However, some popups may wish to disable this behavior, because their size could be preset
-   *   to accommodate exactly as much text as needed. In this case, reserving extra space won't make the popup bigger
-   *   (because the size is preset), but rather waste valuable space, cutting values off.
+   * However, some popups may wish to disable this behavior, because their size could be preset
+   * to accommodate exactly as much text as needed. In this case, reserving extra space won't make the popup bigger
+   * (because the size is preset), but rather waste valuable space, cutting values off.
    * </p>
+   *
    * @param reserveSpaceForExtraButtons the new flag value
    */
   public void setReserveSpaceForExtraButtons(boolean reserveSpaceForExtraButtons) {
@@ -489,14 +501,15 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
   /**
    * Checks if the current tooltip comes from an extra inline action button.
    * <p>
-   *   Designed to be used in {@link #customizeComponent(JList, Object, int, boolean, boolean)} for tooltip customization.
-   *   Sometimes it's needed to override the tooltip set by a base class, but only if that's the "main" tooltip.
-   *   If the cursor is over an inline action button, then this function will return {@code true}
-   *   and the customization logic should leave the tooltip alone (or apply some special logic).
+   * Designed to be used in {@link #customizeComponent(JList, Object, int, boolean, boolean)} for tooltip customization.
+   * Sometimes it's needed to override the tooltip set by a base class, but only if that's the "main" tooltip.
+   * If the cursor is over an inline action button, then this function will return {@code true}
+   * and the customization logic should leave the tooltip alone (or apply some special logic).
    * </p>
    * <p>
-   *   Note that the tooltip set by an inline button can be {@code null} if the inline button doesn't have a tooltip.
+   * Note that the tooltip set by an inline button can be {@code null} if the inline button doesn't have a tooltip.
    * </p>
+   *
    * @return {@code true} iff the tooltip currently set (possibly {@code null}) comes from an extra button
    */
   @ApiStatus.Experimental
@@ -504,7 +517,11 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
     return showingTooltipForExtraButton;
   }
 
-  private boolean updateExtraButtons(JList<? extends E> list, E value, ListPopupStep<Object> step, boolean isSelected, boolean hasNextIcon) {
+  private boolean updateExtraButtons(JList<? extends E> list,
+                                     E value,
+                                     ListPopupStep<Object> step,
+                                     boolean isSelected,
+                                     boolean hasNextIcon) {
     GridBag gb = new GridBag().setDefaultFill(GridBagConstraints.BOTH)
       .setDefaultAnchor(GridBagConstraints.CENTER)
       .setDefaultWeightX(1.0)
@@ -563,7 +580,8 @@ public class PopupListElementRenderer<E> extends GroupedItemsListRenderer<E> {
     if (!ExperimentalUI.isNewUI()) {
       res.setBorder(JBUI.Borders.emptyRight(JBUI.CurrentTheme.ActionsList.elementIconGap()));
       res.add(myMnemonicLabel);
-    } else {
+    }
+    else {
       //need to wrap to align mnemonics to the right
       JPanel wrapper = new JPanel(new BorderLayout());
       wrapper.add(myMnemonicLabel);

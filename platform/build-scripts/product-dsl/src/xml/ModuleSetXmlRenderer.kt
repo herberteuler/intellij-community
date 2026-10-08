@@ -179,20 +179,23 @@ internal fun StringBuilder.appendContentBlock(
   commentProvider: ((ContentModule) -> String?)? = null,
 ) {
   withEditorFold(sb = this, indent = indent, description = blockSource) {
-    modules.groupBy { it.moduleId.namespace }.forEach { modulesByNamespaceEntry ->
-      val namespace = modulesByNamespaceEntry.key
-      val modules = modulesByNamespaceEntry.value
-      append("$indent<content")
-      if (namespace != null) {
-        append(" namespace=\"$namespace\"")
+    modules.groupBy { it.moduleId.namespace }
+      .entries
+      .sortedWith(compareBy<Map.Entry<String?, List<ContentModule>>> { it.key == null }.thenBy { it.key })
+      .forEach { modulesByNamespaceEntry ->
+        val namespace = modulesByNamespaceEntry.key
+        val modules = modulesByNamespaceEntry.value
+        append("$indent<content")
+        if (namespace != null) {
+          append(" namespace=\"$namespace\"")
+        }
+        append(">\n")
+        for (module in modules) {
+          val comment = commentProvider?.invoke(module)
+          appendModuleLine(module, "$indent  ", comment)
+        }
+        append("$indent</content>\n")
       }
-      append(">\n")
-      for (module in modules) {
-        val comment = commentProvider?.invoke(module)
-        appendModuleLine(module, "$indent  ", comment)
-      }
-      append("$indent</content>\n")
-    }
   }
 }
 

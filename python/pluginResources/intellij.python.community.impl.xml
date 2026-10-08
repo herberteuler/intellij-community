@@ -979,6 +979,9 @@
   </extensions>
 
   <extensionPoints>
+    <extensionPoint qualifiedName="Pythonid.frameworkIconProvider"
+                    interface="com.jetbrains.python.run.PyFrameworkIconProvider"
+                    dynamic="true"/>
     <extensionPoint qualifiedName="Pythonid.packageInstalledIconProvider"
                     interface="com.jetbrains.python.packaging.toolwindow.packages.tree.renderers.PyPackageInstalledIconProvider"
                     dynamic="true"/>

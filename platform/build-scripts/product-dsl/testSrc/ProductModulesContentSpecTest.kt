@@ -454,6 +454,29 @@ class ProductModulesContentSpecTest {
     // Should NOT have xi:include references
     assertThat(result.xml).doesNotContain("xi:include")
   }
+
+  @Test
+  fun `test namespaced content blocks precede non-namespaced content blocks`() {
+    val spec = productModules {
+      privateModule("intellij.libraries.sqlite")
+      module("intellij.platform.debugger.parallelStacks")
+    }
+
+    val result = buildProductContentXml(
+      spec = spec,
+      outputProvider = MockModuleOutputProvider(),
+      inlineXmlIncludes = false,
+      inlineModuleSets = false,
+      metadataBuilder = TEST_METADATA_BUILDER,
+    )
+
+    val namespacedIndex = result.xml.indexOf("<content namespace=\"jetbrains\">")
+    val nonNamespacedIndex = result.xml.indexOf("<content>")
+
+    assertThat(namespacedIndex).isGreaterThanOrEqualTo(0)
+    assertThat(nonNamespacedIndex).isGreaterThanOrEqualTo(0)
+    assertThat(namespacedIndex).isLessThan(nonNamespacedIndex)
+  }
 }
 
 /**

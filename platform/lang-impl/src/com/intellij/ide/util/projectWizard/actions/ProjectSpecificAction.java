@@ -3,10 +3,13 @@ package com.intellij.ide.util.projectWizard.actions;
 
 import com.intellij.ide.util.projectWizard.ProjectSettingsStepBase;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
+import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.util.NlsActions.ActionText;
 import com.intellij.platform.DirectoryProjectGenerator;
 import org.jetbrains.annotations.NotNull;
+
+import javax.swing.Icon;
 
 public final class ProjectSpecificAction extends DefaultActionGroup implements DumbAware {
   public ProjectSpecificAction(final @NotNull DirectoryProjectGenerator<?> projectGenerator, final ProjectSettingsStepBase step) {
@@ -17,6 +20,11 @@ public final class ProjectSpecificAction extends DefaultActionGroup implements D
                                final @NotNull @ActionText String name, final ProjectSettingsStepBase step) {
     super(name, true);
     getTemplatePresentation().setIcon(projectGenerator.getLogo());
+    Icon secondaryIcon = projectGenerator.getSecondaryIcon();
+    if (secondaryIcon != null) {
+      getTemplatePresentation().putClientProperty(ActionUtil.SECONDARY_ICON, secondaryIcon);
+      getTemplatePresentation().putClientProperty(ActionUtil.SECONDARY_ICON_RIGHT_ALIGNED, Boolean.TRUE);
+    }
     add(step);
   }
 }

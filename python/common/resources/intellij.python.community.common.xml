@@ -3,6 +3,7 @@
   <dependencies>
     <module name="intellij.libraries.kotlinx.serialization.core"/>
     <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.impl"/>
     <module name="intellij.platform.core.ui"/>
     <module name="intellij.platform.ide"/>
     <module name="intellij.platform.ide.core"/>
@@ -11,6 +12,12 @@
   </dependencies>
   <!-- endregion -->
   <extensionPoints>
+    <extensionPoint qualifiedName="Pythonid.addInterpreterPopupPromo"
+                    interface="com.intellij.python.community.common.promotion.PyAddInterpreterPopupPromo"
+                    dynamic="true"/>
+    <extensionPoint qualifiedName="Pythonid.frameworkPromoProvider"
+                    interface="com.intellij.python.community.common.promotion.PyFrameworkPromoProvider"
+                    dynamic="true"/>
     <extensionPoint qualifiedName="com.intellij.python.community.common.toolToIconMapper" dynamic="false"
                     interface="com.intellij.python.community.common.tools.spi.ToolIdToIconMapper"/>
   </extensionPoints>

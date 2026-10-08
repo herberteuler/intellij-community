@@ -73,7 +73,7 @@ private fun cancelExclusion(
   defaultExclusions: List<AnalysisIgnoreExclusion>,
 ) {
   for ((root, rootExclusions) in defaultExclusions.groupBy { it.baseDir }) {
-    val lines = AnalysisIgnoreDefaults.LINES - rootExclusions.mapTo(HashSet()) { it.pattern.source }
+    val lines = AnalysisIgnoreDefaults.lines - rootExclusions.mapTo(HashSet()) { it.pattern.source }
     val ignoreFile = AnalysisIgnoreFileWriter.createFile(project, root, lines) ?: continue
     AnalysisIgnoreService.getInstance(project).rememberDefaultLines(ignoreFile, lines)
   }

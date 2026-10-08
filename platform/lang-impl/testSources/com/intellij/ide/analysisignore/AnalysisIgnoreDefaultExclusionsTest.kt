@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -51,6 +52,7 @@ class AnalysisIgnoreDefaultExclusionsTest {
   private val project get() = projectModel.project
   private val fileIndex get() = WorkspaceFileIndex.getInstance(project)
   private val service get() = AnalysisIgnoreService.getInstance(project)
+  private val settings get() = AnalysisIgnoreDefaultsSettings.getInstance()
 
   private lateinit var module: Module
   private lateinit var projectRoot: VirtualFile
@@ -65,11 +67,16 @@ class AnalysisIgnoreDefaultExclusionsTest {
     IndexingTestUtil.waitUntilIndexesAreReady(project)
   }
 
+  @AfterEach
+  fun tearDown() {
+    settings.setLines(AnalysisIgnoreDefaults.BUILT_IN_LINES)
+  }
+
   @Test
   @RegistryKey(key = ENABLED, value = "true")
   @RegistryKey(key = DEFAULTS, value = "true")
   fun `a project root without a file holds a default entity with the default lines`() = runBlocking {
-    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.LINES), defaultPatternsByRoot())
+    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
     // The default entity is not a file.
     assertEquals(emptySet<String>(), service.knownBaseDirUrls())
   }
@@ -139,7 +146,7 @@ class AnalysisIgnoreDefaultExclusionsTest {
     // As the VFS listener does when the file goes away.
     service.forgetNow(projectRoot.url)
 
-    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.LINES), defaultPatternsByRoot())
+    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
     assertTrue(isInContent(customDir))
     assertFalse(isInContent(yarnBelow))
     assertFalse(isInContent(targetAtRoot))
@@ -191,9 +198,9 @@ class AnalysisIgnoreDefaultExclusionsTest {
     withContext(Dispatchers.EDT) { assertTrue(OptionalExclusionUtil.exclude(project, buildDir)) }
     IndexingTestUtil.suspendUntilIndexesAreReady(project)
 
-    val expected = AnalysisIgnoreDefaults.LINES + "/build/"
+    val expected = AnalysisIgnoreDefaults.BUILT_IN_LINES + "/build/"
     assertEquals(expected.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
-    assertEquals(AnalysisIgnoreDefaults.LINES, service.defaultLinesAddedTo(projectRoot.findChild(ANALYSIS_IGNORE_FILE_NAME)!!))
+    assertEquals(AnalysisIgnoreDefaults.BUILT_IN_LINES, service.defaultLinesAddedTo(projectRoot.findChild(ANALYSIS_IGNORE_FILE_NAME)!!))
     assertEquals(emptyMap<String, List<String>>(), defaultPatternsByRoot())
     assertFalse(isInContent(buildDir))
     assertFalse(isInContent(yarnBelow))
@@ -284,7 +291,7 @@ class AnalysisIgnoreDefaultExclusionsTest {
 
     AnalysisIgnoreIndexableFileScanner().startSession(project)
 
-    assertEquals(AnalysisIgnoreDefaults.LINES, defaultPatternsByRoot()[attachedRoot.url])
+    assertEquals(AnalysisIgnoreDefaults.BUILT_IN_LINES, defaultPatternsByRoot()[attachedRoot.url])
   }
 
   @Test
@@ -297,7 +304,7 @@ class AnalysisIgnoreDefaultExclusionsTest {
 
     withContext(Dispatchers.EDT) { AnalysisIgnoreFileWriter.appendLine(project, attachedRoot, "/build/") }
 
-    val expected = AnalysisIgnoreDefaults.LINES + "/build/"
+    val expected = AnalysisIgnoreDefaults.BUILT_IN_LINES + "/build/"
     assertEquals(expected.joinToString("\n", postfix = "\n"), textOfIgnoreFile("attached"))
   }
 
@@ -313,8 +320,8 @@ class AnalysisIgnoreDefaultExclusionsTest {
     service.awaitPendingFills()
     service.processNow()
 
-    assertEquals(AnalysisIgnoreDefaults.LINES.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
-    assertEquals(AnalysisIgnoreDefaults.LINES, service.defaultLinesAddedTo(ignoreFile))
+    assertEquals(AnalysisIgnoreDefaults.BUILT_IN_LINES.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
+    assertEquals(AnalysisIgnoreDefaults.BUILT_IN_LINES, service.defaultLinesAddedTo(ignoreFile))
     // The file replaces the default entity with the same lines.
     assertEquals(emptyMap<String, List<String>>(), defaultPatternsByRoot())
     assertFalse(isInContent(yarnBelow))
@@ -350,8 +357,8 @@ class AnalysisIgnoreDefaultExclusionsTest {
     service.awaitPendingFills()
     service.processNow()
 
-    assertEquals(AnalysisIgnoreDefaults.LINES.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
-    assertEquals(AnalysisIgnoreDefaults.LINES, service.defaultLinesAddedTo(rootFile))
+    assertEquals(AnalysisIgnoreDefaults.BUILT_IN_LINES.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
+    assertEquals(AnalysisIgnoreDefaults.BUILT_IN_LINES, service.defaultLinesAddedTo(rootFile))
     assertFalse(isInContent(yarnBelow))
   }
 
@@ -413,7 +420,7 @@ class AnalysisIgnoreDefaultExclusionsTest {
     service.processNow()
 
     assertEquals(setOf(packageDir.url), service.knownBaseDirUrls())
-    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.LINES), defaultPatternsByRoot())
+    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
     assertFalse(isInContent(nodeModules))
     assertFalse(isInContent(yarnBelow))
   }
@@ -436,11 +443,90 @@ class AnalysisIgnoreDefaultExclusionsTest {
     val ignoreFile = writeAnalysisIgnoreFile("projectRoot")
     service.awaitPendingFills()
     service.processNow()
-    assertEquals(AnalysisIgnoreDefaults.LINES, service.defaultLinesAddedTo(ignoreFile))
+    assertEquals(AnalysisIgnoreDefaults.BUILT_IN_LINES, service.defaultLinesAddedTo(ignoreFile))
 
     writeAction { ignoreFile.delete(this@AnalysisIgnoreDefaultExclusionsTest) }
 
     assertNull(service.defaultLinesAddedTo(ignoreFile))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `edited default lines replace the patterns of the default entity`() = runBlocking {
+    val buildDir = dir("projectRoot/build")
+    val nodeModules = dir("projectRoot/node_modules")
+    assertTrue(isInContent(buildDir))
+    assertFalse(isInContent(nodeModules))
+
+    settings.setLines(listOf("/build/"))
+    // As the listener of the service does at once.
+    service.processNow()
+
+    assertEquals(mapOf(projectRoot.url to listOf("/build/")), defaultPatternsByRoot())
+    assertFalse(isInContent(buildDir))
+    assertTrue(isInContent(nodeModules))
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `a change of the default lines syncs the default entity without a call`() = runBlocking {
+    settings.setLines(listOf("/build/"))
+
+    withTimeout(10.seconds) {
+      while (defaultPatternsByRoot() != mapOf(projectRoot.url to listOf("/build/"))) {
+        delay(10.milliseconds)
+      }
+    }
+  }
+
+  @Test
+  @RegistryKey(key = ENABLED, value = "true")
+  @RegistryKey(key = DEFAULTS, value = "true")
+  fun `a new empty file at the root gets the edited default lines`() = runBlocking {
+    settings.setLines(listOf("/build/", "node_modules"))
+    service.processNow()
+
+    val ignoreFile = writeAnalysisIgnoreFile("projectRoot")
+    service.awaitPendingFills()
+    service.processNow()
+
+    assertEquals("/build/\nnode_modules\n", textOfIgnoreFile("projectRoot"))
+    assertEquals(listOf("/build/", "node_modules"), service.defaultLinesAddedTo(ignoreFile))
+  }
+
+  @Test
+  fun `the settings store no lines for the built-in lines and drop an unsupported line`() {
+    settings.setLines(listOf("node_modules", "!keep", "[ab]"))
+    assertTrue(settings.isCustomized)
+    assertEquals(listOf("node_modules"), settings.lines)
+
+    // As the settings panel does: it sorts the lines.
+    settings.setLines(AnalysisIgnoreDefaults.BUILT_IN_LINES.sorted())
+    assertFalse(settings.isCustomized)
+    assertEquals(AnalysisIgnoreDefaults.BUILT_IN_LINES, settings.lines)
+  }
+
+  @Test
+  fun `an empty list of the user stays empty`() {
+    settings.setLines(emptyList())
+    assertTrue(settings.isCustomized)
+    assertEquals(emptyList<String>(), settings.lines)
+  }
+
+  @Test
+  fun `a supported line is a pattern without a negation, a character class, or a trailing space`() {
+    assertTrue(AnalysisIgnoreDefaults.isSupportedLine("node_modules"))
+    assertTrue(AnalysisIgnoreDefaults.isSupportedLine("/target/"))
+    assertTrue(AnalysisIgnoreDefaults.isSupportedLine("**/*.log"))
+    assertFalse(AnalysisIgnoreDefaults.isSupportedLine(""))
+    assertFalse(AnalysisIgnoreDefaults.isSupportedLine("  "))
+    assertFalse(AnalysisIgnoreDefaults.isSupportedLine("# comment"))
+    assertFalse(AnalysisIgnoreDefaults.isSupportedLine("!keep"))
+    assertFalse(AnalysisIgnoreDefaults.isSupportedLine("[ab]"))
+    assertFalse(AnalysisIgnoreDefaults.isSupportedLine("name "))
+    assertFalse(AnalysisIgnoreDefaults.isSupportedLine("/"))
   }
 
   /** The patterns of each [default entity][AnalysisIgnoreDefaultEntitySource], by the URL of its project root. */

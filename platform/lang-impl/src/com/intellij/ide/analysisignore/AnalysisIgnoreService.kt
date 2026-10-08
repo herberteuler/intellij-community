@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.ide.analysisignore
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.components.Service
@@ -33,6 +34,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,12 +62,17 @@ class AnalysisIgnoreService(private val project: Project, private val coroutineS
 
   private val requests = Channel<Unit>(capacity = Channel.CONFLATED)
 
+  // A change of the default lines in the settings. The default entities then get the new lines, see [syncDefaultsOnChanges].
+  private val defaultLinesChanges = Channel<Unit>(capacity = Channel.CONFLATED)
+
   init {
+    ApplicationManager.getApplication().messageBus.connect(coroutineScope)
+      .subscribe(AnalysisIgnoreDefaultsListener.TOPIC, AnalysisIgnoreDefaultsListener { defaultLinesChanges.trySend(Unit) })
     coroutineScope.launch(Dispatchers.Default) {
       runLoop()
     }
     coroutineScope.launch(Dispatchers.Default) {
-      syncDefaultsOnProjectRootChanges()
+      syncDefaultsOnChanges()
     }
     // If the feature is disabled we will clean up workspace entities
     requests.trySend(Unit)
@@ -306,16 +315,17 @@ class AnalysisIgnoreService(private val project: Project, private val coroutineS
   }
 
   /**
-   * Syncs the [default entities][AnalysisIgnoreDefaultEntitySource] once at the start, and then at once when the project roots change. Both
-   * skip the quiet period, so that a root gets its default entity before the scan of the root starts. The update reads no file, and thus it
-   * needs no order with [processNow].
+   * Syncs the [default entities][AnalysisIgnoreDefaultEntitySource] once at the start, and then at once when the project roots or the
+   * default lines change. Both skip the quiet period, so that a root gets its default entity before the scan of the root starts. The update
+   * reads no file, and thus it needs no order with [processNow].
    */
-  private suspend fun syncDefaultsOnProjectRootChanges() {
+  private suspend fun syncDefaultsOnChanges() {
     val model = project.serviceAsync<WorkspaceModel>()
     updateDefaults(model)
-    model.eventLog
-      .filter { it.getChanges(ProjectRootEntity::class.java).isNotEmpty() }
-      .collect { updateDefaults(model) }
+    merge(
+      model.eventLog.filter { it.getChanges(ProjectRootEntity::class.java).isNotEmpty() }.map { },
+      defaultLinesChanges.receiveAsFlow(),
+    ).collect { updateDefaults(model) }
   }
 
   private suspend fun updateDefaults(model: WorkspaceModel) {
@@ -433,35 +443,37 @@ private fun removesDefaultsOf(root: VirtualFileUrl, baseDirUrl: String): Boolean
 
 /**
  * Returns `true` if each root of [rootsWithDefaults] holds one [default entity][AnalysisIgnoreDefaultEntitySource] with the
- * [default lines][AnalysisIgnoreDefaults.LINES], and no other default entity exists.
+ * [default lines][AnalysisIgnoreDefaults.lines], and no other default entity exists.
  */
 private fun EntityStorage.defaultsInSync(): Boolean {
   val rootUrls = rootsWithDefaults().keys
   val defaults = defaultEntities()
+  val lines = AnalysisIgnoreDefaults.lines
   return defaults.size == rootUrls.size &&
          defaults.mapTo(HashSet()) { it.baseDir.url } == rootUrls &&
-         defaults.all { it.patterns == AnalysisIgnoreDefaults.LINES }
+         defaults.all { it.patterns == lines }
 }
 
 /**
  * Gives each root of [rootsWithDefaults] a [default entity][AnalysisIgnoreDefaultEntitySource], and removes every other default entity.
  * Thus, the first `.analysisignore` file at or below a root removes its default entity, and the removal of the last one brings it back.
- * Updates the patterns of a default entity from an older product version.
+ * Updates the patterns of a default entity from an older product version, or after the user changed the default lines.
  */
 private fun MutableEntityStorage.syncDefaults() {
+  val lines = AnalysisIgnoreDefaults.lines
   val roots = rootsWithDefaults()
   val withDefaults = HashSet<String>()
   for (entity in defaultEntities()) {
     when {
       entity.baseDir.url !in roots || !withDefaults.add(entity.baseDir.url) -> removeEntity(entity)
-      entity.patterns != AnalysisIgnoreDefaults.LINES -> modifyAnalysisIgnoreEntity(entity) {
-        patterns = AnalysisIgnoreDefaults.LINES.toMutableList()
+      entity.patterns != lines -> modifyAnalysisIgnoreEntity(entity) {
+        patterns = lines.toMutableList()
       }
     }
   }
   for ((url, root) in roots) {
     if (url !in withDefaults) {
-      addEntity(AnalysisIgnoreEntity(root, AnalysisIgnoreDefaults.LINES, AnalysisIgnoreDefaultEntitySource))
+      addEntity(AnalysisIgnoreEntity(root, lines, AnalysisIgnoreDefaultEntitySource))
     }
   }
 }

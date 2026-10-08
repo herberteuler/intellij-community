@@ -46,7 +46,7 @@ private const val ENABLED = "ide.analysisignore.file.enabled"
 private const val DEFAULTS = "ide.analysisignore.defaults.enabled"
 
 /** The text that a new file at a root starts with. */
-private val ROOT_DEFAULTS: String = AnalysisIgnoreDefaults.LINES.joinToString("\n", postfix = "\n")
+private val ROOT_DEFAULTS: String = AnalysisIgnoreDefaults.BUILT_IN_LINES.joinToString("\n", postfix = "\n")
 
 /**
  * "Mark as Excluded" and "Cancel Exclusion" with a `.analysisignore` file as their store. The tests drive the real actions, and thus they
@@ -331,7 +331,7 @@ class AnalysisIgnoreExclusionContributorTest {
 
   @Test
   fun `every default line is a pattern that the format supports`() {
-    for (line in AnalysisIgnoreDefaults.LINES) {
+    for (line in AnalysisIgnoreDefaults.BUILT_IN_LINES) {
       assertEquals(AnalysisIgnoreValidated.Supported, AnalysisIgnorePattern.validate(line), line)
     }
   }
@@ -386,7 +386,7 @@ class AnalysisIgnoreExclusionContributorTest {
     IndexingTestUtil.suspendUntilIndexesAreReady(project)
 
     val expected = buildList {
-      addAll(AnalysisIgnoreDefaults.LINES)
+      addAll(AnalysisIgnoreDefaults.BUILT_IN_LINES)
       remove("/out/")
       add("/out/")
     }
@@ -435,7 +435,7 @@ class AnalysisIgnoreExclusionContributorTest {
 
     invoke(UnmarkRootAction(), nodeModules)
 
-    val expected = AnalysisIgnoreDefaults.LINES - "node_modules"
+    val expected = AnalysisIgnoreDefaults.BUILT_IN_LINES - "node_modules"
     assertEquals(expected.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
     assertEquals(expected, service.defaultLinesAddedTo(projectRoot.findChild(ANALYSIS_IGNORE_FILE_NAME)!!))
     assertTrue(isInContent(nodeModules))
@@ -451,7 +451,7 @@ class AnalysisIgnoreExclusionContributorTest {
 
     invoke(UnmarkRootAction(), target)
 
-    val expected = AnalysisIgnoreDefaults.LINES - "/target/"
+    val expected = AnalysisIgnoreDefaults.BUILT_IN_LINES - "/target/"
     assertEquals(expected.joinToString("\n", postfix = "\n"), textOfIgnoreFile("projectRoot"))
     assertTrue(isInContent(target))
     assertFalse(isInContent(nodeModules))

@@ -14,9 +14,9 @@ internal const val ANALYSIS_IGNORE_DEFAULTS_ENABLED_KEY: String = "ide.analysisi
 
 /**
  * The exclusions of a project root without a [`.analysisignore`][ANALYSIS_IGNORE_FILE_NAME] file at or below it. A
- * [default entity][AnalysisIgnoreDefaultEntitySource] holds [LINES] for such a root, and the first file removes that entity. A new file in
+ * [default entity][AnalysisIgnoreDefaultEntitySource] holds [lines] for such a root, and the first file removes that entity. A new file in
  * the root directory always gets the lines first, so that it states every exclusion of the root, and the user edits each of them there.
- * A file below the root gets no lines: it removes the defaults as well.
+ * A file below the root gets no lines: it removes the defaults as well. The user edits [lines] in the File Types settings.
  */
 @ApiStatus.Internal
 object AnalysisIgnoreDefaults {
@@ -53,18 +53,22 @@ object AnalysisIgnoreDefaults {
     "venv",
   )
 
-  /** The patterns of a [default entity][AnalysisIgnoreDefaultEntitySource], in the order of a file. */
-  val LINES: List<String> = EXCLUDED_ANYWHERE + EXCLUDED_AT_ROOT.map { "/$it/" }
+  /** The lines of the product, in the order of a file. [lines] are these lines until the user edits them. */
+  val BUILT_IN_LINES: List<String> = EXCLUDED_ANYWHERE + EXCLUDED_AT_ROOT.map { "/$it/" }
 
-  private val patternsCaseSensitive: List<AnalysisIgnorePattern> by lazy { AnalysisIgnorePattern.compileAll(LINES, caseSensitive = true) }
-  private val patternsIgnoreCase: List<AnalysisIgnorePattern> by lazy { AnalysisIgnorePattern.compileAll(LINES, caseSensitive = false) }
+  /** The patterns of a [default entity][AnalysisIgnoreDefaultEntitySource], in the order of a file. */
+  val lines: List<String>
+    get() = AnalysisIgnoreDefaultsSettings.getInstance().lines
+
+  @Volatile
+  private var compiled: CompiledLines? = null
 
   /**
-   * Returns `true` if [LINES] exclude the directory at [relativePath] below a project root, or a directory above it. [relativePath] uses
+   * Returns `true` if [lines] exclude the directory at [relativePath] below a project root, or a directory above it. [relativePath] uses
    * `/` between its names.
    */
   fun excludesDirectory(relativePath: String, caseSensitive: Boolean): Boolean {
-    val patterns = if (caseSensitive) patternsCaseSensitive else patternsIgnoreCase
+    val patterns = compiledLines().patterns(caseSensitive)
     val names = relativePath.split('/')
     for (depth in names.indices) {
       val path = names.subList(0, depth + 1).joinToString("/")
@@ -77,13 +81,33 @@ object AnalysisIgnoreDefaults {
   fun areEnabled(): Boolean = Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, true) && Registry.`is`(ANALYSIS_IGNORE_DEFAULTS_ENABLED_KEY, false)
 
   /**
-   * Returns the default lines of a new file in [baseDir]. A new file in a project root directory gets [LINES], also after a file below the
+   * Returns the default lines of a new file in [baseDir]. A new file in a project root directory gets [lines], also after a file below the
    * root removed the default entity. A file in any other directory gets no lines. The result is empty while the defaults are off.
    */
   fun linesOfNewFileIn(project: Project, baseDir: VirtualFile): List<String> {
     if (!areEnabled()) return emptyList()
     val isProjectRoot = WorkspaceModel.getInstance(project).currentSnapshot.entities<ProjectRootEntity>().any { it.root.url == baseDir.url }
-    return if (isProjectRoot) LINES else emptyList()
+    return if (isProjectRoot) lines else emptyList()
+  }
+
+  /** Returns `true` if [line] is a pattern that the format supports. A blank line and a comment are not patterns. */
+  fun isSupportedLine(line: String): Boolean {
+    val source = AnalysisIgnorePattern.patternSource(line) ?: return false
+    return source == line && AnalysisIgnorePattern.validate(source) == AnalysisIgnoreValidated.Supported
+  }
+
+  /** Returns the compiled [lines]. Compiles them again after the user changed them. */
+  private fun compiledLines(): CompiledLines {
+    val lines = lines
+    compiled?.takeIf { it.lines === lines }?.let { return it }
+    return CompiledLines(lines).also { compiled = it }
+  }
+
+  private class CompiledLines(val lines: List<String>) {
+    private val caseSensitive by lazy { AnalysisIgnorePattern.compileAll(lines, caseSensitive = true) }
+    private val ignoreCase by lazy { AnalysisIgnorePattern.compileAll(lines, caseSensitive = false) }
+
+    fun patterns(caseSensitive: Boolean): List<AnalysisIgnorePattern> = if (caseSensitive) this.caseSensitive else ignoreCase
   }
 }
 

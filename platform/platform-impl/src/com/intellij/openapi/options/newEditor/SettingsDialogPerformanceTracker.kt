@@ -95,10 +95,12 @@ object SettingsDialogPerformanceTracker {
   }
 
   /**
-   * Measures building the configurable tree: instantiating the configurables provided by the extension points and grouping them.
+   * Measures building the configurable tree: instantiating the configurables provided by the extension points, grouping them,
+   * and collecting the children of every [com.intellij.openapi.options.Configurable.Composite], which creates the children
+   * of the `dynamic` configurables.
    *
-   * The group returned by [com.intellij.openapi.options.ex.ConfigurableExtensionPointUtil.doGetConfigurableGroup] is lazy,
-   * so the build must be measured where it actually happens instead of at the call site.
+   * [com.intellij.openapi.options.ex.ConfigurableExtensionPointUtil.doGetConfigurableGroup] wraps the construction of the group,
+   * because the constructor does all of this work.
    * Only the first build per measurement is recorded, so a rebuild caused by an extension point change while the dialog is open
    * cannot overwrite the metric.
    */

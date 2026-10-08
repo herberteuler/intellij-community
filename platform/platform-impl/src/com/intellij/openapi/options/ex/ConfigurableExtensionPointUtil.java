@@ -140,10 +140,10 @@ public final class ConfigurableExtensionPointUtil {
 
   @ApiStatus.Internal
   public static @NotNull ConfigurableGroup doGetConfigurableGroup(@Nullable Project targetProject, boolean withIdeSettings) {
-    return new EpBasedConfigurableGroup(
-      targetProject,
-      // the group is built lazily, so the build is measured here and not at the call site
-      () -> SettingsDialogPerformanceTracker.measureConfigurableTreeBuild(() -> {
+    // the constructor builds the whole tree, including the children of the dynamic configurables, so it is measured as a whole;
+    // a rebuild after an extension point change calls the supplier again and is not measured
+    return SettingsDialogPerformanceTracker.measureConfigurableTreeBuild(
+      () -> new EpBasedConfigurableGroup(targetProject, () -> {
         List<Configurable> configurables = getConfigurables(targetProject, withIdeSettings);
         return getConfigurableGroup(configurables, targetProject);
       })

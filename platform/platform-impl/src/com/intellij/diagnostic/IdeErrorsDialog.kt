@@ -25,7 +25,6 @@ import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.actionSystem.UiDataProvider
 import com.intellij.openapi.actionSystem.impl.ActionToolbarImpl
 import com.intellij.openapi.actionSystem.toolbarLayout.ToolbarLayoutStrategy
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ApplicationNamesInfo
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
@@ -75,7 +74,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.ApiStatus
-import org.jetbrains.annotations.Nls
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -106,15 +104,12 @@ import javax.swing.text.JTextComponent
 
 @ApiStatus.Internal
 @OptIn(LowLevelLocalMachineAccess::class)
-open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
-  private val myMessagePool: MessagePool,
-  private val myProject: Project?,
+open class IdeErrorsDialog(
+  private val messagePool: MessagePool,
+  private val project: Project?,
   private val ijProject: Boolean,
   defaultMessage: LogMessage?,
-  isModal: Boolean = false,
-  actionLeadToError: @Nls String? = null, // Which action led to this error (user-readable description)
-  private val hideClearButton: Boolean = false,
-) : DialogWrapper(myProject, true), MessagePoolAdvisor, UiDataProvider {
+) : DialogWrapper(project, true), MessagePoolAdvisor, UiDataProvider {
   private val myAcceptedNotices: MutableSet<String>
 
   @Volatile
@@ -142,21 +137,20 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
                                                               DiagnosticDispatchers.Default)
 
   init {
-    title = if (actionLeadToError != null)
-      DiagnosticBundle.message("error.list.title.with.action", actionLeadToError)
-    else
-      DiagnosticBundle.message("error.list.title")
-    this.isModal = isModal
-    @Suppress("LeakingThis")
+    this.title = DiagnosticBundle.message("error.list.title")
+    this.isModal = false
+    this.peer.isMaximizable = true
     init()
     setCancelButtonText(CommonBundle.message("close.action.name"))
+
     val rawValue = PropertiesComponent.getInstance().getValue(ACCEPTED_NOTICES_KEY, "")
     myAcceptedNotices = Collections.synchronizedSet(LinkedHashSet(rawValue.split(ACCEPTED_NOTICES_SEPARATOR)))
+
     myLoadingDecorator.startLoading(false)
     updateMessages(defaultMessage)
+
     @Suppress("LeakingThis")
-    myMessagePool.addAdvisor(this)
-    peer.isMaximizable = true
+    messagePool.addAdvisor(this)
   }
 
   private suspend fun loadCredentialsPanel(submitter: ErrorReportSubmitter) {
@@ -358,7 +352,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
       .map { action: ReportAction -> action.getAction(this) }
       .toList()
     myOKAction = CompositeAction(lastAction.getAction(this), additionalActions)
-    val clearErrorsAction = if (!hideClearButton) ClearErrorsAction() else null
+    val clearErrorsAction = ClearErrorsAction()
     return if (OS.CURRENT == OS.Windows) {
       listOfNotNull(okAction, clearErrorsAction, cancelAction)
     }
@@ -380,7 +374,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
   override fun getDimensionServiceKey(): String? = "IDE.errors.dialog"
 
   override fun dispose() {
-    myMessagePool.removeAdvisor(this)
+    messagePool.removeAdvisor(this)
     myUpdateControlsJob.cancel()
     coroutineScope.cancel()
     super.dispose()
@@ -641,7 +635,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
 
   private fun disablePlugin() {
     selectedCluster()?.pluginInfo?.let { plugin ->
-      DisablePluginsDialog.confirmDisablePlugins(myProject, listOf(plugin))
+      DisablePluginsDialog.confirmDisablePlugins(project, listOf(plugin))
     }
   }
 
@@ -718,7 +712,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
   private inner class ClearErrorsAction : AbstractAction(DiagnosticBundle.message("error.dialog.clear.all.action")) {
     override fun actionPerformed(e: ActionEvent) {
       IdeErrorDialogUsageCollector.logClearAll()
-      myMessagePool.clearErrors()
+      messagePool.clearErrors()
       doCancelAction()
     }
   }
@@ -865,7 +859,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
     val gratitude = if (application.isInternal) gratitudeMessagesInternal.random() else DiagnosticBundle.message("error.report.gratitude")
     val title = DiagnosticBundle.message("error.reports.submitted")
     val notification = Notification("Error Report", title, gratitude, NotificationType.INFORMATION).setImportant(false)
-    notification.notify(myProject)
+    notification.notify(project)
   }
 
   private inner class ReportAllAction : AbstractAction(DiagnosticBundle.message("error.report.all.action")) {
@@ -901,7 +895,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
           val reportingStarted = reportAll(myMessageClusters, parentComponent)
           if (reportingStarted) {
             withContext(Dispatchers.EDT) {
-              myMessagePool.clearErrors()
+              messagePool.clearErrors()
               notifySuccessReportAll()
               super@IdeErrorsDialog.doOKAction()
             }
@@ -969,7 +963,7 @@ open class IdeErrorsDialog @ApiStatus.Internal @JvmOverloads constructor(
       }
 
       private val defaultAction: ReportAction
-        get() = if (ApplicationManager.getApplication().isInternal) DEFAULT else REPORT_AND_CLEAR_ALL
+        get() = if (application.isInternal) DEFAULT else REPORT_AND_CLEAR_ALL
     }
   }
 

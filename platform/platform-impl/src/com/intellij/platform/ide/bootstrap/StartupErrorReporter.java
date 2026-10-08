@@ -21,7 +21,7 @@ import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.application.ex.ApplicationEx;
 import com.intellij.openapi.application.ex.ApplicationManagerEx;
 import com.intellij.openapi.application.impl.ApplicationInfoImpl;
-import com.intellij.openapi.application.impl.ExceptionsKt;
+import com.intellij.openapi.application.impl.UnhandledExceptions;
 import com.intellij.openapi.diagnostic.ControlFlowException;
 import com.intellij.openapi.diagnostic.ExceptionWithAttachments;
 import com.intellij.openapi.diagnostic.IdeaLoggingEvent;
@@ -358,9 +358,7 @@ public final class StartupErrorReporter {
   public static void processException(Throwable t) {
     if (LoadingState.COMPONENTS_LOADED.isOccurred() && !(t instanceof StartupAbortedException)) {
       if (!(t instanceof ControlFlowException)) {
-        // `processUnhandledException` writes the log itself. A second write of the same exception is muted,
-        // and then the message pool never gets the `UnhandledException`. See IJPL-254578.
-        ExceptionsKt.processUnhandledException(t, null);
+        UnhandledExceptions.processUnhandledException(t, null);
       }
       return;
     }

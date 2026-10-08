@@ -36,6 +36,13 @@ public abstract class EmmetPreviewTestBase extends BasePlatformTestCase {
     assertEquals(previewContent, previewHint.getContent());
   }
 
+  protected void assertNoPreview() {
+    NonBlockingReadActionImpl.waitForAsyncTaskCompletion();
+    PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue();
+
+    assertNull(getPreview());
+  }
+
   protected EmmetPreviewHint getPreview() {
     return EmmetPreviewHint.getExistingHint(myFixture.getEditor());
   }

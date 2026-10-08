@@ -1,7 +1,5 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.jetbrains.python.run
-
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.Executor
@@ -13,8 +11,6 @@ import com.intellij.execution.configurations.RuntimeConfigurationWarning
 import com.intellij.execution.configurations.WithoutOwnBeforeRunSteps
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.RunConfigurationWithSuppressedDefaultRunAction
-import com.intellij.facet.impl.invalid.FacetIgnorer
-import com.intellij.facet.impl.invalid.InvalidFacet
 import com.intellij.icons.AllIcons
 import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.extensions.ExtensionNotApplicableException
@@ -24,13 +20,17 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.JDOMUtil
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.WriteExternalException
+import com.intellij.python.community.common.promotion.PyFrameworkPromoProvider
+import com.intellij.ui.RowIcon
 import com.intellij.util.PlatformUtils
 import com.jetbrains.python.PYTHON_PROF_PLUGIN_ID
 import com.jetbrains.python.PyBundle
 import com.jetbrains.python.createPromoPanel
 import org.jdom.Element
+import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.annotations.Nls
 import org.jetbrains.annotations.NonNls
+import org.jetbrains.annotations.VisibleForTesting
 import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.Icon
 import javax.swing.JComponent
@@ -41,11 +41,14 @@ private class PythonLockedRunConfigurationEditor : SettingsEditor<PythonLockedRu
 
   override fun applyEditorTo(s: PythonLockedRunConfiguration) {}
 
-  protected override fun createEditor(): JComponent = createPromoPanel()
+  protected override fun createEditor(): JComponent = createPromoPanel(
+    onAction = PyFrameworkPromoProvider.getInstance()?.let { provider -> { provider.onRunConfigAction() } }
+  )
 }
 
-private class PythonLockedRunConfiguration(val configProject: Project, val configFactory: ConfigurationFactory)
-  : RunConfiguration, WithoutOwnBeforeRunSteps, RunConfigurationWithSuppressedDefaultRunAction {
+private class PythonLockedRunConfiguration(val configProject: Project, val configFactory: ConfigurationFactory) : RunConfiguration,
+                                                                                                                  WithoutOwnBeforeRunSteps,
+                                                                                                                  RunConfigurationWithSuppressedDefaultRunAction {
 
   var theName: String? = null
   var configElement: Element? = null
@@ -118,8 +121,7 @@ private class PythonLockedRunConfiguration(val configProject: Project, val confi
   }
 }
 
-private class PythonLockedRunConfigurationFactory(type: ConfigurationType)
-  : ConfigurationFactory(type) {
+private class PythonLockedRunConfigurationFactory(type: ConfigurationType) : ConfigurationFactory(type) {
   override fun getId(): String {
     return name
   }
@@ -129,16 +131,28 @@ private class PythonLockedRunConfigurationFactory(type: ConfigurationType)
   }
 }
 
-internal open class PythonLockedRunConfigurationTypeBase(val theId: String, @Nls val name: String)
-  : ConfigurationType {
+@ApiStatus.Internal
+open class PythonLockedRunConfigurationTypeBase(
+  val theId: String,
+  @Nls val name: String,
+  private val baseIconSupplier: (() -> Icon?)? = null,
+) : ConfigurationType {
   private val factory: ConfigurationFactory = PythonLockedRunConfigurationFactory(this)
 
   init {
     // Do not enable "lock" configs for non PyCharm or Idea (as it's capable of running the Python plugin) IDEs or if the Python plugin is enabled.
-    if ((!PlatformUtils.isPyCharm() && !PlatformUtils.isIntelliJ()) ||
-        PluginManager.getInstance().findEnabledPlugin(PluginId.getId(PYTHON_PROF_PLUGIN_ID)) != null) {
+    if (!forceEnableForTesting &&
+        ((!PlatformUtils.isPyCharm() && !PlatformUtils.isIntelliJ()) ||
+         PluginManager.getInstance().findEnabledPlugin(PluginId.getId(PYTHON_PROF_PLUGIN_ID)) != null)) {
       throw ExtensionNotApplicableException.create()
     }
+  }
+
+  companion object {
+    @ApiStatus.Internal
+    @VisibleForTesting
+    @Volatile
+    var forceEnableForTesting: Boolean = false
   }
 
   override fun getDisplayName(): @Nls(capitalization = Nls.Capitalization.Title) String {
@@ -149,9 +163,12 @@ internal open class PythonLockedRunConfigurationTypeBase(val theId: String, @Nls
     return name
   }
 
-  override fun getIcon(): Icon? {
-    return AllIcons.Ultimate.PycharmLock
+  private val lazyIcon: Icon by lazy {
+    val base = baseIconSupplier?.invoke()
+    if (base != null) RowIcon(base, AllIcons.Ultimate.PycharmLock) else AllIcons.Ultimate.PycharmLock
   }
+
+  override fun getIcon(): Icon = lazyIcon
 
   override fun getId(): @NonNls String {
     return theId
@@ -168,14 +185,4 @@ internal open class PythonLockedRunConfigurationTypeBase(val theId: String, @Nls
   override fun isManaged(): Boolean {
     return false
   }
-}
-
-
-internal class DjangoServerLockedRunConfigurationType : PythonLockedRunConfigurationTypeBase("Python.DjangoServer", PyBundle.message("python.run.configuration.django.name"))
-internal class FlaskServerLockedRunConfigurationType : PythonLockedRunConfigurationTypeBase("Python.FlaskServer", PyBundle.message("flask.name"))
-internal class DbtRunLockedConfigurationType : PythonLockedRunConfigurationTypeBase("DbtRunConfiguration", PyBundle.message("python.run.configuration.dbt.name"))
-internal class FastAPILockedRunConfigurationType : PythonLockedRunConfigurationTypeBase("Python.FastAPI", PyBundle.message("python.run.configuration.fastapi.name"))
-
-internal class DjangoFacetIgnorer : FacetIgnorer {
-  override fun isIgnored(facet: InvalidFacet): Boolean = facet.name == "Django"
 }

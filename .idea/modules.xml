@@ -2144,9 +2144,13 @@
       <module fileurl="file://$PROJECT_DIR$/python/testFramework/intellij.python.community.testFramework.iml" filepath="$PROJECT_DIR$/python/testFramework/intellij.python.community.testFramework.iml" />
       <module fileurl="file://$PROJECT_DIR$/python/intellij.python.community.tests.iml" filepath="$PROJECT_DIR$/python/intellij.python.community.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/python/python-copyright/intellij.python.copyright.iml" filepath="$PROJECT_DIR$/python/python-copyright/intellij.python.copyright.iml" />
+      <module fileurl="file://$PROJECT_DIR$/python/dbt/common/intellij.python.dbt.common.iml" filepath="$PROJECT_DIR$/python/dbt/common/intellij.python.dbt.common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/python/django/common/intellij.python.django.common.iml" filepath="$PROJECT_DIR$/python/django/common/intellij.python.django.common.iml" />
       <module fileurl="file://$PROJECT_DIR$/python/python-external-index/intellij.python.externalIndex.iml" filepath="$PROJECT_DIR$/python/python-external-index/intellij.python.externalIndex.iml" />
+      <module fileurl="file://$PROJECT_DIR$/python/fastapi/common/intellij.python.fastapi.common.iml" filepath="$PROJECT_DIR$/python/fastapi/common/intellij.python.fastapi.common.iml" />
       <module fileurl="file://$PROJECT_DIR$/python/python-features-trainer/intellij.python.featuresTrainer.iml" filepath="$PROJECT_DIR$/python/python-features-trainer/intellij.python.featuresTrainer.iml" />
       <module fileurl="file://$PROJECT_DIR$/python/python-features-trainer/intellij.python.featuresTrainer.tests.iml" filepath="$PROJECT_DIR$/python/python-features-trainer/intellij.python.featuresTrainer.tests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/python/flask/common/intellij.python.flask.common.iml" filepath="$PROJECT_DIR$/python/flask/common/intellij.python.flask.common.iml" />
       <module fileurl="file://$PROJECT_DIR$/python/python-grazie/intellij.python.grazie.iml" filepath="$PROJECT_DIR$/python/python-grazie/intellij.python.grazie.iml" />
       <module fileurl="file://$PROJECT_DIR$/python/python-hatch/intellij.python.hatch.iml" filepath="$PROJECT_DIR$/python/python-hatch/intellij.python.hatch.iml" />
       <module fileurl="file://$PROJECT_DIR$/python/python-hatch/common/intellij.python.hatch.common.iml" filepath="$PROJECT_DIR$/python/python-hatch/common/intellij.python.hatch.common.iml" />

@@ -182,6 +182,18 @@
             }
         },
         {
+            "module": "intellij.python.django.common"
+        },
+        {
+            "module": "intellij.python.flask.common"
+        },
+        {
+            "module": "intellij.python.fastapi.common"
+        },
+        {
+            "module": "intellij.python.dbt.common"
+        },
+        {
             "module": "intellij.python.community.impl.jcef"
         },
         {

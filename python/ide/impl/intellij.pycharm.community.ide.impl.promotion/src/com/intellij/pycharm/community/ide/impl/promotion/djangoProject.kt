@@ -12,6 +12,7 @@ import com.intellij.pycharm.community.ide.impl.PyCharmCommunityCustomizationBund
 import com.intellij.pycharm.community.ide.impl.promo.djangoPromoFeatureList
 import com.jetbrains.python.icons.PythonIcons
 import com.jetbrains.python.newProjectWizard.promotion.PromoProjectGenerator
+import com.jetbrains.python.run.PyFrameworkIconProvider
 import javax.swing.Icon
 import javax.swing.JPanel
 
@@ -24,7 +25,7 @@ internal class DjangoPromoProjectGenerator : PromoProjectGenerator(isPython = tr
   }
 
   override fun getLogo(): Icon {
-    return AllIcons.Ultimate.PycharmLock
+    return PyFrameworkIconProvider.getIcon("Python.DjangoServer") ?: AllIcons.Ultimate.PycharmLock
   }
 
   override fun createPromoPanel(): JPanel {

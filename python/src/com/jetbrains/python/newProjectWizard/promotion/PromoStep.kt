@@ -8,6 +8,7 @@ import javax.swing.JPanel
 
 class PromoStep(val generator: PromoProjectGenerator) : ProjectSettingsStepBase<PyV3BaseProjectSettings>(generator, AbstractNewProjectStep.AbstractCallback()) {
   override fun createBasePanel(): JPanel {
+    myCreateButton.isVisible = false
     myCreateButton.isEnabled = false
     return generator.createPromoPanel()
   }

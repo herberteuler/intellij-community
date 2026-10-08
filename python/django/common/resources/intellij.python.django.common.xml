@@ -1,0 +1,21 @@
+<idea-plugin visibility="internal">
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.libraries.jetbrains.annotations"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.ui"/>
+    <module name="intellij.platform.execution"/>
+    <module name="intellij.platform.lang.impl"/>
+    <module name="intellij.platform.projectModel"/>
+    <module name="intellij.platform.util.ui"/>
+    <module name="intellij.python.community.impl"/>
+  </dependencies>
+  <!-- endregion -->
+  <extensions defaultExtensionNs="com.intellij">
+    <configurationType implementation="com.intellij.python.django.common.DjangoServerLockedRunConfigurationType" order="first"/>
+    <facetIgnorer implementation="com.intellij.python.django.common.DjangoFacetIgnorer"/>
+  </extensions>
+  <extensions defaultExtensionNs="Pythonid">
+    <frameworkIconProvider implementation="com.intellij.python.django.common.DjangoFrameworkIconProvider"/>
+  </extensions>
+</idea-plugin>

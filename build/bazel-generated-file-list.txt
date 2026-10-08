@@ -1864,6 +1864,10 @@ python/common
 python/conda
 python/conda/common
 python/conda/frontend
+python/dbt/common
+python/django/common
+python/fastapi/common
+python/flask/common
 python/ide-common/ide-customization
 python/ide/customization.backend
 python/ide/customization.frontend

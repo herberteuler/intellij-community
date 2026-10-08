@@ -23,7 +23,7 @@ internal class JavaScriptPromoProjectGenerator : PromoProjectGenerator(isPython 
   }
 
   override fun getLogo(): Icon {
-    return AllIcons.Ultimate.PycharmLock
+    return AllIcons.FileTypes.JavaScript
   }
 
   override fun createPromoPanel(): JPanel {

@@ -402,13 +402,6 @@
     <applicationService serviceImplementation="com.jetbrains.python.debugger.variablesview.usertyperenderers.PyUserTypeRenderersSettings"/>
     <configurationType implementation="com.jetbrains.python.run.PythonConfigurationType"/>
 
-    <!-- Locked configurations should go first to be overwritten by real ones-->
-    <configurationType implementation="com.jetbrains.python.run.DjangoServerLockedRunConfigurationType" order="first"/>
-    <configurationType implementation="com.jetbrains.python.run.FlaskServerLockedRunConfigurationType" order="first"/>
-    <configurationType implementation="com.jetbrains.python.run.DbtRunLockedConfigurationType" order="first"/>
-    <configurationType implementation="com.jetbrains.python.run.FastAPILockedRunConfigurationType" order="first"/>
-    <facetIgnorer implementation="com.jetbrains.python.run.DjangoFacetIgnorer"/>
-
     <programRunner implementation="com.jetbrains.python.run.PythonRunner" order="before defaultRunRunner"/>
     <programRunner implementation="com.jetbrains.python.debugger.PythonDebugProgramRunner"
                    order="before intellij.platform.dap.DapProgramRunner, before defaultDebugRunner"/>

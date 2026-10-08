@@ -27,3 +27,7 @@ The quick-moving brown fox jumps overa *the lazy dog*.
 ~~Here is a pretty big strikethrough block that should be reflowed~~
 
 ~~And strikethrough block that actually should~~
+
+==Here is a pretty big highlight block that should be reflowed==
+
+==And highlight block that actually should==

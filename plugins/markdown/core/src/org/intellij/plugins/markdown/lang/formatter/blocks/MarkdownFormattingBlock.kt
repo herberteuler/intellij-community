@@ -47,6 +47,7 @@ internal open class MarkdownFormattingBlock(
       MarkdownElementTypes.EMPH,
       MarkdownElementTypes.STRONG,
       MarkdownElementTypes.STRIKETHROUGH,
+      MarkdownElementTypes.HIGHLIGHT,
       MarkdownTokenTypes.LPAREN,
       MarkdownTokenTypes.RPAREN
     )

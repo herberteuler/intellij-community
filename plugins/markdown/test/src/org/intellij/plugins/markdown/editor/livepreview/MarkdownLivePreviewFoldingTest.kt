@@ -20,9 +20,11 @@ import com.intellij.openapi.editor.colors.impl.EditorColorsManagerImpl
 import com.intellij.openapi.editor.event.EditorFactoryEvent
 import com.intellij.openapi.editor.event.EditorFactoryListener
 import com.intellij.openapi.editor.ex.DocumentEx
+import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.editor.ex.FoldingListener
 import com.intellij.openapi.editor.impl.EditorImpl
 import com.intellij.openapi.editor.impl.FoldingKeys
+import com.intellij.openapi.editor.impl.view.IterationState
 import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.util.Disposer
@@ -305,6 +307,27 @@ class MarkdownLivePreviewFoldingTest : BasePlatformTestCase() {
     }
   }
 
+  fun testHeadingPaintsTheHighlightBackground() {
+    configure("# ==marked==\n\ntail<caret>")
+    val editor = myFixture.editor
+    val highlight = editor.colorsScheme.getAttributes(MarkdownHighlighterColors.HIGHLIGHT).backgroundColor
+    val bitmap = paintHeading(headingFolds().single(), editor.colorsScheme.defaultBackground)
+    val pixels = bitmap.getRGB(0, 0, bitmap.width, bitmap.height, null, 0, bitmap.width)
+    assertTrue("The heading must paint the highlight background", pixels.count { it == highlight.rgb } > 100)
+  }
+
+  fun testHighlightBackgroundSurvivesRevealingAHeading() {
+    val content = "# ==marked==\n\ntail"
+    configure("$content<caret>")
+    val expected = myFixture.editor.colorsScheme.getAttributes(MarkdownHighlighterColors.HIGHLIGHT).backgroundColor
+    val offset = content.indexOf("marked")
+    moveCaretTo(content.indexOf("tail"))
+    assertEquals(1, headingFolds().size)
+    moveCaretTo(offset + 2)
+    assertEmpty(headingFolds())
+    assertEquals(expected, backgroundAt(offset))
+  }
+
   fun testHeadingAtDocumentEnd() {
     configure("<caret>before\n## last")
     assertEquals(1, headingFolds().size)
@@ -382,6 +405,17 @@ class MarkdownLivePreviewFoldingTest : BasePlatformTestCase() {
     val start = content.indexOf("Hello")
 
     assertEquals(start, clickHeading { 1 })
+  }
+
+  fun testClickOnAHighlightedHeadingPlacesTheCaretInTheMarkedText() {
+    val content = "before\n# ==marked==\n\nafter"
+    configure("$content<caret>")
+    EditorTestUtil.setEditorVisibleSize(myFixture.editor, 80, 12)
+    val start = content.indexOf("marked")
+    val text = paintedHeadingColumns()
+
+    val middle = clickHeading { (text.first + text.last) / 2 }
+    assertTrue("$middle", middle in start..start + "marked".length)
   }
 
   fun testClickOnARenderedHeadingPlacesTheCaretAtTheClickedSource() {
@@ -477,6 +511,18 @@ class MarkdownLivePreviewFoldingTest : BasePlatformTestCase() {
 
     // Immediately after the closing `**`, which is the element's end offset.
     moveCaretTo(content.indexOf(" text"))
+    assertEmpty(concealed())
+    assertEquals(content, visibleText())
+  }
+
+  fun testHighlightMarkersAreHiddenAndRevealedByTheCaret() {
+    val content = "Some ==marked== text"
+    configure(content)
+    moveCaretTo(content.length)
+    assertEquals(listOf("==", "=="), concealed())
+    assertEquals("Some marked text", visibleText())
+
+    moveCaretTo(content.indexOf("marked") + 2)
     assertEmpty(concealed())
     assertEquals(content, visibleText())
   }
@@ -1538,6 +1584,10 @@ class MarkdownLivePreviewFoldingTest : BasePlatformTestCase() {
     assertBackspaceAfterElement("~~deleted~~")
   }
 
+  fun testBackspaceAfterHighlightDeletesOneCharacter() {
+    assertBackspaceAfterElement("==marked==")
+  }
+
   fun testBackspaceAfterThematicBreakDeletesOneCharacter() {
     assertBackspaceAfterElement("---")
   }
@@ -1786,6 +1836,10 @@ class MarkdownLivePreviewFoldingTest : BasePlatformTestCase() {
       assertEquals(y, editor.offsetToXY(after).y)
     }
   }
+
+  /** The background that the editor paints under the character at [offset], merged from all of its highlighters. */
+  private fun backgroundAt(offset: Int): Color? =
+    IterationState(myFixture.editor as EditorEx, offset, offset + 1, null, false, false, false, false).mergedAttributes.backgroundColor
 
   private fun headingFolds(): List<CustomFoldRegion> =
     myFixture.editor.foldingModel.allFoldRegions.filterIsInstance<CustomFoldRegion>().sortedBy { it.startOffset }

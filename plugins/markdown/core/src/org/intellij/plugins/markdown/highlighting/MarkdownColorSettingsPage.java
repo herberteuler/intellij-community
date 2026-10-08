@@ -41,6 +41,7 @@ public class MarkdownColorSettingsPage implements ColorSettingsPage {
     result.put("italic", MarkdownHighlighterColors.ITALIC);
     result.put("italicm", MarkdownHighlighterColors.ITALIC_MARKER);
     result.put("strike", MarkdownHighlighterColors.STRIKE_THROUGH);
+    result.put("highlight", MarkdownHighlighterColors.HIGHLIGHT);
 
     result.put("alink", MarkdownHighlighterColors.AUTO_LINK);
     result.put("link_def", MarkdownHighlighterColors.LINK_DEFINITION);
@@ -124,6 +125,7 @@ public class MarkdownColorSettingsPage implements ColorSettingsPage {
       put("markdown.editor.colors.italic", MarkdownHighlighterColors.ITALIC);
       put("markdown.editor.colors.italic_marker", MarkdownHighlighterColors.ITALIC_MARKER);
       put("markdown.editor.colors.strikethrough", MarkdownHighlighterColors.STRIKE_THROUGH);
+      put("markdown.editor.colors.highlight", MarkdownHighlighterColors.HIGHLIGHT);
       put("markdown.editor.colors.header_level_1", MarkdownHighlighterColors.HEADER_LEVEL_1);
       put("markdown.editor.colors.header_level_2", MarkdownHighlighterColors.HEADER_LEVEL_2);
       put("markdown.editor.colors.header_level_3", MarkdownHighlighterColors.HEADER_LEVEL_3);

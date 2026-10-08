@@ -88,6 +88,7 @@ private fun PsiElement.toDecorationSpecs(editor: Editor): MarkdownLivePreviewSpe
     // never gets mistaken for a delimiter.
     MarkdownElementTypes.STRONG, MarkdownElementTypes.EMPH -> delimiterConceals(MarkdownTokenTypes.EMPH)
     MarkdownElementTypes.STRIKETHROUGH -> delimiterConceals(MarkdownTokenTypes.TILDE)
+    MarkdownElementTypes.HIGHLIGHT -> delimiterConceals(MarkdownTokenTypes.EQUALS)
     MarkdownElementTypes.CODE_SPAN -> delimiterConceals(MarkdownTokenTypes.BACKTICK)
     MarkdownElementTypes.INLINE_LINK -> toInlineLinkSpecs()
     MarkdownElementTypes.FULL_REFERENCE_LINK, MarkdownElementTypes.SHORT_REFERENCE_LINK -> toReferenceLinkSpecs()

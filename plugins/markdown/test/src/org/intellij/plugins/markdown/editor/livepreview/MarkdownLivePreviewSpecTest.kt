@@ -18,6 +18,16 @@ class MarkdownLivePreviewSpecTest : BasePlatformTestCase() {
     assertEquals(listOf("**bold**", "*italic*", "~~gone~~"), revealRanges(content))
   }
 
+  fun testHighlightMarkersAreConcealed() {
+    val content = "Some ==marked== and **bold ==nested== text**"
+    assertEquals(listOf("==", "==", "**", "**", "==", "=="), concealed(content))
+    assertEquals(listOf("==marked==", "**bold ==nested== text**", "==nested=="), revealRanges(content))
+  }
+
+  fun testSingleAndTripleEqualsAreNotConcealed() {
+    assertEmpty(concealed("A =one= and ===three=== and ==open"))
+  }
+
   fun testUnderscoreEmphasisIsConcealed() {
     assertEquals(listOf("__", "__", "_", "_"), concealed("__bold__ and _italic_"))
   }
@@ -186,6 +196,14 @@ class MarkdownLivePreviewSpecTest : BasePlatformTestCase() {
     assertEquals("gone", body.select(".user-del").text())
     assertEquals("link", body.select("a").text())
     assertEquals("bold em code gone link", body.text())
+  }
+
+  fun testHeadingHtmlMarksHighlightWithASpanClass() {
+    val body = headings("# a ==marked== b").single().body()
+
+    assertEquals("marked", body.select(".user-mark").text())
+    assertEmpty(body.select("mark"))
+    assertEquals("a marked b", body.text())
   }
 
   fun testHeadingKeepsRawHtmlAndMathAsText() {

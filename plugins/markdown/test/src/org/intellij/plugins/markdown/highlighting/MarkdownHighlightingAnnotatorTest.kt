@@ -88,6 +88,26 @@ class MarkdownHighlightingAnnotatorTest : BasePlatformTestCase() {
     assertElementHighlightedWithKey(highlights, "target.md", MarkdownHighlighterColors.LINK_DESTINATION)
   }
 
+  fun testHighlightCoversTextAndMarkers() {
+    val text = "A ==marked **bold**== text"
+    myFixture.configureByText("test.md", text)
+    val highlights = myFixture.doHighlighting()
+
+    assertElementHighlightedWithKey(highlights, "marked", MarkdownHighlighterColors.HIGHLIGHT)
+    assertElementHighlightedWithKey(highlights, "bold", MarkdownHighlighterColors.HIGHLIGHT)
+    assertElementHighlightedWithKey(highlights, "bold", MarkdownHighlighterColors.BOLD)
+    assertElementHighlightedWithKey(highlights, "=", MarkdownHighlighterColors.HIGHLIGHT, startOffset = text.indexOf("=="))
+    assertElementHighlightedWithKey(highlights, "=", MarkdownHighlighterColors.HIGHLIGHT, startOffset = text.lastIndexOf("=="))
+    assertElementHighlightedWithKey(highlights, "text", MarkdownHighlighterColors.HIGHLIGHT, HighlightingState.NOT_HIGHLIGHTED)
+  }
+
+  fun testSingleAndTripleEqualsAreNotHighlighted() {
+    myFixture.configureByText("test.md", "A =one= and ===three===")
+    val highlights = myFixture.doHighlighting()
+
+    assertEmpty(highlights.filter { it.forcedTextAttributesKey == MarkdownHighlighterColors.HIGHLIGHT })
+  }
+
   fun testInlineFootnotesUseDedicatedHighlighting() {
     val text = "Before ^[Inline footnote text] after"
     myFixture.configureByText("test.md", text)

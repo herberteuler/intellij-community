@@ -68,6 +68,16 @@ public class MarkdownHtmlGenerationTest extends BasePlatformTestCase {
     doTestByHtmlFile();
   }
 
+  public void testHighlightIsRenderedAsMark() {
+    String content = "Some ==marked== text, =one= and ===three===";
+    PsiFile mdFile = myFixture.configureByText("test.md", content);
+    String html = MarkdownUtil.INSTANCE.generateMarkdownHtml(mdFile.getVirtualFile(), mdFile.getText(), getProject());
+
+    assertTrue(html, html.contains(">marked</mark>"));
+    assertEquals(html, 1, html.split("<mark", -1).length - 1);
+    assertEquals("Some marked text, =one= and ===three===", html.replaceAll("<[^>]+>", ""));
+  }
+
   public void testIndentedCodeFenceWithLongIndent() {
     String content = "            ```\n            line\n            ```";
     PsiFile mdFile = myFixture.configureByText("test.md", content);

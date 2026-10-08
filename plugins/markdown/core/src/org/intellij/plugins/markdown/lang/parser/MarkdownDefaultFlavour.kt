@@ -8,6 +8,7 @@ import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.flavours.MarkdownFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
+import org.intellij.markdown.flavours.gfm.HighlightDelimiterParser
 import org.intellij.markdown.flavours.gfm.StrikeThroughDelimiterParser
 import org.intellij.markdown.html.GeneratingProvider
 import org.intellij.markdown.html.HtmlGenerator
@@ -88,7 +89,7 @@ open class MarkdownDefaultFlavour: MarkdownFlavourDescriptor {
         TestLinkSequentialParser(),
         MarkdownAtPathSequentialParser(),
         ReferenceLinkParser(),
-        EmphasisLikeParser(EmphStrongDelimiterParser(), StrikeThroughDelimiterParser())
+        EmphasisLikeParser(EmphStrongDelimiterParser(), StrikeThroughDelimiterParser(), HighlightDelimiterParser())
       )
     }
   }

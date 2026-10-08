@@ -105,7 +105,12 @@ object PreviewLAFThemeStyles {
       """.trimIndent()
     }
 
-    return baseStyles + "\n\n" + alertStyles
+    val highlightStyles = scheme.highlightBackgroundColor?.let {
+      // language=CSS
+      "mark {\n  background-color: ${it.webRgba()};\n  color: inherit;\n}\n\n"
+    }.orEmpty()
+
+    return baseStyles + "\n\n" + highlightStyles + alertStyles
   }
 
   private fun Color.webRgba(alpha: Double = this.alpha.toDouble()): String {

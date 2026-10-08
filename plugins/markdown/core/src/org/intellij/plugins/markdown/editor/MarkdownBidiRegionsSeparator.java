@@ -8,6 +8,7 @@ import static org.intellij.plugins.markdown.lang.MarkdownTokenTypes.COLON;
 import static org.intellij.plugins.markdown.lang.MarkdownTokenTypes.DOLLAR;
 import static org.intellij.plugins.markdown.lang.MarkdownTokenTypes.DOUBLE_QUOTE;
 import static org.intellij.plugins.markdown.lang.MarkdownTokenTypes.EMPH;
+import static org.intellij.plugins.markdown.lang.MarkdownTokenTypes.EQUALS;
 import static org.intellij.plugins.markdown.lang.MarkdownTokenTypes.EXCLAMATION_MARK;
 import static org.intellij.plugins.markdown.lang.MarkdownTokenTypes.GT;
 import static org.intellij.plugins.markdown.lang.MarkdownTokenTypes.LBRACKET;
@@ -36,6 +37,7 @@ public final class MarkdownBidiRegionsSeparator extends TokenSetBidiRegionsSepar
                                                                     EXCLAMATION_MARK,
                                                                     EMPH,
                                                                     TILDE,
+                                                                    EQUALS,
                                                                     BACKTICK,
                                                                     DOLLAR);
 

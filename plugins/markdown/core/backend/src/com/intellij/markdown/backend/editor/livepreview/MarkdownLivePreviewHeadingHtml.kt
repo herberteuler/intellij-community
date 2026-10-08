@@ -8,6 +8,8 @@ import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.ast.getTextInNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
+import org.intellij.markdown.flavours.gfm.GFMTokenTypes
+import org.intellij.markdown.html.EqualDelimiterTrimmingInlineTagProvider
 import org.intellij.markdown.html.GeneratingProvider
 import org.intellij.markdown.html.HtmlGenerator
 import org.intellij.markdown.html.entities.EntityConverter
@@ -37,6 +39,7 @@ private val HeadingProviders: Map<IElementType, GeneratingProvider> =
   PlainTextLeafTypes.associateWith { SourceSpanProvider } + mapOf(
     MarkdownTokenTypes.HTML_TAG to LiteralTextProvider,
     GFMElementTypes.INLINE_MATH to LiteralTextProvider,
+    GFMElementTypes.HIGHLIGHT to HighlightProvider,
     MarkdownElementTypes.IMAGE to SkippedProvider,
   )
 
@@ -80,6 +83,16 @@ private object LiteralTextProvider : GeneratingProvider {
 
 private fun sourceSpan(node: ASTNode, html: String): String =
   "<span ${HtmlGenerator.SRC_ATTRIBUTE_NAME}='${node.startOffset}..${node.endOffset}'>$html</span>"
+
+/**
+ * Renders a highlight as a `font` element with the `user-mark` class.
+ * The Swing pane has no `mark` tag, and a `span` would lose its class to the source spans inside it.
+ */
+private object HighlightProvider : EqualDelimiterTrimmingInlineTagProvider("font", GFMTokenTypes.EQUALS) {
+  override fun openTag(visitor: HtmlGenerator.HtmlGeneratingVisitor, text: String, node: ASTNode) {
+    visitor.consumeTagOpen(node, tagName, "class=\"user-mark\"")
+  }
+}
 
 private object SkippedProvider : GeneratingProvider {
   override fun processNode(visitor: HtmlGenerator.HtmlGeneratingVisitor, text: String, node: ASTNode) = Unit

@@ -50,5 +50,5 @@ private fun ASTNode.isFirstContentElement(): Boolean {
 }
 
 private fun ASTNode.isEmphasisMarker(): Boolean {
-  return hasType(MarkdownTokenTypes.EMPH) || hasType(MarkdownTokenTypes.TILDE)
+  return hasType(MarkdownTokenTypes.EMPH) || hasType(MarkdownTokenTypes.TILDE) || hasType(MarkdownTokenTypes.EQUALS)
 }

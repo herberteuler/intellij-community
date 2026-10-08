@@ -50,6 +50,8 @@ public interface MarkdownElementTypes {
 
   IElementType STRIKETHROUGH = platformType(GFMElementTypes.STRIKETHROUGH);
 
+  IElementType HIGHLIGHT = platformType(GFMElementTypes.HIGHLIGHT);
+
   IElementType LINK_DEFINITION = platformType(org.intellij.markdown.MarkdownElementTypes.LINK_DEFINITION);
   IElementType LINK_LABEL = platformType(org.intellij.markdown.MarkdownElementTypes.LINK_LABEL);
   IElementType LINK_DESTINATION = platformType(org.intellij.markdown.MarkdownElementTypes.LINK_DESTINATION);

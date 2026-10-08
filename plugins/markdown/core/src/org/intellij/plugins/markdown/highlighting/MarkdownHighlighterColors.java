@@ -51,6 +51,7 @@ public final class MarkdownHighlighterColors {
   public static final TextAttributesKey LIST_ITEM = createTextAttributesKey("MARKDOWN_LIST_ITEM");
   public static final TextAttributesKey TABLE_SEPARATOR = createTextAttributesKey("MARKDOWN_TABLE_SEPARATOR", KEYWORD);
   public static final TextAttributesKey STRIKE_THROUGH = createTextAttributesKey("MARKDOWN_STRIKE_THROUGH", DEPRECATED_ATTRIBUTES);
+  public static final TextAttributesKey HIGHLIGHT = createTextAttributesKey("MARKDOWN_HIGHLIGHT");
 
   public static final TextAttributesKey LINK_DEFINITION = createTextAttributesKey("MARKDOWN_LINK_DEFINITION");
   public static final TextAttributesKey REFERENCE_LINK = createTextAttributesKey("MARKDOWN_REFERENCE_LINK");

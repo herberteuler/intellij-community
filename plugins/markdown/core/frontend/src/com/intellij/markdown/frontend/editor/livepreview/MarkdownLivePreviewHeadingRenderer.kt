@@ -40,6 +40,7 @@ import com.intellij.util.ui.NamedColorUtil
 import com.intellij.util.ui.UIUtil
 import org.intellij.plugins.markdown.editor.livepreview.MarkdownLivePreviewSpec
 import org.intellij.plugins.markdown.editor.livepreview.toTextRange
+import org.intellij.plugins.markdown.highlighting.MarkdownHighlighterColors
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
@@ -182,13 +183,20 @@ internal class MarkdownLivePreviewHeadingRenderer(private val editor: EditorEx) 
         font = scheme.getFont(EditorFontType.BOLD),
         foreground = if (heading.level == 6) NamedColorUtil.getInactiveTextColor() else scheme.defaultForeground,
         linkColor = scheme.getAttributes(CodeInsightColors.HYPERLINK_ATTRIBUTES)?.foregroundColor ?: scheme.defaultForeground,
+        highlightBackground = scheme.getAttributes(MarkdownHighlighterColors.HIGHLIGHT)?.backgroundColor,
       )
     }
   }
 }
 
 /** Everything a heading pane depends on. Equal looks paint the same pixels, so the reconciler keeps their regions. */
-private data class HeadingLook(val html: String, val font: Font, val foreground: Color, val linkColor: Color)
+private data class HeadingLook(
+  val html: String,
+  val font: Font,
+  val foreground: Color,
+  val linkColor: Color,
+  val highlightBackground: Color?,
+)
 
 /** Paints one heading with its own [JBHtmlPane]. The layout is cached for the current wrap width. */
 private class HeadingPainter(private val editor: EditorEx, val look: HeadingLook) : CustomFoldRegionRenderer {
@@ -266,7 +274,8 @@ private class HeadingPainter(private val editor: EditorEx, val look: HeadingLook
               // The heading sizes of the JCEF preview style sheet, relative to the body font.
               "h1 { font-size: 2.2em } h2 { font-size: 1.8em } h3 { font-size: 1.3em } h4, h5, h6 { font-size: 1em } " +
               "a { color: #${ColorUtil.toHex(look.linkColor)}; text-decoration: underline } " +
-              ".user-del { text-decoration: line-through }"
+              ".user-del { text-decoration: line-through }" +
+              (look.highlightBackground?.let { " font.user-mark { background-color: #${ColorUtil.toHex(it)} }" } ?: "")
     return JBHtmlPane(
       JBHtmlPaneStyleConfiguration {
         colorSchemeProvider = { editor.colorsScheme }

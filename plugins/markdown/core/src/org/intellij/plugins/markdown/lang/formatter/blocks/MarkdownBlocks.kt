@@ -80,6 +80,7 @@ internal object MarkdownBlocks {
   private val emphasisLikeElements = TokenSet.create(
     MarkdownElementTypes.EMPH,
     MarkdownElementTypes.STRONG,
-    MarkdownElementTypes.STRIKETHROUGH
+    MarkdownElementTypes.STRIKETHROUGH,
+    MarkdownElementTypes.HIGHLIGHT
   )
 }

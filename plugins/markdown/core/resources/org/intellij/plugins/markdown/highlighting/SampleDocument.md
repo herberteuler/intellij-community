@@ -12,6 +12,8 @@ another one with italic text. <italic><italicm>_</italicm>This is some italic te
 
 Here is another one with struckout text. <strike>~~This is some struckout text.~~</strike>
 
+Here is another one with highlighted text. <highlight>==This is some highlighted text.==</highlight>
+
 
 <hh2>Links
 -----</hh2>

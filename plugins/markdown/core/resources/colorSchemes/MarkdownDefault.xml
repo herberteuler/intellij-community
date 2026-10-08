@@ -10,6 +10,11 @@
       <option name="FONT_TYPE" value="2" />
     </value>
   </option>
+  <option name="MARKDOWN_HIGHLIGHT">
+    <value>
+      <option name="BACKGROUND" value="FFF3A6" />
+    </value>
+  </option>
   <option name="MARKDOWN_BLOCK_QUOTE">
     <value>
       <option name="BACKGROUND" value="F4F7F9" />

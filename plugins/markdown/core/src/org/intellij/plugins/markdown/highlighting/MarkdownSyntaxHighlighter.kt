@@ -33,6 +33,7 @@ open class MarkdownSyntaxHighlighter: SyntaxHighlighterBase() {
         safeMap(it, MarkdownElementTypes.STRONG, MarkdownHighlighterColors.BOLD)
         safeMap(it, MarkdownElementTypes.EMPH, MarkdownHighlighterColors.ITALIC)
         safeMap(it, MarkdownElementTypes.STRIKETHROUGH, MarkdownHighlighterColors.STRIKE_THROUGH)
+        safeMap(it, MarkdownElementTypes.HIGHLIGHT, MarkdownHighlighterColors.HIGHLIGHT)
 
         safeMap(it, MarkdownTokenTypes.HORIZONTAL_RULE, MarkdownHighlighterColors.HRULE)
         safeMap(it, MarkdownTokenTypes.TABLE_SEPARATOR, MarkdownHighlighterColors.TABLE_SEPARATOR)

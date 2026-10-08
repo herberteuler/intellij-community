@@ -87,6 +87,7 @@ internal object MarkdownSpacingBuilder {
         between(MarkdownTokenTypes.TEXT, MarkdownElementTypes.STRONG).spacing(1, spaces, 0, markdown.KEEP_LINE_BREAKS_INSIDE_TEXT_BLOCKS, 0)
         between(MarkdownTokenTypes.TEXT, MarkdownElementTypes.EMPH).spacing(1, spaces, 0, markdown.KEEP_LINE_BREAKS_INSIDE_TEXT_BLOCKS, 0)
         between(MarkdownTokenTypes.TEXT, MarkdownElementTypes.STRIKETHROUGH).spacing(1, spaces, 0, markdown.KEEP_LINE_BREAKS_INSIDE_TEXT_BLOCKS, 0)
+        between(MarkdownTokenTypes.TEXT, MarkdownElementTypes.HIGHLIGHT).spacing(1, spaces, 0, markdown.KEEP_LINE_BREAKS_INSIDE_TEXT_BLOCKS, 0)
         between(MarkdownTokenTypes.TEXT, MarkdownTokenTypes.LPAREN).spacing(1, spaces, 0, markdown.KEEP_LINE_BREAKS_INSIDE_TEXT_BLOCKS, 0)
         between(MarkdownTokenTypes.LPAREN, MarkdownTokenTypes.TEXT).spacing(0, 0, 0, markdown.KEEP_LINE_BREAKS_INSIDE_TEXT_BLOCKS, 0)
       }

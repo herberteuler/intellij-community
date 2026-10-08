@@ -6,6 +6,7 @@ import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.ide.trustedProjects.impl.TrustedProjectStartupDialog
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.VetoableProjectManagerListener
 import com.intellij.openapi.project.ex.ProjectManagerEx
 import com.intellij.projectImport.ProjectAttachProcessor
 import com.intellij.projectImport.ProjectOpenedCallback
@@ -213,6 +214,31 @@ class TrustedProjectsTest {
     }
 
     Assertions.assertEquals(expectedTrustedState, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  @ParameterizedTest
+  @EnumSource(OpenMode::class, names = ["FORCE_REUSE_FRAME", "SAME_WINDOW"])
+  fun `vetoed close of the current project stops the project opening`(mode: OpenMode): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.TRUST_AND_OPEN, asDisposable())
+
+    withProjectToClose(mode) { projectToClose ->
+      val projectManager = ProjectManagerEx.getInstanceEx()
+      val vetoListener = object : VetoableProjectManagerListener {
+        override fun canClose(project: Project): Boolean = project !== projectToClose
+      }
+      projectManager.addProjectManagerListener(vetoListener)
+      try {
+        Assertions.assertNull(projectManager.openProjectAsync(projectRoot, createOpenProjectTask(mode, projectToClose)))
+      }
+      finally {
+        projectManager.removeProjectManagerListener(vetoListener)
+      }
+      Assertions.assertEquals(listOf(projectToClose), projectManager.openProjects.toList())
+    }
+
+    // the current behavior: the trust dialog comes before the close, so the trust choice is saved
+    Assertions.assertEquals(ThreeState.YES, TrustedProjects.getProjectTrustedState(projectRoot))
   }
 
   private suspend fun openProjectAndCheckTrustedState(projectRoot: Path, options: OpenProjectTask, expectedTrustedState: ThreeState) {

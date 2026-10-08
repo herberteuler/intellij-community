@@ -201,7 +201,6 @@
   {kind: "pluginId", id: "com.intellij.modules.lang", moduleKind: "shared"},
 
   {kind: "xmlDescriptorFile", moduleName: "intellij.platform.ide.impl", descriptorRelativePath: "resources/idea/PlatformActions.xml", moduleKind: "shared"},
-  {kind: "xmlDescriptorFile", moduleName: "intellij.platform.ide.impl", descriptorRelativePath: "resources/idea/ExecutionActions.xml", moduleKind: "shared"},
   {kind: "xmlDescriptorFile", moduleName: "intellij.platform.ide.impl", descriptorRelativePath: "resources/idea/LangActions.xml", moduleKind: "shared"},
   {kind: "xmlDescriptorFile", moduleName: "intellij.platform.resources", descriptorRelativePath: "src/META-INF/WorkspaceModel.xml", moduleKind: "shared"},
   {kind: "xmlDescriptorFile", moduleName: "intellij.platform.resources", descriptorRelativePath: "src/META-INF/WorkspaceModelImpl.xml", moduleKind: "shared"},

@@ -25,11 +25,10 @@ class CoreActionRegistrationOrderTest {
 
   @Test
   fun coreActionFilesRegisterInDocumentOrder() {
-    // PriorityEditorLangActions.xml < PlatformActions.xml < ExecutionActions.xml < LangActions.xml
+    // PriorityEditorLangActions.xml < PlatformActions.xml < LangActions.xml
     assertRegisteredBefore("SelectVirtualTemplateElement", "Other.KeymapGroup")
     assertRegisteredBefore("EditorChooseLookupItem", "Other.KeymapGroup")
-    assertRegisteredBefore("Other.KeymapGroup", "RunToolbarActionsGroup")
-    assertRegisteredBefore("RunToolbarActionsGroup", "LangCodeInsightActions")
+    assertRegisteredBefore("Other.KeymapGroup", "LangCodeInsightActions")
   }
 
   @Test

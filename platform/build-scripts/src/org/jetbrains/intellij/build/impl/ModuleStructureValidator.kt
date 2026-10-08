@@ -44,7 +44,6 @@ private val nonPathAttributes = hashSetOf(
 private val coreActionSetDescriptors = listOf(
   "idea/PriorityEditorLangActions.xml",
   "idea/PlatformActions.xml",
-  "idea/ExecutionActions.xml",
   "idea/LangActions.xml",
 )
 

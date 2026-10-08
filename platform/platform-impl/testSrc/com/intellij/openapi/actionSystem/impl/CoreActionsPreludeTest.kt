@@ -112,13 +112,13 @@ internal class CoreActionsPreludeTest {
     }
 
     val elements = loadCoreActionElements { path -> xmlByPath.getValue(path).byteInputStream() }
-    assertEquals(listOf("prelude.load.0", "prelude.load.1", "prelude.load.2", "prelude.load.3"),
+    assertEquals(listOf("prelude.load.0", "prelude.load.1", "prelude.load.2"),
                  elements.map { it.element.attributes[ID_ATTR_NAME] })
   }
 
   @Test
   fun loadCoreActionElementsFailsHardOnAMissingResource() {
-    val missingPath = "idea/ExecutionActions.xml"
+    val missingPath = "idea/LangActions.xml"
     val xml = """<idea-plugin><actions/></idea-plugin>"""
 
     val error = assertThrows<IllegalStateException> {

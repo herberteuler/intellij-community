@@ -26,7 +26,6 @@ import java.io.InputStream
 internal val CORE_ACTION_SET_PATHS: List<String> = listOf(
   "idea/PriorityEditorLangActions.xml",
   "idea/PlatformActions.xml",
-  "idea/ExecutionActions.xml",
   "idea/LangActions.xml",
 )
 

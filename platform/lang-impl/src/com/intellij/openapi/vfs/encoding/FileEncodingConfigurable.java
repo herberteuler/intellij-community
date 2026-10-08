@@ -202,12 +202,14 @@ final class FileEncodingConfigurable extends PerFileConfigurableBase<Charset> {
 
   @Override
   public void apply() throws ConfigurationException {
+    FUSFileEncodingSettingsCollector.State before = FUSFileEncodingSettingsCollector.captureState(myProject);
     super.apply();
     EncodingProjectManagerImpl encodingManager = (EncodingProjectManagerImpl)EncodingProjectManager.getInstance(myProject);
     encodingManager.setDefaultCharsetForPropertiesFiles(null, myPropsCharset);
     encodingManager.setNative2AsciiForPropertiesFiles(null, ui.transparentNativeToAsciiCheckBox.isSelected());
     EncodingProjectManagerImpl.BOMForNewUTF8Files option = ObjectUtils.notNull((EncodingProjectManagerImpl.BOMForNewUTF8Files)ui.bomForUTF8Combo.getSelectedItem(), EncodingProjectManagerImpl.BOMForNewUTF8Files.NEVER);
     encodingManager.setBOMForNewUtf8Files(option);
+    FUSFileEncodingSettingsCollector.logChanges(myProject, before);
   }
 
   @Override

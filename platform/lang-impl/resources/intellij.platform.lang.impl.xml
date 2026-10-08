@@ -1411,6 +1411,7 @@
     <statistics.counterUsagesCollector implementationClass="com.intellij.codeInsight.template.impl.SurroundWithLogger"/>
     <statistics.counterUsagesCollector implementationClass="com.intellij.find.FindUsagesCollector"/>
     <statistics.counterUsagesCollector implementationClass="com.intellij.ide.actions.CreateDirectoryUsageCollector"/>
+    <statistics.counterUsagesCollector implementationClass="com.intellij.openapi.vfs.encoding.FUSFileEncodingSettingsCollector"/>
     <statistics.counterUsagesCollector implementationClass="com.intellij.refactoring.ui.RefactoringDialogUsageCollector"/>
     <statistics.counterUsagesCollector
       implementationClass="com.intellij.ide.projectView.impl.ProjectViewImpl$ProjectViewPaneChangesCollector"/>

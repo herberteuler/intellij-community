@@ -17,6 +17,7 @@ import com.intellij.debugger.memory.agent.UnexpectedValueFormatException
 import com.intellij.openapi.util.Pair
 import com.sun.jdi.ArrayReference
 import com.sun.jdi.BooleanValue
+import com.sun.jdi.ClassObjectReference
 import com.sun.jdi.Field
 import com.sun.jdi.IntegerValue
 import com.sun.jdi.ObjectReference
@@ -203,7 +204,14 @@ object MemoryAgentReferringObjectCreator {
       when (kind) {
         MemoryAgentReferenceKind.FIELD,
         MemoryAgentReferenceKind.STATIC_FIELD -> {
-          val field = getFieldByJVMTIFieldIndex(referrer, IntArrayParser.parse(value)[0]) ?:
+          val fieldHost = if (kind == MemoryAgentReferenceKind.STATIC_FIELD) {
+            assert(referrer is ClassObjectReference)
+            (referrer as? ClassObjectReference)?.reflectedType() ?:
+              return MemoryAgentKindReferringObject(referrer, isWeakSoftReachable, kind)
+          } else {
+            referrer.referenceType()
+          }
+          val field = getFieldByJVMTIFieldIndex(fieldHost, IntArrayParser.parse(value)[0]) ?:
                       return MemoryAgentKindReferringObject(referrer, isWeakSoftReachable, kind)
           MemoryAgentFieldReferringObject(referrer, isWeakSoftReachable, field)
         }
@@ -221,12 +229,11 @@ object MemoryAgentReferringObjectCreator {
    * For a detailed algorithm description see
    * https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html#jvmtiHeapReferenceInfoField
    */
-  private fun getFieldByJVMTIFieldIndex(reference: ObjectReference, index: Int): Field? {
+  private fun getFieldByJVMTIFieldIndex(fieldHost: ReferenceType, index: Int): Field? {
     if (index < 0) {
       return null
     }
-
-    val allFields = reference.referenceType().allFields()
+    val allFields = fieldHost.allFields()
     val it: ListIterator<Field> = allFields.listIterator(allFields.size)
     var currIndex = index
     var declaringType: ReferenceType? = null

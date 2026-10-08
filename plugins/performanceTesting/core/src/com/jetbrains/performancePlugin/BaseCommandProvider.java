@@ -241,4 +241,9 @@ public final class BaseCommandProvider implements CommandProvider {
       Map.entry(RetypeFileCommand.PREFIX, RetypeFileCommand::new)
     );
   }
+
+  @Override
+  public boolean shouldDelegateToBackend() {
+    return true;
+  }
 }

@@ -119,10 +119,8 @@ class DialogAppender : Handler() {
 
   @ApiStatus.Internal
   suspend fun awaitPendingJobs() {
-    if (LoadingState.APP_READY.isOccurred) {
-      synchronized(this) {
-        processEarlyEventsIfNeeded()
-      }
+    synchronized(this) {
+      processEarlyEventsIfNeeded()
     }
 
     val future = CompletableDeferred<Unit>()

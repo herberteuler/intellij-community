@@ -36,6 +36,9 @@ import com.intellij.ui.LayeredIcon
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.panels.HorizontalLayout
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.LabelPosition
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.popup.PopupState
 import com.intellij.util.PathUtil
 import com.intellij.util.ThreeState
@@ -44,7 +47,6 @@ import com.intellij.util.concurrency.NonUrgentExecutor
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ThreeStateCheckBox
-import com.intellij.util.ui.UI
 import com.intellij.util.ui.UIUtil
 import com.intellij.workspaceModel.core.fileIndex.WorkspaceFileIndex
 import org.jetbrains.annotations.ApiStatus
@@ -262,9 +264,16 @@ private class StoragePathPopup(
       .andRegisterOnDocumentListener(comboBoxEditorComponent)
       .installOn(comboBoxEditorComponent)
 
-    val comboBoxPanel = UI.PanelFactory.panel(pathComboBox).withLabel(pathLabel).moveLabelOnTop().apply {
-      if (pathComment != null) withComment(StringUtil.escapeXmlEntities(pathComment))
-    }.createPanel()
+    val comboBoxPanel = panel {
+      row {
+        cell(pathComboBox)
+          .label(pathLabel, LabelPosition.TOP)
+          .align(AlignX.FILL)
+          .apply {
+            if (pathComment != null) comment(StringUtil.escapeXmlEntities(pathComment))
+          }
+      }
+    }
     val doneButton = JButton(ExecutionBundle.message("run.configuration.done.button"))
     doneButton.addActionListener { closePopupAction() }
     val doneButtonPanel = JPanel(BorderLayout())

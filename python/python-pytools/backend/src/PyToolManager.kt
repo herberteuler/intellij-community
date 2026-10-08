@@ -12,16 +12,19 @@ import java.nio.file.Path
  * means the tool cannot be installed through the IDE (its settings row only lets the user point at an
  * existing executable, no Install/Upgrade actions).
  *
+ * A manager belongs to one tool: the tool gives itself to the manager constructor. Thus a caller cannot
+ * install or upgrade a tool other than the one that owns the manager.
+ *
  * The default, [PackagePyToolManager], installs the tool as a Python package through whichever
  * [GenericPyToolManager] the environment offers (uv, else pip). Tools installed a different way — conda,
  * via its own installer — provide their own implementation.
  */
 interface PyToolManager {
-  /** Installs [tool] into the environment described by [eel]; returns the resolved executable path. */
-  suspend fun install(tool: PyTool, eel: EelApi): PyResult<Path>
+  /** Installs the tool of this manager into the environment described by [eel]; returns the resolved executable path. */
+  suspend fun install(eel: EelApi): PyResult<Path>
 
-  /** Upgrades [tool] to the latest version in the environment described by [eel]. */
-  suspend fun upgrade(tool: PyTool, eel: EelApi): PyResult<Path>
+  /** Upgrades the tool of this manager to the latest version in the environment described by [eel]. */
+  suspend fun upgrade(eel: EelApi): PyResult<Path>
 
   /**
    * What the IDE can do with this tool on [eelDescriptor]'s machine. Default [PyToolSupport.INSTALL_AND_UPGRADE]
@@ -65,10 +68,11 @@ enum class PyToolSupport {
 /**
  * Default per-tool strategy: install/upgrade the tool as a Python package via the environment's
  * [GenericPyToolManager] (uv tool install, or a pip install into a system Python). Tools whose
- * [PyTool.manager] is this object are exactly the ones the generic uv/pip backend manages.
+ * [PyTool.manager] is a [PackagePyToolManager] are exactly the ones the generic uv/pip backend manages.
+ * [PyTool.manager] creates a new instance on each call, so compare by type, not by identity.
  */
-object PackagePyToolManager : PyToolManager {
-  override suspend fun install(tool: PyTool, eel: EelApi): PyResult<Path> =
+internal class PackagePyToolManager(private val tool: PyTool) : PyToolManager {
+  override suspend fun install(eel: EelApi): PyResult<Path> =
     GenericPyToolManagerProvider.managersFor(eel).firstOrNull()?.install(tool) ?: noInstaller(tool)
 
   /**
@@ -76,7 +80,7 @@ object PackagePyToolManager : PyToolManager {
    * tool pip placed on a machine that also has uv is upgraded by pip, because `uv tool install` would leave the
    * resolved executable alone and put a second copy in uv's own bin directory.
    */
-  override suspend fun upgrade(tool: PyTool, eel: EelApi): PyResult<Path> =
+  override suspend fun upgrade(eel: EelApi): PyResult<Path> =
     GenericPyToolManagerProvider.managerOf(eel, tool)?.upgrade(tool) ?: noInstaller(tool)
 
   private fun noInstaller(tool: PyTool): PyResult<Path> =

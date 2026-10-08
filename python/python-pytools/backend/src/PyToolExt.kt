@@ -90,7 +90,7 @@ private fun PyTool.invalidateCachesAfter(result: PyResult<Path>, eel: EelApi) {
  * detection is invalidated ([invalidateCachesAfter]) so callers see the new binary immediately.
  */
 suspend fun PyTool.performToolInstallation(eel: EelApi): PyResult<Path> =
-  (manager?.install(this, eel) ?: PyResult.localizedError(message("python.tool.install.no.installer", packageName.name)))
+  (manager?.install(eel) ?: PyResult.localizedError(message("python.tool.install.no.installer", packageName.name)))
     .also { invalidateCachesAfter(it, eel) }
 
 /**
@@ -99,5 +99,5 @@ suspend fun PyTool.performToolInstallation(eel: EelApi): PyResult<Path> =
  * the tool's cached detection is invalidated ([invalidateCachesAfter]) so a moved/upgraded binary is re-resolved.
  */
 suspend fun PyTool.performToolUpgrade(eel: EelApi): PyResult<Path> =
-  (manager?.upgrade(this, eel) ?: PyResult.localizedError(message("python.tool.install.no.installer", packageName.name)))
+  (manager?.upgrade(eel) ?: PyResult.localizedError(message("python.tool.install.no.installer", packageName.name)))
     .also { invalidateCachesAfter(it, eel) }

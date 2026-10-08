@@ -34,7 +34,7 @@ interface PyTool : PyExecutable {
    *
    * The default manager uses a Python package. A null value disables installation through the IDE.
    */
-  val manager: PyToolManager? get() = PackagePyToolManager
+  val manager: PyToolManager? get() = PackagePyToolManager(this)
 
   /**
    * The oldest tool version that this integration supports.

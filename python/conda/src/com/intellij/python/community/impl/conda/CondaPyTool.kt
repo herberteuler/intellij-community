@@ -7,7 +7,6 @@ import com.intellij.platform.eel.EelApi
 import com.intellij.platform.eel.EelDescriptor
 import com.intellij.platform.eel.provider.LocalEelMachine
 import com.intellij.platform.eel.provider.getResolvedEelMachine
-import com.intellij.platform.eel.provider.localEel
 import com.intellij.python.community.impl.installer.CondaInstallManager
 import com.intellij.python.pytools.backend.PackageManagerPyTool
 import com.intellij.python.pytools.backend.PyExecutableCache
@@ -19,9 +18,9 @@ import com.intellij.python.pytools.backend.ToolSearchPath
 import com.intellij.python.pytools.backend.pyExecutableSpec
 import com.jetbrains.python.errorProcessing.PyResult
 import com.jetbrains.python.packaging.PyPackageName
-import java.nio.file.Path
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
 
 /**
  * Conda as a [PyTool] + [PackageManagerPyTool], so it appears on the Package Managers settings page and
@@ -29,9 +28,9 @@ import kotlinx.coroutines.withContext
  * pip/uv-installable tools it is not a Python package: it installs via its own [CondaInstallManager]
  * (see [CondaPyToolManager]), and shows only on the Package Managers page (it is not a `ProjectLevelPyTool`).
  */
-class CondaPyTool : PackageManagerPyTool {
+class CondaPyTool internal constructor() : PackageManagerPyTool {
   override val packageName: PyPackageName = PyPackageName.from("conda")
-  override val manager: PyToolManager = CondaPyToolManager
+  override val manager: PyToolManager = CondaPyToolManager(this)
 
   override val toolCommandSpec: ToolCommandSpec = pyExecutableSpec(fusId, listOf(
     ToolSearchPath.RelativePathFromHome(listOf("anaconda3", "bin"), Platform.UNIX),
@@ -60,8 +59,8 @@ class CondaPyTool : PackageManagerPyTool {
  * ([CondaInstallManager]) — which is local-only and runs its own modal on the EDT — then resolves the
  * freshly installed executable through [PyExecutableCache]. Updating conda from the IDE is not supported.
  */
-private object CondaPyToolManager : PyToolManager {
-  override suspend fun install(tool: PyTool, eel: EelApi): PyResult<Path> {
+private class CondaPyToolManager(private val tool: CondaPyTool) : PyToolManager {
+  override suspend fun install(eel: EelApi): PyResult<Path> {
     withContext(Dispatchers.EDT) {
       CondaInstallManager.installLatest(project = null)
     }
@@ -71,7 +70,7 @@ private object CondaPyToolManager : PyToolManager {
            ?: PyResult.localizedError(PyCondaBundle.message("python.conda.install.not.detected"))
   }
 
-  override suspend fun upgrade(tool: PyTool, eel: EelApi): PyResult<Path> =
+  override suspend fun upgrade(eel: EelApi): PyResult<Path> =
     PyResult.localizedError(PyCondaBundle.message("python.conda.update.not.supported"))
 
   /**

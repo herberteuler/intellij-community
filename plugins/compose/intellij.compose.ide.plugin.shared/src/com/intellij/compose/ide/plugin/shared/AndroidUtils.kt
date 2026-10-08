@@ -3,6 +3,8 @@
 package com.intellij.compose.ide.plugin.shared
 
 import com.intellij.facet.FacetManager
+import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.Project
@@ -11,6 +13,7 @@ import com.intellij.psi.PsiFile
 import org.jetbrains.annotations.ApiStatus
 
 private const val ANDROID_FACET_CLASS_NAME: String = "org.jetbrains.android.facet.AndroidFacet"
+private const val ANDROID_PLUGIN_ID = "org.jetbrains.android"
 
 fun isAndroidModule(module: Module): Boolean {
   val facets = FacetManager.getInstance(module).allFacets
@@ -24,3 +27,5 @@ fun isAndroidFile(psiFile: PsiFile): Boolean {
 fun isFileInAndroidModule(project: Project, file: VirtualFile): Boolean {
   return ModuleUtilCore.findModuleForFile(file, project)?.let { isAndroidModule(it) } == true
 }
+
+fun isAndroidPluginLoaded(): Boolean = PluginManagerCore.isLoaded(PluginId.getId(ANDROID_PLUGIN_ID))

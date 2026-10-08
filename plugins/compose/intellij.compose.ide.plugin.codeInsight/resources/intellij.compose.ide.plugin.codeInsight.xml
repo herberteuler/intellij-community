@@ -14,6 +14,7 @@
     <module name="intellij.kotlin.codeInsight.inspections"/>
     <module name="intellij.kotlin.completion.impl"/>
     <module name="intellij.kotlin.highlighting"/>
+    <module name="intellij.kotlin.highlighting.minimal"/>
     <module name="intellij.kotlin.projectConfiguration"/>
     <module name="intellij.kotlin.refactorings"/>
     <module name="intellij.kotlin.refactorings.base"/>
@@ -65,6 +66,7 @@
                             implementationClass="com.intellij.compose.ide.plugin.codeInsight.completion.ComposeModifierCompletionContributor"
                             order="first, before KotlinCompletionContributor"/>
     <daemon.highlightInfoFilter implementation="com.intellij.compose.ide.plugin.codeInsight.inspections.ComposeMissingDependencyHighlightFilter"/>
+    <colorSettingsPage implementation="com.intellij.compose.ide.plugin.codeInsight.ComposeColorSettingPage"/>
     <lang.inspectionSuppressor language="kotlin"
                                implementationClass="com.intellij.compose.ide.plugin.codeInsight.inspections.ComposableNamingInspectionSuppressor"/>
     <localInspection implementationClass="com.intellij.compose.ide.plugin.codeInsight.inspections.ComposeMissingPluginInspection"

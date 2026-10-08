@@ -33,7 +33,7 @@ private const val COMPOSABLE_CALL_TEXT_COLOR_ATTRIBUTES_NAME = "IntelliJComposab
  * in the editor. This key is used to associate specific text attributes with function calls annotated
  * as composable in projects using the Jetpack Compose framework.
  */
-private val COMPOSABLE_CALL_TEXT_ATTRIBUTES_KEY: TextAttributesKey =
+internal val COMPOSABLE_CALL_TEXT_ATTRIBUTES_KEY: TextAttributesKey =
   TextAttributesKey.createTextAttributesKey(
     COMPOSABLE_CALL_TEXT_COLOR_ATTRIBUTES_NAME,
     DefaultLanguageHighlighterColors.FUNCTION_CALL,

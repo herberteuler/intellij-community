@@ -299,6 +299,36 @@ pub fn iml_text(source_folders: &[&str]) -> String {
     )
 }
 
+/// A BUILD.bazel of one module, as the BUILD generator writes it for a test module with `associates`: the main library
+/// carries the module name, the `_test_lib` does not, and the `jps_test` runs the `_test_lib`.
+pub fn module_build_bazel_text(module: &str, target_name: &str) -> String {
+    let library = target_name.strip_suffix("_test").unwrap_or(target_name);
+    format!(
+        r#"load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
+    name = "{target_name}",
+    runtime_deps = [":{library}_test_lib"],
+)
+### skip generation section `test {module}`
+
+jvm_library(
+    name = "{library}",
+    srcs = glob([], allow_empty = True),
+    module_name = "{module}",
+)
+
+jvm_library(
+    name = "{library}_test_lib",
+    testonly = True,
+    srcs = glob(["testSrc/**/*.kt"]),
+    associates = ["//plugins/x:x"],
+    runtime_deps = [":{library}"],
+)"#
+    )
+}
+
 pub fn build_bazel_text(target_name: &str) -> String {
     format!(
         r#"### auto-generated section `build` start

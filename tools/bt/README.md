@@ -36,6 +36,23 @@ of that directory. `crates/bt-core/src/areas.rs` and `crates/bt-core/src/lanes.r
 without `bt.json` has no area: a label and a pattern resolve, and a name, a package, a flow or a suite selector
 refuses. The ultimate checkout names `plugins/air`, with its lane table `plugins/air/tests/integration/lanes.json`.
 
+## Modules
+
+`--module <jps module>` runs the `jps_test` target of a JPS module. `crates/bt-core/src/modules.rs` resolves it:
+
+1. `.idea/modules.xml` at the checkout root gives the directory of the module's `.iml`.
+2. The `BUILD.bazel` of that directory gives the `jps_test` whose `runtime_deps` name the module's library or its
+   `_test_lib`. One directory can hold several modules, so each module gets its own target, or none.
+3. The label is `//<dir>:<name>`. In an ultimate root, a directory under `community/` gives
+   `@community//<rest>:<name>`.
+
+The module runs when the migrated list names it, or when an area owns its directory. The migrated list is
+`community/build/bazel-migrated-test-modules.txt`, or `build/bazel-migrated-test-modules.txt` in a community
+checkout. `tests.cmd` reads the same list. bt refuses every other module with exit 2 and the code
+`module_not_migrated`. The message gives the `./tests.cmd --module <module> --test <FQN>` command, and it gives the
+label for an explicit run. A module without a target of its own gets the code `module_without_test_target` and the same
+`tests.cmd` command. `--filter` takes an FQN, `FQN#method` or a package, as for a label.
+
 ## Links into the Air UI-lane workspace
 
 The Air UI-lane workspace, `community/tools/vm`, links crates of this workspace through path

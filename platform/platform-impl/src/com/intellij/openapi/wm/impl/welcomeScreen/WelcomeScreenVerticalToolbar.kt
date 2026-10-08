@@ -187,12 +187,7 @@ private class WelcomeScreenDisclosureButtonAction(
 ) : CustomComponentAction {
   override fun createCustomComponent(presentation: Presentation, place: String): JComponent {
     val button = DisclosureButton()
-    if (!presentation.isPopupGroup && getInlineActions(presentation).isEmpty()) {
-      button.arrowIcon = null
-    }
-    if (presentation.getClientProperty("ChevronDown") != null) {
-      button.arrowIcon = AllIcons.General.ChevronDown
-    }
+    updateArrowIcon(button, presentation, getInlineActions(presentation))
     button.isOpaque = false
 
     if (type == WelcomeScreenToolbarType.FRAME) {
@@ -225,7 +220,18 @@ private class WelcomeScreenDisclosureButtonAction(
     else {
       component.additionalAction = null
     }
+    updateArrowIcon(component, presentation, inlineActions)
     UIUtil.setEnabled(component, presentation.isEnabled, true)
+  }
+
+  private fun updateArrowIcon(button: DisclosureButton, presentation: Presentation, inlineActions: List<AnAction>) {
+    val rightIcon = presentation.getClientProperty(WelcomeScreenActionsUtil.TEXT_BUTTON_RIGHT_ICON)
+    button.arrowIcon = when {
+      rightIcon != null -> rightIcon
+      @Suppress("DEPRECATION") presentation.getClientProperty("ChevronDown") != null -> AllIcons.General.ChevronDown
+      !presentation.isPopupGroup && inlineActions.isEmpty() -> null
+      else -> AllIcons.General.ChevronRight
+    }
   }
 
   private fun getInlineActions(presentation: Presentation): List<AnAction> = presentation.getClientProperty(ActionUtil.INLINE_ACTIONS).orEmpty()

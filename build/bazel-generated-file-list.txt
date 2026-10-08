@@ -965,6 +965,7 @@ platform/platform-impl/recentProjects
 platform/platform-impl/registry-ui
 platform/platform-impl/remote
 platform/platform-impl/rpc
+platform/platform-impl/scripting
 platform/platform-impl/socket-connection
 platform/platform-impl/tab-in-editor
 platform/platform-impl/ui

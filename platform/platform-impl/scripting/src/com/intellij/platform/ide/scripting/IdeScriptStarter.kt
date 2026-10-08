@@ -1,8 +1,8 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.script
+package com.intellij.platform.ide.scripting
 
 import com.intellij.ide.CliResult
-import com.intellij.lang.LangBundle
+import com.intellij.ide.script.IdeScriptEngine
 import com.intellij.openapi.application.ApplicationNamesInfo
 import com.intellij.openapi.application.ApplicationStarterBase
 import com.intellij.openapi.diagnostic.DefaultLogger
@@ -23,7 +23,7 @@ internal class IdeScriptStarter : ApplicationStarterBase() {
   override val usageMessage: String
     get() {
       val scriptName = ApplicationNamesInfo.getInstance().scriptName
-      return LangBundle.message("ide.script.starter.usage", scriptName, "ideScript")
+      return IdeScriptingBundle.message("ide.script.starter.usage", scriptName, "ideScript")
     }
 
   override fun checkArguments(args: List<String>): Boolean = args.size > 1

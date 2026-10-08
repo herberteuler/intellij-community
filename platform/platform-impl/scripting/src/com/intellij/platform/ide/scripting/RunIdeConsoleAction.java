@@ -1,8 +1,7 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.script;
+package com.intellij.platform.ide.scripting;
 
 import com.intellij.codeInsight.multiverse.EditorContextManager;
-import com.intellij.execution.ExecutionBundle;
 import com.intellij.execution.Executor;
 import com.intellij.execution.executors.DefaultRunExecutor;
 import com.intellij.execution.filters.TextConsoleBuilderFactory;
@@ -15,7 +14,8 @@ import com.intellij.execution.ui.RunContentDescriptor;
 import com.intellij.execution.ui.RunContentManager;
 import com.intellij.execution.ui.actions.CloseAction;
 import com.intellij.ide.scratch.ScratchFileService;
-import com.intellij.lang.LangBundle;
+import com.intellij.ide.script.IdeScriptEngine;
+import com.intellij.ide.script.IdeScriptEngineManager;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
@@ -115,8 +115,8 @@ public final class RunIdeConsoleAction extends DumbAwareAction {
       if (StringUtil.toLowerCase(eng).equals(eng)) eng = StringUtil.capitalize(eng);
       String name = lang + " (" + eng + ")";
       PluginDescriptor plugin = engineInfo.plugin;
-      String description = LangBundle.message("action.engine.description", lang, eng,
-                                              plugin == null ? "" : LangBundle.message("action.plugin.description") + plugin.getName());
+      String description = IdeScriptingBundle.message("action.engine.description", lang, eng,
+                                              plugin == null ? "" : IdeScriptingBundle.message("action.plugin.description") + plugin.getName());
       return new DumbAwareAction(name, description, null) {
         @Override
         public void actionPerformed(@NotNull AnActionEvent e1) {
@@ -128,7 +128,7 @@ public final class RunIdeConsoleAction extends DumbAwareAction {
       .toList();
     DefaultActionGroup actionGroup = new DefaultActionGroup(actions);
     JBPopupFactory.getInstance().createActionGroupPopup(
-      ExecutionBundle.message("popup.title.script.engine"), actionGroup, e.getDataContext(), JBPopupFactory.ActionSelectionAid.NUMBERING, false)
+      IdeScriptingBundle.message("popup.title.script.engine"), actionGroup, e.getDataContext(), JBPopupFactory.ActionSelectionAid.NUMBERING, false)
       .showInBestPositionFor(e.getDataContext());
   }
 

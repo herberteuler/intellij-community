@@ -156,6 +156,7 @@
   {kind: "moduleId", id: "intellij.platform.ide.maintenance", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.platform.ide.playback", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.platform.ide.rpc", moduleKind: "shared"},
+  {kind: "moduleId", id: "intellij.platform.ide.scripting", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.platform.ide.tabInEditor", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.platform.ide.ui", moduleKind: "shared"},
   {kind: "moduleId", id: "intellij.platform.ide.util.io", moduleKind: "shared"},

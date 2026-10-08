@@ -135,7 +135,6 @@
       <reference ref="Stop"/>
     </group>
     <group id="RunTestGroup"/>
-    <action id="IdeScriptingConsole" class="com.intellij.ide.script.RunIdeConsoleAction"/>
     <action id="RunAnything" icon="AllIcons.Actions.RunAnything" class="com.intellij.ide.actions.runAnything.RunAnythingAction"/>
     <group id="ExternalToolsGroup" class="com.intellij.tools.ExternalToolsGroup">
       <add-to-group group-id="ExternalToolsGroupInHierarchyPopupMenu"/>

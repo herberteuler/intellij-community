@@ -1,8 +1,10 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.script
+package com.intellij.platform.ide.scripting
 
 import com.intellij.ide.extensionResources.ExtensionsRootType
 import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.ide.script.IdeScriptEngine
+import com.intellij.ide.script.IdeScriptEngineManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.logger

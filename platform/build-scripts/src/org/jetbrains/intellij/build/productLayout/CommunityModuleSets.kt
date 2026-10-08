@@ -487,6 +487,7 @@ object CommunityModuleSets {
     module("intellij.platform.langInjection.backend")
     module("intellij.platform.versionDownloadManager")
     module("intellij.platform.registry.ui") // the Registry dialog; Find Action opens it, Tools | Internal Actions lists it in internal mode
+    module("intellij.platform.ide.scripting") // the IDE Scripting Console, the ideScript command and the startup scripts
 
     moduleSet(vcs())
     moduleSet(lsp())

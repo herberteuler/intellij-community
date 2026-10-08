@@ -874,6 +874,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.langInjection.backend",
             "intellij.platform.versionDownloadManager",
             "intellij.platform.registry.ui",
+            "intellij.platform.ide.scripting",
         ],
         nested = [
             "intellij.moduleSets.essential",
@@ -902,6 +903,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.diagnostic.freezeAnalyzer": "//platform/diagnostic/freezeAnalyzer:freezeAnalyzer_content_module_jar",
             "intellij.platform.diagnostic.telemetry.agent.extension": "//platform/diagnostic/telemetry/agent-extension:diagnostic-telemetry-agent-extension_content_module_jar",
             "intellij.platform.ide.impl.wsl": "//platform/platform-impl/eel:ide-impl-wsl_content_module_jar",
+            "intellij.platform.ide.scripting": "//platform/platform-impl/scripting:scripting_content_module_jar",
             "intellij.platform.inspect": "//platform/inspect:inspect_content_module_jar",
             "intellij.platform.langInjection": "//plugins/IntelliLang:langInjection_content_module_jar",
             "intellij.platform.langInjection.backend": "//plugins/IntelliLang/backend:backend_content_module_jar",
@@ -931,6 +933,7 @@ DEV_DIST_MODULE_SETS = {
             "intellij.platform.diagnostic.freezeAnalyzer",
             "intellij.platform.diagnostic.telemetry.agent.extension",
             "intellij.platform.ide.impl.wsl",
+            "intellij.platform.ide.scripting",
             "intellij.platform.inspect",
             "intellij.platform.langInjection",
             "intellij.platform.langInjection.backend",

@@ -1,0 +1,34 @@
+<idea-plugin>
+  <!-- region Generated dependencies - run `Generate Product Layouts` to regenerate -->
+  <dependencies>
+    <module name="intellij.platform.analysis"/>
+    <module name="intellij.platform.consoleView"/>
+    <module name="intellij.platform.consoleView.impl"/>
+    <module name="intellij.platform.core"/>
+    <module name="intellij.platform.core.impl"/>
+    <module name="intellij.platform.core.ui"/>
+    <module name="intellij.platform.editor.ui"/>
+    <module name="intellij.platform.execution"/>
+    <module name="intellij.platform.execution.impl"/>
+    <module name="intellij.platform.ide.core"/>
+    <module name="intellij.platform.ide.core.impl"/>
+    <module name="intellij.platform.ide.impl"/>
+    <module name="intellij.platform.ide.maintenance"/>
+    <module name="intellij.platform.lang.impl"/>
+    <module name="intellij.platform.projectModel"/>
+    <module name="intellij.platform.util.ui"/>
+  </dependencies>
+  <!-- endregion -->
+
+  <extensions defaultExtensionNs="com.intellij">
+    <scratch.rootType implementation="com.intellij.platform.ide.scripting.IdeConsoleRootType"/>
+    <appStarter id="ideScript" implementation="com.intellij.platform.ide.scripting.IdeScriptStarter" internal="true"/>
+    <postStartupActivity implementation="com.intellij.platform.ide.scripting.IdeStartupScripts" order="last"/>
+  </extensions>
+
+  <actions resource-bundle="messages.IdeScriptingBundle">
+    <action id="IdeScriptingConsole" class="com.intellij.platform.ide.scripting.RunIdeConsoleAction">
+      <add-to-group group-id="MaintenanceGroup"/>
+    </action>
+  </actions>
+</idea-plugin>

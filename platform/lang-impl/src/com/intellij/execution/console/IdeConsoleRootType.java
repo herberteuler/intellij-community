@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * @author gregsh
  *
- * @deprecated Use {@link com.intellij.ide.script.IdeConsoleRootType} instead.
+ * @deprecated Use {@link com.intellij.platform.ide.scripting.IdeConsoleRootType} instead.
  */
 @Deprecated(forRemoval = true)
 public class IdeConsoleRootType extends ConsoleRootType {

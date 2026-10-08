@@ -557,6 +557,7 @@
     <module name="intellij.platform.langInjection.backend"/>
     <module name="intellij.platform.versionDownloadManager"/>
     <module name="intellij.platform.registry.ui"/>
+    <module name="intellij.platform.ide.scripting"/>
     <!-- endregion -->
   </content>
 </idea-plugin>

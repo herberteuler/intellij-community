@@ -1,8 +1,7 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.ide.script;
+package com.intellij.platform.ide.scripting;
 
 import com.intellij.icons.AllIcons;
-import com.intellij.lang.LangBundle;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
@@ -24,7 +23,7 @@ import javax.swing.Icon;
 @ApiStatus.Internal
 public final class IdeConsoleRootType extends com.intellij.execution.console.IdeConsoleRootType  {
   IdeConsoleRootType() {
-    super("ide", LangBundle.message("root.type.ide.consoles"));
+    super("ide", IdeScriptingBundle.message("root.type.ide.consoles"));
   }
 
   public static @NotNull IdeConsoleRootType getInstance() {

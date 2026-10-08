@@ -1708,6 +1708,7 @@
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/recentProjects/intellij.platform.ide.recentProjects.iml" filepath="$PROJECT_DIR$/platform/platform-impl/recentProjects/intellij.platform.ide.recentProjects.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/remote/intellij.platform.ide.remote.iml" filepath="$PROJECT_DIR$/platform/platform-impl/remote/intellij.platform.ide.remote.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/rpc/intellij.platform.ide.rpc.iml" filepath="$PROJECT_DIR$/platform/platform-impl/rpc/intellij.platform.ide.rpc.iml" />
+      <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/scripting/intellij.platform.ide.scripting.iml" filepath="$PROJECT_DIR$/platform/platform-impl/scripting/intellij.platform.ide.scripting.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/socket-connection/intellij.platform.ide.socketConnection.iml" filepath="$PROJECT_DIR$/platform/platform-impl/socket-connection/intellij.platform.ide.socketConnection.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/tab-in-editor/intellij.platform.ide.tabInEditor.iml" filepath="$PROJECT_DIR$/platform/platform-impl/tab-in-editor/intellij.platform.ide.tabInEditor.iml" />
       <module fileurl="file://$PROJECT_DIR$/platform/platform-impl/tab-in-editor/intellij.platform.ide.tabInEditor.tests.iml" filepath="$PROJECT_DIR$/platform/platform-impl/tab-in-editor/intellij.platform.ide.tabInEditor.tests.iml" />

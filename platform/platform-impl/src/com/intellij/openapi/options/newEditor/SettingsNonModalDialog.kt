@@ -5,6 +5,7 @@ import com.intellij.CommonBundle
 import com.intellij.diagnostic.LoadingState
 import com.intellij.ide.HelpTooltip
 import com.intellij.ide.SaveAndSyncHandler
+import com.intellij.idea.ActionsBundle
 import com.intellij.ide.plugins.PluginManagerConfigurable
 import com.intellij.ide.plugins.newui.EventHandler
 import com.intellij.internal.statistic.eventLog.getUiEventLogger
@@ -35,6 +36,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.ui.SearchTextField
+import com.intellij.ui.UIBundle
 import com.intellij.ui.border.CustomLineBorder
 import com.intellij.ui.components.panels.NonOpaquePanel
 import com.intellij.ui.mac.touchbar.Touchbar
@@ -450,6 +452,8 @@ open class SettingsNonModalDialog @ApiStatus.Internal constructor(
         HelpTooltip.dispose(evt.source as JComponent)
       }
     }
+    helpButton.accessibleContext.accessibleName = UIBundle.message("dialog.options.help.button.accessible.name")
+    helpButton.accessibleContext.accessibleDescription = ActionsBundle.actionDescription("HelpTopics")
     editor.setHelpTooltip(helpButton)
     return helpButton
   }

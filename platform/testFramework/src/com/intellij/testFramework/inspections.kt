@@ -1,4 +1,4 @@
-// Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.testFramework
 
 import com.intellij.analysis.AnalysisScope
@@ -28,6 +28,7 @@ import java.util.UUID
 fun configureInspections(tools: Array<InspectionProfileEntry>,
                          project: Project,
                          parentDisposable: Disposable): InspectionProfileImpl {
+  val unregisteredToolNames = tools.map { it.shortName }.filter { HighlightDisplayKey.find(it) == null }
   val toolSupplier = InspectionToolsSupplier.Simple(tools.mapSmart { InspectionWrapperUtil.wrapTool(it) })
   Disposer.register(parentDisposable, toolSupplier)
   val profile = InspectionProfileImpl(UUID.randomUUID().toString(), toolSupplier, null)
@@ -38,10 +39,22 @@ fun configureInspections(tools: Array<InspectionProfileEntry>,
     profileManager.setCurrentProfile(null)
   })
 
-  profileManager.addProfile(profile)
-  profileManager.setCurrentProfile(profile)
-  enableInspectionTools(project, parentDisposable, *tools)
-  return profile
+  try {
+    profileManager.addProfile(profile)
+    profileManager.setCurrentProfile(profile)
+    enableInspectionTools(project, parentDisposable, *tools)
+    return profile
+  }
+  finally {
+    val registeredKeys = unregisteredToolNames.mapNotNull { HighlightDisplayKey.find(it) }
+    Disposer.register(parentDisposable, Disposable {
+      for (key in registeredKeys) {
+        if (HighlightDisplayKey.find(key.shortName) === key) {
+          HighlightDisplayKey.unregister(key.shortName)
+        }
+      }
+    })
+  }
 }
 
 @JvmOverloads

@@ -16,11 +16,11 @@ import java.util.Map;
 import java.util.Objects;
 
 public class PresentationFactory {
-  private static final Key<Boolean> NEED_UPDATE_PRESENTATION = Key.create("NEED_UPDATE_PRESENTATION");
   private final Map<AnAction, Presentation> myPresentations = ConcurrentCollectionFactory.createConcurrentWeakMap();
-
   private volatile boolean myNeedRebuild;
-
+  private static class Holder {
+    private static final Key<Boolean> NEED_UPDATE_PRESENTATION = Key.create("NEED_UPDATE_PRESENTATION");
+  }
   private static final Collection<PresentationFactory> ourAllFactories = new WeakList<>();
 
   public PresentationFactory() {
@@ -32,7 +32,7 @@ public class PresentationFactory {
     if (presentation == null && action instanceof TransparentWrapper && action instanceof ActionWithDelegate<?> wrapper) {
       presentation = myPresentations.get(wrapper.getDelegate());
     }
-    boolean needUpdate = presentation != null && Boolean.TRUE.equals(presentation.getClientProperty(NEED_UPDATE_PRESENTATION));
+    boolean needUpdate = presentation != null && Boolean.TRUE.equals(presentation.getClientProperty(Holder.NEED_UPDATE_PRESENTATION));
     if (presentation == null || needUpdate) {
       Presentation templatePresentation = action.getTemplatePresentation();
       if (presentation == null) {
@@ -42,7 +42,7 @@ public class PresentationFactory {
       if (needUpdate) {
         presentation.setIcon(templatePresentation.getIcon());
         presentation.setDisabledIcon(templatePresentation.getDisabledIcon());
-        presentation.putClientProperty(NEED_UPDATE_PRESENTATION, null);
+        presentation.putClientProperty(Holder.NEED_UPDATE_PRESENTATION, null);
       }
       processPresentation(action, presentation);
     }
@@ -93,7 +93,7 @@ public class PresentationFactory {
     for (PresentationFactory factory : ourAllFactories) {
       Presentation presentation = factory.myPresentations.get(action);
       if (presentation != null) {
-        presentation.putClientProperty(NEED_UPDATE_PRESENTATION, true);
+        presentation.putClientProperty(Holder.NEED_UPDATE_PRESENTATION, true);
       }
     }
   }

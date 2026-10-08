@@ -170,6 +170,24 @@ class TrustedProjectsTest {
     Assertions.assertEquals(ThreeState.UNSURE, TrustedProjects.getProjectTrustedState(projectRoot))
   }
 
+  @ParameterizedTest
+  @EnumSource(OpenMode::class)
+  fun `trust in the trust dialog opens a trusted project`(mode: OpenMode): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.TRUST_AND_OPEN, asDisposable())
+
+    withProjectToClose(mode) { projectToClose ->
+      ProjectManagerEx.getInstanceEx()
+        .openProjectAsync(projectRoot, createOpenProjectTask(mode, projectToClose))!!
+        .awaitInitialisation()
+        .useProjectAsync { project ->
+          Assertions.assertEquals(ThreeState.YES, TrustedProjects.getProjectTrustedState(project))
+        }
+    }
+
+    Assertions.assertEquals(ThreeState.YES, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
   private suspend fun withProjectToClose(mode: OpenMode, action: suspend (projectToClose: Project?) -> Unit) {
     if (mode == OpenMode.NO_OPEN_PROJECT) {
       action(null)

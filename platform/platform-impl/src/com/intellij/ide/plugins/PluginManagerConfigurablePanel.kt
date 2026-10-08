@@ -699,7 +699,10 @@ class PluginManagerConfigurablePanel @RequiresEdt(generateAssertion = false /* I
     }
   }
 
-  private inner class UpdatePluginsAutomaticallyToggleAction : DumbAwareToggleAction(IdeBundle.message("updates.plugins.autoupdate.settings.action")) {
+  private inner class UpdatePluginsAutomaticallyToggleAction :
+    DumbAwareToggleAction(IdeBundle.message("updates.plugins.autoupdate.settings.action"),
+                          IdeBundle.message("updates.plugins.autoupdate.enabled.banner.content"),
+                          null) {
     override fun isSelected(e: AnActionEvent): Boolean {
       return pluginsAutoUpdateEnabled!!
     }

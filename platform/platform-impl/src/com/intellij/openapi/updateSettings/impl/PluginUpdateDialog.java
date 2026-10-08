@@ -284,28 +284,9 @@ public class PluginUpdateDialog extends DialogWrapper {
           }
           if (PluginManagementPolicy.getInstance().isPluginAutoUpdateAllowed() &&
               !UpdateSettings.getInstance().getState().isPluginsAutoUpdateEnabled()) {
-            Notification notification =
-              UpdateCheckerFacade.getInstance().getNotificationGroupForPluginUpdateResults()
-                .createNotification(IdeBundle.message("updates.plugins.notification.title"),
-                                    IdeBundle.message("updates.plugins.autoupdate.notification.message"), NotificationType.INFORMATION)
-                .addAction(new NotificationAction(IdeBundle.message("updates.auto.update.title")) {
-                  @Override
-                  public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
-                    UiPluginManager.getInstance().setPluginsAutoUpdateEnabled(true);
-                    notification.expire();
-                  }
-                })
-                .addAction(new NotificationAction(IdeBundle.message("label.dont.show")) {
-                  @Override
-                  public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
-                    notification.setDoNotAskFor(null);
-                    notification.expire();
-                  }
-                });
-            notification.configureDoNotAskOption("updates.plugins.autoupdate.notification",
-                                                 IdeBundle.message("updates.plugins.autoupdate.notification.do.not.ask.display"));
-            notification.notify(myProject);
+            notifyAboutAutoUpdatePossibility(myProject);
           }
+          PluginAutoUpdateEnabler.INSTANCE.notifyAboutEnabledAutoUpdateIfNeeded(myProject);
           if (!restartRequired) {
             UpdateCheckerFacade.getInstance().getNotificationGroupForPluginUpdateResults()
               .createNotification(getUpdateNotificationMessage(installedDescriptors),
@@ -376,6 +357,30 @@ public class PluginUpdateDialog extends DialogWrapper {
     }
   }
 
+  private static void notifyAboutAutoUpdatePossibility(Project project) {
+    Notification notification =
+      UpdateCheckerFacade.getInstance().getNotificationGroupForPluginUpdateResults()
+        .createNotification(IdeBundle.message("updates.plugins.notification.title"),
+                            IdeBundle.message("updates.plugins.autoupdate.notification.message"), NotificationType.INFORMATION)
+        .addAction(new NotificationAction(IdeBundle.message("updates.auto.update.title")) {
+          @Override
+          public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
+            UiPluginManager.getInstance().setPluginsAutoUpdateEnabled(true);
+            notification.expire();
+          }
+        })
+        .addAction(new NotificationAction(IdeBundle.message("label.dont.show")) {
+          @Override
+          public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
+            notification.setDoNotAskFor(null);
+            notification.expire();
+          }
+        });
+    notification.configureDoNotAskOption("updates.plugins.autoupdate.notification",
+                                         IdeBundle.message("updates.plugins.autoupdate.notification.do.not.ask.display"));
+    notification.notify(project);
+  }
+
   @Override
   public void doCancelAction() {
     close(CANCEL_EXIT_CODE);
@@ -438,6 +443,11 @@ public class PluginUpdateDialog extends DialogWrapper {
   protected @NotNull JComponent createLeftPanel() {
     JPanel leftPanel = new JPanel(new BorderLayout());
     leftPanel.add(PluginManagerConfigurablePanel.createScrollPane(myPluginsPanel, true));
+
+    var banner = PluginAutoUpdateEnabler.INSTANCE.createBannerIfNeeded();
+    if (banner != null) {
+      leftPanel.add(banner, BorderLayout.NORTH);
+    }
 
     OpaquePanel titlePanel = new OpaquePanel(new BorderLayout(), PluginManagerConfigurable.MAIN_BG_COLOR);
     titlePanel.setBorder(JBUI.Borders.empty(13, 12));

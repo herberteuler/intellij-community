@@ -34,6 +34,7 @@ class PluginUpdateSourceInitializationActivity : ProjectActivity {
   override suspend fun execute(project: Project) {
     PluginUpdateSourceInitializer.initialize()
     PluginsMissingUpdateSourceNotifier.notify(project)
+    PluginAutoUpdateEnabler.enablePluginAutoUpdateIfNeeded()
   }
 }
 

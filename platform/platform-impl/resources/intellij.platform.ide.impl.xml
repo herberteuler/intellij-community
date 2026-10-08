@@ -1701,6 +1701,8 @@
     <backgroundPostStartupActivity implementation="com.intellij.openapi.updateSettings.impl.PluginUpdateSourceInitializationActivity"/>
     <registryKey key="update.source.initialization.enabled" defaultValue="true"
                  description="Enable initialization of update plugin update sources once for an IDE" />
+    <registryKey key="plugin.auto.update.enabler.enabled" defaultValue="false"
+                 description="Enable auto-update of plugins after opening a project if possible"/>
     <troubleInfoCollector implementation="com.intellij.ide.plugins.CustomPluginRepositoriesTroubleInfoCollector"/>
     <projectSettings service="com.intellij.openapi.vcs.readOnlyHandler.ReadonlyStatusHandlerImpl"/>
     <projectSettings service="com.intellij.externalDependencies.impl.ExternalDependenciesManagerImpl"/>

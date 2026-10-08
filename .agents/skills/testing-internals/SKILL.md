@@ -1,6 +1,6 @@
 ---
 name: testing-internals
-description: Debug IntelliJ `tests.cmd` execution, discovery, and runner internals.
+description: Debug IntelliJ `bt.cmd` and `tests.cmd` runs, discovery, and runner internals.
 ---
 
 # Test Execution Internals
@@ -9,10 +9,13 @@ This document explains `tests.cmd` internals and helps troubleshoot test executi
 
 ## Overview
 
-The test execution chain:
+The test execution chains:
 ```
+bt.cmd → bazel test <jps_test label> → JUnit5BazelRunner
 tests.cmd → Bazel → IdeaUltimateRunTestsBuildTarget → TestingTasksImpl → JUnit 5
 ```
+
+A module of the migrated list or of a `bt.json` area runs through bt. Every other module runs through `tests.cmd`.
 
 Key components:
 - **tests.cmd**: Shell script that invokes Bazel with test parameters

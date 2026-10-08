@@ -1,11 +1,65 @@
 ---
 name: testing
-description: Run or troubleshoot IntelliJ `tests.cmd` tests and discovery.
+description: Run or troubleshoot IntelliJ tests with `bt.cmd` or `tests.cmd`.
 ---
 
 # Testing Guide for IntelliJ IDEA
 
 ## Quick Start
+
+Run the tests of a module with bt first:
+
+```bash
+./community/tools/bt.cmd --module <module> --filter <FQN>
+```
+
+- `--module`: the JPS module that holds the test classes. Always use the module of the test itself. The module name is the name of the `.iml` file in the test directory, without the extension.
+- `--filter`: an FQN, `FQN#method`, or an all-lowercase package. A package value runs all the test classes in that package.
+
+In a community checkout, the wrapper is `./tools/bt.cmd`.
+
+```bash
+# Single test class (FQN)
+./community/tools/bt.cmd --module intellij.platform.util.tests \
+    --filter com.intellij.openapi.util.io.FileUtilLightTest
+
+# Specific test method
+./community/tools/bt.cmd --module intellij.platform.util.tests \
+    --filter 'com.intellij.openapi.util.io.FileUtilLightTest#isAncestor'
+
+# All test classes of a package
+./community/tools/bt.cmd --module intellij.platform.util.tests \
+    --filter com.intellij.openapi.util.io
+```
+
+bt runs a module when the migrated list names it, or when a `bt.json` area owns its directory. The [bt README](../../../tools/bt/README.md#modules) gives the resolution rules.
+
+### bt options
+
+| Option | Effect |
+|--------|--------|
+| `--filter <value>` | Runs one class, one method, or one package of the target. |
+| `--no-cache` | Runs the tests again when Bazel has a cached result. |
+| `--dry-run` | Prints the resolved label, the filter, and the Bazel command. Runs nothing. |
+| `--json` | Writes one JSON object to stdout and nothing else. |
+| `-- --flaky_test_attempts=3` | Runs a failed test up to 3 times. `tests.cmd` uses `-Dintellij.build.test.attempt.count=3` for this. |
+| `-- --test_arg=--jvm_flag=-Dkey=value` | Sets a system property in the test JVM. `tests.cmd` uses `-Dpass.key=value` for this. |
+| `-- --test_arg=--jvm_flag=-Xmx8g` | Sets the heap of the test JVM. `tests.cmd` uses `-Dintellij.build.test.jvm.memory.options=-Xmx8g` for this. |
+
+bt gives all arguments after `--` to Bazel without a change. Run `./community/tools/bt.cmd --help` for all selectors and options. To attach a debugger, use `tests.cmd`. The section [Additional JVM options](#additional-jvm-options) shows the flags.
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | All tests passed. |
+| 2 | Usage error, or bt refuses the module. |
+| 3 | Tests failed. |
+| 4 | Zero tests ran. |
+| 5 | The build failed before the tests. |
+| 6 | Infrastructure failure. |
+
+### When bt refuses the module
+
+bt refuses a module whose tests do not run under Bazel yet. It exits with code 2 and prints the `tests.cmd` command. Run that command:
 
 ```bash
 ./tests.cmd --module <module> --test <pattern>
@@ -67,6 +121,14 @@ bazel test //tests/ideaProjectStructure:projectStructureTests_test \
 
 Omit `--test_arg` to check all modules. Do not use `bazel run` for this target: it streams noisy test output and does not provide Bazel's test summary.
 
+This bt command is the same run with a digest:
+
+```bash
+./community/tools/bt.cmd //tests/ideaProjectStructure:projectStructureTests_test \
+  --filter com.intellij.ideaProjectStructure.api.ApiCheckTest \
+  -- --test_arg=--jvm_flag=-Dapi.dump.test.modules.to.check=<module>[,<module>...]
+```
+
 On failure, keep agent context small by extracting the failing dynamic-test names and messages from Bazel's JUnit report instead of printing the full `test.log`:
 
 ```bash
@@ -79,10 +141,10 @@ xmllint --xpath '//testcase[failure or error]/@name | //testcase[failure or erro
 When changing `ProductProperties`, `productImplementationModules`, product content descriptors, plugin/module-set packaging, or generated product layout XML, also run:
 
 ```bash
-./bazel.cmd test //build:all-products-packaging_test
+./community/tools/bt.cmd //build:all-products-packaging_test
 ```
 
-This suite is the one exception to the `tests.cmd` rule above. It has a Bazel target of its own, which runs the one class, prints the Bazel summary, and writes `out/bazel-testlogs/build/all-products-packaging_test/test.xml`.
+The target pins the one class `AllProductsPackagingTest` and is tagged `manual`, so no `--filter` is needed, and no lane or wildcard pattern runs it. bt prints the digest, and Bazel writes `out/bazel-testlogs/build/all-products-packaging_test/test.xml`. The raw form is `./bazel.cmd test //build:all-products-packaging_test`.
 
 ### Windows PowerShell note
 
@@ -96,7 +158,13 @@ Without `--%`, PowerShell can alter `-D...` arguments before they reach `tests.c
 
 ## Separate Bazel Modules
 
-Some parts of the repository are standalone Bazel modules and must not use `tests.cmd` or `community/tests.cmd`. The tests of a module that matches a pattern in `community/build/bazel-migrated-test-modules.txt` (`build/bazel-migrated-test-modules.txt` in a community checkout) run only under Bazel. `tests.cmd` refuses such a module with an error that names the pattern and the Bazel command. Follow that message.
+Some parts of the repository are standalone Bazel modules and must not use `tests.cmd` or `community/tests.cmd`. The tests of a module that matches a pattern in the migrated list run only under Bazel. The migrated list is `community/build/bazel-migrated-test-modules.txt`, or `build/bazel-migrated-test-modules.txt` in a community checkout. `tests.cmd` refuses such a module with an error that names the pattern. Run the module with bt:
+
+```bash
+./community/tools/bt.cmd --module <module> --filter <FQN>
+```
+
+When you have the Bazel label of the target, `./community/tools/bt.cmd <label> --filter <FQN>` runs the same target.
 
 ### `community/platform/build-scripts/bazel`
 
@@ -174,7 +242,7 @@ Extra `-D...` arguments are passed through as JVM flags to `org.jetbrains.intell
 - Check that `--module` is the module that actually contains the test class (look at the .iml file location)
 - Check that class name ends with `Test` (or use `-Dpass.idea.include.unconventionally.named.tests=true`)
 - Before troubleshooting further, check whether the test lives in a separate Bazel module such as `community/platform/build-scripts/bazel`; those tests must be run with module-local `../../../../bazel.cmd test`, not `tests.cmd`
-- If `tests.cmd` refuses the module and names a pattern from `bazel-migrated-test-modules.txt`, the tests are Bazel-only. Run them with `./bazel.cmd test` as the message says
+- If `tests.cmd` refuses the module and names a pattern from `bazel-migrated-test-modules.txt`, the tests are Bazel-only. Run them with `./community/tools/bt.cmd --module <module> --filter <FQN>`, as in [Separate Bazel Modules](#separate-bazel-modules)
 
 **Tests pass locally but fail in CI:**
 - Check test isolation - tests may depend on execution order

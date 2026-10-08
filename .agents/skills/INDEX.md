@@ -41,8 +41,8 @@ One row per skill in this directory. `SKILL.md` holds the full instructions.
 | [sibling-checkout-commits](sibling-checkout-commits/SKILL.md) | Take commits from a sibling checkout as patches, without a fetch. |
 | [ssr](ssr/SKILL.md) | Create or modify IntelliJ Structural Search and Replace patterns. |
 | [symbols-api](symbols-api/SKILL.md) | Use IntelliJ Symbol API for declarations, references, and rename. |
-| [testing](testing/SKILL.md) | Run or troubleshoot IntelliJ `tests.cmd` tests and discovery. |
-| [testing-internals](testing-internals/SKILL.md) | Debug IntelliJ `tests.cmd` execution, discovery, and runner internals. |
+| [testing](testing/SKILL.md) | Run or troubleshoot IntelliJ tests with `bt.cmd` or `tests.cmd`. |
+| [testing-internals](testing-internals/SKILL.md) | Debug IntelliJ `bt.cmd` and `tests.cmd` runs, discovery, and runner internals. |
 | [treehouse](treehouse/SKILL.md) | Safely acquire, inspect, and return leased Treehouse workspaces. |
 | [ui-accessibility](ui-accessibility/SKILL.md) | Review IntelliJ UI accessibility for keyboard, focus, and labels. |
 | [writing-tests](writing-tests/SKILL.md) | Write IntelliJ JUnit 5 tests with fixtures, lifecycle, and EDT. |

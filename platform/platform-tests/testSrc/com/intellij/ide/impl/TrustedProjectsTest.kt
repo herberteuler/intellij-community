@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.cancellation.CancellationException
@@ -209,21 +210,42 @@ class TrustedProjectsTest {
     ExtensionTestUtil.maskExtensions(ProjectAttachProcessor.EP_NAME, listOf(attachProcessor), asDisposable())
 
     withProjectToClose(GeneralSettings.OPEN_PROJECT_SAME_WINDOW_ATTACH) { projectToClose ->
-      val project = ProjectManagerEx.getInstanceEx().openProjectAsync(projectRoot, OpenProjectTask {
-        this.projectName = "project"
-        this.projectToClose = projectToClose
-      })
-      Assertions.assertNull(project)
-      Assertions.assertTrue(ProjectManagerEx.getInstanceEx().isProjectOpened(projectToClose))
+      openProjectToAttach(projectRoot, projectToClose)
     }
 
     Assertions.assertEquals(if (expectedAttached) listOf(projectRoot) else emptyList<Path>(), attachProcessor.attachedDirs)
     Assertions.assertEquals(expectedTrustedState, TrustedProjects.getProjectTrustedState(projectRoot))
   }
 
-  private class RecordingAttachProcessor : ProjectAttachProcessor() {
-    val attachedDirs: MutableList<Path> = CopyOnWriteArrayList()
+  @ParameterizedTest
+  @ValueSource(booleans = [true, false])
+  fun `failed attach does not open the project`(hasAttachProcessor: Boolean): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.TRUST_AND_OPEN, asDisposable())
+    val attachProcessor = RecordingAttachProcessor(attachResult = false)
+    val attachProcessors = if (hasAttachProcessor) listOf(attachProcessor) else emptyList()
+    ExtensionTestUtil.maskExtensions(ProjectAttachProcessor.EP_NAME, attachProcessors, asDisposable())
 
+    withProjectToClose(GeneralSettings.OPEN_PROJECT_SAME_WINDOW_ATTACH) { projectToClose ->
+      openProjectToAttach(projectRoot, projectToClose)
+      Assertions.assertEquals(listOf(projectToClose), ProjectManagerEx.getInstanceEx().openProjects.toList())
+    }
+
+    Assertions.assertEquals(if (hasAttachProcessor) listOf(projectRoot) else emptyList<Path>(), attachProcessor.attachedDirs)
+    Assertions.assertEquals(ThreeState.YES, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  private suspend fun openProjectToAttach(projectRoot: Path, projectToClose: Project) {
+    val project = ProjectManagerEx.getInstanceEx().openProjectAsync(projectRoot, OpenProjectTask {
+      this.projectName = "project"
+      this.projectToClose = projectToClose
+    })
+    Assertions.assertNull(project)
+    Assertions.assertTrue(ProjectManagerEx.getInstanceEx().isProjectOpened(projectToClose))
+  }
+
+  private class RecordingAttachProcessor(private val attachResult: Boolean = true) : ProjectAttachProcessor() {
+    val attachedDirs: MutableList<Path> = CopyOnWriteArrayList()
     override suspend fun attachToProjectAsync(
       project: Project,
       projectDir: Path,
@@ -231,7 +253,7 @@ class TrustedProjectsTest {
       beforeOpen: (suspend (Project) -> Boolean)?,
     ): Boolean {
       attachedDirs.add(projectDir)
-      return true
+      return attachResult
     }
   }
 

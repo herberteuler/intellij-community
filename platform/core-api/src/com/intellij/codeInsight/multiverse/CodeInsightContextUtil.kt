@@ -4,6 +4,7 @@
 
 package com.intellij.codeInsight.multiverse
 
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -16,8 +17,6 @@ import org.jetbrains.annotations.ApiStatus
 
 val FileViewProvider.codeInsightContext: CodeInsightContext
   get() {
-    if (!isSharedSourceSupportEnabled(manager.project)) return defaultContext()
-
     val manager = CodeInsightContextManager.getInstance(this.manager.project)
     return manager.getCodeInsightContext(this)
   }
@@ -101,4 +100,4 @@ fun areIrrelevantContextsAllowed(): Boolean = irrelevantContextsDepth.get() > 0
 
 private val irrelevantContextsDepth: ThreadLocal<Int> = ThreadLocal.withInitial { 0 }
 
-private val log = fileLogger()
+private val log: Logger = fileLogger()

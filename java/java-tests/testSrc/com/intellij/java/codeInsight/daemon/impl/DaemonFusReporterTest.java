@@ -16,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
+@SuppressWarnings("KotlinInternalInJava")
 public class DaemonFusReporterTest extends BasePlatformTestCase {
   public void testDaemonFUSIsReportedAfterTyping() {
     myFixture.configureByText(JavaFileType.INSTANCE, """

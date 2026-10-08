@@ -10,6 +10,9 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -189,7 +192,7 @@ public final class ThreadDumper {
   private static void dumpCallStack(@NotNull ThreadInfo info, @NotNull Writer f, StackTraceElement @NotNull [] stackTraceElements) {
     try {
       StringBuilder sb = new StringBuilder("\"").append(info.getThreadName()).append("\"");
-      sb.append(" prio=0 tid=0x0 nid=0x0 ").append(getReadableState(info.getThreadState())).append("\n");
+      sb.append(" prio=").append(getPriority(info)).append(" tid=0x0 nid=0x0 ").append(getReadableState(info.getThreadState())).append("\n");
       sb.append("     java.lang.Thread.State: ").append(info.getThreadState()).append("\n");
       if (info.getLockName() != null) {
         sb.append(" on ").append(info.getLockName());
@@ -306,5 +309,31 @@ public final class ThreadDumper {
       case TERMINATED: return "terminated";
     }
     return null;
+  }
+
+  /**
+   * {@code ThreadInfo.getPriority()} exists since Java 9, and this module targets Java 8.
+   */
+  private static final @Nullable MethodHandle THREAD_INFO_PRIORITY = findThreadInfoPriority();
+
+  private static @Nullable MethodHandle findThreadInfoPriority() {
+    try {
+      return MethodHandles.publicLookup().findVirtual(ThreadInfo.class, "getPriority", MethodType.methodType(int.class));
+    }
+    catch (NoSuchMethodException | IllegalAccessException e) {
+      return null;
+    }
+  }
+
+  private static int getPriority(@NotNull ThreadInfo info) {
+    if (THREAD_INFO_PRIORITY == null) {
+      return 0;
+    }
+    try {
+      return (int)THREAD_INFO_PRIORITY.invokeExact(info);
+    }
+    catch (Throwable e) {
+      return 0;
+    }
   }
 }

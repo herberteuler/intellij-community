@@ -1,6 +1,7 @@
 // Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.ide.impl
 
+import com.intellij.ide.GeneralSettings
 import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.ide.trustedProjects.impl.TrustedProjectStartupDialog
 import com.intellij.openapi.application.PathManager
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.EnumSource
 import java.nio.file.Path
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -130,6 +132,80 @@ class TrustedProjectsTest {
     }
 
     Assertions.assertEquals(expectedTrustedState, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  /**
+   * The ways to open a project. Each one goes through a different branch of `ProjectManagerImpl.openProjectAsync`.
+   */
+  enum class OpenMode {
+    NO_OPEN_PROJECT,
+    FORCE_NEW_FRAME,
+    FORCE_REUSE_FRAME,
+    SAME_WINDOW,
+    NEW_WINDOW,
+  }
+
+  @ParameterizedTest
+  @EnumSource(OpenMode::class)
+  fun `cancel in the trust dialog stops the project opening`(mode: OpenMode): Unit = runBlocking {
+    val projectRoot = testRoot.resolve("project")
+    TrustedProjectStartupDialog.setDialogChoiceInTests(OpenUntrustedProjectChoice.CANCEL, asDisposable())
+
+    withProjectToClose(mode) { projectToClose ->
+      runCatching {
+        ProjectManagerEx.getInstanceEx().openProjectAsync(projectRoot, createOpenProjectTask(mode, projectToClose))
+      }.onSuccess { project ->
+        project?.closeProjectAsync()
+        Assertions.fail<Nothing> { "The trust dialog was not shown or its cancel choice was ignored in the $mode mode" }
+      }.onFailure { exception ->
+        Assertions.assertInstanceOf(CancellationException::class.java, exception)
+      }
+
+      // IJPL-256774: the trust dialog must be shown before the current project is closed
+      if (projectToClose != null) {
+        Assertions.assertTrue(ProjectManagerEx.getInstanceEx().isProjectOpened(projectToClose))
+      }
+    }
+
+    Assertions.assertEquals(ThreeState.UNSURE, TrustedProjects.getProjectTrustedState(projectRoot))
+  }
+
+  private suspend fun withProjectToClose(mode: OpenMode, action: suspend (projectToClose: Project?) -> Unit) {
+    if (mode == OpenMode.NO_OPEN_PROJECT) {
+      action(null)
+      return
+    }
+
+    val generalSettings = GeneralSettings.getInstance()
+    val oldConfirmOpenNewProject = generalSettings.confirmOpenNewProject
+    when (mode) {
+      OpenMode.SAME_WINDOW -> generalSettings.confirmOpenNewProject = GeneralSettings.OPEN_PROJECT_SAME_WINDOW
+      OpenMode.NEW_WINDOW -> generalSettings.confirmOpenNewProject = GeneralSettings.OPEN_PROJECT_NEW_WINDOW
+      else -> Unit
+    }
+
+    val projectToCloseRoot = testRoot.resolve("projectToClose")
+    TrustedProjects.setProjectTrusted(projectToCloseRoot, true)
+    val projectToClose = ProjectManagerEx.getInstanceEx().openProjectAsync(projectToCloseRoot, OpenProjectTask {
+      projectName = "projectToClose"
+      forceOpenInNewFrame = true
+    })!!
+    try {
+      action(projectToClose)
+    }
+    finally {
+      generalSettings.confirmOpenNewProject = oldConfirmOpenNewProject
+      if (ProjectManagerEx.getInstanceEx().isProjectOpened(projectToClose)) {
+        projectToClose.closeProjectAsync()
+      }
+    }
+  }
+
+  private fun createOpenProjectTask(mode: OpenMode, projectToClose: Project?): OpenProjectTask = OpenProjectTask {
+    this.projectName = "project"
+    this.projectToClose = projectToClose
+    this.forceOpenInNewFrame = mode == OpenMode.FORCE_NEW_FRAME
+    this.forceReuseFrame = mode == OpenMode.FORCE_REUSE_FRAME
   }
 
   private suspend fun Project.awaitInitialisation() = withProjectAsync { project ->

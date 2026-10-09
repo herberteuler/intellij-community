@@ -22,11 +22,11 @@ import org.jetbrains.kotlin.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.kotlin.psi.psiUtil.getPrevSiblingIgnoringWhitespaceAndComments
 
 internal object RemoveCallableReferenceStaticLhsFixFactories {
-    val warning = KotlinQuickFixFactory.ModCommandBased { diagnostic: KaFirDiagnostic.InvalidQualifierInLhsOfCallableReferenceToStaticWarning ->
+    val callableReferenceToStaticWarning = KotlinQuickFixFactory.ModCommandBased { diagnostic: KaFirDiagnostic.InvalidQualifierInLhsOfCallableReferenceToStaticWarning ->
         createFixes(diagnostic.psi)
     }
 
-    val error = KotlinQuickFixFactory.ModCommandBased { diagnostic: KaFirDiagnostic.InvalidQualifierInLhsOfCallableReferenceToStaticError ->
+    val callableReferenceToStaticError = KotlinQuickFixFactory.ModCommandBased { diagnostic: KaFirDiagnostic.InvalidQualifierInLhsOfCallableReferenceToStaticError ->
         createFixes(diagnostic.psi)
     }
 
@@ -56,7 +56,7 @@ internal object RemoveCallableReferenceStaticLhsFixFactories {
             lhs.getLhsNullableType()?.takeIf { it.innerType != null }?.let {
                 RemoveCallableReferenceStaticLhsFix(it, KotlinBundle.message("text.remove.question"))
             },
-            lhs.findSelfOrDescendant<KtTypeArgumentList>()?.let {
+            lhs.findDescendantOfType<KtTypeArgumentList>()?.let {
                 RemoveCallableReferenceStaticLhsFix(it, KotlinBundle.message("remove.type.arguments"))
             },
         )
@@ -83,10 +83,6 @@ internal object RemoveCallableReferenceStaticLhsFixFactories {
             is KtTypeReference -> typeElement as? KtNullableType
             else -> null
         }
-    }
-
-    private inline fun <reified T : PsiElement> PsiElement.findSelfOrDescendant(): T? {
-        return this as? T ?: findDescendantOfType()
     }
 
     private class RemoveCallableReferenceStaticLhsFix(

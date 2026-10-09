@@ -66,9 +66,9 @@ class DocBranchPerformanceTest {
    * The base case: one user edits the huge file alone, with no forks and no merges.
    *
    * The session is recorded once, and its ops then replay in the timed subtests. Applied to a fresh
-   * branch and to a plain [DocumentText], they give the price of the history tracking per op. The first
-   * and the last [FLAT_COST_BATCHES] batches show whether the cost of an op grows with the history.
-   * Each of them applies to a fresh branch that holds the batches before it.
+   * branch and to a plain [DocumentText], they give the price per op of the history and the mod state.
+   * The first and the last [FLAT_COST_BATCHES] batches show whether the cost of an op grows with the
+   * history. Each of them applies to a fresh branch that holds the batches before it.
    */
   @Test
   fun `a single user edits EditorImpl`() {

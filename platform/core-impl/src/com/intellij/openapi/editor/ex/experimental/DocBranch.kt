@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.ex.experimental
 
+import com.intellij.openapi.editor.ex.DocumentModState
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
 import com.intellij.openapi.editor.impl.experimental.DocBranchImpl
@@ -33,6 +34,12 @@ interface DocBranch {
   fun text(): DocumentText
 
   /**
+   * The modification state of [text]. It belongs to this branch, and a merge never takes the one of
+   * the other branch. Only a [DocumentOp.ModStamp] changes the stamp.
+   */
+  fun modState(): DocumentModState
+
+  /**
    * The version of [text]. Under the agent contract, it stays valid in every branch that merges
    * this one, and a replay of it there returns [text].
    */
@@ -44,6 +51,8 @@ interface DocBranch {
    * An op with a move offset records half of a text move. The op records as a plain one unless the
    * text at its move offset is the moved text. The moved text must also lie apart from the text that
    * the op changes. A half without its other half merges as a plain op.
+   *
+   * Only a text op records an event.
    */
   fun applyOp(op: DocumentOp): DocBranch
 

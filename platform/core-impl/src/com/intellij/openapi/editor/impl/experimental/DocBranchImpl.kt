@@ -1,6 +1,7 @@
 // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.editor.impl.experimental
 
+import com.intellij.openapi.editor.ex.DocumentModState
 import com.intellij.openapi.editor.ex.DocumentOp
 import com.intellij.openapi.editor.ex.DocumentText
 import com.intellij.openapi.editor.ex.experimental.Agent
@@ -9,6 +10,7 @@ import com.intellij.openapi.editor.ex.experimental.DocMerge
 import com.intellij.openapi.editor.ex.experimental.EventGraph
 import com.intellij.openapi.editor.ex.experimental.Version
 import com.intellij.openapi.editor.impl.DocumentTextImpl
+import com.intellij.openapi.editor.impl.RangeModState
 import com.intellij.openapi.editor.impl.isMove
 import com.intellij.openapi.editor.impl.isMovedTextApart
 import java.util.Collections
@@ -16,9 +18,9 @@ import java.util.Collections
 /**
  * See [DocBranch].
  *
- * The value is a triple: the [graph] that records the history, the [agent] that authors
- * new events, and the [docText] that holds the materialized text. [text] returns [docText]
- * as is, so the text and the line data behave exactly like [DocumentTextImpl]. A local
+ * The value holds the [graph] that records the history, the [agent] that authors new events, the
+ * [docText] that holds the materialized text, and the [modState] of that text. [text] returns
+ * [docText] as is, so the text and the line data behave exactly like [DocumentTextImpl]. A local
  * [applyOp] appends events at the graph's frontier and edits [docText] directly. The
  * Eg-walker replay runs only inside [merge], and in the ops of a fast-forward.
  *
@@ -34,6 +36,7 @@ import java.util.Collections
  */
 internal class DocBranchImpl private constructor(
   private val docText: DocumentText,
+  private val branchModState: BranchModState,
   private val agent: Agent,
   private val graph: EventGraphImpl,
 ) : DocBranch {
@@ -47,6 +50,10 @@ internal class DocBranchImpl private constructor(
     return docText
   }
 
+  override fun modState(): DocumentModState {
+    return branchModState.resolved()
+  }
+
   override fun version(): Version {
     return graph.version()
   }
@@ -55,7 +62,8 @@ internal class DocBranchImpl private constructor(
     return when (op) {
       is DocumentOp.Insert -> applyInsert(op)
       is DocumentOp.Delete -> applyDelete(op)
-      else -> this
+      is DocumentOp.ModStamp -> applyMetadata(op)
+      is DocumentOp.UnmodifiedLines -> applyMetadata(op)
     }
   }
 
@@ -68,7 +76,12 @@ internal class DocBranchImpl private constructor(
   }
 
   override fun fork(agent: Agent): DocBranch {
-    return DocBranchImpl(docText, agent, graph)
+    return DocBranchImpl(
+      docText = docText,
+      branchModState = branchModState,
+      agent = agent,
+      graph = graph,
+    )
   }
 
   override fun merge(other: DocBranch): DocBranch {
@@ -84,19 +97,46 @@ internal class DocBranchImpl private constructor(
     }
     val merged = result.graph()
     if (result.isFastForward()) {
-      // This branch's history is inside the other branch's history, so its text is ready. The ops
-      // would cost a replay of the change, so they wait until a caller asks for them. The lambda
-      // takes the text and not the other branch, so it does not keep the other graph alive.
-      val text = otherImpl.docText
-      val branch = DocBranchImpl(text, agent, merged)
-      return DocMerge.deferred(branch) {
-        opsOfFastForward(merged, text)
-      }
+      return fastForward(merged, otherImpl.docText)
     }
     // A partial replay: the walk covers only the region above the common ancestor. Only the new
     // units reach the sink, which joins them into ordinary ops over the text.
     val sink = replayOnto(merged, docText)
-    return DocMerge.ready(DocBranchImpl(sink.result(), agent, merged), sink.ops())
+    val ops = sink.ops()
+    val mergedModState = foldModState(docText, modState(), ops)
+    val branch = DocBranchImpl(
+      docText = sink.result(),
+      branchModState = BranchModState.Resolved(mergedModState),
+      agent = agent,
+      graph = merged,
+    )
+    return DocMerge.ready(branch, ops)
+  }
+
+  /**
+   * The fast-forward to [merged], whose text is [text].
+   *
+   * This branch's history is inside [merged], so the text is ready. The ops would cost a replay of
+   * the change, so they wait until a caller asks for them, and the mod state waits for the ops. The
+   * lambdas take the text and not the other branch, so they do not keep the other graph alive.
+   */
+  private fun fastForward(merged: EventGraphImpl, text: DocumentText): DocMerge {
+    val replay by lazy(LazyThreadSafetyMode.PUBLICATION) {
+      replayFastForward(merged)
+    }
+    val mergedModState = BranchModState.Deferred(docText, modState()) {
+      replay.ops
+    }
+    val branch = DocBranchImpl(
+      docText = text,
+      branchModState = mergedModState,
+      agent = agent,
+      graph = merged,
+    )
+    return DocMerge.deferred(branch) {
+      checkFoldsInto(replay.text, text)
+      replay.ops
+    }
   }
 
   private fun applyInsert(op: DocumentOp.Insert): DocBranch {
@@ -106,8 +146,14 @@ internal class DocBranchImpl private constructor(
     }
     // The inner text validates the offset before the graph changes.
     val newDocText = docText.applyOp(op)
+    val newModState = modState().applyOp(docText, newDocText, op)
     val recorded = recordedInsert(op, newDocText)
-    return DocBranchImpl(newDocText, agent, appendLocal(recorded))
+    return DocBranchImpl(
+      docText = newDocText,
+      branchModState = BranchModState.Resolved(newModState),
+      agent = agent,
+      graph = appendLocal(recorded),
+    )
   }
 
   private fun applyDelete(op: DocumentOp.Delete): DocBranch {
@@ -116,8 +162,31 @@ internal class DocBranchImpl private constructor(
       return this
     }
     val newDocText = docText.applyOp(op)
+    val newModState = modState().applyOp(docText, newDocText, op)
     val recorded = recordedDelete(op)
-    return DocBranchImpl(newDocText, agent, appendLocal(recorded))
+    return DocBranchImpl(
+      docText = newDocText,
+      branchModState = BranchModState.Resolved(newModState),
+      agent = agent,
+      graph = appendLocal(recorded),
+    )
+  }
+
+  /**
+   * [op] changes only the mod state, so the text and the graph keep their instances.
+   */
+  private fun applyMetadata(op: DocumentOp): DocBranch {
+    val current = modState()
+    val newModState = current.applyOp(docText, docText, op)
+    if (newModState === current) {
+      return this
+    }
+    return DocBranchImpl(
+      docText = docText,
+      branchModState = BranchModState.Resolved(newModState),
+      agent = agent,
+      graph = graph,
+    )
   }
 
   /**
@@ -186,19 +255,15 @@ internal class DocBranchImpl private constructor(
   }
 
   /**
-   * The ops of a fast-forward to [merged], whose text is [expected]. The replay walks the units that
-   * [merged] holds beyond this branch, so it costs the change plus one compare of the text.
+   * The replay of a fast-forward to [merged]. It walks only the units that [merged] holds beyond this
+   * branch, so it costs the size of the change.
    *
    * The replay starts from a text without line data, because nothing reads the line data of its
    * result. With line data, each op would copy the line arrays of the whole document.
    */
-  private fun opsOfFastForward(
-    merged: EventGraphImpl,
-    expected: DocumentText,
-  ): List<DocumentOp.Text> {
+  private fun replayFastForward(merged: EventGraphImpl): FastForwardReplay {
     val sink = replayOnto(merged, DocumentText.createText(docText.chars()))
-    checkFoldsInto(sink.result(), expected)
-    return sink.ops()
+    return FastForwardReplay(sink.result(), sink.ops())
   }
 
   /**
@@ -223,7 +288,13 @@ internal class DocBranchImpl private constructor(
       if (chars.isNotEmpty()) {
         graph = graph.appendAtVersion(EventImpl(agent, 0, DocumentOp.insertOp(0, chars)))
       }
-      return DocBranchImpl(DocumentText.createText(chars), agent, graph)
+      val text = DocumentText.createText(chars)
+      return DocBranchImpl(
+        docText = text,
+        branchModState = BranchModState.Resolved(RangeModState.create(text)),
+        agent = agent,
+        graph = graph,
+      )
     }
 
     private fun implOf(branch: DocBranch): DocBranchImpl {
@@ -233,4 +304,61 @@ internal class DocBranchImpl private constructor(
       return branch
     }
   }
+}
+
+/**
+ * The text and the ops that a replay of a fast-forward builds. The mod state reads only the ops, and an
+ * editor also needs the check that the ops build the merged text.
+ */
+private class FastForwardReplay(val text: DocumentText, val ops: List<DocumentOp.Text>)
+
+/**
+ * The mod state of a branch: [Resolved], or [Deferred] until the first read.
+ *
+ * Only a fast-forward makes a [Deferred] state, because its ops wait until a caller asks for them. It
+ * starts from a resolved mod state, and every other transition resolves first. So folds never nest.
+ */
+private sealed interface BranchModState {
+  fun resolved(): DocumentModState
+
+  class Resolved(private val modState: DocumentModState) : BranchModState {
+    override fun resolved(): DocumentModState {
+      return modState
+    }
+  }
+
+  /**
+   * [start] with [ops] folded in, starting from [startText]. The fold runs once, on the first read.
+   */
+  class Deferred(
+    startText: DocumentText,
+    start: DocumentModState,
+    ops: () -> List<DocumentOp.Text>,
+  ) : BranchModState {
+    private val folded by lazy(LazyThreadSafetyMode.PUBLICATION) {
+      foldModState(startText, start, ops())
+    }
+
+    override fun resolved(): DocumentModState {
+      return folded
+    }
+  }
+}
+
+/**
+ * [modState] with [ops] applied one after another, starting from [text].
+ */
+private fun foldModState(
+  text: DocumentText,
+  modState: DocumentModState,
+  ops: List<DocumentOp.Text>,
+): DocumentModState {
+  var before = text
+  var folded = modState
+  for (op in ops) {
+    val after = before.applyOp(op)
+    folded = folded.applyOp(before, after, op)
+    before = after
+  }
+  return folded
 }

@@ -142,12 +142,13 @@ class DocBranchTest {
   }
 
   @Test
-  fun `an op that changes no text keeps the instance`() {
+  fun `a metadata op that changes nothing keeps the instance`() {
     val base = DocBranch.createBranch("abc", agent("a"))
-    val stamp = DocumentOp.modStampOp(42, true)
-    val lines = DocumentOp.unmodifiedLinesOp(0, 1, IntArray(0))
-    assertSame(base, base.applyOp(stamp))
-    assertSame(base, base.applyOp(lines))
+    val sameStamp = modStampOp(base.modState().stamp(), false)
+    // A new branch has no modified lines to clear.
+    val noModifiedLines = unmodifiedLinesOp(0, 1, IntArray(0))
+    assertSame(base, base.applyOp(sameStamp))
+    assertSame(base, base.applyOp(noModifiedLines))
   }
 
   @Test
@@ -727,6 +728,18 @@ internal fun DocBranch.length(): Int = text().length()
 internal fun insertOp(offset: Int, fragment: CharSequence): DocumentOp.Insert = DocumentOp.insertOp(offset, fragment)
 
 internal fun deleteOp(offset: Int, length: Int): DocumentOp.Delete = DocumentOp.deleteOp(offset, length)
+
+internal fun modStampOp(stamp: Long, incSequence: Boolean): DocumentOp.ModStamp {
+  return DocumentOp.modStampOp(stamp, incSequence)
+}
+
+internal fun unmodifiedLinesOp(
+  startLine: Int,
+  endLine: Int,
+  exceptLines: IntArray,
+): DocumentOp.UnmodifiedLines {
+  return DocumentOp.unmodifiedLinesOp(startLine, endLine, exceptLines)
+}
 
 /**
  * The ops of a text move in [text], as `DocumentEx.moveText` makes them: an insert of the copy at

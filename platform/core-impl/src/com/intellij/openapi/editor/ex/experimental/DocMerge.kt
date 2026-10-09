@@ -26,19 +26,15 @@ interface DocMerge {
    * it. So the text of the receiver, with every op applied in turn, equals the text of [branch]. A
    * text between two ops need not be the text of any version.
    *
-   * Each op comes from `DocumentOp.insertOp` or `DocumentOp.deleteOp`, and no op is empty. A
-   * merge whose new units change no text has no ops. Ops that cancel each other can still occur,
-   * because the other side can insert text and delete it later, and only neighbouring ops join.
-   * The list cannot change, and every call returns the same list.
+   * Each op is an insert or a delete, and no op is empty. A merge that changes no text has no ops,
+   * but two ops can still cancel each other. The list cannot change, and every call returns the
+   * same list.
    *
-   * A move arrives as an insert and a delete with move offsets, as `DocumentEvent.getMoveOffset` gives
-   * them. This holds when the moved text is intact at the place of the move in the op stream.
-   * Otherwise the move arrives as plain ops.
+   * A move arrives as an insert and a delete with move offsets, as `DocumentEvent.getMoveOffset`
+   * gives them, when the moved text arrives unchanged. Otherwise it arrives as plain ops.
    *
-   * A fast-forward needs no replay to build its text, so it builds its ops only on the first call.
-   * That call costs a replay of the change and one compare of the text, and not a replay of the
-   * document. The compare makes sure that the ops build the text of [branch]. It fails only when the
-   * two branches broke the agent contract, in a way that the id check of the merge did not sample.
+   * For a fast-forward, the first call replays the change. It throws when the ops do not build the
+   * text of [branch], which happens only when the two branches broke the agent contract.
    */
   fun ops(): List<DocumentOp.Text>
 
@@ -52,7 +48,8 @@ interface DocMerge {
     }
 
     /**
-     * A merge whose ops [lazyOps] makes on the first call of [ops]. [lazyOps] must return a list that cannot change.
+     * A merge whose ops [lazyOps] makes on the first call of [ops]. [lazyOps] must return a list
+     * that cannot change. It can run more than once when threads race, so it must give equal lists.
      */
     @JvmStatic
     fun deferred(branch: DocBranch, lazyOps: () -> List<DocumentOp.Text>): DocMerge {

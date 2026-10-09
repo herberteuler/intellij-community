@@ -11,25 +11,22 @@ import com.intellij.openapi.editor.impl.experimental.DocBranchImpl
  * (arXiv 2409.14252). Two divergent copies of one document can then [merge] without losing either
  * side.
  *
- * The branch is a value: [applyOp], [fork], and [merge] return a new branch. The materialized
- * document at the branch's version is available through [text].
- *
- * A local [applyOp] is cheap: it appends events at the current version and edits the text
- * directly. The CRDT machinery runs only inside [merge] and [DocMerge.ops], on the concurrent
- * region, and is discarded afterwards.
+ * The branch is a value: [applyOp], [fork], and [merge] return a new branch. [text] gives the
+ * document at the branch's version. A merge costs the size of the change and of the concurrent
+ * region, not the size of the history.
  *
  * Contract:
- * - Branches that edit concurrently must edit under different [Agent]s. [fork] hands out
- *   that identity. Two concurrent edits under one agent break the event id uniqueness.
+ * - Branches that edit concurrently must edit under different [Agent]s. [fork] sets the agent.
+ *   Two concurrent edits under one agent can make a merge throw [EventIdClashException], or build
+ *   a wrong text.
  * - [merge] expects branches that descend from one [createBranch] value. Branches with no
- *   common history merge into a concatenated document. That is correct for a CRDT, but it
- *   is not the intended use.
+ *   common history merge into a concatenated document.
  * - `a.merge(b)` and `b.merge(a)` produce the same text. A merge with an ancestor changes
  *   nothing. A merge with a descendant fast-forwards. A repeated merge changes nothing.
  */
 interface DocBranch {
   /**
-   * The materialized document at this branch's version.
+   * The document at this branch's version.
    */
   fun text(): DocumentText
 
@@ -48,9 +45,8 @@ interface DocBranch {
   /**
    * A branch with [op] applied at this branch's version: the same edit as [DocumentText.applyOp].
    *
-   * An op with a move offset records half of a text move. The op records as a plain one unless the
-   * text at its move offset is the moved text. The moved text must also lie apart from the text that
-   * the op changes. A half without its other half merges as a plain op.
+   * An op with a move offset is half of a text move. The branch ignores a move offset that does not
+   * name the moved text, or that overlaps the text that the op changes.
    *
    * Only a text op records an event.
    */
@@ -67,7 +63,7 @@ interface DocBranch {
   fun graph(): EventGraph
 
   /**
-   * A copy of this branch that edits under [agent]. The state and the history are shared.
+   * A branch with the same text, mod state and history that edits under [agent].
    */
   fun fork(agent: Agent): DocBranch
 
@@ -76,9 +72,8 @@ interface DocBranch {
    * Concurrent edits are resolved deterministically; no edit is dropped.
    * The result keeps this branch's [agent].
    *
-   * Throws [EventIdClashException] when the merge finds that the two branches broke the agent
-   * contract. The check samples, so [EventIdClashException] says what it can miss. A merge that
-   * fails changes nothing.
+   * Throws [EventIdClashException] when the two branches broke the agent contract. It does not find
+   * every break. A merge that throws changes nothing.
    *
    * The result is the branch of [mergeWithOps] for the same two branches.
    */
@@ -92,6 +87,9 @@ interface DocBranch {
   fun mergeWithOps(other: DocBranch): DocMerge
 
   companion object {
+    /**
+     * A new branch with the text [chars] that edits under [agent].
+     */
     @JvmStatic
     fun createBranch(chars: CharSequence, agent: Agent): DocBranch {
       return DocBranchImpl.create(chars, agent)

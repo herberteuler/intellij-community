@@ -6,15 +6,9 @@ import com.intellij.openapi.editor.impl.experimental.EventGraphImpl
 
 /**
  * The Eg-walker event graph (arXiv 2409.14252): an append-only DAG of original [Event]s.
- * It is the only state the algorithm needs besides the document text.
  *
  * The graph is an immutable value. [append] and [mergeFrom] return a new graph and leave
- * this one untouched. Successive graphs share their storage, so an append is cheap, and an older
- * graph appends as cheaply as the newest one.
- *
- * The storage is run-length encoded: one [Event] run of n characters costs one entry,
- * not n. An [append] that continues the newest run extends it, so typing costs one run per
- * burst and not one per keystroke.
+ * this one untouched. An append is cheap on any graph, the newest one or an older one.
  */
 interface EventGraph {
   /**
@@ -23,7 +17,7 @@ interface EventGraph {
   fun size(): Int
 
   /**
-   * The number of stored [Event] runs. `runCount() <= size()`; the gap is the encoding win.
+   * The number of stored [Event] runs. `runCount() <= size()`.
    */
   fun runCount(): Int
 
@@ -39,34 +33,20 @@ interface EventGraph {
    * transitively reduced, as they are in every version that a graph returns.
    *
    * The seq of the run must be the next free seq of its agent in this graph. So the seqs of one
-   * agent ascend and leave no gap. That keeps the rule that one (agent, seq) pair names one unit
-   * forever. It also lets [mergeFrom] compare two histories by agent instead of by run. Each agent
-   * owns its own seq space, so two agents interleave freely.
+   * agent ascend with no gap, and one (agent, seq) pair names one unit forever. Each agent has its
+   * own seq space.
    *
-   * When [event] continues the newest run, the append extends that run and adds none. The
-   * event continues the run when all of these hold:
-   * - it has the same agent, and its seq is the next one after the run;
-   * - [parents] names the last unit of the run and nothing else;
-   * - the op has the same kind, and it starts where the run would edit next. That is the end of an
-   *   insert, or the offset of a delete;
-   * - an insert run stays within [MAX_COALESCED_INSERT] characters;
-   * - a delete run stays within the offset space, so its offset plus its length fits an `Int`;
-   * - neither op is half of a text move.
-   *
-   * The units, their ids, and their parents are the same either way, so only [runCount] shows
-   * the difference. A backspace does not continue a delete run, because its units walk
-   * backwards.
+   * The append can extend the newest run instead of adding one, for example while a user types.
+   * The units, their ids, and their parents are the same either way, so only [runCount] shows the
+   * difference.
    */
   fun append(event: Event, parents: Version): EventGraph
 
   /**
-   * Returns the union of this graph and [other], joined by event ids. Units of [other] that this
-   * graph already contains are kept once. When this graph holds only the leading units of a run,
-   * the merge appends the rest of the run.
+   * Returns the union of this graph and [other], joined by event ids. A unit that both graphs hold
+   * stays once.
    *
-   * The cost is the size of the CHANGE. The two graphs compare one integer per agent, so a
-   * merge never walks the history they share. It reads only a few shared units per agent for
-   * the id check, and one run for each parent of a new run.
+   * The cost is the size of the change, not the size of the history that the two graphs share.
    *
    * Throws [EventIdClashException] when the two graphs give one id to two operations.
    */
@@ -77,18 +57,19 @@ interface EventGraph {
    * builds the document at [version] from scratch. This graph must hold every head of [version],
    * or the replay fails.
    *
-   * The replay walks the events in a topological order. It resolves concurrent
-   * insertions with the Fugue order, so every replica computes the same text.
+   * Concurrent inserts follow the Fugue order, so every replica builds the same text.
    */
   fun replay(version: Version): DocumentText
 
+  /**
+   * The document at the [version] of this graph.
+   */
   fun replay(): DocumentText = replay(version())
 
   companion object {
     /**
-     * The longest insert run that [append] builds by extending the newest run. Each extension
-     * copies the fragment of the run, and this bounds that copy. One [Event] may still be
-     * longer, and nothing then extends it.
+     * The longest insert run that [append] builds by extending runs. A longer [Event] stays as it
+     * is, and no append extends it.
      */
     const val MAX_COALESCED_INSERT: Int = 256
 

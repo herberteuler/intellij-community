@@ -8,8 +8,7 @@ package com.intellij.openapi.editor.ex.experimental
  * concurrently under one [Agent], which the [DocBranch] contract forbids. The merge changes
  * nothing, so a caller can fall back to a merge of the two texts.
  *
- * The merge compares the two ends of the shared seq range of each agent, and not the whole range.
- * So a merge can miss a clash, but a clash it reports is always real.
+ * A merge does not find every clash, but a clash that it reports is always real.
  */
 class EventIdClashException internal constructor(
   private val agent: Agent,

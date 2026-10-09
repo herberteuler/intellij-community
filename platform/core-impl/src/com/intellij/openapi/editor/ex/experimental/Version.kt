@@ -19,7 +19,7 @@ import org.jetbrains.annotations.TestOnly
  * event ids, and not that they name the same events.
  *
  * Two versions are [equals] when they hold the same heads. Under the agent contract, they then name
- * the same events. A version from [of] is the exception, because it names lvs.
+ * the same events. A version from [of] is the exception.
  *
  * The value is immutable, and any thread may read it.
  */
@@ -30,6 +30,9 @@ interface Version {
   fun isRoot(): Boolean
 
   companion object {
+    /**
+     * The version of the empty graph.
+     */
     fun root(): Version {
       return VersionImpl.ROOT
     }

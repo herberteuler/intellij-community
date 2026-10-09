@@ -6,12 +6,14 @@ import com.intellij.openapi.editor.impl.experimental.AgentImpl
 /**
  * The identity that authors [Event]s. Each event id is an (agent, seq) pair.
  *
- * The order defined by [compareTo] is total and stable across processes.
- * The Eg-walker merge uses it to break ties between concurrent insertions,
- * so equal inputs always merge to equal text.
+ * The order of [compareTo] is total and the same in every process. A merge orders concurrent
+ * inserts at one place by it, so equal inputs always merge to equal text.
  */
 interface Agent : Comparable<Agent> {
   companion object {
+    /**
+     * The agent named [name]. Two agents with one name are equal.
+     */
     @JvmStatic
     fun createAgent(name: String): Agent {
       return AgentImpl(name)

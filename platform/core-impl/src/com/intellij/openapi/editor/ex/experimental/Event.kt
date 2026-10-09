@@ -17,9 +17,8 @@ import com.intellij.openapi.editor.impl.experimental.EventImpl
  * [op] indexes the document as it was in the PARENT VERSION. An old event applied to a document at
  * another version means nothing.
  *
- * The paper (arXiv 2409.14252) models one event per unit. This implementation run-length encodes
- * them: one event covers [length] units. The parents of the first unit live in [EventGraph], and
- * the parent of every later unit is the unit before it.
+ * One event covers [length] units. The parents of the first unit live in [EventGraph], and the
+ * parent of every later unit is the unit before it.
  *
  * An event is immutable: a merge never rewrites it.
  */
@@ -43,28 +42,21 @@ interface Event {
 
   /**
    * The offset that the unit [index] of this run edits, in the document at the parents of that
-   * unit. [index] must be in `[0, length)`.
-   *
-   * An insert walks forward, because every character it adds shifts the next one right.
-   * A delete stays in place, because every removal shifts the next character into it.
+   * unit. [index] must be in `[0, length)`. An insert unit edits at `offset + index`, and a delete
+   * unit edits at `offset`.
    */
   fun offsetOfUnit(index: Int): Int
 
   /**
-   * The part of this run from the unit [units] onward, as an event of its own. A merge
-   * needs it when the other replica holds only the leading units of the run. [units] must be
-   * in `[0, length)`, and a zero [units] returns this event. A part of a move moves nothing, so
-   * the suffix of a move is a plain op.
+   * The part of this run from the unit [units] onward, as an event of its own. [units] must be in
+   * `[0, length)`, and a zero [units] returns this event. The suffix of a move is a plain op.
    */
   fun suffixFrom(units: Int): Event
 
   companion object {
     /**
-     * An event that records [op] under the id ([agent], [seq]).
-     *
-     * The event keeps [op] and never copies it, so [op] must come from [DocumentOp.insertOp] or
-     * [DocumentOp.deleteOp]. Only those two detach the content from a sequence the caller can still
-     * change, and an event lives in the graph forever.
+     * An event that records [op] under the id ([agent], [seq]). [op] must come from
+     * [DocumentOp.insertOp] or [DocumentOp.deleteOp], because the event keeps it as it is.
      */
     @JvmStatic
     fun create(agent: Agent, seq: Int, op: DocumentOp.Text): Event {

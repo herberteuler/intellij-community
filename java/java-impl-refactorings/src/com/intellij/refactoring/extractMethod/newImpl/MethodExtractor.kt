@@ -6,6 +6,7 @@ import com.intellij.codeInsight.template.impl.TemplateManagerImpl
 import com.intellij.codeInsight.template.impl.TemplateState
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.java.refactoring.JavaRefactoringBundle
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.application.readAction
@@ -31,6 +32,7 @@ import com.intellij.psi.PsiType
 import com.intellij.psi.impl.source.PsiFileImpl
 import com.intellij.psi.util.PsiEditorUtil
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.refactoring.BaseRefactoringProcessor
 import com.intellij.refactoring.JavaRefactoringSettings
 import com.intellij.refactoring.RefactoringBundle
 import com.intellij.refactoring.extractMethod.ExtractMethodDialog
@@ -54,6 +56,7 @@ import com.intellij.refactoring.extractMethod.newImpl.parameterObject.ResultObje
 import com.intellij.refactoring.extractMethod.newImpl.structures.ExtractOptions
 import com.intellij.refactoring.listeners.RefactoringEventData
 import com.intellij.refactoring.listeners.RefactoringEventListener
+import com.intellij.refactoring.ui.ConflictsDialog
 import com.intellij.refactoring.util.CommonRefactoringUtil
 import com.intellij.refactoring.util.ConflictsUtil
 import com.intellij.util.concurrency.annotations.RequiresReadLock
@@ -129,6 +132,7 @@ class MethodExtractor {
       is ContextOrError.Error -> InplaceExtractUtils.showExtractErrorHint(editor, contextOrError.message)
       is ContextOrError.Context -> {
         val (elements, analyzer) = contextOrError
+        if (!contextOrError.conflicts.isEmpty && !withContext(Dispatchers.EDT) { showConflicts(file.project, contextOrError.conflicts) }) return
 
         val outputVariables = readAction { analyzer.findOutputVariables().sortedBy { variable -> variable.textRange.startOffset } }
         if (outputVariables.size > 1) {
@@ -174,6 +178,16 @@ class MethodExtractor {
         }
       }
     }
+  }
+
+  private fun showConflicts(project: Project, conflicts: MultiMap<PsiElement, String>): Boolean {
+    if (ApplicationManager.getApplication().isUnitTestMode) {
+      if (!BaseRefactoringProcessor.ConflictsInTestsException.isTestIgnore()) {
+        throw BaseRefactoringProcessor.ConflictsInTestsException(conflicts.values())
+      }
+      return true
+    }
+    return ConflictsDialog(project, conflicts).showAndGet()
   }
 
   private fun reportPerformanceStatistics(preparePlacesMs: Long, prepareTemplateMs: Long, numberOfTargetPlaces: Int){
@@ -273,6 +287,8 @@ class MethodExtractor {
       )
     }
     if (doRefactor) {
+      val conflicts = findConflicts(analyzer)
+      if (!conflicts.isEmpty && !showConflicts(project, conflicts)) return false
       extractMethod(options)
     }
     return true
@@ -378,7 +394,11 @@ class MethodExtractor {
      * @param elements set of statements to extract
      * @param analyzer utility class helping to analyzer control flow of the code fragment
      */
-    data class Context(val elements: List<PsiElement>, val analyzer: CodeFragmentAnalyzer) : ContextOrError
+    data class Context(
+      val elements: List<PsiElement>,
+      val analyzer: CodeFragmentAnalyzer,
+      val conflicts: MultiMap<PsiElement, String>,
+    ) : ContextOrError
 
     companion object {
       @RequiresReadLock(generateAssertion = false /* IJPL-115548 */)
@@ -393,10 +413,18 @@ class MethodExtractor {
           return Error(JavaRefactoringBundle.message("extract.method.control.flow.analysis.failed"))
         }
         
-        return Context(elements, analyzer)
+        return Context(elements, analyzer, findConflicts(analyzer))
       }
     }
   }
+}
+
+private fun findConflicts(analyzer: CodeFragmentAnalyzer): MultiMap<PsiElement, String> {
+  val conflicts = MultiMap<PsiElement, String>()
+  if (!analyzer.keepsReturnOnAllPathsAfterCall()) {
+    conflicts.putValue(analyzer.elements.first(), JavaRefactoringBundle.message("extract.method.conflict.missing.return"))
+  }
+  return conflicts
 }
 
 private fun rangeToReplaceFor(options: ExtractOptions, selection: TextRange): TextRange {

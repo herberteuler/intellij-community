@@ -5,6 +5,7 @@ import com.intellij.JavaTestUtil;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.CodeInsightUtil;
 import com.intellij.codeInsight.NullableNotNullManager;
+import com.intellij.java.refactoring.JavaRefactoringBundle;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Editor;
@@ -26,6 +27,7 @@ import com.intellij.psi.codeStyle.CommonCodeStyleSettings;
 import com.intellij.psi.codeStyle.JavaCodeStyleSettings;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.refactoring.BaseRefactoringProcessor;
 import com.intellij.refactoring.IntroduceVariableUtil;
 import com.intellij.refactoring.extractMethod.ExtractMethodHandler;
 import com.intellij.refactoring.extractMethod.ExtractMethodProcessor;
@@ -753,6 +755,23 @@ public class ExtractMethodNewTest extends LightJavaCodeInsightTestCase {
 
   public void testDontMissReturnDueToThrowable() {
     doTest();
+  }
+
+  public void testThrowInNonVoidMethodNeedsReturn() {
+    configureByFile(BASE_PATH + getTestName(false) + ".java");
+    try {
+      performAction(true, false);
+      fail("Conflict expected");
+    }
+    catch (BaseRefactoringProcessor.ConflictsInTestsException e) {
+      assertEquals(JavaRefactoringBundle.message("extract.method.conflict.missing.return"), e.getMessage());
+    }
+  }
+
+  public void testThrowInNonVoidMethodNeedsReturnConfirmed() {
+    configureByFile(BASE_PATH + "ThrowInNonVoidMethodNeedsReturn.java");
+    BaseRefactoringProcessor.ConflictsInTestsException.withIgnoredConflicts(() -> assertTrue(performAction(true, false)));
+    assertTrue(getFile().getText().contains("newMethod()"));
   }
 
   public void testDontExtractInsideSwitch() {

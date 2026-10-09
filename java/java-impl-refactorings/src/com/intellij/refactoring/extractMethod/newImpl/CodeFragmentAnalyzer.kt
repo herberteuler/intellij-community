@@ -50,6 +50,7 @@ import com.intellij.psi.controlFlow.LocalsControlFlowPolicy
 import com.intellij.psi.controlFlow.ReturnInstruction
 import com.intellij.psi.controlFlow.ThrowToInstruction
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.PsiUtil
 import com.intellij.refactoring.extractMethod.newImpl.ExtractMethodHelper.getReturnedExpression
 import com.intellij.refactoring.util.classMembers.ClassMemberReferencesVisitor
@@ -134,6 +135,16 @@ class CodeFragmentAnalyzer(val elements: List<PsiElement>) {
 
   fun hasObservableThrowExit(): Boolean {
     return ControlFlowUtil.hasObservableThrowExitPoints(flow, flowRange.first, flowRange.last, elements.toTypedArray(), codeFragment)
+  }
+
+  fun keepsReturnOnAllPathsAfterCall(): Boolean {
+    val exitDescription = findExitDescription()
+    if (exitDescription.exitStatements.isNotEmpty() || exitDescription.numberOfExits != 1) return true
+    val returnType = PsiTypesUtil.getMethodReturnType(elements.first())
+    if (returnType == null || returnType == PsiTypes.voidType()) return true
+    if (ControlFlowUtil.canCompleteNormally(flow, flowRange.first, flowRange.last)) return true
+    val canReachMethodEnd = flowRange.last >= flow.size || ControlFlowUtil.canCompleteNormally(flow, flowRange.last, flow.size)
+    return !canReachMethodEnd
   }
 
   fun findExitDescription(): ExitDescription {

@@ -9368,6 +9368,11 @@ public abstract class HighLevelQuickFixTestGenerated extends AbstractHighLevelQu
             runTest("../../../idea/tests/testData/quickfix/expressions/removeUselessIsCheckNegateForNull.kt");
         }
 
+        @TestMetadata("removeUselessIsCheckRelyingOnNullInWhen.kt")
+        public void testRemoveUselessIsCheckRelyingOnNullInWhen() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/expressions/removeUselessIsCheckRelyingOnNullInWhen.kt");
+        }
+
         @TestMetadata("removeUselessIsCheckWithWhenGuard.kt")
         public void testRemoveUselessIsCheckWithWhenGuard() throws Exception {
             runTest("../../../idea/tests/testData/quickfix/expressions/removeUselessIsCheckWithWhenGuard.kt");
@@ -9378,9 +9383,39 @@ public abstract class HighLevelQuickFixTestGenerated extends AbstractHighLevelQu
             runTest("../../../idea/tests/testData/quickfix/expressions/replaceIsCheckWithNullCheck.kt");
         }
 
+        @TestMetadata("replaceIsCheckWithNullCheckInWhen.kt")
+        public void testReplaceIsCheckWithNullCheckInWhen() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/expressions/replaceIsCheckWithNullCheckInWhen.kt");
+        }
+
+        @TestMetadata("replaceIsCheckWithNullCheckInWhenWithGuard.kt")
+        public void testReplaceIsCheckWithNullCheckInWhenWithGuard() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/expressions/replaceIsCheckWithNullCheckInWhenWithGuard.kt");
+        }
+
+        @TestMetadata("replaceIsCheckWithNullCheckKeepsComment.kt")
+        public void testReplaceIsCheckWithNullCheckKeepsComment() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/expressions/replaceIsCheckWithNullCheckKeepsComment.kt");
+        }
+
+        @TestMetadata("replaceIsCheckWithNullCheckRelyingOnNullInWhen.kt")
+        public void testReplaceIsCheckWithNullCheckRelyingOnNullInWhen() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/expressions/replaceIsCheckWithNullCheckRelyingOnNullInWhen.kt");
+        }
+
+        @TestMetadata("replaceIsCheckWithNullCheckRelyingOnNullNegatedInWhen.kt")
+        public void testReplaceIsCheckWithNullCheckRelyingOnNullNegatedInWhen() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/expressions/replaceIsCheckWithNullCheckRelyingOnNullNegatedInWhen.kt");
+        }
+
         @TestMetadata("replaceNegatedIsCheckWithNullCheck.kt")
         public void testReplaceNegatedIsCheckWithNullCheck() throws Exception {
             runTest("../../../idea/tests/testData/quickfix/expressions/replaceNegatedIsCheckWithNullCheck.kt");
+        }
+
+        @TestMetadata("replaceNegatedIsCheckWithNullCheckInWhen.kt")
+        public void testReplaceNegatedIsCheckWithNullCheckInWhen() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/expressions/replaceNegatedIsCheckWithNullCheckInWhen.kt");
         }
 
         @TestMetadata("unnecessaryNonNullAssertion1.kt")

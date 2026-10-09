@@ -1,0 +1,12 @@
+// "Replace 'is' check with null check" "true"
+// COMPILER_ARGUMENTS: -XXLanguage:+WhenGuards
+// ERROR: IMPOSSIBLE_IS_CHECK_RELYING_ON_NULL_ERROR
+class A
+class B
+
+fun test(a: A?, flag: Boolean) = when (a) {
+    <caret>is B? if flag -> "only null"
+    else -> "other"
+}
+
+// FUS_QUICKFIX_NAME: org.jetbrains.kotlin.idea.k2.codeinsight.fixes.ReplaceWhenIsCheckWithNullCheckFix

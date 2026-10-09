@@ -23,7 +23,7 @@ object AnalysisIgnoreEntitySource : EntitySource
 
 /**
  * The source of an entity without a `.analysisignore` file. A project root holds one such entity with the
- * [default lines][AnalysisIgnoreDefaults.lines] while no file is at or below it. The first such file removes the entity.
+ * [default lines][AnalysisIgnoreDefaults.lines] while the root directory holds no file. The file in the root directory removes the entity.
  */
 @ApiStatus.Internal
 object AnalysisIgnoreDefaultEntitySource : EntitySource

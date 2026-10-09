@@ -404,10 +404,10 @@ class AnalysisIgnoreExclusionContributorTest {
     withContext(Dispatchers.EDT) { AnalysisIgnoreFileWriter.appendLine(project, aDir, "/b/c/") }
     IndexingTestUtil.suspendUntilIndexesAreReady(project)
 
-    // A file below the project root gets no default lines, and it removes the defaults of the root.
+    // A file below the project root gets no default lines, and the defaults of the root stay in effect.
     assertEquals("/b/c/\n", textOfIgnoreFile("projectRoot/a"))
     assertFalse(isInContent(cDir))
-    assertTrue(isInContent(nodeModules))
+    assertFalse(isInContent(nodeModules))
   }
 
   @Test

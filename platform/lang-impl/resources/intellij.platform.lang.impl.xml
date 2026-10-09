@@ -867,7 +867,7 @@
     <registryKey key="ide.analysisignore.file.enabled" defaultValue="true" restartRequired="true"
                  description="Enable the '.analysisignore' file: a list of files and directories excluded from the IDE analysis."/>
     <registryKey key="ide.analysisignore.defaults.enabled" defaultValue="false" restartRequired="true"
-                 description="Exclude the default names, as 'node_modules' and '.venv', from a project root without a '.analysisignore' file."/>
+                 description="Exclude the default names, as 'node_modules' and '.venv', from a project root without a '.analysisignore' file in the root directory."/>
     <workspaceModel.fileIndexContributor implementation="com.intellij.ide.analysisignore.AnalysisIgnoreWorkspaceFileIndexContributor"/>
     <postStartupActivity implementation="com.intellij.ide.analysisignore.AnalysisIgnoreStartupActivity"/>
     <projectFileScanner implementation="com.intellij.ide.analysisignore.AnalysisIgnoreIndexableFileScanner"/>

@@ -13,10 +13,10 @@ import org.jetbrains.annotations.ApiStatus
 internal const val ANALYSIS_IGNORE_DEFAULTS_ENABLED_KEY: String = "ide.analysisignore.defaults.enabled"
 
 /**
- * The exclusions of a project root without a [`.analysisignore`][ANALYSIS_IGNORE_FILE_NAME] file at or below it. A
- * [default entity][AnalysisIgnoreDefaultEntitySource] holds [lines] for such a root, and the first file removes that entity. A new file in
- * the root directory always gets the lines first, so that it states every exclusion of the root, and the user edits each of them there.
- * A file below the root gets no lines: it removes the defaults as well. The user edits [lines] in the File Types settings.
+ * The exclusions of a project root without a [`.analysisignore`][ANALYSIS_IGNORE_FILE_NAME] file in the root directory. A
+ * [default entity][AnalysisIgnoreDefaultEntitySource] holds [lines] for such a root, and the file in the root directory removes that
+ * entity. A new file in the root directory gets the lines first, so that it states every exclusion of the root, and the user edits each of
+ * them there. A file below the root gets no lines: its lines add to the defaults. The user edits [lines] in the File Types settings.
  */
 @ApiStatus.Internal
 object AnalysisIgnoreDefaults {
@@ -60,29 +60,12 @@ object AnalysisIgnoreDefaults {
   val lines: List<String>
     get() = AnalysisIgnoreDefaultsSettings.getInstance().lines
 
-  @Volatile
-  private var compiled: CompiledLines? = null
-
-  /**
-   * Returns `true` if [lines] exclude the directory at [relativePath] below a project root, or a directory above it. [relativePath] uses
-   * `/` between its names.
-   */
-  fun excludesDirectory(relativePath: String, caseSensitive: Boolean): Boolean {
-    val patterns = compiledLines().patterns(caseSensitive)
-    val names = relativePath.split('/')
-    for (depth in names.indices) {
-      val path = names.subList(0, depth + 1).joinToString("/")
-      if (patterns.any { it.matches(path, names[depth], isDirectory = true) }) return true
-    }
-    return false
-  }
-
   /** Returns `true` while the [feature][ANALYSIS_IGNORE_ENABLED_KEY] and its [defaults][ANALYSIS_IGNORE_DEFAULTS_ENABLED_KEY] are on. */
   fun areEnabled(): Boolean = Registry.`is`(ANALYSIS_IGNORE_ENABLED_KEY, true) && Registry.`is`(ANALYSIS_IGNORE_DEFAULTS_ENABLED_KEY, false)
 
   /**
-   * Returns the default lines of a new file in [baseDir]. A new file in a project root directory gets [lines], also after a file below the
-   * root removed the default entity. A file in any other directory gets no lines. The result is empty while the defaults are off.
+   * Returns the default lines of a new file in [baseDir]. A new file in a project root directory gets [lines]. A file in any other
+   * directory gets no lines. The result is empty while the defaults are off.
    */
   fun linesOfNewFileIn(project: Project, baseDir: VirtualFile): List<String> {
     if (!areEnabled()) return emptyList()
@@ -94,20 +77,6 @@ object AnalysisIgnoreDefaults {
   fun isSupportedLine(line: String): Boolean {
     val source = AnalysisIgnorePattern.patternSource(line) ?: return false
     return source == line && AnalysisIgnorePattern.validate(source) == AnalysisIgnoreValidated.Supported
-  }
-
-  /** Returns the compiled [lines]. Compiles them again after the user changed them. */
-  private fun compiledLines(): CompiledLines {
-    val lines = lines
-    compiled?.takeIf { it.lines === lines }?.let { return it }
-    return CompiledLines(lines).also { compiled = it }
-  }
-
-  private class CompiledLines(val lines: List<String>) {
-    private val caseSensitive by lazy { AnalysisIgnorePattern.compileAll(lines, caseSensitive = true) }
-    private val ignoreCase by lazy { AnalysisIgnorePattern.compileAll(lines, caseSensitive = false) }
-
-    fun patterns(caseSensitive: Boolean): List<AnalysisIgnorePattern> = if (caseSensitive) this.caseSensitive else ignoreCase
   }
 }
 

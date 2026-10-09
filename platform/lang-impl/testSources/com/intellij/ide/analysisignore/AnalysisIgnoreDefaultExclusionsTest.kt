@@ -169,19 +169,21 @@ class AnalysisIgnoreDefaultExclusionsTest {
   @Test
   @RegistryKey(key = ENABLED, value = "true")
   @RegistryKey(key = DEFAULTS, value = "true")
-  fun `a file below the root removes the defaults of the root as well`() = runBlocking {
+  fun `a file below the root adds to the defaults of the root`() = runBlocking {
     val yarnBelow = dir("projectRoot/sub/.yarn")
     val targetAtRoot = dir("projectRoot/target")
     val customDir = dir("projectRoot/sub/custom")
     discover(writeAnalysisIgnoreFile("projectRoot/sub", "/custom/"))
 
-    assertEquals(emptyMap<String, List<String>>(), defaultPatternsByRoot())
-    assertTrue(isInContent(yarnBelow))
-    assertTrue(isInContent(targetAtRoot))
+    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
+    assertFalse(isInContent(yarnBelow))
+    assertFalse(isInContent(targetAtRoot))
     assertFalse(isInContent(customDir))
 
     service.forgetNow(projectRoot.url + "/sub")
 
+    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
+    assertTrue(isInContent(customDir))
     assertFalse(isInContent(yarnBelow))
     assertFalse(isInContent(targetAtRoot))
   }
@@ -211,7 +213,7 @@ class AnalysisIgnoreDefaultExclusionsTest {
   @Test
   @RegistryKey(key = ENABLED, value = "true")
   @RegistryKey(key = DEFAULTS, value = "true")
-  fun `Mark as Excluded in a nested content root writes the line alone and removes the defaults`() = runBlocking {
+  fun `Mark as Excluded in a nested content root writes the line alone and keeps the defaults`() = runBlocking {
     val subRoot = dir("projectRoot/sub")
     val buildDir = dir("projectRoot/sub/build")
     val yarnElsewhere = dir("projectRoot/other/.yarn")
@@ -221,11 +223,11 @@ class AnalysisIgnoreDefaultExclusionsTest {
     withContext(Dispatchers.EDT) { assertTrue(OptionalExclusionUtil.exclude(project, buildDir)) }
     IndexingTestUtil.suspendUntilIndexesAreReady(project)
 
-    // A file below the project root gets no default lines, and it removes the defaults of the root.
+    // A file below the project root gets no default lines, and the defaults of the root stay in effect.
     assertEquals("/build/\n", textOfIgnoreFile("projectRoot/sub"))
-    assertEquals(emptyMap<String, List<String>>(), defaultPatternsByRoot())
+    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
     assertFalse(isInContent(buildDir))
-    assertTrue(isInContent(yarnElsewhere))
+    assertFalse(isInContent(yarnElsewhere))
   }
 
   @Test
@@ -331,7 +333,7 @@ class AnalysisIgnoreDefaultExclusionsTest {
   @Test
   @RegistryKey(key = ENABLED, value = "true")
   @RegistryKey(key = DEFAULTS, value = "true")
-  fun `a new empty file below the root stays empty and removes the defaults`() = runBlocking {
+  fun `a new empty file below the root stays empty and keeps the defaults`() = runBlocking {
     val yarnBelow = dir("projectRoot/sub/.yarn")
 
     val ignoreFile = writeAnalysisIgnoreFile("projectRoot/sub")
@@ -340,18 +342,18 @@ class AnalysisIgnoreDefaultExclusionsTest {
 
     assertEquals("", textOfIgnoreFile("projectRoot/sub"))
     assertNull(service.defaultLinesAddedTo(ignoreFile))
-    assertEquals(emptyMap<String, List<String>>(), defaultPatternsByRoot())
-    assertTrue(isInContent(yarnBelow))
+    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
+    assertFalse(isInContent(yarnBelow))
   }
 
   @Test
   @RegistryKey(key = ENABLED, value = "true")
   @RegistryKey(key = DEFAULTS, value = "true")
-  fun `a new empty file at the root gets the default lines also after a file below the root removed them`() = runBlocking {
+  fun `a new empty file at the root gets the default lines while a file below the root exists`() = runBlocking {
     val yarnBelow = dir("projectRoot/sub/.yarn")
     discover(writeAnalysisIgnoreFile("projectRoot/sub", "/custom/"))
-    assertEquals(emptyMap<String, List<String>>(), defaultPatternsByRoot())
-    assertTrue(isInContent(yarnBelow))
+    assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
+    assertFalse(isInContent(yarnBelow))
 
     val rootFile = writeAnalysisIgnoreFile("projectRoot")
     service.awaitPendingFills()
@@ -414,7 +416,7 @@ class AnalysisIgnoreDefaultExclusionsTest {
     val nodeModules = dir("projectRoot/node_modules")
     val packageDir = dir("projectRoot/node_modules/pkg")
 
-    // As a package that ships its own file. The file gets an entity, as every file does, but the defaults hide its directory.
+    // As a package that ships its own file. The file gets an entity, and the defaults hide its directory.
     writeAnalysisIgnoreFile("projectRoot/node_modules/pkg", "/x/")
     service.awaitPendingFills()
     service.processNow()
@@ -423,17 +425,6 @@ class AnalysisIgnoreDefaultExclusionsTest {
     assertEquals(mapOf(projectRoot.url to AnalysisIgnoreDefaults.BUILT_IN_LINES), defaultPatternsByRoot())
     assertFalse(isInContent(nodeModules))
     assertFalse(isInContent(yarnBelow))
-  }
-
-  @Test
-  fun `the defaults exclude a directory by a name at any depth and by a root name at the root only`() {
-    assertTrue(AnalysisIgnoreDefaults.excludesDirectory("node_modules/pkg", caseSensitive = true))
-    assertTrue(AnalysisIgnoreDefaults.excludesDirectory("a/b/.venv/lib", caseSensitive = true))
-    assertTrue(AnalysisIgnoreDefaults.excludesDirectory("target/classes", caseSensitive = true))
-    assertFalse(AnalysisIgnoreDefaults.excludesDirectory("sub/target", caseSensitive = true))
-    assertFalse(AnalysisIgnoreDefaults.excludesDirectory("src/main", caseSensitive = true))
-    assertTrue(AnalysisIgnoreDefaults.excludesDirectory("Node_Modules/pkg", caseSensitive = false))
-    assertFalse(AnalysisIgnoreDefaults.excludesDirectory("Node_Modules/pkg", caseSensitive = true))
   }
 
   @Test

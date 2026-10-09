@@ -10,12 +10,10 @@ import com.intellij.openapi.components.serviceAsync
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.runBlockingMaybeCancellable
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.SystemInfoRt
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.backend.workspace.WorkspaceModel
-import com.intellij.platform.backend.workspace.virtualFile
 import com.intellij.platform.workspace.storage.EntityStorage
 import com.intellij.platform.workspace.storage.MutableEntityStorage
 import com.intellij.platform.workspace.storage.entities
@@ -420,25 +418,15 @@ private fun EntityStorage.findAnalysisIgnoreEntity(baseDirUrl: String): Analysis
 
 /**
  * Returns the project roots that get a [default entity][AnalysisIgnoreDefaultEntitySource], by their URLs. These are the roots without a
- * `.analysisignore` file at or below them. An empty file counts as a file. A file in a directory that a default line excludes does not
- * count, as one that a package brings into `node_modules`: the defaults hide that directory. The result is empty while the
- * [defaults][AnalysisIgnoreDefaults.areEnabled] are off.
+ * `.analysisignore` file in the root directory. An empty file counts as a file. A file below the root does not count: its lines add to the
+ * defaults. The result is empty while the [defaults][AnalysisIgnoreDefaults.areEnabled] are off.
  */
 private fun EntityStorage.rootsWithDefaults(): Map<String, VirtualFileUrl> {
   if (!AnalysisIgnoreDefaults.areEnabled()) return emptyMap()
-  val fileBaseDirUrls = fileEntities().map { it.baseDir.url }.toList()
+  val fileBaseDirUrls = fileEntities().mapTo(HashSet()) { it.baseDir.url }
   return entities<ProjectRootEntity>()
-    .filter { root -> fileBaseDirUrls.none { removesDefaultsOf(root.root, it) } }
+    .filter { it.root.url !in fileBaseDirUrls }
     .associateBy({ it.root.url }, { it.root })
-}
-
-/** Returns `true` if a file in the directory at [baseDirUrl] removes the defaults of [root]. */
-private fun removesDefaultsOf(root: VirtualFileUrl, baseDirUrl: String): Boolean {
-  if (!isUnderOrEqual(baseDirUrl, root.url)) return false
-  val relativePath = baseDirUrl.substring(root.url.length).trimStart('/')
-  if (relativePath.isEmpty()) return true
-  val caseSensitive = root.virtualFile?.isCaseSensitive ?: SystemInfoRt.isFileSystemCaseSensitive
-  return !AnalysisIgnoreDefaults.excludesDirectory(relativePath, caseSensitive)
 }
 
 /**
@@ -456,7 +444,7 @@ private fun EntityStorage.defaultsInSync(): Boolean {
 
 /**
  * Gives each root of [rootsWithDefaults] a [default entity][AnalysisIgnoreDefaultEntitySource], and removes every other default entity.
- * Thus, the first `.analysisignore` file at or below a root removes its default entity, and the removal of the last one brings it back.
+ * Thus, the `.analysisignore` file in the root directory removes its default entity, and the removal of that file brings it back.
  * Updates the patterns of a default entity from an older product version, or after the user changed the default lines.
  */
 private fun MutableEntityStorage.syncDefaults() {

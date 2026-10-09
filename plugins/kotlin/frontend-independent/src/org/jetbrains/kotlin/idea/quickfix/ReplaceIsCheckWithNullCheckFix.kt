@@ -22,7 +22,11 @@ class ReplaceIsCheckWithNullCheckFix(
         updater: ModPsiUpdater,
     ) {
         val operator = if (element.isNegated) "!=" else "=="
-        val newExpression = KtPsiFactory(context.project).createExpressionByPattern("$0 $operator null", element.leftHandSide)
+        val typeReference = element.typeReference ?: return
+        val triviaStart = element.operationReference.textRange.endOffset - element.textRange.startOffset
+        val triviaEnd = typeReference.textRange.startOffset - element.textRange.startOffset
+        val triviaBeforeType = element.text.substring(triviaStart, triviaEnd)
+        val newExpression = KtPsiFactory(context.project).createExpressionByPattern("$0 $operator${triviaBeforeType}null", element.leftHandSide)
         element.replace(newExpression)
     }
 }

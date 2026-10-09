@@ -11,7 +11,7 @@ import org.gradle.launcher.daemon.protocol.Command
 abstract class DaemonAction(private val myServiceDirectoryPath: String?) {
 
   protected fun getDaemonServices(daemonClientFactory: DaemonClientFactory): ServiceRegistry {
-    return getDaemonServiceFactory(daemonClientFactory, myServiceDirectoryPath)
+    return GradleDaemonServicesFactory.getServices(daemonClientFactory, myServiceDirectoryPath)
   }
 
   companion object {

@@ -1,5 +1,5 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package com.intellij.platform.searchEverywhere.providers.runConfigurations
+package com.intellij.platform.searchEverywhere.backend.providers.runConfigurations
 
 import com.intellij.execution.ExecutorRegistry
 import com.intellij.execution.actions.ChooseRunConfigurationPopup

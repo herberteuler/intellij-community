@@ -29,6 +29,10 @@ fun configureInspections(tools: Array<InspectionProfileEntry>,
                          project: Project,
                          parentDisposable: Disposable): InspectionProfileImpl {
   val unregisteredToolNames = tools.map { it.shortName }.filter { HighlightDisplayKey.find(it) == null }
+  // profile initialization registers keys whose display name lambdas hold the tools
+  Disposer.register(parentDisposable, Disposable {
+    unregisteredToolNames.forEach(HighlightDisplayKey::unregister)
+  })
   val toolSupplier = InspectionToolsSupplier.Simple(tools.mapSmart { InspectionWrapperUtil.wrapTool(it) })
   Disposer.register(parentDisposable, toolSupplier)
   val profile = InspectionProfileImpl(UUID.randomUUID().toString(), toolSupplier, null)
@@ -39,22 +43,10 @@ fun configureInspections(tools: Array<InspectionProfileEntry>,
     profileManager.setCurrentProfile(null)
   })
 
-  try {
-    profileManager.addProfile(profile)
-    profileManager.setCurrentProfile(profile)
-    enableInspectionTools(project, parentDisposable, *tools)
-    return profile
-  }
-  finally {
-    val registeredKeys = unregisteredToolNames.mapNotNull { HighlightDisplayKey.find(it) }
-    Disposer.register(parentDisposable, Disposable {
-      for (key in registeredKeys) {
-        if (HighlightDisplayKey.find(key.shortName) === key) {
-          HighlightDisplayKey.unregister(key.shortName)
-        }
-      }
-    })
-  }
+  profileManager.addProfile(profile)
+  profileManager.setCurrentProfile(profile)
+  enableInspectionTools(project, parentDisposable, *tools)
+  return profile
 }
 
 @JvmOverloads

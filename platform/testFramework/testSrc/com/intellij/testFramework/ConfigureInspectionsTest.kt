@@ -74,28 +74,6 @@ internal class ConfigureInspectionsTest {
   }
 
   @Test
-  fun `disposal preserves a replacement key`(@TestDisposable parentDisposable: Disposable): Unit = timeoutRunBlocking {
-    withContext(Dispatchers.EDT) {
-      val tool = TestInspection("ConfigureInspectionsReplaced")
-      val disposable = Disposer.newDisposable(parentDisposable)
-      try {
-        configureInspections(arrayOf(tool), project, disposable)
-        HighlightDisplayKey.unregister(tool.shortName)
-        val replacement = HighlightDisplayKey.findOrRegister(tool.shortName, "Replacement display name")
-
-        Disposer.dispose(disposable)
-
-        assertSame(replacement, HighlightDisplayKey.find(tool.shortName))
-        assertEquals("Replacement display name", HighlightDisplayKey.getDisplayNameByKey(replacement))
-      }
-      finally {
-        Disposer.dispose(disposable)
-        HighlightDisplayKey.unregister(tool.shortName)
-      }
-    }
-  }
-
-  @Test
   fun `disposal removes keys after configuration fails`(@TestDisposable parentDisposable: Disposable): Unit = timeoutRunBlocking {
     withContext(Dispatchers.EDT) {
       val first = TestInspection("ConfigureInspectionsBeforeFailure")

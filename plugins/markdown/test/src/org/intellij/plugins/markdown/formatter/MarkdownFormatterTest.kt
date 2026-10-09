@@ -60,6 +60,8 @@ class MarkdownFormatterTest: LightPlatformCodeInsightTestCase() {
 
   fun `test codespan`() = doTest()
 
+  fun `test reflow codespan`() = doTest(rightMargin = 120)
+
   fun `test tables`() = doTest()
 
   fun `test reflow`() = doTest()

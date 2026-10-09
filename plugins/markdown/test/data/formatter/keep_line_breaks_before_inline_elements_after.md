@@ -9,3 +9,6 @@ First line of a paragraph
 
 First line of a paragraph
 (parenthesis) continues on the second line.
+
+First line of a paragraph
+`code` continues on the second line.

@@ -48,6 +48,7 @@ internal open class MarkdownFormattingBlock(
       MarkdownElementTypes.STRONG,
       MarkdownElementTypes.STRIKETHROUGH,
       MarkdownElementTypes.HIGHLIGHT,
+      MarkdownElementTypes.CODE_SPAN,
       MarkdownTokenTypes.LPAREN,
       MarkdownTokenTypes.RPAREN
     )
@@ -90,18 +91,25 @@ internal open class MarkdownFormattingBlock(
       return Spacing.getReadOnlySpacing()
     }
     val result = spacing.getSpacing(this, child1, child2)
-    if (result != null && isTextGluedToFollowingInline(child1, child2)) {
+    if (result != null && isTextGluedToInline(child1, child2)) {
       return Spacing.createSpacing(0, 0, 0, false, 0)
     }
     return result
   }
 
-  private fun isTextGluedToFollowingInline(child1: Block?, child2: Block): Boolean {
+  private fun isTextGluedToInline(child1: Block?, child2: Block): Boolean {
     val node1 = (child1 as? AbstractBlock)?.node ?: return false
     val node2 = (child2 as? AbstractBlock)?.node ?: return false
-    return node1.elementType == MarkdownTokenTypes.TEXT
-           && node2.elementType in TEXT_SEPARATED_INLINE_ELEMENTS
-           && child1.textRange.endOffset == child2.textRange.startOffset
+    val areAdjacent = child1.textRange.endOffset == child2.textRange.startOffset
+    return areAdjacent && isTextAndInlineElementPair(node1, node2)
+  }
+
+  private fun isTextAndInlineElementPair(node1: ASTNode, node2: ASTNode): Boolean {
+    return when {
+      node1.elementType == MarkdownTokenTypes.TEXT -> node2.elementType in TEXT_SEPARATED_INLINE_ELEMENTS
+      node2.elementType == MarkdownTokenTypes.TEXT -> node1.elementType in TEXT_SEPARATED_INLINE_ELEMENTS
+      else -> false
+    }
   }
 
   override fun getIndent(): Indent? {

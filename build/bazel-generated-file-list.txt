@@ -1782,6 +1782,7 @@ plugins/settings-sync/settingsSync.performanceTesting
 plugins/sh/backend
 plugins/sh/copyright
 plugins/sh/core
+plugins/sh/execution
 plugins/sh/markdown
 plugins/sh/plugin
 plugins/sh/python

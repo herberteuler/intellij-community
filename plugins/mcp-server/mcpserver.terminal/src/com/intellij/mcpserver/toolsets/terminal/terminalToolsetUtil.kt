@@ -19,7 +19,7 @@ import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.io.toNioPathOrNull
 import com.intellij.openapi.wm.ToolWindow
-import com.intellij.sh.run.ShConfigurationType
+import com.intellij.sh.run.getDefaultShell
 import com.intellij.terminal.TerminalExecutionConsole
 import com.intellij.ui.content.ContentFactory
 import com.intellij.util.execution.ParametersListUtil
@@ -44,7 +44,7 @@ internal suspend fun executeShellCommand(
   maxLinesCount: Int,
   truncateMode: TruncateMode = TruncateMode.START,
 ): CommandExecutionResult {
-  val defaultShell = ShConfigurationType.getDefaultShell(project)
+  val defaultShell = getDefaultShell(project)
 
   val commandLine = if (executeInShell) {
     GeneralCommandLine(defaultShell, "-c", command)

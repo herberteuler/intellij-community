@@ -29,6 +29,7 @@ import com.intellij.sh.psi.ShFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.jetbrains.annotations.ApiStatus
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
@@ -42,7 +43,8 @@ import java.nio.file.Path
  * the interpreter, the [ShRunnerAdditionalCondition] exclusions and the default shell belong to the host. [ShRunner]
  * then delivers the command to the frontend that owns the terminal.
  */
-internal class ShRunFileAction : DumbAwareAction(), ActionRemoteBehaviorSpecification.BackendOnly {
+@ApiStatus.Internal
+class ShRunFileAction : DumbAwareAction(), ActionRemoteBehaviorSpecification.BackendOnly {
   override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
   override fun update(e: AnActionEvent) {
@@ -77,7 +79,7 @@ internal class ShRunFileAction : DumbAwareAction(), ActionRemoteBehaviorSpecific
     val scriptPath = toEelPath(virtualFile, nioPath, projectDescriptor) ?: return null
     val (interpreter, interpreterOptions) = when {
       shebang != null -> ShShebangParserUtil.parseInterpreterAndOptions(shebang).let { it.first to it.second }
-      isShellFile -> toTargetPath(ShConfigurationType.getDefaultShell(project)) to ""
+      isShellFile -> toTargetPath(getDefaultShell(project)) to ""
       // A file of another language with a `#!` first line runs by its own shebang.
       else -> "" to ""
     }
@@ -129,7 +131,7 @@ internal class ShRunFileAction : DumbAwareAction(), ActionRemoteBehaviorSpecific
       }
     }
 
-    /** [ShConfigurationType.getDefaultShell] answers with a nio path; a routed one is converted to the target spelling. */
+    /** [getDefaultShell] answers with a nio path; a routed one is converted to the target spelling. */
     private fun toTargetPath(path: String): String {
       if (path.isEmpty()) return path
       return try {

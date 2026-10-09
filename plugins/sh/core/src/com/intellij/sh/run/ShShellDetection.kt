@@ -3,10 +3,31 @@
 package com.intellij.sh.run
 
 import com.intellij.openapi.progress.runBlockingMaybeCancellable
+import com.intellij.openapi.project.Project
 import com.intellij.platform.eel.EelDescriptor
+import com.intellij.platform.eel.provider.LocalEelDescriptor
 import com.intellij.platform.eel.provider.asNioPath
+import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.platform.eel.provider.toEelApiBlocking
+import org.jetbrains.annotations.ApiStatus
 import java.nio.file.Path
+
+/**
+ * Returns the path to the default shell for the [project].
+ * A registered [ShDefaultShellPathProvider] gives the path for a local project.
+ * For other projects, the path comes from [detectDefaultShell].
+ */
+@ApiStatus.Internal
+fun getDefaultShell(project: Project): String {
+  val shellPathProvider = project.getService(ShDefaultShellPathProvider::class.java)
+  val eelDescriptor = if (project.isDefault) LocalEelDescriptor else project.getEelDescriptor()
+
+  if (shellPathProvider != null && eelDescriptor == LocalEelDescriptor) { // todo: remove this check when terminal will be migrated to eel
+    @Suppress("DEPRECATION")
+    return shellPathProvider.defaultShell
+  }
+  return eelDescriptor.detectDefaultShell().toString()
+}
 
 /**
  * Resolves the user's default login shell on the [EelDescriptor]'s target (local, WSL or Docker) by reading the system passwd database

@@ -7,12 +7,9 @@ import com.intellij.execution.configurations.SimpleConfigurationType;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.NotNullLazyValue;
-import com.intellij.platform.eel.provider.LocalEelDescriptor;
 import com.intellij.sh.ShBundle;
 import com.intellij.sh.ShLanguage;
 import org.jetbrains.annotations.NotNull;
-
-import static com.intellij.platform.eel.provider.EelProviderUtil.getEelDescriptor;
 
 public final class ShConfigurationType extends SimpleConfigurationType {
   ShConfigurationType() {
@@ -24,7 +21,7 @@ public final class ShConfigurationType extends SimpleConfigurationType {
   @Override
   public @NotNull RunConfiguration createTemplateConfiguration(@NotNull Project project) {
     ShRunConfiguration configuration = new ShRunConfiguration(project, this, ShLanguage.INSTANCE.getID());
-    String defaultShell = getDefaultShell(project);
+    String defaultShell = ShShellDetection.getDefaultShell(project);
     configuration.setInterpreterPath(defaultShell);
     String projectPath = project.getBasePath();
     if (projectPath != null) {
@@ -42,16 +39,11 @@ public final class ShConfigurationType extends SimpleConfigurationType {
     return true;
   }
 
+  /**
+   * @deprecated use {@link ShShellDetection#getDefaultShell} instead
+   */
+  @Deprecated
   public static @NotNull String getDefaultShell(@NotNull Project project) {
-    final var shellPathProvider = project.getService(ShDefaultShellPathProvider.class);
-    final var eelDescriptor = project.isDefault() ? LocalEelDescriptor.INSTANCE : getEelDescriptor(project);
-
-    if (shellPathProvider != null
-        && eelDescriptor == LocalEelDescriptor.INSTANCE) { // todo: remove this check when terminal will be migrated to eel
-      return shellPathProvider.getDefaultShell();
-    }
-    else {
-      return ShShellDetection.detectDefaultShell(eelDescriptor).toString();
-    }
+    return ShShellDetection.getDefaultShell(project);
   }
 }

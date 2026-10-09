@@ -16,6 +16,7 @@ import com.intellij.sh.parser.ShShebangParserUtil;
 import com.intellij.sh.psi.ShFile;
 import com.intellij.sh.run.ShConfigurationType;
 import com.intellij.sh.run.ShRunConfiguration;
+import com.intellij.sh.run.ShShellDetection;
 import com.intellij.testFramework.LightVirtualFile;
 import org.jetbrains.annotations.NotNull;
 
@@ -39,7 +40,7 @@ final class ShRunConfigurationProducer extends LazyRunConfigurationProducer<ShRu
     if (virtualFile == null || virtualFile instanceof LightVirtualFile) return false;
     if (!TrustedFiles.isTrusted(virtualFile, psiFile.getProject())) return false;
 
-    String defaultShell = ShConfigurationType.getDefaultShell(psiFile.getProject());
+    String defaultShell = ShShellDetection.getDefaultShell(psiFile.getProject());
     String shebang = ShShebangParserUtil.getShebangExecutable((ShFile)psiFile);
     if (shebang != null) {
       Pair<String, String> result = parseInterpreterAndOptions(shebang);

@@ -12,7 +12,7 @@ import org.jetbrains.annotations.ApiStatus
  * Every path parameter is expected in the spelling of the environment the shell runs in (an `EelPath` string), and
  * [osFamily] is that environment's OS: quoting follows the target shell, not the IDE host. No I/O happens here, so the
  * builder is shared by [ShRunFileAction] (any product mode) and by the run configuration's terminal branch
- * ([ShRunConfigurationProfileState]).
+ * (`ShRunConfigurationProfileState` in the `intellij.sh.execution` module).
  */
 @ApiStatus.Internal
 object ShTerminalCommandBuilder {

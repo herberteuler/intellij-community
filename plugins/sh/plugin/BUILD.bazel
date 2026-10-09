@@ -6,6 +6,7 @@ dev_dist_plugin(
     content_modules = [
         # do not sort,
         "intellij.sh.core",
+        "intellij.sh.execution",
         "intellij.sh.backend",
         "intellij.sh.terminal",
         "intellij.sh.terminal.frontend",
@@ -69,6 +70,7 @@ jvm_library(
         # do not sort,
         "//plugins/sh/plugin",
         "//plugins/sh/core",
+        "//plugins/sh/execution",
         "//plugins/sh/backend",
         "//plugins/sh/terminal",
         "//plugins/sh/copyright",
@@ -92,6 +94,7 @@ jvm_library(
         ":plugin-main",
         "//plugins/sh/plugin:plugin_test_lib",
         "//plugins/sh/core:core_test_lib",
+        "//plugins/sh/execution:execution_test_lib",
         "//plugins/sh/backend:backend_test_lib",
         "//plugins/sh/terminal:terminal_test_lib",
         "//plugins/sh/copyright:copyright_test_lib",

@@ -65,7 +65,6 @@ import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.threadDumpParser.ThreadDumpParser;
 import com.intellij.threadDumpParser.ThreadState;
 import com.intellij.unscramble.AnalyzeStacktraceUtil;
-import com.intellij.unscramble.ThreadDumpConsoleFactory;
 import com.intellij.util.BitUtil;
 import com.intellij.util.TimeoutUtil;
 import com.intellij.util.concurrency.AppExecutorUtil;

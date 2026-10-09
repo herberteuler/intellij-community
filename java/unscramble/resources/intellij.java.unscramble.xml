@@ -3,6 +3,7 @@
   <dependencies>
     <module name="intellij.platform.backend"/>
     <module name="intellij.java"/>
+    <module name="intellij.java.execution.impl"/>
     <module name="intellij.java.impl"/>
     <module name="intellij.platform.concurrency"/>
     <module name="intellij.platform.core"/>

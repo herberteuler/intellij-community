@@ -4,6 +4,7 @@ package com.intellij.unscramble
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.filters.Filter
 import com.intellij.execution.filters.TextConsoleBuilderFactory
+import com.intellij.execution.impl.AnalyzeStacktraceConsoleUtil
 import com.intellij.execution.impl.ConsoleViewImpl
 import com.intellij.execution.impl.ConsoleViewUtil
 import com.intellij.execution.ui.ConsoleView
@@ -32,7 +33,6 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.util.text.Strings
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
-import com.intellij.util.concurrency.ThreadingAssertions
 import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -58,10 +58,8 @@ class AnalyzeStacktraceUtil private constructor() {
 
     @JvmStatic
     fun printStacktrace(consoleView: ConsoleView, unscrambledTrace: String, consoleViewContentType: ConsoleViewContentType) {
-      ThreadingAssertions.assertEventDispatchThread()
-      consoleView.clear()
-      consoleView.print(unscrambledTrace + "\n", consoleViewContentType)
-      consoleView.scrollTo(0)
+      //todo migrate usages of this and other functions that don't depend on classes from execution to use utilities located in consoleView module
+      AnalyzeStacktraceConsoleUtil.printStacktrace(consoleView, unscrambledTrace, consoleViewContentType)
     }
 
     @JvmStatic

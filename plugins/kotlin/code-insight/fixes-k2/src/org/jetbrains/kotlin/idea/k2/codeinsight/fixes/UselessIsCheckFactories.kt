@@ -4,11 +4,23 @@ package org.jetbrains.kotlin.idea.k2.codeinsight.fixes
 import com.intellij.codeInspection.util.IntentionFamilyName
 import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModPsiUpdater
+import com.intellij.psi.SyntaxTraverser
+import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.dataflow.smartCastInfo
+import org.jetbrains.kotlin.analysis.api.expressions.expectedType
+import org.jetbrains.kotlin.analysis.api.expressions.expressionType
 import org.jetbrains.kotlin.analysis.api.fir.diagnostics.KaFirDiagnostic
+import org.jetbrains.kotlin.analysis.api.resolution.resolveSuccessfulSymbol
 import org.jetbrains.kotlin.analysis.api.resolution.single
 import org.jetbrains.kotlin.analysis.api.resolution.tryResolveCall
 import org.jetbrains.kotlin.analysis.api.resolution.variable
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
+import org.jetbrains.kotlin.analysis.api.types.KaStandardTypeClassIds
+import org.jetbrains.kotlin.analysis.api.types.KaType
+import org.jetbrains.kotlin.analysis.api.types.classId
 import org.jetbrains.kotlin.analysis.api.types.isMarkedNullable
+import org.jetbrains.kotlin.analysis.api.types.isSubtypeOf
+import org.jetbrains.kotlin.analysis.api.types.semanticallyEquals
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.intentions.KotlinPsiUpdateModCommandAction
 import org.jetbrains.kotlin.idea.codeinsight.api.applicators.fixes.KotlinQuickFixFactory
@@ -17,12 +29,18 @@ import org.jetbrains.kotlin.idea.quickfix.RemoveUselessIsCheckFix
 import org.jetbrains.kotlin.idea.quickfix.RemoveUselessIsCheckFixForWhen
 import org.jetbrains.kotlin.idea.quickfix.ReplaceIsCheckWithNullCheckFix
 import org.jetbrains.kotlin.idea.util.CommentSaver
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtContainerNode
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtIfExpression
 import org.jetbrains.kotlin.psi.KtIsExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNullableType
+import org.jetbrains.kotlin.psi.KtParenthesizedExpression
+import org.jetbrains.kotlin.psi.KtPrefixExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import org.jetbrains.kotlin.psi.KtReferenceExpression
 import org.jetbrains.kotlin.psi.KtWhenCondition
 import org.jetbrains.kotlin.psi.KtWhenConditionIsPattern
 import org.jetbrains.kotlin.psi.KtWhenEntry
@@ -59,6 +77,7 @@ internal object UselessIsCheckFactories {
             val element = diagnostic.psi.takeIf { it.isWritable } ?: return@ModCommandBased emptyList()
             val expression = element.getNonStrictParentOfType<KtIsExpression>()
             if (expression != null) {
+                if (isSmartCastFromIsCheckUsed(expression)) return@ModCommandBased emptyList()
                 return@ModCommandBased listOf(ReplaceIsCheckWithNullCheckFix(expression))
             }
             val condition = element.getNonStrictParentOfType<KtWhenConditionIsPattern>()
@@ -113,6 +132,93 @@ internal object UselessIsCheckFactories {
             listOf(RemoveUselessIsCheckFixForWhen(expression, diagnostic.compileTimeCheckResult()))
         }
 
+}
+
+context(_: KaSession)
+private fun isSmartCastFromIsCheckUsed(expression: KtIsExpression): Boolean {
+    val values = getValuesInExpression(expression)
+    if (values.isEmpty()) return false
+
+    return getConditionScopes(expression, value = !expression.isNegated)
+        .asSequence()
+        .flatMap { scope -> SyntaxTraverser.psiTraverser(scope) }
+        .filterIsInstance<KtReferenceExpression>()
+        .any { reference ->
+            val info = reference.smartCastInfo ?: return@any false
+            val type = values[reference.resolveSuccessfulSymbol()] ?: return@any false
+            if (info.smartCastType.semanticallyEquals(type)) return@any false
+
+            val expectedType = reference.expectedType
+            expectedType == null || !type.isSubtypeOf(expectedType)
+        }
+}
+
+context(_: KaSession)
+private fun getValuesInExpression(expression: KtExpression): Map<KaSymbol, KaType> {
+    val map = hashMapOf<KaSymbol, KaType>()
+    SyntaxTraverser.psiTraverser(expression)
+        .filter(KtReferenceExpression::class.java)
+        .forEach { reference ->
+            val symbol = reference.resolveSuccessfulSymbol()
+            val type = reference.expressionType
+            if (symbol != null && type != null) {
+                map[symbol] = type
+            }
+        }
+    return map
+}
+
+context(_: KaSession)
+private fun getConditionScopes(expression: KtExpression, value: Boolean): List<KtElement> {
+    return when (val parent = expression.parent) {
+        is KtPrefixExpression ->
+            if (parent.operationToken == KtTokens.EXCL) {
+                getConditionScopes(parent, !value)
+            } else {
+                emptyList()
+            }
+
+        is KtParenthesizedExpression ->
+            getConditionScopes(parent, value)
+
+        is KtContainerNode -> {
+            val ifExpression = parent.parent as? KtIfExpression ?: return emptyList()
+            if (ifExpression.condition == expression) {
+                ifExpression.getSmartCastScopes(value)
+            } else {
+                emptyList()
+            }
+        }
+
+        is KtIfExpression ->
+            if (parent.condition == expression) {
+                parent.getSmartCastScopes(value)
+            } else {
+                emptyList()
+            }
+
+        else -> emptyList()
+    }
+}
+
+context(_: KaSession)
+private fun KtIfExpression.getSmartCastScopes(value: Boolean): List<KtExpression> {
+    val result = mutableListOf<KtExpression>()
+    if (value) {
+        then?.let(result::add)
+    } else {
+        `else`?.let(result::add)
+    }
+
+    val branchThatExits = if (value) `else` else then
+    if (branchThatExits?.expressionType?.classId == KaStandardTypeClassIds.NOTHING) {
+        var next = nextSibling
+        while (next != null) {
+            if (next is KtExpression) result += next
+            next = next.nextSibling
+        }
+    }
+    return result
 }
 
 private class ReplaceWhenIsCheckWithNullCheckFix(

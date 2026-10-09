@@ -4,7 +4,10 @@ package org.jetbrains.kotlin.idea.k2.codeinsight.fixes
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.fir.diagnostics.KaFirDiagnostic
 import org.jetbrains.kotlin.idea.codeinsight.api.applicators.fixes.KotlinQuickFixFactory
+import org.jetbrains.kotlin.idea.quickfix.RemoveModifierFixBase
 import org.jetbrains.kotlin.idea.quickfix.RemoveSupertypeFix
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtSuperTypeListEntry
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
@@ -16,12 +19,20 @@ internal object RemoveSupertypeFixFactory {
 
     val valueClassCannotExtendIdentityClassesFixFactory =
         KotlinQuickFixFactory.ModCommandBased { diagnostic: KaFirDiagnostic.ValueClassCannotExtendIdentityClasses ->
-            createRemoveSupertypeFix(diagnostic.psi)
+            createRemoveSupertypeFix(diagnostic.psi) + createRemoveValueModifierFix(diagnostic.psi)
         }
 
     private fun createRemoveSupertypeFix(element: PsiElement): List<RemoveSupertypeFix> {
         val superType = element.getStrictParentOfType<KtSuperTypeListEntry>() ?: return emptyList()
 
         return listOf(RemoveSupertypeFix(superType))
+    }
+
+    private fun createRemoveValueModifierFix(element: PsiElement): List<RemoveModifierFixBase> {
+        val valueClass = element.getStrictParentOfType<KtClass>()
+            ?.takeIf { it.hasModifier(KtTokens.VALUE_KEYWORD) }
+            ?: return emptyList()
+
+        return listOf(RemoveModifierFixBase(valueClass, KtTokens.VALUE_KEYWORD, isRedundant = false))
     }
 }

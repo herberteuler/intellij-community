@@ -15,7 +15,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.intellij.plugins.markdown.editor.livepreview.enableLivePreview
 import org.intellij.plugins.markdown.editor.tables.ui.presentation.HorizontalBarPresentation
 import org.intellij.plugins.markdown.lang.psi.impl.MarkdownTable
-import org.intellij.plugins.markdown.settings.MarkdownApplicationSettings
+import org.intellij.plugins.markdown.settings.MarkdownSettings
 
 @Suppress("MarkdownIncorrectTableFormatting")
 class MarkdownTableInlayHintsPassTest : BasePlatformTestCase() {
@@ -140,7 +140,7 @@ class MarkdownTableInlayHintsPassTest : BasePlatformTestCase() {
 
   /** The visual alignment pads the cells with its own inlays after a commit, which makes the bar width move. */
   private fun disableVisualAlignment() {
-    val settings = MarkdownApplicationSettings.getInstance()
+    val settings = MarkdownSettings.getInstance()
     val previous = settings.alignTableCellsVisually
     settings.alignTableCellsVisually = false
     Disposer.register(testRootDisposable) { settings.alignTableCellsVisually = previous }

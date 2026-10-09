@@ -109,6 +109,20 @@ class MarkdownSettingsReconciliationTest {
   }
 
   @Test
+  fun `the project adapter uses application table alignment`(): Unit = timeoutRunBlocking {
+    val adapter = MarkdownSettings.getInstance(project)
+    val settings = MarkdownSettings.getInstance()
+
+    adapter.alignTableCellsVisually = false
+    assertFalse(settings.alignTableCellsVisually)
+    reconcile(project)
+    assertFalse(settings.alignTableCellsVisually)
+
+    settings.alignTableCellsVisually = true
+    assertTrue(adapter.alignTableCellsVisually)
+  }
+
+  @Test
   fun `saved project preferences migrate without paths and preserve the application font`(): Unit = timeoutRunBlocking {
     val settings = MarkdownSettings.getInstance()
     settings.fontSize = 22

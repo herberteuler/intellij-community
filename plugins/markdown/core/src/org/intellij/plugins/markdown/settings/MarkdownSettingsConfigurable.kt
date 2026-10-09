@@ -71,9 +71,6 @@ internal class MarkdownSettingsConfigurable(private val project: Project) : Boun
   private val settings
     get() = MarkdownSettings.getInstance()
 
-  private val appSettings
-    get() = MarkdownApplicationSettings.getInstance()
-
   private val stylesheetSettings
     get() = MarkdownStylesheetSettings.getInstance(project)
 
@@ -119,9 +116,9 @@ internal class MarkdownSettingsConfigurable(private val project: Project) : Boun
       row {
         checkBox(MarkdownBundle.message("markdown.settings.align.table.cells.visually"))
           .bindSelected(
-            getter = { appSettings.alignTableCellsVisually },
+            getter = { settings.alignTableCellsVisually },
             setter = {
-              appSettings.alignTableCellsVisually = it
+              settings.alignTableCellsVisually = it
               MarkdownTableAlignmentSettingsListener.fireChanged()
             }
           )

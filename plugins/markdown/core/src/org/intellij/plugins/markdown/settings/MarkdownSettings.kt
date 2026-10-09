@@ -30,6 +30,10 @@ class MarkdownSettings private constructor(private val legacyProject: Project?):
   private val preferences: MarkdownSettingsState
     get() = if (legacyProject == null) state else getInstance().state
 
+  var alignTableCellsVisually: Boolean
+    get() = preferences.alignTableCellsVisually
+    set(value) { preferences.alignTableCellsVisually = value }
+
   var areInjectionsEnabled: Boolean
     get() = preferences.areInjectionsEnabled
     set(value) { preferences.areInjectionsEnabled = value }

@@ -9,7 +9,7 @@ import com.intellij.testFramework.LightPlatformCodeInsightTestCase
 import com.intellij.testFramework.MockFontLayoutService
 import com.intellij.markdown.frontend.editor.tables.ui.alignment.MarkdownTableAlignmentController
 import org.intellij.plugins.markdown.editor.tables.ui.MarkdownTableInlayProvider
-import org.intellij.plugins.markdown.settings.MarkdownApplicationSettings
+import org.intellij.plugins.markdown.settings.MarkdownSettings
 
 @Suppress("MarkdownIncorrectTableFormatting", "MarkdownNoTableBorders")
 class MarkdownTableAlignmentModelTest : LightPlatformCodeInsightTestCase() {
@@ -137,7 +137,7 @@ class MarkdownTableAlignmentModelTest : LightPlatformCodeInsightTestCase() {
       it.start()
     }
 
-    val settings = MarkdownApplicationSettings.getInstance()
+    val settings = MarkdownSettings.getInstance()
     val previous = settings.alignTableCellsVisually
     try {
       settings.alignTableCellsVisually = false
@@ -240,7 +240,7 @@ class MarkdownTableAlignmentModelTest : LightPlatformCodeInsightTestCase() {
   }
 
   private fun withSettingDisabled(action: () -> Unit) {
-    val settings = MarkdownApplicationSettings.getInstance()
+    val settings = MarkdownSettings.getInstance()
     val previous = settings.alignTableCellsVisually
     settings.alignTableCellsVisually = false
     try {
